@@ -3,6 +3,7 @@ package org.ihtsdo.snowowl.authoring.single.api.batchImport.pojo;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.ihtsdo.otf.rest.client.snowowl.pojo.RelationshipPojo;
 import org.ihtsdo.otf.rest.exception.ProcessingException;
 import org.ihtsdo.snowowl.authoring.single.api.batchImport.service.BatchImportService;
 
@@ -11,9 +12,9 @@ import com.b2international.snowowl.snomed.api.domain.browser.ISnomedBrowserRelat
 
 public class BatchImportGroup {
 	int groupNumber;
-	List <ISnomedBrowserRelationship> relationships = new ArrayList<ISnomedBrowserRelationship>();
+	List <RelationshipPojo> relationships = new ArrayList<>();
 	
-	public List<ISnomedBrowserRelationship> getRelationships() {
+	public List<RelationshipPojo> getRelationships() {
 		return relationships;
 	}
 
@@ -27,13 +28,13 @@ public class BatchImportGroup {
 		int attributeNumber = 0;
 		for (String thisAttribute : attributes) {
 			String tmpId = "rel_" + groupNumber + "." + (attributeNumber++);
-			ISnomedBrowserRelationship relationship = parseAttribute(groupNumber, tmpId, thisAttribute);
+			RelationshipPojo relationship = parseAttribute(groupNumber, tmpId, thisAttribute);
 			thisGroup.relationships.add(relationship);
 		}
 		return thisGroup;
 	}
 
-	private static ISnomedBrowserRelationship parseAttribute(int groupNum, String tmpId, String thisAttribute) throws ProcessingException {
+	private static RelationshipPojo parseAttribute(int groupNum, String tmpId, String thisAttribute) throws ProcessingException {
 		//Expected format  type=value so bomb out if we don't end up with two concepts
 		String[] attributeParts = thisAttribute.split(BatchImportExpression.TYPE_SEPARATOR);
 		if (attributeParts.length != 2) {
