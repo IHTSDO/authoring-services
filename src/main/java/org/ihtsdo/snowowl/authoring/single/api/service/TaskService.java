@@ -84,6 +84,7 @@ public class TaskService {
 	private final String jiraProjectPromotionField;
 	private final String jiraProjectMrcmField;
 	private final String jiraCrsIdField;
+	private final String jiraProjectTemplatesField;
 
 	private LoadingCache<String, ProjectDetails> projectDetailsCache;
 	private final ExecutorService executorService;
@@ -101,6 +102,7 @@ public class TaskService {
 		jiraProjectPromotionField = JiraHelper.fieldIdLookup("SCA Project Promotion", jiraClientForFieldLookup);
 		jiraProjectMrcmField = JiraHelper.fieldIdLookup("SCA Project MRCM", jiraClientForFieldLookup);
 		jiraCrsIdField = JiraHelper.fieldIdLookup("CRS-ID", jiraClientForFieldLookup);
+		jiraProjectTemplatesField = JiraHelper.fieldIdLookup("SCA Project Templates", jiraClientForFieldLookup);
 		logger.info("Jira custom field names fetched. (e.g. {}).", jiraExtensionBaseField);
 		executorService = Executors.newCachedThreadPool();
 
@@ -187,6 +189,7 @@ public class TaskService {
 
 				final boolean promotionDisabled = "Disabled".equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectPromotionField)));
 				final boolean mrcmDisabled = "Disabled".equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectMrcmField)));
+				final boolean templatesDisabled = "Disabled".equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectTemplatesField)));
 
 				final Branch branchOrNull = branchService.getBranchOrNull(branchPath);
 				String parentPath = PathHelper.getParentPath(branchPath);
@@ -213,7 +216,7 @@ public class TaskService {
 				Map<String, JiraProject> projectMap = unfilteredProjects.get();
 				JiraProject project = projectMap.get(projectKey);
 				final AuthoringProject authoringProject = new AuthoringProject(projectKey, project.getName(),
-						project.getLead(), branchPath, branchState, latestClassificationJson, promotionDisabled, mrcmDisabled);
+						project.getLead(), branchPath, branchState, latestClassificationJson, promotionDisabled, mrcmDisabled, templatesDisabled);
 				authoringProject.setMetadata(metadata);
 				synchronized (authoringProjects) {
 					authoringProjects.add(authoringProject);
