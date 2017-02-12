@@ -5,9 +5,6 @@ import com.wordnik.swagger.annotations.ApiOperation;
 import com.wordnik.swagger.annotations.ApiResponse;
 import com.wordnik.swagger.annotations.ApiResponses;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
-import org.ihtsdo.snowowl.api.rest.common.AbstractRestService;
-import org.ihtsdo.snowowl.api.rest.common.AbstractSnomedRestService;
-import org.ihtsdo.snowowl.api.rest.common.ControllerHelper;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.Notification;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.UserFocusRequest;
 import org.ihtsdo.snowowl.authoring.single.api.service.NotificationService;
@@ -25,8 +22,8 @@ import java.util.List;
 
 @Api("Notifications")
 @RestController
-@RequestMapping(produces={AbstractRestService.V1_MEDIA_TYPE, MediaType.APPLICATION_JSON_VALUE})
-public class NotificationController extends AbstractSnomedRestService {
+@RequestMapping(produces={MediaType.APPLICATION_JSON_VALUE})
+public class NotificationController {
 
 	@Autowired
 	private NotificationService notificationService;

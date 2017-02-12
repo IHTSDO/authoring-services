@@ -14,7 +14,8 @@ import javax.jms.JMSException;
 import javax.jms.TextMessage;
 
 import org.ihtsdo.otf.jms.MessagingHelper;
-import org.ihtsdo.otf.rest.client.OrchestrationRestClient;
+import org.ihtsdo.otf.rest.client.orchestration.OrchestrationRestClient;
+import org.ihtsdo.otf.rest.client.snowowl.PathHelper;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.EntityType;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.Notification;
@@ -27,7 +28,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jms.annotation.JmsListener;
 import org.springframework.stereotype.Component;
 
-import com.b2international.snowowl.core.Metadata;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
@@ -126,7 +126,7 @@ public class ValidationService {
 
 	private Status doStartValidation(String path, String username, String projectKey, String taskKey, String effectiveTime) throws BusinessServiceException {
 		try {
-			final Metadata mergedBranchMetadata = branchService.getBranchMetadataIncludeInherited(path);
+			final Map<String, Object> mergedBranchMetadata = branchService.getBranchMetadataIncludeInherited(path);
 			Map<String, String> properties = new HashMap<>();
 			copyProperty(ASSERTION_GROUP_NAMES, mergedBranchMetadata, properties);
 			copyProperty(PREVIOUS_RELEASE, mergedBranchMetadata, properties);
@@ -149,11 +149,13 @@ public class ValidationService {
 			return new Status(STATUS_SCHEDULED);
 		} catch (JsonProcessingException | JMSException e) {
 			throw new BusinessServiceException("Failed to send validation request, please contact support.", e);
+		} catch (ServiceException e) {
+			throw new BusinessServiceException("Failed to read branch information, validation request not sent.", e);
 		}
 	}
 
-	private void copyProperty(String key, Metadata metadata, Map<String, String> properties) {
-		final String value = metadata.getString(key);
+	private void copyProperty(String key, Map<String, Object> metadata, Map<String, String> properties) {
+		final String value = (String) metadata.get(key);
 		if (!Strings.isNullOrEmpty(value)) {
 			properties.put(key, value);
 		}

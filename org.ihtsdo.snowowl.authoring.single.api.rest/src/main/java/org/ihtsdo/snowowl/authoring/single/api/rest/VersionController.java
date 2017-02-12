@@ -1,24 +1,25 @@
 package org.ihtsdo.snowowl.authoring.single.api.rest;
 
-import org.ihtsdo.snowowl.api.rest.common.AbstractRestService;
-import org.ihtsdo.snowowl.api.rest.common.AbstractSnomedRestService;
-import org.springframework.http.MediaType;
-
 import com.wordnik.swagger.annotations.Api;
 import com.wordnik.swagger.annotations.ApiOperation;
-
-import org.springframework.web.bind.annotation.*;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpServletRequest;
-
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
 @Api("Version")
 @RestController
-@RequestMapping(produces = { AbstractRestService.V1_MEDIA_TYPE, MediaType.APPLICATION_JSON_VALUE })
-public class VersionController extends AbstractSnomedRestService {
+@RequestMapping(produces = {MediaType.APPLICATION_JSON_VALUE })
+public class VersionController {
 
 	public static final String VERSION_FILE_PATH = "/opt/sca/version.txt";
 

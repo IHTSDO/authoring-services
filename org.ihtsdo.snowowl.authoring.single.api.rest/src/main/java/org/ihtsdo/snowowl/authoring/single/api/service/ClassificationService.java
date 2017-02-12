@@ -1,19 +1,16 @@
 package org.ihtsdo.snowowl.authoring.single.api.service;
 
-import com.b2international.snowowl.snomed.api.domain.classification.ClassificationStatus;
-
-import org.ihtsdo.otf.rest.client.ClassificationResults;
 import org.ihtsdo.otf.rest.client.RestClientException;
-import org.ihtsdo.otf.rest.client.SnowOwlRestClient;
+import org.ihtsdo.otf.rest.client.snowowl.SnowOwlRestClient;
+import org.ihtsdo.otf.rest.client.snowowl.ClassificationResults;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
-import org.ihtsdo.snowowl.api.rest.common.ControllerHelper;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.Classification;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.EntityType;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.Notification;
+import org.ihtsdo.snowowl.authoring.single.api.rest.ControllerHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import us.monoid.json.JSONException;
@@ -47,7 +44,7 @@ public class ClassificationService {
 		logger.info("Requesting classification of path {} for user {}", branchPath, callerUsername);
 		ClassificationResults results = snowOwlClient.startClassification(branchPath);
 		//If we started the classification without an exception then it's state will be RUNNING (or queued)
-		results.setStatus(ClassificationStatus.RUNNING.toString());
+		results.setStatus(ClassificationResults.ClassificationStatus.RUNNING.toString());
 
 		//Now start an asynchronous thread to wait for the results
 		final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -77,7 +74,7 @@ public class ClassificationService {
 			try {
 				snowOwlClient.waitForClassificationToComplete(results);
 				
-				if (results.getStatus().equals(ClassificationStatus.COMPLETED.toString())) {
+				if (results.getStatus().equals(ClassificationResults.ClassificationStatus.COMPLETED.toString())) {
 					resultMessage = "Classification completed successfully";
 				} else {
 					resultMessage = "Classification is in non-successful state: " + results.getStatus();

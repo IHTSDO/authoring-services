@@ -1,11 +1,9 @@
 package org.ihtsdo.snowowl.authoring.single.api.service.monitor;
 
-import com.b2international.snowowl.core.branch.Branch;
-import com.b2international.snowowl.core.exceptions.ApiException;
-import com.b2international.snowowl.core.exceptions.NotFoundException;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.EntityType;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.Notification;
 import org.ihtsdo.snowowl.authoring.single.api.service.BranchService;
+import org.ihtsdo.snowowl.authoring.single.api.service.ServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,7 +13,7 @@ public class BranchStateMonitor extends Monitor {
 	private final String taskId;
 	private final String branchPath;
 	private BranchService branchService;
-	private Branch.BranchState branchState;
+	private String branchState;
 	private Logger logger = LoggerFactory.getLogger(getClass());
 
 	public BranchStateMonitor(String projectId, String taskId, String branchPath, BranchService branchService) {
@@ -29,18 +27,16 @@ public class BranchStateMonitor extends Monitor {
 	public Notification runOnce() throws MonitorException {
 		try {
 			logger.debug("Get branch state");
-			final Branch.BranchState branchState = branchService.getBranchState(branchPath);
+			final String branchState = branchService.getBranchState(branchPath);
 			if (branchState != this.branchState) {
 				logger.debug("Branch {} state {}, changed", taskId, branchState);
 				this.branchState = branchState;
-				return new Notification(projectId, taskId, EntityType.BranchState, branchState.name());
+				return new Notification(projectId, taskId, EntityType.BranchState, branchState);
 			} else {
 				logger.debug("Branch {} state {}, no change", taskId, branchState);
 			}
 			return null;
-		} catch (NotFoundException e) {
-			throw new FatalMonitorException("Branch not found", e);
-		} catch (ApiException e) {
+		} catch (ServiceException e) {
 			throw new MonitorException("Failed to get branch state", e);
 		}
 	}

@@ -1,20 +1,17 @@
 package org.ihtsdo.snowowl.authoring.single.api.pojo;
 
 import java.util.Date;
-import java.util.List;
 
 import org.ihtsdo.snowowl.authoring.single.api.review.service.TaskMessagesStatus;
-import org.ihtsdo.snowowl.authoring.single.api.service.PathHelper;
+import org.ihtsdo.otf.rest.client.snowowl.PathHelper;
 import org.ihtsdo.snowowl.authoring.single.api.service.TaskStatus;
 
-import com.b2international.snowowl.core.branch.Branch;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonRawValue;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import net.rcarz.jiraclient.Issue;
-import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
 public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskUpdateRequest {
@@ -28,7 +25,7 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
 	private String projectKey;
 	private String summary;
 	private TaskStatus status;
-	private Branch.BranchState branchState;
+	private String branchState;
 	private String description;
 	private User assignee;
 	private User reviewer;
@@ -186,11 +183,11 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
 		return feedbackMessagesStatus;
 	}
 
-	public void setBranchState(Branch.BranchState branchState) {
+	public void setBranchState(String branchState) {
 		this.branchState = branchState;
 	}
 
-	public Branch.BranchState getBranchState() {
+	public String getBranchState() {
 		return branchState;
 	}
 

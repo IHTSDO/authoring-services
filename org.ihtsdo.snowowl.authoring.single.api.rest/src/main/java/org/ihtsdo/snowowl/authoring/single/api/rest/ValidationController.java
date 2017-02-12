@@ -4,28 +4,22 @@ import com.wordnik.swagger.annotations.Api;
 import com.wordnik.swagger.annotations.ApiOperation;
 import com.wordnik.swagger.annotations.ApiResponse;
 import com.wordnik.swagger.annotations.ApiResponses;
-
 import net.rcarz.jiraclient.JiraException;
-
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
-import org.ihtsdo.snowowl.api.rest.common.AbstractRestService;
-import org.ihtsdo.snowowl.api.rest.common.AbstractSnomedRestService;
-import org.ihtsdo.snowowl.api.rest.common.ControllerHelper;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.ReleaseRequest;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.Status;
 import org.ihtsdo.snowowl.authoring.single.api.service.ValidationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
-
 import us.monoid.json.JSONException;
 
 import java.io.IOException;
 
 @Api("validation")
 @RestController
-@RequestMapping(produces={AbstractRestService.V1_MEDIA_TYPE, MediaType.APPLICATION_JSON_VALUE})
-public class ValidationController extends AbstractSnomedRestService {
+@RequestMapping(produces={MediaType.APPLICATION_JSON_VALUE})
+public class ValidationController {
 
 	@Autowired
 	private ValidationService validationService;

@@ -1,4 +1,4 @@
-package org.ihtsdo.snowowl.api.rest.common;
+package org.ihtsdo.snowowl.authoring.single.api.rest;
 
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;

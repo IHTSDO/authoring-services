@@ -1,8 +1,7 @@
 package org.ihtsdo.snowowl.authoring.single.api.service;
 
-import com.b2international.snowowl.core.exceptions.NotFoundException;
-
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
+import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.TaskTransferRequest;
 import org.ihtsdo.snowowl.authoring.single.api.service.dao.ArbitraryFileService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,7 +22,7 @@ public class UiStateService {
 		try {
 			return arbitraryJsonService.read(getTaskUserPanelPath(projectKey, taskKey, username, panelId));
 		} catch (NoSuchFileException e) {
-			throw new NotFoundException("ui-state", panelId);
+			throw new ResourceNotFoundException("ui-state", panelId);
 		}
 	}
 
@@ -35,7 +34,7 @@ public class UiStateService {
 		try {
 			return arbitraryJsonService.read(getUserPanelPath(username, panelId));
 		} catch (NoSuchFileException e) {
-			throw new NotFoundException("ui-state", panelId);
+			throw new ResourceNotFoundException("ui-state", panelId);
 		}
 	}
 	

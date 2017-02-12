@@ -4,26 +4,24 @@ import com.wordnik.swagger.annotations.Api;
 import com.wordnik.swagger.annotations.ApiOperation;
 import com.wordnik.swagger.annotations.ApiResponse;
 import com.wordnik.swagger.annotations.ApiResponses;
-
 import net.rcarz.jiraclient.JiraException;
-
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
-import org.ihtsdo.snowowl.api.rest.common.AbstractRestService;
-import org.ihtsdo.snowowl.api.rest.common.AbstractSnomedRestService;
-import org.ihtsdo.snowowl.api.rest.common.ControllerHelper;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.Classification;
 import org.ihtsdo.snowowl.authoring.single.api.service.ClassificationService;
 import org.ihtsdo.snowowl.authoring.single.api.service.TaskService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RestController;
 import us.monoid.json.JSONException;
 
 @Api("Authoring Projects")
 @RestController
-@RequestMapping(produces={AbstractRestService.V1_MEDIA_TYPE, MediaType.APPLICATION_JSON_VALUE})
-public class ClassificationController extends AbstractSnomedRestService {
+@RequestMapping(produces={MediaType.APPLICATION_JSON_VALUE})
+public class ClassificationController {
 
 	@Autowired
 	private ClassificationService classificationService;

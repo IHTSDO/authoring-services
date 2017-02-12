@@ -1,5 +1,6 @@
 package org.ihtsdo.snowowl.authoring.single.api.service;
 
+import org.ihtsdo.otf.rest.client.snowowl.PathHelper;
 import org.junit.Assert;
 import org.junit.Test;
 

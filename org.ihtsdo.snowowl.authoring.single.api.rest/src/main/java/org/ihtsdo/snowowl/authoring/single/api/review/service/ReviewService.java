@@ -1,6 +1,6 @@
 package org.ihtsdo.snowowl.authoring.single.api.review.service;
 
-import com.b2international.snowowl.core.exceptions.BadRequestException;
+import org.ihtsdo.otf.rest.exception.BadRequestException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.snowowl.authoring.single.api.review.domain.Branch;
 import org.ihtsdo.snowowl.authoring.single.api.review.domain.ReviewConceptView;
@@ -14,8 +14,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
 import javax.transaction.Transactional;
+import java.util.*;
 
 @Service
 public class ReviewService {
@@ -94,7 +94,7 @@ public class ReviewService {
 	}
 
 	public ReviewMessage postReviewMessage(String projectKey, String taskKey, ReviewMessageCreateRequest createRequest,
-			String fromUsername) {
+			String fromUsername) throws BadRequestException {
 		final List<String> subjectConceptIds = createRequest.getSubjectConceptIds();
 		if (subjectConceptIds == null || subjectConceptIds.isEmpty()) {
 			throw new BadRequestException("There must be at least one id in subjectConceptIds");

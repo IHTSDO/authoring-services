@@ -1,10 +1,5 @@
 package org.ihtsdo.snowowl.authoring.single.api.service;
 
-import com.b2international.snowowl.core.Metadata;
-import com.b2international.snowowl.core.branch.Branch;
-import com.b2international.snowowl.core.exceptions.BadRequestException;
-import com.b2international.snowowl.core.exceptions.ConflictException;
-import com.b2international.snowowl.core.exceptions.NotFoundException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
@@ -19,10 +14,13 @@ import org.apache.activemq.command.ActiveMQQueue;
 import org.apache.log4j.Level;
 import org.ihtsdo.otf.jms.MessagingHelper;
 import org.ihtsdo.otf.rest.client.RestClientException;
+import org.ihtsdo.otf.rest.client.snowowl.Branch;
+import org.ihtsdo.otf.rest.client.snowowl.PathHelper;
+import org.ihtsdo.otf.rest.exception.BadRequestException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
-import org.ihtsdo.snowowl.api.rest.common.ControllerHelper;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.*;
+import org.ihtsdo.snowowl.authoring.single.api.rest.ControllerHelper;
 import org.ihtsdo.snowowl.authoring.single.api.review.service.ReviewService;
 import org.ihtsdo.snowowl.authoring.single.api.review.service.TaskMessagesDetail;
 import org.ihtsdo.snowowl.authoring.single.api.service.jira.ImpersonatingJiraClientFactory;
@@ -179,12 +177,12 @@ public class TaskService {
 				
 				final Branch branchOrNull = branchService.getBranchOrNull(branchPath);
 				final Branch parentBranchOrNull = branchService.getBranchOrNull(PathHelper.getParentPath(branchPath));
-				Branch.BranchState branchState = null;
-				Metadata metadata = null;
+				String branchState = null;
+				Map<String, Object> metadata = null;
 				if (branchOrNull != null) {
-					branchState = branchOrNull.state();
+					branchState = branchOrNull.getState();
 					if (parentBranchOrNull != null) {
-						metadata = parentBranchOrNull.metadata();
+						metadata = parentBranchOrNull.getMetadata();
 					}
 				}
 				branchPaths.add(branchPath);
@@ -199,7 +197,7 @@ public class TaskService {
 				authoringProject.setValidationStatus(validationStatuses.get(authoringProject.getBranchPath()));
 			}
 			return authoringProjects;
-		} catch (ExecutionException | RestClientException e) {
+		} catch (ExecutionException | RestClientException | ServiceException e) {
 			throw new BusinessServiceException("Failed to retrieve Projects", e);
 		}
 	}
@@ -224,11 +222,11 @@ public class TaskService {
 			String path = PathHelper.getProjectPath(null, null);
 			Collection<String> paths = Collections.singletonList(path);
 			final ImmutableMap<String, String> statuses = validationService.getValidationStatuses(paths);
-			final Branch.BranchState branchState = branchService.getBranchStateOrNull(PathHelper.getMainPath());
+			final String branchState = branchService.getBranchStateOrNull(PathHelper.getMainPath());
 			final String latestClassificationJson = classificationService
 					.getLatestClassification(PathHelper.getMainPath());
 			return new AuthoringMain(path, branchState, statuses.get(path), latestClassificationJson);
-		} catch (ExecutionException | RestClientException e) {
+		} catch (ExecutionException | RestClientException | ServiceException e) {
 			throw new BusinessServiceException("Failed to retrieve Main", e);
 		}
 	}
@@ -461,7 +459,7 @@ public class TaskService {
 				}
 			}
 			timer.finish();
-		} catch (ExecutionException | RestClientException e) {
+		} catch (ExecutionException | RestClientException | ServiceException e) {
 			throw new BusinessServiceException("Failed to retrieve task list.", e);
 		}
 		return allTasks;
@@ -471,7 +469,7 @@ public class TaskService {
 		try {
 			getJiraClient().getProject(projectKey);
 		} catch (JiraException e) {
-			throw new NotFoundException("Project", projectKey);
+			throw new ResourceNotFoundException("Project", projectKey);
 		}
 	}
 
@@ -706,7 +704,7 @@ public class TaskService {
 				return transition;
 			}
 		}
-		throw new ConflictException("Could not transition task " + issue.getKey() + " from status '"
+		throw new BadRequestException("Could not transition task " + issue.getKey() + " from status '"
 				+ issue.getStatus().getName() + "' to '" + newState.name() + "', no such transition is available.");
 	}
 

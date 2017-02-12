@@ -1,10 +1,11 @@
 package org.ihtsdo.snowowl.authoring.single.api.rest;
 
-import com.wordnik.swagger.annotations.*;
+import com.wordnik.swagger.annotations.Api;
+import com.wordnik.swagger.annotations.ApiOperation;
+import com.wordnik.swagger.annotations.ApiResponse;
+import com.wordnik.swagger.annotations.ApiResponses;
+import org.ihtsdo.otf.rest.exception.BadRequestException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
-import org.ihtsdo.snowowl.api.rest.common.AbstractRestService;
-import org.ihtsdo.snowowl.api.rest.common.AbstractSnomedRestService;
-import org.ihtsdo.snowowl.api.rest.common.ControllerHelper;
 import org.ihtsdo.snowowl.authoring.single.api.review.domain.ReviewMessage;
 import org.ihtsdo.snowowl.authoring.single.api.review.pojo.ReviewConcept;
 import org.ihtsdo.snowowl.authoring.single.api.review.pojo.ReviewMessageCreateRequest;
@@ -18,8 +19,8 @@ import java.util.concurrent.ExecutionException;
 
 @Api("Review Messages")
 @RestController
-@RequestMapping(produces={AbstractRestService.V1_MEDIA_TYPE, MediaType.APPLICATION_JSON_VALUE})
-public class ReviewMessagesController extends AbstractSnomedRestService {
+@RequestMapping(produces={MediaType.APPLICATION_JSON_VALUE})
+public class ReviewMessagesController {
 
 	@Autowired
 	private ReviewService reviewService;
@@ -55,7 +56,7 @@ public class ReviewMessagesController extends AbstractSnomedRestService {
 	})
 	@RequestMapping(value="/projects/{projectKey}/tasks/{taskKey}/review/message", method= RequestMethod.POST)
 	public ReviewMessage postTaskReviewMessage(@PathVariable final String projectKey, @PathVariable final String taskKey,
-			@RequestBody ReviewMessageCreateRequest createRequest) {
+			@RequestBody ReviewMessageCreateRequest createRequest) throws BadRequestException {
 		return reviewService.postReviewMessage(projectKey, taskKey, createRequest, ControllerHelper.getUsername());
 	}
 
@@ -65,7 +66,7 @@ public class ReviewMessagesController extends AbstractSnomedRestService {
 	})
 	@RequestMapping(value="/projects/{projectKey}/review/message", method= RequestMethod.POST)
 	public ReviewMessage postProjectReviewMessage(@PathVariable final String projectKey,
-			@RequestBody ReviewMessageCreateRequest createRequest) {
+			@RequestBody ReviewMessageCreateRequest createRequest) throws BadRequestException {
 		return reviewService.postReviewMessage(projectKey, null, createRequest, ControllerHelper.getUsername());
 	}
 

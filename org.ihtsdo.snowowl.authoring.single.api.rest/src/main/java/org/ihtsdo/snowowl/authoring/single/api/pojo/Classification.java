@@ -1,10 +1,7 @@
 package org.ihtsdo.snowowl.authoring.single.api.pojo;
 
-//import org.ihtsdo.otf.rest.client.ClassificationResults;
 
-import org.ihtsdo.otf.rest.client.ClassificationResults;
-
-import com.b2international.snowowl.snomed.api.domain.classification.ClassificationStatus;
+import org.ihtsdo.otf.rest.client.snowowl.ClassificationResults;
 
 public class Classification {
 
@@ -17,7 +14,7 @@ public class Classification {
 	
 	public Classification(String errorMsg) {
 		ClassificationResults runObj = new ClassificationResults();
-		runObj.setStatus(ClassificationStatus.FAILED.toString());
+		runObj.setStatus(ClassificationResults.ClassificationStatus.FAILED.toString());
 		results = runObj;
 		message = errorMsg;
 	}

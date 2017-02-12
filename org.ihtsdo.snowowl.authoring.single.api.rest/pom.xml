@@ -4,7 +4,7 @@
 	<parent>
 		<groupId>org.ihtsdo.snowowl</groupId>
 		<artifactId>ihtsdo-snowowl-parent</artifactId>
-		<version>4.6.16-SNAPSHOT</version>
+		<version>5.0.0-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>org.ihtsdo.snowowl.authoring.single.api.rest</artifactId>
@@ -46,99 +46,16 @@
 		</dependency>
 		
 		<dependency>
-			<groupId>org.ihtsdo.snowowl</groupId>
-			<artifactId>org.ihtsdo.snowowl.api.rest.common</artifactId>
-			<version>${project.version}</version>
-		</dependency>
-		<dependency>
 			<groupId>org.ihtsdo.otf.common</groupId>
 			<artifactId>otf-common</artifactId>
-			<version>1.0.27-SNAPSHOT</version>
+			<version>1.3.0-SNAPSHOT</version>
 		</dependency>
-		<!-- SnowOwl -->
-		<!-- Plug-in dependencies are repeated here so that the build can resolve
-			them at compile time -->
-		<dependency>
-			<groupId>com.b2international.snowowl</groupId>
-			<artifactId>com.b2international.commons</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.b2international.snowowl</groupId>
-			<artifactId>com.b2international.commons.base</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.b2international.snowowl</groupId>
-			<artifactId>com.b2international.snowowl.core</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.b2international.snowowl</groupId>
-			<artifactId>com.b2international.snowowl.datastore.server</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.b2international.snowowl</groupId>
-			<artifactId>com.b2international.snowowl.eventbus</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.b2international.snowowl</groupId>
-			<artifactId>com.b2international.snowowl.snomed.model</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.b2international.snowowl</groupId>
-			<artifactId>com.b2international.snowowl.snomed.api</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.b2international.snowowl</groupId>
-			<artifactId>com.b2international.snowowl.api.impl</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.b2international.snowowl</groupId>
-			<artifactId>com.b2international.snowowl.snomed.api.impl</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.b2international.snowowl</groupId>
-			<artifactId>com.b2international.snowowl.datastore</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.b2international.snowowl</groupId>
-			<artifactId>com.b2international.snowowl.snomed.datastore</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.b2international.snowowl</groupId>
-			<artifactId>com.b2international.snowowl.snomed.datastore.server</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.b2international.snowowl</groupId>
-			<artifactId>com.b2international.snowowl.api</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.b2international.snowowl</groupId>
-			<artifactId>org.eclipse.emf.cdo</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.b2international.snowowl</groupId>
-			<artifactId>org.eclipse.emf.cdo.common</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.b2international.snowowl</groupId>
-			<artifactId>com.b2international.snowowl.snomed.scg</artifactId>
-		</dependency>
+
 		<dependency>
 			<groupId>org.slf4j</groupId>
 			<artifactId>slf4j-api</artifactId>
 		</dependency>
 		
-		<!-- The Servlet specification is implemented by the web container -->
-		<dependency>
-			<groupId>org.eclipse.jetty.orbit</groupId>
-			<artifactId>javax.servlet</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>javax.validation</groupId>
-			<artifactId>validation-api</artifactId>
-			<version>1.0.0.GA</version>
-			<scope>provided</scope>
-		</dependency>
-
 		<!-- Regular Maven dependencies -->
 		<dependency>
 			<groupId>commons-lang</groupId>
@@ -237,6 +154,11 @@
 			<artifactId>jira-client</artifactId>
 			<version>0.6.1-IHTSDO</version>
 		</dependency>
+		<dependency>
+			<groupId>com.wordnik</groupId>
+			<artifactId>swagger-annotations</artifactId>
+			<version>1.3.11</version>
+		</dependency>
 		<!-- IMS -->
 		<dependency>
 			<groupId>org.ihtsdo.otf</groupId>
@@ -265,35 +187,6 @@
 
 	<build>
 
-		<pluginManagement>
-			<plugins>
-				<plugin>
-					<groupId>org.eclipse.m2e</groupId>
-					<artifactId>lifecycle-mapping</artifactId>
-					<version>1.0.0</version>
-					<configuration>
-						<lifecycleMappingMetadata>
-							<pluginExecutions>
-								<pluginExecution>
-									<pluginExecutionFilter>
-										<groupId>org.apache.maven.plugins</groupId>
-										<artifactId>maven-dependency-plugin</artifactId>
-										<versionRange>[1.0.0,)</versionRange>
-										<goals>
-											<goal>copy-dependencies</goal>
-										</goals>
-									</pluginExecutionFilter>
-									<action>
-										<ignore />
-									</action>
-								</pluginExecution>
-							</pluginExecutions>
-						</lifecycleMappingMetadata>
-					</configuration>
-				</plugin>
-			</plugins>
-		</pluginManagement>
-		
 		<resources>
 			<resource>
 				<directory>${basedir}/src/main/resources</directory>
@@ -304,284 +197,6 @@
 			</resource>
 		</resources>
 
-		<plugins>
-			<plugin>
-				<groupId>org.eclipse.tycho</groupId>
-				<artifactId>tycho-packaging-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>generate-qualifier</id>
-						<phase>validate</phase>
-						<goals>
-							<goal>build-qualifier</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>com.google.code.maven-replacer-plugin</groupId>
-				<artifactId>replacer</artifactId>
-				<version>1.5.3</version>
-				<executions>
-					<execution>
-						<phase>prepare-package</phase>
-						<goals>
-							<goal>replace</goal>
-						</goals>
-					</execution>
-				</executions>
-				<configuration>
-					<file>${project.build.directory}/generated/MANIFEST.MF</file>
-					<outputFile>${project.build.directory}/manifest/MANIFEST.MF</outputFile>
-					<regex>true</regex>
-					<token>Bundle-Version: .*\.qualifier</token>
-					<value>Bundle-Version: ${unqualifiedVersion}.${buildQualifier}</value>
-				</configuration>
-			</plugin>
-
-
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<version>2.5</version>
-				<configuration>
-					<outputDirectory>${project.build.directory}/plain-jar</outputDirectory>
-				</configuration>
-				<executions>
-					<execution>
-						<id>create-jar</id>
-						<phase>package</phase>
-						<goals>
-							<goal>jar</goal>
-						</goals>
-						<configuration>
-
-							<classesDirectory>${project.build.directory}/classes</classesDirectory>
-							<outputDirectory>${project.build.directory}</outputDirectory>
-							<archive>
-								<manifestFile>${project.build.directory}/manifest/MANIFEST.MF</manifestFile>
-							</archive>
-
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-
-			<!-- Generate Manifest -->
-			<plugin>
-				<groupId>org.apache.felix</groupId>
-				<artifactId>maven-bundle-plugin</artifactId>
-				<version>2.5.3</version>
-				<dependencies>
-					<dependency>
-						<groupId>biz.aQute.bnd</groupId>
-						<artifactId>bndlib</artifactId>
-						<version>2.4.0</version>
-					</dependency>
-				</dependencies>
-				<executions>
-					<execution>
-						<id>bundle-manifest</id>
-						<phase>process-classes</phase>
-						<goals>
-							<goal>manifest</goal>
-						</goals>
-					</execution>
-				</executions>
-				<configuration>
-					<supportedProjectTypes>
-						<supportedProjectType>jar</supportedProjectType>
-					</supportedProjectTypes>
-					<manifestLocation>${project.build.directory}/generated/</manifestLocation>
-
-					<instructions>
-						<Build-Name>IHTSDO Snow Owl REST Single Concept Authoring Service</Build-Name>
-						<Bundle-SymbolicName>${project.artifactId};singleton:=true</Bundle-SymbolicName>
-						<Bundle-Version>1.0.0.qualifier</Bundle-Version>
-						<Bundle-ManifestVersion>2</Bundle-ManifestVersion>
-						<Bundle-ClassPath>.,{maven-dependencies}</Bundle-ClassPath>
-						<Embed-Directory>WEB-INF/lib</Embed-Directory>
-						<Embed-Dependency>*;scope=compile|runtime</Embed-Dependency>
-						<Embed-Transitive>true</Embed-Transitive>
-						<Web-ContextPath>${bundle.webcontext}</Web-ContextPath>
-						<!-- this plugin automatically replaces full packages by scanning import statements in classes.
-						However package configured in spring bean classes and not used as import within java classes needs to mention separately
-						hence com.b2international.snowowl.api.impl etc -->
-						<Import-Package>*;resolution:=optional,
-							com.b2international.snowowl.api.impl,
-							com.b2international.snowowl.internal.eventbus,
-							com.b2international.snowowl.snomed.api.impl.validation,
-							com.b2international.snowowl.api.impl.codesystem
-						</Import-Package>
-					</instructions>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-dependency-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>copy-dependencies</id>
-						<phase>process-resources</phase>
-						<goals>
-							<goal>copy-dependencies</goal>
-						</goals>
-						<configuration>
-							<outputDirectory>${project.build.directory}/classes/WEB-INF/lib</outputDirectory>
-							<overWriteReleases>false</overWriteReleases>
-							<overWriteSnapshots>false</overWriteSnapshots>
-							<overWriteIfNewer>true</overWriteIfNewer>
-							<excludeScope>provided</excludeScope>
-						</configuration>
-					</execution>
-					<execution>
-						<id>unpack-crowd-resources</id>
-						<goals>
-							<goal>unpack-dependencies</goal>
-						</goals>
-						<phase>generate-resources</phase>
-						<configuration>
-							<outputDirectory>${project.build.directory}/generated-resources</outputDirectory>
-							<includeGroupIds>org.ihtsdo.otf</includeGroupIds>
-							<includeArtifactIds>ihtsdo-crowd-resources</includeArtifactIds>
-							<excludeArtifactIds>*</excludeArtifactIds>
-							<excludeTransitive>true</excludeTransitive>
-							<includes>crowd*.properties,
-								application-im-common-security-config.xml,
-								applicationContext-CrowdClient.xml,
-								crowd-ehcache.xml
-							</includes>
-						</configuration>
-					</execution>
-					<execution>
-						<id>unpack-swagger-ui-files</id>
-						<phase>generate-resources</phase>
-						<goals>
-							<goal>unpack</goal>
-						</goals>
-						<configuration>
-							<artifactItems>
-								<artifactItem>
-									<groupId>org.webjars</groupId>
-									<artifactId>swagger-ui</artifactId>
-									<version>2.1.8-M1</version>
-									<outputDirectory>${project.build.directory}/generated-resources/swagger-extract</outputDirectory>
-								</artifactItem>
-							</artifactItems>
-							<excludes>**/index.html</excludes>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<artifactId>maven-antrun-plugin</artifactId>
-				<version>1.7</version>
-				<executions>
-					<execution>
-						<id>move-swagger-resources</id>
-						<phase>generate-resources</phase>
-						<configuration>
-							<target>
-								<move file="target/generated-resources/swagger-extract/META-INF/resources/webjars/swagger-ui/2.1.8-M1" tofile="target/generated-resources/swagger" />
-							</target>
-						</configuration>
-						<goals>
-							<goal>run</goal>
-						</goals>
-					</execution>
-					<execution>
-						<id>delete-old-swagger-dir</id>
-						<phase>generate-resources</phase>
-						<configuration>
-							<target>
-								<delete dir="target/generated-resources/swagger-extract" />
-							</target>
-						</configuration>
-						<goals>
-							<goal>run</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-		</plugins>
 	</build>
 
-	<!--profiles>
-		<profile>
-			<id>dev</id>
-			<activation>
-				<activeByDefault>true</activeByDefault>
-			</activation>
-			<build>
-				<plugins>
-					<plugin>
-						<artifactId>maven-antrun-plugin</artifactId>
-						<executions>
-							<execution>
-								<phase>generate-resources</phase>
-								<goals>
-									<goal>run</goal>
-								</goals>
-								<configuration>
-									<tasks>
-										<delete file="${project.build.directory}/generated-resources/crowd.properties" />
-										<copy file="${project.build.directory}/generated-resources/crowd-dev.properties" tofile="${project.build.directory}/generated-resources/crowd.properties" />
-									</tasks>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-		<profile>
-			<id>prod</id>
-			<build>
-				<plugins>
-					<plugin>
-						<artifactId>maven-antrun-plugin</artifactId>
-						<executions>
-							<execution>
-								<phase>generate-resources</phase>
-								<goals>
-									<goal>run</goal>
-								</goals>
-								<configuration>
-									<tasks>
-										<delete file="${project.build.directory}/generated-resources/crowd.properties" />
-										<copy file="${project.build.directory}/generated-resources/crowd-prod.properties" tofile="${project.build.directory}/generated-resources/crowd.properties" />
-									</tasks>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-
-		<profile>
-			<id>uat</id>
-			<build>
-				<plugins>
-					<plugin>
-						<artifactId>maven-antrun-plugin</artifactId>
-						<executions>
-							<execution>
-								<phase>generate-resources</phase>
-								<goals>
-									<goal>run</goal>
-								</goals>
-								<configuration>
-									<tasks>
-										<delete file="${project.build.directory}/generated-resources/crowd.properties" />
-										<copy file="${project.build.directory}/generated-resources/crowd-uat.properties" tofile="${project.build.directory}/generated-resources/crowd.properties" />
-									</tasks>
-								</configuration>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-	</profiles-->
 </project>

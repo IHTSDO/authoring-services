@@ -1,8 +1,8 @@
 package org.ihtsdo.snowowl.authoring.single.api.pojo;
 
-import com.b2international.snowowl.core.Metadata;
-import com.b2international.snowowl.core.branch.Branch;
 import com.fasterxml.jackson.annotation.JsonRawValue;
+
+import java.util.Map;
 
 public class AuthoringProject {
 
@@ -10,14 +10,14 @@ public class AuthoringProject {
 	private final String title;
 	private final User projectLead;
 	private final String branchPath;
-	private Branch.BranchState branchState;
+	private String branchState;
 	private String latestClassificationJson;
 	private String validationStatus;
 	private boolean projectPromotionDisabled;
 	private boolean projectMrcmDisabled;
-	private Metadata metadata;
+	private Map<String, Object> metadata;
 
-	public AuthoringProject(String key, String title, User leadUser, String branchPath, Branch.BranchState branchState,
+	public AuthoringProject(String key, String title, User leadUser, String branchPath, String branchState,
 			String latestClassificationJson, boolean projectPromotionDisabled, boolean projectMrcmDisabled) {
 		this.key = key;
 		this.title = title;
@@ -58,7 +58,7 @@ public class AuthoringProject {
 		return latestClassificationJson;
 	}
 	
-	public Branch.BranchState getBranchState() {
+	public String getBranchState() {
 		return branchState;
 	}
 
@@ -78,11 +78,11 @@ public class AuthoringProject {
 		this.projectMrcmDisabled = projectMrcmDisabled;
 	}
 
-	public void setMetadata(Metadata metadata) {
-		this.metadata = metadata;
+	public Map<String, Object> getMetadata() {
+		return metadata;
 	}
 
-	public Metadata getMetadata() {
-		return metadata;
+	public void setMetadata(Map<String, Object> metadata) {
+		this.metadata = metadata;
 	}
 }

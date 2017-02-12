@@ -35,7 +35,7 @@
 
 	<bean class="org.ihtsdo.snowowl.authoring.single.api.service.ClassificationService"/>
 
-	<bean class="org.ihtsdo.otf.rest.client.SnowOwlRestClient">
+	<bean class="org.ihtsdo.otf.rest.client.snowowl.SnowOwlRestClient">
 		<constructor-arg value="+{snowowl.url}"/>
 		<constructor-arg value="+{snowowl.username}"/>
 		<constructor-arg value="+{snowowl.password}"/>
@@ -46,7 +46,7 @@
 		<property name="classificationTimeoutMinutes" value="+{snowowl.classification.timeout}"/>
 	</bean>
 	
-	<bean class="org.ihtsdo.otf.rest.client.OrchestrationRestClient">
+	<bean class="org.ihtsdo.otf.rest.client.orchestration.OrchestrationRestClient">
 		<constructor-arg value="+{orchestration.url}"/>
 		<constructor-arg value="+{orchestration.username}"/>
 		<constructor-arg value="+{orchestration.password}"/>
@@ -57,7 +57,7 @@
 		<property name="placeholderPrefix" value="+{"/>
 	</bean>
 
-	<bean class="org.ihtsdo.snowowl.authoring.single.api.service.SnowOwlHelper"/>
+	<bean class="org.ihtsdo.otf.rest.client.snowowl.SnowOwlRestUrlHelper"/>
 
 	<bean class="org.ihtsdo.snowowl.authoring.single.api.service.UiStateService"/>
 	
