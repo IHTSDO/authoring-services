@@ -54,7 +54,7 @@ public class ValidationService {
 	public static final String DEPENDENCY_RELEASE = "dependencyRelease";
 	public static final String SHORT_NAME ="shortname";
 	
-	@Value("+{orchestration.name}")
+	@Value("${orchestration.name}")
 	private String orchestrationName;
 
 	@Autowired
@@ -162,7 +162,7 @@ public class ValidationService {
 	}
 
 	@SuppressWarnings("unused")
-	@JmsListener(destination = "+{orchestration.name}" + "." + VALIDATION_RESPONSE_QUEUE)
+	@JmsListener(destination = "${orchestration.name}" + "." + VALIDATION_RESPONSE_QUEUE)
 	public void receiveValidationEvent(TextMessage message) {
 		try {
 			if (!MessagingHelper.isError(message)) {

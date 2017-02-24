@@ -17,7 +17,7 @@ public class OAuthJiraClientFactory implements ImpersonatingJiraClientFactory {
 	public OAuthJiraClientFactory(String jiraUrl, String consumerKey, String privateKeyPath) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
 		this.jiraUrl = jiraUrl;
 		this.consumerKey = consumerKey;
-		privateKey = OAuthCredentials.getPrivateKey(privateKeyPath.replace("file:", ""));
+		privateKey = OAuthCredentials.getPrivateKey(privateKeyPath);
 	}
 
 	/**

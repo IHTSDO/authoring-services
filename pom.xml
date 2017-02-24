@@ -4,34 +4,74 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>1.4.3.RELEASE</version>
+		<version>1.5.1.RELEASE</version>
 	</parent>
 
-	<groupId>org.ihtsdo.snowowl</groupId>
-	<artifactId>ihtsdo-snowowl-parent</artifactId>
+	<groupId>org.snomed.authoring</groupId>
+	<artifactId>authoring-services</artifactId>
 	<version>5.0.0-SNAPSHOT</version>
-	<packaging>pom</packaging>
 
 	<properties>
-		<snowowl.version>4.6.16</snowowl.version>
-		<spring.version>4.1.5.RELEASE</spring.version>
-		<spring.security.version>3.2.5.RELEASE</spring.security.version>
-		<spring.hateoas.version>0.11.0.RELEASE</spring.hateoas.version>
-		<swagger.springmvc.version>0.9.3</swagger.springmvc.version>
-		<servlet.api.virgo.version>3.0.0.v201112011016</servlet.api.virgo.version>
-		<xstream.version>1.4.3</xstream.version>
-		<jackson.version>2.4.5</jackson.version><!-- This version is what spring-web pulls in -->
-		<logback.virgo.version>1.0.7</logback.virgo.version>
-		<slf4j.version>1.7.5</slf4j.version>
+		<java.version>1.8</java.version>
 	</properties>
-	
-	<modules>
-		<!--<module>org.ihtsdo.snowowl.api.rest.common</module>-->
-		<module>org.ihtsdo.snowowl.authoring.single.api.rest</module>
-		<!--<module>termserver-scripting</module>-->
-	</modules>
 
 	<dependencies>
+		<dependency>
+			<groupId>org.ihtsdo.otf.common</groupId>
+			<artifactId>otf-common</artifactId>
+			<version>1.3.0-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>org.ihtsdo.otf</groupId>
+			<artifactId>ihtsdo-spring-sso</artifactId>
+			<version>2.0.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-activemq</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.activemq</groupId>
+			<artifactId>activemq-broker</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>mysql</groupId>
+			<artifactId>mysql-connector-java</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>net.rcarz</groupId>
+			<artifactId>jira-client</artifactId>
+			<version>0.6.1-IHTSDO</version>
+		</dependency>
+		<dependency>
+			<!-- For Jira OAuth -->
+			<groupId>com.google.gdata</groupId>
+			<artifactId>core</artifactId>
+			<version>1.47.1</version>
+		</dependency>
+		<dependency>
+			<groupId>com.wordnik</groupId>
+			<artifactId>swagger-annotations</artifactId>
+			<version>1.3.11</version>
+		</dependency>
+		<dependency>
+			<!-- VM transport used in dev profile -->
+			<groupId>org.apache.activemq</groupId>
+			<artifactId>activemq-embedded-connection-factory</artifactId>
+			<!--<version></version>-->
+		</dependency>
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
@@ -39,12 +79,6 @@
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
-
-	<dependencyManagement>
-		<dependencies>
-
-		</dependencies>
-	</dependencyManagement>
 
 	<repositories>
 		<repository>
@@ -73,28 +107,5 @@
 			<url>https://maven.ihtsdotools.org/content/repositories/snapshots/</url>
 		</snapshotRepository>
 	</distributionManagement>
-
-	<build>
-		<plugins>
-			<plugin>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<configuration>
-					<source>1.7</source>
-					<target>1.7</target>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>external.atlassian.jgitflow</groupId>
-				<artifactId>jgitflow-maven-plugin</artifactId>
-				<version>1.0-m4.3</version>
-				<configuration>
-					<autoVersionSubmodules>true</autoVersionSubmodules>
-					<enableSshAgent>true</enableSshAgent>
-					<allowSnapshots>true</allowSnapshots><!-- This is needed because snowowl is on snapshots -->
-					<noDeploy>true</noDeploy>
-				</configuration>
-			</plugin>
-		</plugins>
-	</build>
 
 </project>

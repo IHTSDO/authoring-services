@@ -26,6 +26,7 @@ import org.ihtsdo.snowowl.authoring.single.api.review.service.TaskMessagesDetail
 import org.ihtsdo.snowowl.authoring.single.api.service.jira.ImpersonatingJiraClientFactory;
 import org.ihtsdo.snowowl.authoring.single.api.service.jira.JiraHelper;
 import org.ihtsdo.snowowl.authoring.single.api.service.util.TimerUtil;
+import org.ihtsdo.sso.integration.SecurityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -92,6 +93,7 @@ public class TaskService {
 		jiraProjectPromotionField = JiraHelper.fieldIdLookup("SCA Project Promotion", jiraClientForFieldLookup);
 		jiraProjectMrcmField = JiraHelper.fieldIdLookup("SCA Project MRCM", jiraClientForFieldLookup);
 		jiraCrsIdField = JiraHelper.fieldIdLookup("CRS-ID", jiraClientForFieldLookup);
+		logger.info("Jira custom field names fetched. (e.g. {}).", jiraExtensionBaseField);
 
 		init();
 	}
@@ -503,7 +505,7 @@ public class TaskService {
 	}
 
 	private String getUsername() {
-		return ControllerHelper.getUsername();
+		return SecurityUtil.getUsername();
 	}
 
 	private String toString(String projectKey, String taskKey) {
