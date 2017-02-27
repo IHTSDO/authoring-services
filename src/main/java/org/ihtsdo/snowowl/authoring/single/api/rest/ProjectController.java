@@ -65,7 +65,7 @@ public class ProjectController {
 	})
 	@RequestMapping(value="/projects/my-tasks", method= RequestMethod.GET)
 	public List<AuthoringTask> listMyTasks() throws JiraException, BusinessServiceException {
-		return taskService.listMyTasks(ControllerHelper.getUserDetails().getUsername());
+		return taskService.listMyTasks(ControllerHelper.getUsername());
 	}
 
 	@ApiOperation(value="List review tasks, with the current user or unassigned reviewer, across Projects")
