@@ -73,11 +73,6 @@
 			<version>${springfox-swagger.version}</version>
 		</dependency>
 		<dependency>
-			<!-- VM transport used in dev profile -->
-			<groupId>org.apache.activemq</groupId>
-			<artifactId>activemq-embedded-connection-factory</artifactId>
-		</dependency>
-		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
 			<version>4.12</version>
