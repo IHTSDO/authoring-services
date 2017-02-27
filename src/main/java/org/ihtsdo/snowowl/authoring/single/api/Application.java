@@ -19,12 +19,22 @@ import org.springframework.http.converter.ResourceHttpMessageConverter;
 import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.jms.annotation.EnableJms;
+import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter;
+import springfox.documentation.builders.RequestHandlerSelectors;
+import springfox.documentation.spi.DocumentationType;
+import springfox.documentation.spring.web.plugins.Docket;
+import springfox.documentation.swagger2.annotations.EnableSwagger2;
 
 import java.util.TimeZone;
+
+import static com.google.common.base.Predicates.not;
+import static springfox.documentation.builders.PathSelectors.regex;
 
 @SpringBootApplication
 @ImportResource("classpath:services-context.xml")
 @EnableJms
+@EnableSwagger2
 public class Application {
 
 	@Bean
@@ -62,6 +72,27 @@ public class Application {
 				new ResourceHttpMessageConverter(),
 				jacksonConverter);
 	}
+
+	// Swagger Config
+	@Bean
+	public Docket api() {
+		return new Docket(DocumentationType.SWAGGER_2)
+				.select()
+				.apis(RequestHandlerSelectors.any())
+				.paths(not(regex("/error")))
+				.build();
+	}
+
+//	@Bean
+//	public WebMvcConfigurerAdapter swaggerDocsAsIndexPage() {
+//		return new WebMvcConfigurerAdapter() {
+//			@Override
+//			public void addViewControllers(ViewControllerRegistry registry) {
+//				registry.addViewController("/").setViewName(
+//						"forward:swagger-ui.html");
+//			}
+//		};
+//	}
 
 	public static void main(String[] args) {
 		SpringApplication.run(Application.class, args);

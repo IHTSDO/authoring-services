@@ -13,6 +13,7 @@
 
 	<properties>
 		<java.version>1.8</java.version>
+		<springfox-swagger.version>2.5.0</springfox-swagger.version>
 	</properties>
 
 	<dependencies>
@@ -62,15 +63,19 @@
 			<version>1.47.1</version>
 		</dependency>
 		<dependency>
-			<groupId>com.wordnik</groupId>
-			<artifactId>swagger-annotations</artifactId>
-			<version>1.3.11</version>
+			<groupId>io.springfox</groupId>
+			<artifactId>springfox-swagger2</artifactId>
+			<version>${springfox-swagger.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>io.springfox</groupId>
+			<artifactId>springfox-swagger-ui</artifactId>
+			<version>${springfox-swagger.version}</version>
 		</dependency>
 		<dependency>
 			<!-- VM transport used in dev profile -->
 			<groupId>org.apache.activemq</groupId>
 			<artifactId>activemq-embedded-connection-factory</artifactId>
-			<!--<version></version>-->
 		</dependency>
 		<dependency>
 			<groupId>junit</groupId>
