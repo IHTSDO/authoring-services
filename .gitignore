@@ -6,3 +6,4 @@ bin
 *.csv
 *.pem
 *.zip
+application-*.properties
