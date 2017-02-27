@@ -7,3 +7,4 @@ bin
 *.pem
 *.zip
 application-*.properties
+resources
