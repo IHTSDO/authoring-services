@@ -83,17 +83,6 @@ public class Application {
 				.build();
 	}
 
-//	@Bean
-//	public WebMvcConfigurerAdapter swaggerDocsAsIndexPage() {
-//		return new WebMvcConfigurerAdapter() {
-//			@Override
-//			public void addViewControllers(ViewControllerRegistry registry) {
-//				registry.addViewController("/").setViewName(
-//						"forward:swagger-ui.html");
-//			}
-//		};
-//	}
-
 	public static void main(String[] args) {
 		SpringApplication.run(Application.class, args);
 

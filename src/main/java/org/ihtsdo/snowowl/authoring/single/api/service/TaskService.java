@@ -31,6 +31,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.*;
 import java.util.concurrent.ExecutionException;
@@ -158,27 +160,37 @@ public class TaskService {
 		if (projects.isEmpty()) {
 			return new ArrayList<>();
 		}
-		try {
-			List<AuthoringProject> authoringProjects = new ArrayList<>();
-			Set<String> projectKeys = new HashSet<>();
-			for (Project project : projects) {
-				projectKeys.add(project.getKey());
-			}
-			final Map<String, Issue> projectMagicTickets = getProjectTickets(projectKeys);
+		List<AuthoringProject> authoringProjects = new ArrayList<>();
+		Set<String> projectKeys = new HashSet<>();
+		for (Project project : projects) {
+			projectKeys.add(project.getKey());
+		}
+		final Map<String, Issue> projectMagicTickets = getProjectTickets(projectKeys);
 
-			Set<String> branchPaths = new HashSet<>();
-			for (Project project : projects) {
+		Set<String> branchPaths = new HashSet<>();
+		Map<String, Branch> branchMap = new HashMap<>();
+		SecurityContext securityContext = SecurityContextHolder.getContext();
+		projects.parallelStream().forEach(project -> {
+			SecurityContextHolder.setContext(securityContext);
+			try {
 				final String key = project.getKey();
 				final Issue magicTicket = projectMagicTickets.get(key);
 				final String extensionBase = getProjectDetailsPopulatingCache(magicTicket).getBaseBranchPath();
 				final String branchPath = PathHelper.getProjectPath(extensionBase, key);
+
 				final String latestClassificationJson = classificationService.getLatestClassification(branchPath);
+
 				final boolean promotionDisabled = "Disabled".equals(JiraHelper.toStringOrNull(magicTicket.getField(jiraProjectPromotionField)));
 				final boolean mrcmDisabled = "Disabled".equals(JiraHelper.toStringOrNull(magicTicket.getField(jiraProjectMrcmField)));
 
-				
 				final Branch branchOrNull = branchService.getBranchOrNull(branchPath);
-				final Branch parentBranchOrNull = branchService.getBranchOrNull(PathHelper.getParentPath(branchPath));
+				String parentPath = PathHelper.getParentPath(branchPath);
+				Branch parentBranchOrNull = branchMap.get(parentPath);
+				if (parentBranchOrNull == null) {
+					parentBranchOrNull = branchService.getBranchOrNull(parentPath);
+					branchMap.put(parentPath, parentBranchOrNull);
+				}
+
 				String branchState = null;
 				Map<String, Object> metadata = null;
 				if (branchOrNull != null) {
@@ -192,16 +204,22 @@ public class TaskService {
 						getPojoUserOrNull(project.getLead()), branchPath, branchState, latestClassificationJson, promotionDisabled, mrcmDisabled);
 				authoringProject.setMetadata(metadata);
 				authoringProjects.add(authoringProject);
+			} catch (RestClientException | ServiceException e) {
+				logger.error("Failed to fetch details of project {}", project.getName(), e);
 			}
-			final ImmutableMap<String, String> validationStatuses = validationService
+		});
+
+		final ImmutableMap<String, String> validationStatuses;
+		try {
+			validationStatuses = validationService
 					.getValidationStatuses(branchPaths);
 			for (AuthoringProject authoringProject : authoringProjects) {
 				authoringProject.setValidationStatus(validationStatuses.get(authoringProject.getBranchPath()));
 			}
-			return authoringProjects;
-		} catch (ExecutionException | RestClientException | ServiceException e) {
-			throw new BusinessServiceException("Failed to retrieve Projects", e);
+		} catch (ExecutionException e) {
+			logger.warn("Failed to fetch validation statuses for branch paths {}", branchPaths);
 		}
+		return authoringProjects;
 	}
 
 	private ProjectDetails getProjectDetailsPopulatingCache(Issue projectMagicTicket) {
