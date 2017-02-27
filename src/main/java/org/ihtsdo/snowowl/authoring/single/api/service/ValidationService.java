@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
+import javax.annotation.PostConstruct;
 import javax.jms.JMSException;
 import javax.jms.TextMessage;
 
@@ -76,6 +77,7 @@ public class ValidationService {
 
 	private Logger logger = LoggerFactory.getLogger(getClass());
 
+	@PostConstruct
 	public void init() {
 		validationStatusCache = CacheBuilder.newBuilder()
 				.maximumSize(10000)
