@@ -20,7 +20,6 @@ import org.ihtsdo.otf.rest.exception.BadRequestException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.*;
-import org.ihtsdo.snowowl.authoring.single.api.rest.ControllerHelper;
 import org.ihtsdo.snowowl.authoring.single.api.review.service.ReviewService;
 import org.ihtsdo.snowowl.authoring.single.api.review.service.TaskMessagesDetail;
 import org.ihtsdo.snowowl.authoring.single.api.service.jira.ImpersonatingJiraClientFactory;
@@ -35,7 +34,10 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.*;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import javax.annotation.PreDestroy;
 import javax.jms.JMSException;
 
 public class TaskService {
@@ -81,6 +83,7 @@ public class TaskService {
 	private final String jiraCrsIdField;
 
 	private LoadingCache<String, ProjectDetails> projectDetailsCache;
+	private final ExecutorService executorService;
 
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 
@@ -96,6 +99,7 @@ public class TaskService {
 		jiraProjectMrcmField = JiraHelper.fieldIdLookup("SCA Project MRCM", jiraClientForFieldLookup);
 		jiraCrsIdField = JiraHelper.fieldIdLookup("CRS-ID", jiraClientForFieldLookup);
 		logger.info("Jira custom field names fetched. (e.g. {}).", jiraExtensionBaseField);
+		executorService = Executors.newCachedThreadPool();
 
 		init();
 	}
@@ -124,24 +128,25 @@ public class TaskService {
 
 	public List<AuthoringProject> listProjects() throws JiraException, BusinessServiceException {
 		final TimerUtil timer = new TimerUtil("ProjectsList");
-		final JiraClient jiraClient = getJiraClient();
-		List<Project> projects = new ArrayList<>();
-		for (Issue projectMagicTicket : searchIssues("type = \"SCA Authoring Project\"", -1)) {
+		List<Issue> projectTickets = new ArrayList<>();
+		// Search for authoring project tickets this user has visibility of
+		List<Issue> issues = searchIssues("type = \"SCA Authoring Project\"", -1);
+		timer.checkpoint("First jira search");
+		for (Issue projectMagicTicket : issues) {
 			final String productCode = getProjectDetailsPopulatingCache(projectMagicTicket).getProductCode();
 			if (instanceConfiguration.isJiraProjectVisible(productCode)) {
-				projects.add(jiraClient.getProject(projectMagicTicket.getProject().getKey()));
+				projectTickets.add(projectMagicTicket);
 			}
 		}
 		timer.checkpoint("Jira searches");
-		final List<AuthoringProject> authoringProjects = buildAuthoringProjects(projects);
+		final List<AuthoringProject> authoringProjects = buildAuthoringProjects(projectTickets);
 		timer.checkpoint("validation and classification");
 		timer.finish();
 		return authoringProjects;
 	}
 
 	public AuthoringProject retrieveProject(String projectKey) throws BusinessServiceException {
-		return buildAuthoringProjects(Collections.singletonList(getProjectTicketOrThrow(projectKey).getProject()))
-				.get(0);
+		return buildAuthoringProjects(Collections.singletonList(getProjectTicketOrThrow(projectKey))).get(0);
 	}
 
 	public String getProjectBranchPathUsingCache(String projectKey) throws BusinessServiceException {
@@ -156,32 +161,30 @@ public class TaskService {
 		}
 	}
 
-	private List<AuthoringProject> buildAuthoringProjects(List<Project> projects) throws BusinessServiceException {
-		if (projects.isEmpty()) {
+	private List<AuthoringProject> buildAuthoringProjects(List<Issue> projectTickets) throws BusinessServiceException {
+		if (projectTickets.isEmpty()) {
 			return new ArrayList<>();
 		}
 		List<AuthoringProject> authoringProjects = new ArrayList<>();
-		Set<String> projectKeys = new HashSet<>();
-		for (Project project : projects) {
-			projectKeys.add(project.getKey());
-		}
-		final Map<String, Issue> projectMagicTickets = getProjectTickets(projectKeys);
 
 		Set<String> branchPaths = new HashSet<>();
 		Map<String, Branch> branchMap = new HashMap<>();
 		SecurityContext securityContext = SecurityContextHolder.getContext();
-		projects.parallelStream().forEach(project -> {
+
+		JiraClient jiraClient = getJiraClient();
+		Future<Map<String, Project>> unfilteredProjects = executorService.submit(() -> jiraClient.getProjects().stream().collect(Collectors.toMap(Project::getKey, Function.identity())));
+
+		projectTickets.parallelStream().forEach(projectTicket -> {
 			SecurityContextHolder.setContext(securityContext);
 			try {
-				final String key = project.getKey();
-				final Issue magicTicket = projectMagicTickets.get(key);
-				final String extensionBase = getProjectDetailsPopulatingCache(magicTicket).getBaseBranchPath();
-				final String branchPath = PathHelper.getProjectPath(extensionBase, key);
+				final String projectKey = projectTicket.getProject().getKey();
+				final String extensionBase = getProjectDetailsPopulatingCache(projectTicket).getBaseBranchPath();
+				final String branchPath = PathHelper.getProjectPath(extensionBase, projectKey);
 
 				final String latestClassificationJson = classificationService.getLatestClassification(branchPath);
 
-				final boolean promotionDisabled = "Disabled".equals(JiraHelper.toStringOrNull(magicTicket.getField(jiraProjectPromotionField)));
-				final boolean mrcmDisabled = "Disabled".equals(JiraHelper.toStringOrNull(magicTicket.getField(jiraProjectMrcmField)));
+				final boolean promotionDisabled = "Disabled".equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectPromotionField)));
+				final boolean mrcmDisabled = "Disabled".equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectMrcmField)));
 
 				final Branch branchOrNull = branchService.getBranchOrNull(branchPath);
 				String parentPath = PathHelper.getParentPath(branchPath);
@@ -200,12 +203,14 @@ public class TaskService {
 					}
 				}
 				branchPaths.add(branchPath);
-				final AuthoringProject authoringProject = new AuthoringProject(project.getKey(), project.getName(),
+				Map<String, Project> projectMap = unfilteredProjects.get();
+				Project project = projectMap.get(projectKey);
+				final AuthoringProject authoringProject = new AuthoringProject(projectKey, project.getName(),
 						getPojoUserOrNull(project.getLead()), branchPath, branchState, latestClassificationJson, promotionDisabled, mrcmDisabled);
 				authoringProject.setMetadata(metadata);
 				authoringProjects.add(authoringProject);
-			} catch (RestClientException | ServiceException e) {
-				logger.error("Failed to fetch details of project {}", project.getName(), e);
+			} catch (RestClientException | ServiceException | InterruptedException | ExecutionException e) {
+				logger.error("Failed to fetch details of project {}", projectTicket.getProject().getName(), e);
 			}
 		});
 
@@ -802,6 +807,11 @@ public class TaskService {
 			throw new BusinessServiceException("Failed to leave comment for task " + toString(projectKey, taskKey), e);
 		
 		}
+	}
+
+	@PreDestroy
+	public void shutdown() {
+		executorService.shutdown();
 	}
 
 }
