@@ -370,7 +370,7 @@ public class TaskService {
 		List<Issue> issues = new ArrayList<>();
 		Issue.SearchResult searchResult;
 		do {
-			searchResult = getJiraClient().searchIssues(jql, INCLUDE_ALL_FIELDS, limit - issues.size(), issues.size());
+			searchResult = getJiraClient().searchIssues(jql, null, limit - issues.size(), issues.size());
 			issues.addAll(searchResult.issues);
 		} while (searchResult.total > issues.size() && (limit == LIMIT_UNLIMITED || issues.size() < limit));
 
