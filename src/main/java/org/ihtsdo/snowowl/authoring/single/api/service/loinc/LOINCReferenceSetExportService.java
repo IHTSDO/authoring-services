@@ -1,5 +1,6 @@
 package org.ihtsdo.snowowl.authoring.single.api.service.loinc;
 
+import com.google.common.collect.ComparisonChain;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.snowowl.SnowOwlRestClient;
 import org.ihtsdo.otf.rest.client.snowowl.pojo.ConceptPojo;
@@ -18,7 +19,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import javax.servlet.ServletOutputStream;
 import java.io.*;
 import java.util.*;
 
@@ -48,6 +48,16 @@ public class LOINCReferenceSetExportService {
 	private static final String refsetHeader = "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\tmapTarget\texpression\tdefinitionStatusId\tcorrelationId\tcontentOriginId";
 
 	private final Logger logger = LoggerFactory.getLogger(getClass());
+	public static final Comparator<RelationshipPojo> RELATIONSHIP_COMPARATOR = new Comparator<RelationshipPojo>() {
+		@Override
+		public int compare(RelationshipPojo r1, RelationshipPojo r2) {
+			return ComparisonChain.start()
+					.compare(r1.getGroupId(), r2.getGroupId())
+					.compare(Long.parseLong(r1.getType().getConceptId()), Long.parseLong(r2.getType().getConceptId()))
+					.compare(Long.parseLong(r1.getTarget().getConceptId()), Long.parseLong(r2.getTarget().getConceptId()))
+					.result();
+		}
+	};
 
 	public void exportDelta(String branchPath, OutputStream outputStream) throws BusinessServiceException {
 		SnowOwlRestClient terminologyServerClient = snowOwlRestClientFactory.getClient();
@@ -120,7 +130,7 @@ public class LOINCReferenceSetExportService {
 	}
 
 	public String generateCompositionalGrammar(ConceptPojo concept) {
-		Set<RelationshipPojo> parents = new HashSet<>();
+		SortedSet<RelationshipPojo> parents = new TreeSet<>(RELATIONSHIP_COMPARATOR);
 		Map<Integer, Set<RelationshipPojo>> relationshipMap = new HashMap<>();
 		concept.getRelationships().stream()
 				.filter(r -> ConceptConstants.STATED_RELATIONSHIP.equals(r.getCharacteristicType()))
@@ -129,7 +139,7 @@ public class LOINCReferenceSetExportService {
 					if (ConceptConstants.isA.equals(relationship.getType().getConceptId())) {
 						parents.add(relationship);
 					} else {
-						relationshipMap.computeIfAbsent(relationship.getGroupId(), k -> new HashSet<>()).add(relationship);
+						relationshipMap.computeIfAbsent(relationship.getGroupId(), k -> new TreeSet<>(RELATIONSHIP_COMPARATOR)).add(relationship);
 					}
 				});
 
