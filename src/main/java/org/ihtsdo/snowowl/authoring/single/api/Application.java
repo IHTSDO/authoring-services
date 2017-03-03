@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.util.ISO8601DateFormat;
 import com.google.common.base.Charsets;
+import io.kaicode.rest.util.branchpathrewrite.BranchPathUriRewriteFilter;
 import org.ihtsdo.snowowl.authoring.single.api.service.restclient.SnowOwlRestClientFactory;
 import org.ihtsdo.sso.integration.RequestHeaderAuthenticationDecorator;
 import org.springframework.beans.factory.annotation.Value;
@@ -71,6 +72,14 @@ public class Application {
 				jacksonConverter);
 	}
 
+	@Bean
+	public FilterRegistrationBean getUrlRewriteFilter() {
+		// Encode branch paths in uri to allow request mapping to work
+		return new FilterRegistrationBean(new BranchPathUriRewriteFilter(
+				"/loinc-export/(.*)"
+		));
+	}
+
 	// Swagger Config
 	@Bean
 	public Docket api() {
@@ -83,6 +92,5 @@ public class Application {
 
 	public static void main(String[] args) {
 		SpringApplication.run(Application.class, args);
-
 	}
 }

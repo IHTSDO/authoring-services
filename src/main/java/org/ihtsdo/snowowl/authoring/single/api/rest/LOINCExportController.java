@@ -1,5 +1,6 @@
 package org.ihtsdo.snowowl.authoring.single.api.rest;
 
+import io.kaicode.rest.util.branchpathrewrite.BranchPathUriUtil;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
@@ -34,7 +35,7 @@ public class LOINCExportController {
 	@RequestMapping(value="/loinc-export/{branchPath}", method=RequestMethod.GET, produces="text/tab-separated-values")
 	public void listProjects(@PathVariable String branchPath, HttpServletResponse response) throws BusinessServiceException, IOException {
 		response.setContentType(TSV_CONTENT_TYPE.toString());
-		exportService.exportDelta(branchPath, response.getOutputStream());
+		exportService.exportDelta(BranchPathUriUtil.parseBranchPath(branchPath), response.getOutputStream());
 	}
 
 }
