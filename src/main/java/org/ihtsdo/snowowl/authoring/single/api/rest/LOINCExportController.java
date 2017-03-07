@@ -33,7 +33,7 @@ public class LOINCExportController {
 			@ApiResponse(code = 200, message = "OK")
 	})
 	@RequestMapping(value="/loinc-export/{branchPath}", method=RequestMethod.GET, produces="text/tab-separated-values")
-	public void listProjects(@PathVariable String branchPath, HttpServletResponse response) throws BusinessServiceException, IOException {
+	public void exportLOINCReferenceSet(@PathVariable String branchPath, HttpServletResponse response) throws BusinessServiceException, IOException {
 		response.setContentType(TSV_CONTENT_TYPE.toString());
 		exportService.exportDelta(BranchPathUriUtil.parseBranchPath(branchPath), response.getOutputStream());
 	}

@@ -48,16 +48,11 @@ public class LOINCReferenceSetExportService {
 	private static final String refsetHeader = "id\teffectiveTime\tactive\tmoduleId\trefsetId\treferencedComponentId\tmapTarget\texpression\tdefinitionStatusId\tcorrelationId\tcontentOriginId";
 
 	private final Logger logger = LoggerFactory.getLogger(getClass());
-	public static final Comparator<RelationshipPojo> RELATIONSHIP_COMPARATOR = new Comparator<RelationshipPojo>() {
-		@Override
-		public int compare(RelationshipPojo r1, RelationshipPojo r2) {
-			return ComparisonChain.start()
-					.compare(r1.getGroupId(), r2.getGroupId())
-					.compare(Long.parseLong(r1.getType().getConceptId()), Long.parseLong(r2.getType().getConceptId()))
-					.compare(Long.parseLong(r1.getTarget().getConceptId()), Long.parseLong(r2.getTarget().getConceptId()))
-					.result();
-		}
-	};
+	public static final Comparator<RelationshipPojo> RELATIONSHIP_COMPARATOR = (r1, r2) -> ComparisonChain.start()
+			.compare(r1.getGroupId(), r2.getGroupId())
+			.compare(Long.parseLong(r1.getType().getConceptId()), Long.parseLong(r2.getType().getConceptId()))
+			.compare(Long.parseLong(r1.getTarget().getConceptId()), Long.parseLong(r2.getTarget().getConceptId()))
+			.result();
 
 	public void exportDelta(String branchPath, OutputStream outputStream) throws BusinessServiceException {
 		SnowOwlRestClient terminologyServerClient = snowOwlRestClientFactory.getClient();
