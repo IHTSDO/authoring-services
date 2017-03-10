@@ -27,7 +27,9 @@ public class User {
 	}
 
 	public User(JSONObject userJSON) {
-		email = userJSON.getString(JSON_FIELD_EMAIL);
+		if (userJSON.containsKey(JSON_FIELD_EMAIL)) {
+			email = userJSON.getString(JSON_FIELD_EMAIL);
+		}
 		username = userJSON.getString(JSON_FIELD_NAME);
 		displayName = userJSON.getString(JSON_FIELD_DISPLAY_NAME);
 		JSONObject avatarUrls = userJSON.getJSONObject(JSON_FIELD_AVATAR);

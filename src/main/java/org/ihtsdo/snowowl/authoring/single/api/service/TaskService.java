@@ -10,6 +10,8 @@ import net.rcarz.jiraclient.*;
 import net.rcarz.jiraclient.Status;
 import net.rcarz.jiraclient.User;
 import net.sf.json.JSON;
+import net.sf.json.JSONArray;
+import net.sf.json.JSONObject;
 import org.apache.activemq.command.ActiveMQQueue;
 import org.apache.log4j.Level;
 import org.ihtsdo.otf.jms.MessagingHelper;
@@ -33,12 +35,16 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 import javax.annotation.PreDestroy;
 import javax.jms.JMSException;
+import java.net.URI;
+import java.util.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class TaskService {
 
@@ -172,7 +178,7 @@ public class TaskService {
 		SecurityContext securityContext = SecurityContextHolder.getContext();
 
 		JiraClient jiraClient = getJiraClient();
-		Future<Map<String, Project>> unfilteredProjects = executorService.submit(() -> jiraClient.getProjects().stream().collect(Collectors.toMap(Project::getKey, Function.identity())));
+		Future<Map<String, JiraProject>> unfilteredProjects = executorService.submit(() -> getProjects(jiraClient.getRestClient()).stream().collect(Collectors.toMap(JiraProject::getKey, Function.identity())));
 
 		projectTickets.parallelStream().forEach(projectTicket -> {
 			SecurityContextHolder.setContext(securityContext);
@@ -203,10 +209,10 @@ public class TaskService {
 					}
 				}
 				branchPaths.add(branchPath);
-				Map<String, Project> projectMap = unfilteredProjects.get();
-				Project project = projectMap.get(projectKey);
+				Map<String, JiraProject> projectMap = unfilteredProjects.get();
+				JiraProject project = projectMap.get(projectKey);
 				final AuthoringProject authoringProject = new AuthoringProject(projectKey, project.getName(),
-						getPojoUserOrNull(project.getLead()), branchPath, branchState, latestClassificationJson, promotionDisabled, mrcmDisabled);
+						project.getLead(), branchPath, branchState, latestClassificationJson, promotionDisabled, mrcmDisabled);
 				authoringProject.setMetadata(metadata);
 				authoringProjects.add(authoringProject);
 			} catch (RestClientException | ServiceException | InterruptedException | ExecutionException e) {
@@ -806,6 +812,29 @@ public class TaskService {
 			}
 			throw new BusinessServiceException("Failed to leave comment for task " + toString(projectKey, taskKey), e);
 		
+		}
+	}
+
+	private List<JiraProject> getProjects(RestClient restClient) throws JiraException {
+		try {
+			URI ex = restClient.buildURI(Resource.getBaseUri() + "project", Collections.singletonMap("expand", "lead"));
+			JSON response = restClient.get(ex);
+			JSONArray projectsArray = JSONArray.fromObject(response);
+			ArrayList projects = new ArrayList(projectsArray.size());
+
+			for(int i = 0; i < projectsArray.size(); ++i) {
+				JSONObject p = projectsArray.getJSONObject(i);
+				JSONObject leadObject = p.getJSONObject("lead");
+				org.ihtsdo.snowowl.authoring.single.api.pojo.User lead = null;
+				if (leadObject != null) {
+					lead = new org.ihtsdo.snowowl.authoring.single.api.pojo.User(leadObject);
+				}
+				projects.add(new JiraProject(p.getString("key"), p.getString("name"), lead));
+			}
+
+			return projects;
+		} catch (Exception var7) {
+			throw new JiraException(var7.getMessage(), var7);
 		}
 	}
 
