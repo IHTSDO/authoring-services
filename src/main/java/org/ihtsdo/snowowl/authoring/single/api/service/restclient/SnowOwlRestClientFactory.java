@@ -19,10 +19,12 @@ import java.util.stream.Collectors;
 public class SnowOwlRestClientFactory {
 
 	private String snowOwlUrl;
+	private String snowOwlReasonerId;
 	private final Cache<String, SnowOwlRestClient> clientCache;
 
-	public SnowOwlRestClientFactory(String snowOwlUrl) {
+	public SnowOwlRestClientFactory(String snowOwlUrl, String snowOwlReasonerId) {
 		this.snowOwlUrl = snowOwlUrl;
+		this.snowOwlReasonerId = snowOwlReasonerId;
 		clientCache = CacheBuilder.newBuilder()
 				.expireAfterAccess(5, TimeUnit.MINUTES)
 				.build();
@@ -40,6 +42,7 @@ public class SnowOwlRestClientFactory {
 				client = clientCache.getIfPresent(authenticationToken);
 				if (client == null) {
 					client = new SnowOwlRestClient(snowOwlUrl, authenticationToken);
+					client.setReasonerId(snowOwlReasonerId);
 					clientCache.put(authenticationToken, client);
 				}
 			}

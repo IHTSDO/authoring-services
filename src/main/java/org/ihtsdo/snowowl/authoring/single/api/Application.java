@@ -37,8 +37,9 @@ import static springfox.documentation.builders.PathSelectors.regex;
 public class Application {
 
 	@Bean
-	public SnowOwlRestClientFactory snowOwlRestClientFactory(@Value("${snowowl.url}") String snowOwlUrl) {
-		return new SnowOwlRestClientFactory(snowOwlUrl);
+	public SnowOwlRestClientFactory snowOwlRestClientFactory(@Value("${snowowl.url}") String snowOwlUrl,
+															 @Value("${snowowl.reasonerId}") String snowOwlReasonerId) {
+		return new SnowOwlRestClientFactory(snowOwlUrl, snowOwlReasonerId);
 	}
 
 	@Bean
