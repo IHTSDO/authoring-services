@@ -201,11 +201,14 @@ public class TaskService {
 				}
 
 				String branchState = null;
-				Map<String, Object> metadata = null;
+				Map<String, Object> metadata = new HashMap<>();
 				if (branchOrNull != null) {
 					branchState = branchOrNull.getState();
 					if (parentBranchOrNull != null) {
-						metadata = parentBranchOrNull.getMetadata();
+						metadata.putAll(parentBranchOrNull.getMetadata());
+					}
+					if (branchOrNull.getMetadata() != null) {
+						metadata.putAll(branchOrNull.getMetadata());
 					}
 				}
 				branchPaths.add(branchPath);
