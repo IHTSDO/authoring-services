@@ -5,14 +5,13 @@ import java.util.Set;
 
 public class InstanceConfiguration {
 
-	private Set<String> jiraProjectFilterProductCodes;
+	private final Set<String> jiraProjectFilterProductCodes;
 
-	public InstanceConfiguration(Set<String> jiraProjectFilterProductCodes) {
-		final Set<String> lowerCodes = new HashSet<>();
-		for (String code : jiraProjectFilterProductCodes) {
-			lowerCodes.add(code.toLowerCase());
+	public InstanceConfiguration(String codes) {
+		jiraProjectFilterProductCodes = new HashSet<>();
+		for (String code : codes.split(",")) {
+			jiraProjectFilterProductCodes.add(code.trim().toLowerCase());
 		}
-		this.jiraProjectFilterProductCodes = lowerCodes;
 	}
 
 	public boolean isJiraProjectVisible(String productCode) {
