@@ -16,8 +16,8 @@ import org.apache.activemq.command.ActiveMQQueue;
 import org.apache.log4j.Level;
 import org.ihtsdo.otf.jms.MessagingHelper;
 import org.ihtsdo.otf.rest.client.RestClientException;
-import org.ihtsdo.otf.rest.client.snowowl.Branch;
 import org.ihtsdo.otf.rest.client.snowowl.PathHelper;
+import org.ihtsdo.otf.rest.client.snowowl.pojo.Branch;
 import org.ihtsdo.otf.rest.exception.BadRequestException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
@@ -693,8 +693,12 @@ public class TaskService {
 	}
 
 	public void stateTransition(String projectKey, String taskKey, TaskStatus newState)
-			throws JiraException, BusinessServiceException {
-		stateTransition(getIssue(projectKey, taskKey), newState);
+			throws BusinessServiceException {
+		try {
+			stateTransition(getIssue(projectKey, taskKey), newState);
+		} catch (JiraException e) {
+			throw new BusinessServiceException("Failed to transition state of task " + taskKey, e);
+		}
 	}
 
 	public void stateTransition(List<Issue> issues, TaskStatus newState) {

@@ -1,7 +1,7 @@
 package org.ihtsdo.snowowl.authoring.single.api.service;
 
 import org.ihtsdo.otf.rest.client.RestClientException;
-import org.ihtsdo.otf.rest.client.snowowl.ClassificationResults;
+import org.ihtsdo.otf.rest.client.snowowl.pojo.ClassificationResults;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.Classification;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.EntityType;

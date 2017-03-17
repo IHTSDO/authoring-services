@@ -4,13 +4,21 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import net.rcarz.jiraclient.Issue;
 import net.rcarz.jiraclient.JiraException;
+import org.ihtsdo.otf.rest.client.snowowl.PathHelper;
+import org.ihtsdo.otf.rest.client.snowowl.pojo.ApiError;
+import org.ihtsdo.otf.rest.client.snowowl.pojo.Merge;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.*;
+import org.ihtsdo.snowowl.authoring.single.api.service.BranchService;
 import org.ihtsdo.snowowl.authoring.single.api.service.TaskAttachment;
 import org.ihtsdo.snowowl.authoring.single.api.service.TaskService;
+import org.ihtsdo.snowowl.authoring.single.api.service.TaskStatus;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,6 +30,9 @@ public class ProjectController {
 
 	@Autowired
 	private TaskService taskService;
+
+	@Autowired
+	private BranchService branchService;
 
 	@ApiOperation(value="List authoring Projects")
 	@ApiResponses({
@@ -40,7 +51,33 @@ public class ProjectController {
 	public AuthoringProject retrieveProject(@PathVariable final String projectKey) throws BusinessServiceException {
 		return taskService.retrieveProject(projectKey);
 	}
-	
+
+	@ApiOperation(value="Rebase an authoring Project")
+	@ApiResponses({
+			@ApiResponse(code = 200, message = "OK")
+	})
+	@RequestMapping(value="/projects/{projectKey}/rebase", method= RequestMethod.POST)
+	public ResponseEntity<String> rebaseProject(@PathVariable final String projectKey) throws BusinessServiceException {
+		String projectBranchPath = taskService.getProjectBranchPathUsingCache(projectKey);
+		Merge merge = branchService.mergeBranchSync(PathHelper.getParentPath(projectBranchPath), projectBranchPath, null);
+		return getResponseEntity(merge);
+	}
+
+	@ApiOperation(value="Promote an authoring Project")
+	@ApiResponses({
+			@ApiResponse(code = 200, message = "OK")
+	})
+	@RequestMapping(value="/projects/{projectKey}/promote", method= RequestMethod.POST)
+	public ResponseEntity<String> promoteProject(@PathVariable final String projectKey, @RequestBody MergeRequest mergeRequest) throws BusinessServiceException {
+		String projectBranchPath = taskService.getProjectBranchPathUsingCache(projectKey);
+		Merge merge = branchService.mergeBranchSync(projectBranchPath, PathHelper.getParentPath(projectBranchPath), mergeRequest.getSourceReviewId());
+		if (merge.getStatus() == Merge.Status.COMPLETED) {
+			List<Issue> promotedIssues = taskService.getTaskIssues(projectKey, TaskStatus.PROMOTED);
+			taskService.stateTransition(promotedIssues, TaskStatus.COMPLETED);
+		}
+		return getResponseEntity(merge);
+	}
+
 	@ApiOperation(value="Retrieve status information about the MAIN branch")
 	@ApiResponses({
 			@ApiResponse(code = 200, message = "OK")
@@ -101,19 +138,57 @@ public class ProjectController {
 	public AuthoringTask updateTask(@PathVariable final String projectKey, @PathVariable final String taskKey,  @RequestBody final AuthoringTaskUpdateRequest updatedTask) throws BusinessServiceException {
 		return taskService.updateTask(projectKey, taskKey, updatedTask);
 	}
-	
+
 	@ApiOperation(value = "Retrieve Task Attachments")
 	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
 	@RequestMapping(value = "/projects/{projectKey}/tasks/{taskKey}/attachments", method = RequestMethod.GET)
 	public List<TaskAttachment> getAttachmentsForTask(@PathVariable final String projectKey, @PathVariable final String taskKey) throws BusinessServiceException {
 		return taskService.getTaskAttachments(projectKey, taskKey);
 	}
-	
+
 	@ApiOperation(value = "Leave comment for Task")
 	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
 	@RequestMapping(value = "/projects/{projectKey}/tasks/{taskKey}/comment", method = RequestMethod.POST)
 	public void leaveComment(@PathVariable final String projectKey, @PathVariable final String taskKey, @RequestBody final String comment) throws BusinessServiceException {
 		taskService.leaveCommentForTask(projectKey, taskKey, comment);
+	}
+
+	@ApiOperation(value="Rebase an authoring Task")
+	@ApiResponses({
+			@ApiResponse(code = 200, message = "OK")
+	})
+	@RequestMapping(value="/projects/{projectKey}/tasks/{taskKey}/rebase", method= RequestMethod.POST)
+	public ResponseEntity<String> rebaseTask(@PathVariable final String projectKey,
+											 @PathVariable final String taskKey) throws BusinessServiceException {
+		String taskBranchPath = taskService.getTaskBranchPathUsingCache(projectKey, taskKey);
+		Merge merge = branchService.mergeBranchSync(PathHelper.getParentPath(taskBranchPath), taskBranchPath, null);
+		return getResponseEntity(merge);
+	}
+
+	@ApiOperation(value="Promote an authoring Task")
+	@ApiResponses({
+			@ApiResponse(code = 200, message = "OK")
+	})
+	@RequestMapping(value="/projects/{projectKey}/tasks/{taskKey}/promote", method= RequestMethod.POST)
+	public ResponseEntity<String> promoteTask(@PathVariable final String projectKey,
+											  @PathVariable final String taskKey,
+											  @RequestBody MergeRequest mergeRequest) throws BusinessServiceException {
+		String taskBranchPath = taskService.getTaskBranchPathUsingCache(projectKey, taskKey);
+		Merge merge = branchService.mergeBranchSync(taskBranchPath, PathHelper.getParentPath(taskBranchPath), mergeRequest.getSourceReviewId());
+		if (merge.getStatus() == Merge.Status.COMPLETED) {
+			taskService.stateTransition(projectKey, taskKey, TaskStatus.PROMOTED);
+		}
+		return getResponseEntity(merge);
+	}
+
+	private ResponseEntity<String> getResponseEntity(Merge merge) {
+		if (merge.getStatus() == Merge.Status.COMPLETED) {
+			return new ResponseEntity<>(HttpStatus.OK);
+		} else {
+			ApiError apiError = merge.getApiError();
+			String message = apiError != null ? apiError.getMessage() : null;
+			return new ResponseEntity<>(message, HttpStatus.CONFLICT);
+		}
 	}
 
 }

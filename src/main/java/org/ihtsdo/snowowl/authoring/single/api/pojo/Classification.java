@@ -1,7 +1,7 @@
 package org.ihtsdo.snowowl.authoring.single.api.pojo;
 
 
-import org.ihtsdo.otf.rest.client.snowowl.ClassificationResults;
+import org.ihtsdo.otf.rest.client.snowowl.pojo.ClassificationResults;
 
 public class Classification {
 
