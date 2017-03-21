@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.util.ISO8601DateFormat;
 import com.google.common.base.Charsets;
 import io.kaicode.rest.util.branchpathrewrite.BranchPathUriRewriteFilter;
-import org.ihtsdo.snowowl.authoring.single.api.service.restclient.SnowOwlRestClientFactory;
+import org.ihtsdo.otf.rest.client.snowowl.SnowOwlRestClientFactory;
 import org.ihtsdo.sso.integration.RequestHeaderAuthenticationDecorator;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
