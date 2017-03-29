@@ -39,10 +39,7 @@ import javax.annotation.PreDestroy;
 import javax.jms.JMSException;
 import java.net.URI;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -171,10 +168,9 @@ public class TaskService {
 		if (projectTickets.isEmpty()) {
 			return new ArrayList<>();
 		}
-		List<AuthoringProject> authoringProjects = new ArrayList<>();
-
-		Set<String> branchPaths = new HashSet<>();
-		Map<String, Branch> branchMap = new HashMap<>();
+		final List<AuthoringProject> authoringProjects = new ArrayList<>();
+		final Set<String> branchPaths = new HashSet<>();
+		final Map<String, Branch> branchMap = new ConcurrentHashMap<>();
 		SecurityContext securityContext = SecurityContextHolder.getContext();
 
 		JiraClient jiraClient = getJiraClient();
@@ -211,13 +207,17 @@ public class TaskService {
 						metadata.putAll(branchOrNull.getMetadata());
 					}
 				}
-				branchPaths.add(branchPath);
+				synchronized (branchPaths) {
+					branchPaths.add(branchPath);
+				}
 				Map<String, JiraProject> projectMap = unfilteredProjects.get();
 				JiraProject project = projectMap.get(projectKey);
 				final AuthoringProject authoringProject = new AuthoringProject(projectKey, project.getName(),
 						project.getLead(), branchPath, branchState, latestClassificationJson, promotionDisabled, mrcmDisabled);
 				authoringProject.setMetadata(metadata);
-				authoringProjects.add(authoringProject);
+				synchronized (authoringProjects) {
+					authoringProjects.add(authoringProject);
+				}
 			} catch (RestClientException | ServiceException | InterruptedException | ExecutionException e) {
 				logger.error("Failed to fetch details of project {}", projectTicket.getProject().getName(), e);
 			}
@@ -228,7 +228,9 @@ public class TaskService {
 			validationStatuses = validationService
 					.getValidationStatuses(branchPaths);
 			for (AuthoringProject authoringProject : authoringProjects) {
-				authoringProject.setValidationStatus(validationStatuses.get(authoringProject.getBranchPath()));
+				String branchPath = authoringProject.getBranchPath();
+				String validationStatus = validationStatuses.get(branchPath);
+				authoringProject.setValidationStatus(validationStatus);
 			}
 		} catch (ExecutionException e) {
 			logger.warn("Failed to fetch validation statuses for branch paths {}", branchPaths);
