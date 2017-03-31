@@ -1,46 +1,35 @@
 package org.ihtsdo.snowowl.authoring.single.api.service;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ExecutionException;
-
-import javax.annotation.PostConstruct;
-import javax.jms.JMSException;
-import javax.jms.TextMessage;
-
-import org.ihtsdo.otf.jms.MessagingHelper;
-import org.ihtsdo.otf.rest.client.orchestration.OrchestrationRestClient;
-import org.ihtsdo.otf.rest.client.snowowl.PathHelper;
-import org.ihtsdo.otf.rest.exception.BusinessServiceException;
-import org.ihtsdo.snowowl.authoring.single.api.pojo.EntityType;
-import org.ihtsdo.snowowl.authoring.single.api.pojo.Notification;
-import org.ihtsdo.snowowl.authoring.single.api.pojo.ReleaseRequest;
-import org.ihtsdo.snowowl.authoring.single.api.pojo.Status;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.jms.annotation.JmsListener;
-import org.springframework.stereotype.Component;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableMap;
+import org.ihtsdo.otf.jms.MessagingHelper;
+import org.ihtsdo.otf.rest.client.orchestration.OrchestrationRestClient;
+import org.ihtsdo.otf.rest.client.snowowl.PathHelper;
+import org.ihtsdo.otf.rest.exception.BusinessServiceException;
+import org.ihtsdo.snowowl.authoring.single.api.pojo.ReleaseRequest;
+import org.ihtsdo.snowowl.authoring.single.api.pojo.Status;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
 
-@Component
+import javax.annotation.PostConstruct;
+import javax.jms.JMSException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.concurrent.ExecutionException;
+
+@Service
 public class ValidationService {
 
 	private static final String VALIDATION_REQUEST_QUEUE = "orchestration.termserver-release-validation";
-	private static final String VALIDATION_RESPONSE_QUEUE = "sca.termserver-release-validation.response";
+	public static final String VALIDATION_RESPONSE_QUEUE = "sca.termserver-release-validation.response";
 	public static final String PATH = "path";
 	public static final String USERNAME = "username";
 	public static final String PROJECT = "project";
@@ -63,9 +52,6 @@ public class ValidationService {
 
 	@Autowired
 	private MessagingHelper messagingHelper;
-
-	@Autowired
-	private NotificationService notificationService;
 
 	@Autowired
 	private OrchestrationRestClient orchestrationRestClient;
@@ -118,6 +104,13 @@ public class ValidationService {
 						});
 	}
 
+	void updateValidationStatusCache(String path, String validationStatus) {
+		logger.info("Cache value before '{}'", validationStatusCache.getIfPresent(path));
+		validationStatusCache.put(path, validationStatus);
+		logger.info("Cache value after '{}'", validationStatusCache.getIfPresent(path));
+
+	}
+
 	public Status startValidation(String projectKey, String taskKey, String username) throws BusinessServiceException {
 		return doStartValidation(taskService.getTaskBranchPathUsingCache(projectKey, taskKey), username, projectKey, taskKey, null);
 	}
@@ -160,33 +153,6 @@ public class ValidationService {
 		final String value = (String) metadata.get(key);
 		if (!Strings.isNullOrEmpty(value)) {
 			properties.put(key, value);
-		}
-	}
-
-	@SuppressWarnings("unused")
-	@JmsListener(destination = "${orchestration.name}" + "." + VALIDATION_RESPONSE_QUEUE)
-	public void receiveValidationEvent(TextMessage message) {
-		try {
-			if (!MessagingHelper.isError(message)) {
-				logger.info("receiveValidationEvent {}", message);
-				final String validationStatus = message.getStringProperty(STATUS);
-
-				// Update cache
-				validationStatusCache.put(message.getStringProperty(MessagingHelper.REQUEST_PROPERTY_NAME_PREFIX + PATH), validationStatus);
-
-				// Notify user
-				notificationService.queueNotification(
-						message.getStringProperty(MessagingHelper.REQUEST_PROPERTY_NAME_PREFIX + USERNAME),
-						new Notification(
-								message.getStringProperty(MessagingHelper.REQUEST_PROPERTY_NAME_PREFIX + PROJECT),
-								message.getStringProperty(MessagingHelper.REQUEST_PROPERTY_NAME_PREFIX + TASK),
-								EntityType.Validation,
-								validationStatus));
-			} else {
-				logger.error("receiveValidationEvent response with error {}", message);
-			}
-		} catch (JMSException e) {
-			logger.error("Failed to handle validation event message.", e);
 		}
 	}
 
