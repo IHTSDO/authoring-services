@@ -196,6 +196,10 @@ public class TaskService {
 				Branch parentBranchOrNull = branchMap.get(parentPath);
 				if (parentBranchOrNull == null) {
 					parentBranchOrNull = branchService.getBranchOrNull(parentPath);
+					if (parentBranchOrNull == null) {
+						logger.warn("Project {} parent branch is null {}", projectKey, parentPath);
+						return;
+					}
 					branchMap.put(parentPath, parentBranchOrNull);
 				}
 
@@ -203,9 +207,7 @@ public class TaskService {
 				Map<String, Object> metadata = new HashMap<>();
 				if (branchOrNull != null) {
 					branchState = branchOrNull.getState();
-					if (parentBranchOrNull != null) {
-						metadata.putAll(parentBranchOrNull.getMetadata());
-					}
+					metadata.putAll(parentBranchOrNull.getMetadata());
 					if (branchOrNull.getMetadata() != null) {
 						metadata.putAll(branchOrNull.getMetadata());
 					}
