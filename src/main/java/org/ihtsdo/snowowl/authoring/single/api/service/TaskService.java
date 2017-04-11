@@ -75,7 +75,7 @@ public class TaskService {
 	@Autowired
 	private MessagingHelper messagingHelper;
 
-	@Value("+{orchestration.name}")
+	@Value("${orchestration.name}")
 	private String orchestrationName;
 
 	private final ImpersonatingJiraClientFactory jiraClientFactory;
