@@ -77,57 +77,63 @@ public class SpellingListsService {
 
 	public void addWord(String newWord) throws IOException {
 		logger.info("Adding word to spelling list '{}'", newWord);
+		updateList((reader, writer) -> {
+			boolean inserted = false;
+			String listWord;
+			while ((listWord = reader.readLine()) != null) {
+				if (!inserted && newWord.compareToIgnoreCase(listWord) < 0) {
+					logger.info("Inserting {} before {}", newWord, listWord);
+					writer.write(newWord);
+					writer.newLine();
+					inserted = true;
+				}
+				writer.write(listWord);
+				writer.newLine();
+			}
+			return true;
+		});
+	}
+
+	public boolean deleteWord(String word) throws IOException, ServiceException {
+		return updateList((reader, writer) -> {
+			boolean wordFound = false;
+			String line;
+			while ((line = reader.readLine()) != null) {
+				if (!wordFound && line.equalsIgnoreCase(word)) {
+					// Don't write this word to the new file
+					wordFound = true;
+				} else {
+					writer.write(line);
+					writer.newLine();
+				}
+			}
+			if (wordFound) {
+				logger.info("Removing word from spelling list '{}'", word);
+			}
+			return wordFound;
+		});
+	}
+
+	private boolean updateList(FileModifier fileModifier) throws IOException {
 		try (S3ObjectInputStream inputStream = getListObject().getObjectContent()) {
 			File modifiedList = Files.createTempFile("temp-spelling-list", "txt").toFile();
 			try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
+				boolean changes;
 				try (BufferedWriter writer = new BufferedWriter(new FileWriter(modifiedList))) {
-					boolean inserted = false;
-					String listWord;
-					while ((listWord = reader.readLine()) != null) {
-						if (!inserted && newWord.compareToIgnoreCase(listWord) < 0) {
-							logger.info("Inserting {} before {}", newWord, listWord);
-							writer.write(newWord);
-							writer.newLine();
-							inserted = true;
-						}
-						writer.write(listWord);
-						writer.newLine();
-					}
+					changes = fileModifier.modifyFile(reader, writer);
 				}
-				s3Client.putObject(bucket, path, modifiedList);
-				doLoadList(new FileInputStream(modifiedList));
+				if (changes) {
+					s3Client.putObject(bucket, path, modifiedList);
+					doLoadList(new FileInputStream(modifiedList));
+				}
+				return changes;
 			} finally {
 				modifiedList.delete();
 			}
 		}
 	}
 
-	public boolean deleteWord(String word) throws IOException, ServiceException {
-		try (S3ObjectInputStream inputStream = getListObject().getObjectContent()) {
-			File modifiedList = Files.createTempFile("temp-spelling-list", "txt").toFile();
-			try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
-				boolean wordFound = false;
-				try (BufferedWriter writer = new BufferedWriter(new FileWriter(modifiedList))) {
-					String line;
-					while ((line = reader.readLine()) != null) {
-						if (!wordFound && line.equalsIgnoreCase(word)) {
-							// Don't write this word to the new file
-							wordFound = true;
-						} else {
-							writer.write(line);
-							writer.newLine();
-						}
-					}
-				}
-				if (wordFound) {
-					logger.info("Removing word from spelling list '{}'", word);
-					s3Client.putObject(bucket, path, modifiedList);
-					doLoadList(new FileInputStream(modifiedList));
-				}
-				return wordFound;
-			} finally {
-				modifiedList.delete();
-			}
-		}
+	private interface FileModifier {
+		boolean modifyFile(BufferedReader reader, BufferedWriter writer) throws IOException;
 	}
 }
