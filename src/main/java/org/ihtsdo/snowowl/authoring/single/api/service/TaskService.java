@@ -85,6 +85,7 @@ public class TaskService {
 	private final String jiraProjectMrcmField;
 	private final String jiraCrsIdField;
 	private final String jiraProjectTemplatesField;
+	private final String jiraProjectSpellCheckField;
 
 	private LoadingCache<String, ProjectDetails> projectDetailsCache;
 	private final ExecutorService executorService;
@@ -103,6 +104,7 @@ public class TaskService {
 		jiraProjectMrcmField = JiraHelper.fieldIdLookup("SCA Project MRCM", jiraClientForFieldLookup);
 		jiraCrsIdField = JiraHelper.fieldIdLookup("CRS-ID", jiraClientForFieldLookup);
 		jiraProjectTemplatesField = JiraHelper.fieldIdLookup("SCA Project Templates", jiraClientForFieldLookup);
+		jiraProjectSpellCheckField = JiraHelper.fieldIdLookup("SCA Project Spell Check", jiraClientForFieldLookup);
 		logger.info("Jira custom field names fetched. (e.g. {}).", jiraExtensionBaseField);
 		executorService = Executors.newCachedThreadPool();
 
@@ -190,6 +192,7 @@ public class TaskService {
 				final boolean promotionDisabled = "Disabled".equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectPromotionField)));
 				final boolean mrcmDisabled = "Disabled".equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectMrcmField)));
 				final boolean templatesDisabled = "Disabled".equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectTemplatesField)));
+				final boolean spellCheckDisabled = "Disabled".equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectSpellCheckField)));
 
 				final Branch branchOrNull = branchService.getBranchOrNull(branchPath);
 				String parentPath = PathHelper.getParentPath(branchPath);
@@ -218,7 +221,7 @@ public class TaskService {
 				Map<String, JiraProject> projectMap = unfilteredProjects.get();
 				JiraProject project = projectMap.get(projectKey);
 				final AuthoringProject authoringProject = new AuthoringProject(projectKey, project.getName(),
-						project.getLead(), branchPath, branchState, latestClassificationJson, promotionDisabled, mrcmDisabled, templatesDisabled);
+						project.getLead(), branchPath, branchState, latestClassificationJson, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled);
 				authoringProject.setMetadata(metadata);
 				synchronized (authoringProjects) {
 					authoringProjects.add(authoringProject);
