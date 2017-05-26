@@ -78,14 +78,24 @@ public class SpellingListsService {
 	public void addWord(String newWord) throws IOException {
 		logger.info("Adding word to spelling list '{}'", newWord);
 		updateList((reader, writer) -> {
+
+			// Write header
+			writer.write(reader.readLine());
+			writer.newLine();
+
 			boolean inserted = false;
 			String listWord;
 			while ((listWord = reader.readLine()) != null) {
-				if (!inserted && newWord.compareToIgnoreCase(listWord) < 0) {
-					logger.info("Inserting {} before {}", newWord, listWord);
-					writer.write(newWord);
-					writer.newLine();
-					inserted = true;
+				if (!inserted) {
+					int comparison = newWord.compareToIgnoreCase(listWord);
+					if (comparison == 0) {
+						throw new IllegalArgumentException(String.format("Word '%s' is already in the list.", newWord));
+					} else if (comparison < 0) {
+						logger.info("Inserting {} before {}", newWord, listWord);
+						writer.write(newWord);
+						writer.newLine();
+						inserted = true;
+					}
 				}
 				writer.write(listWord);
 				writer.newLine();
@@ -96,6 +106,11 @@ public class SpellingListsService {
 
 	public boolean deleteWord(String word) throws IOException, ServiceException {
 		return updateList((reader, writer) -> {
+
+			// Write header
+			writer.write(reader.readLine());
+			writer.newLine();
+
 			boolean wordFound = false;
 			String line;
 			while ((line = reader.readLine()) != null) {
@@ -107,9 +122,10 @@ public class SpellingListsService {
 					writer.newLine();
 				}
 			}
-			if (wordFound) {
-				logger.info("Removing word from spelling list '{}'", word);
+			if (!wordFound) {
+				throw new IllegalArgumentException(String.format("Word '%s' is not in the list.", word));
 			}
+			logger.info("Removing word from spelling list '{}'", word);
 			return wordFound;
 		});
 	}
