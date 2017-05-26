@@ -86,6 +86,7 @@ public class TaskService {
 	private final String jiraCrsIdField;
 	private final String jiraProjectTemplatesField;
 	private final String jiraProjectSpellCheckField;
+	private final Set<String> projectJiraFetchFields;
 
 	private LoadingCache<String, ProjectDetails> projectDetailsCache;
 	private final ExecutorService executorService;
@@ -97,14 +98,16 @@ public class TaskService {
 
 		logger.info("Fetching Jira custom field names.");
 		final JiraClient jiraClientForFieldLookup = jiraClientFactory.getImpersonatingInstance(jiraUsername);
-		AuthoringTask.setJiraReviewerField(JiraHelper.fieldIdLookup("Reviewer", jiraClientForFieldLookup));
-		jiraExtensionBaseField = JiraHelper.fieldIdLookup("Extension Base", jiraClientForFieldLookup);
-		jiraProductCodeField = JiraHelper.fieldIdLookup("Product Code", jiraClientForFieldLookup);
-		jiraProjectPromotionField = JiraHelper.fieldIdLookup("SCA Project Promotion", jiraClientForFieldLookup);
-		jiraProjectMrcmField = JiraHelper.fieldIdLookup("SCA Project MRCM", jiraClientForFieldLookup);
-		jiraCrsIdField = JiraHelper.fieldIdLookup("CRS-ID", jiraClientForFieldLookup);
-		jiraProjectTemplatesField = JiraHelper.fieldIdLookup("SCA Project Templates", jiraClientForFieldLookup);
-		jiraProjectSpellCheckField = JiraHelper.fieldIdLookup("SCA Project Spell Check", jiraClientForFieldLookup);
+		AuthoringTask.setJiraReviewerField(JiraHelper.fieldIdLookup("Reviewer", jiraClientForFieldLookup, null));
+		projectJiraFetchFields = new HashSet<>();
+		projectJiraFetchFields.add("project");
+		jiraExtensionBaseField = JiraHelper.fieldIdLookup("Extension Base", jiraClientForFieldLookup, projectJiraFetchFields);
+		jiraProductCodeField = JiraHelper.fieldIdLookup("Product Code", jiraClientForFieldLookup, projectJiraFetchFields);
+		jiraProjectPromotionField = JiraHelper.fieldIdLookup("SCA Project Promotion", jiraClientForFieldLookup, projectJiraFetchFields);
+		jiraProjectMrcmField = JiraHelper.fieldIdLookup("SCA Project MRCM", jiraClientForFieldLookup, projectJiraFetchFields);
+		jiraCrsIdField = JiraHelper.fieldIdLookup("CRS-ID", jiraClientForFieldLookup, projectJiraFetchFields);
+		jiraProjectTemplatesField = JiraHelper.fieldIdLookup("SCA Project Templates", jiraClientForFieldLookup, projectJiraFetchFields);
+		jiraProjectSpellCheckField = JiraHelper.fieldIdLookup("SCA Project Spell Check", jiraClientForFieldLookup, projectJiraFetchFields);
 		logger.info("Jira custom field names fetched. (e.g. {}).", jiraExtensionBaseField);
 		executorService = Executors.newCachedThreadPool();
 
@@ -137,7 +140,8 @@ public class TaskService {
 		final TimerUtil timer = new TimerUtil("ProjectsList");
 		List<Issue> projectTickets = new ArrayList<>();
 		// Search for authoring project tickets this user has visibility of
-		List<Issue> issues = searchIssues("type = \"SCA Authoring Project\"", -1);
+		List<Issue> issues = searchIssues("type = \"SCA Authoring Project\"", -1, projectJiraFetchFields);
+
 		timer.checkpoint("First jira search");
 		for (Issue projectMagicTicket : issues) {
 			final String productCode = getProjectDetailsPopulatingCache(projectMagicTicket).getProductCode();
@@ -386,10 +390,17 @@ public class TaskService {
 	 * @throws JiraException
 	 */
 	private List<Issue> searchIssues(String jql, int limit) throws JiraException {
+		return searchIssues(jql, limit, null);
+	}
+	private List<Issue> searchIssues(String jql, int limit, Set<String> requiredFields) throws JiraException {
 		List<Issue> issues = new ArrayList<>();
 		Issue.SearchResult searchResult;
+		String requiredFieldParam = null;
+		if (requiredFields != null && !requiredFields.isEmpty()) {
+			requiredFieldParam = String.join(",", requiredFields);
+		}
 		do {
-			searchResult = getJiraClient().searchIssues(jql, null, limit - issues.size(), issues.size());
+			searchResult = getJiraClient().searchIssues(jql, requiredFieldParam, limit - issues.size(), issues.size());
 			issues.addAll(searchResult.issues);
 		} while (searchResult.total > issues.size() && (limit == LIMIT_UNLIMITED || issues.size() < limit));
 

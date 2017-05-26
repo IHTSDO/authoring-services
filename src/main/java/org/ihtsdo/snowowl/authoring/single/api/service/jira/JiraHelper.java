@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Map;
+import java.util.Set;
 
 public class JiraHelper {
 
@@ -30,7 +31,7 @@ public class JiraHelper {
 		return null;
 	}
 
-	public static String fieldIdLookup(String fieldName, JiraClient client) throws JiraException {
+	public static String fieldIdLookup(String fieldName, JiraClient client, Set<String> customFieldsSet) throws JiraException {
 		try {
 			String fieldId = null;
 			final RestClient restClient = client.getRestClient();
@@ -41,6 +42,9 @@ public class JiraHelper {
 				if (fieldName.equals(jsonObject.getString("name"))) {
 					fieldId = jsonObject.getString("id");
 				}
+			}
+			if (customFieldsSet != null && fieldId != null) {
+				customFieldsSet.add(fieldId);
 			}
 			return fieldId;
 		} catch (IOException | URISyntaxException | RestException e) {
