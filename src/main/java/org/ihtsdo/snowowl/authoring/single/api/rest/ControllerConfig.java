@@ -26,6 +26,12 @@ public class ControllerConfig {
 		return response(e.getMessage(), HttpStatus.NOT_FOUND);
 	}
 
+	@ExceptionHandler(IllegalArgumentException.class)
+	ResponseEntity<Error> catchIllegalArgumentException(IllegalArgumentException e) {
+		logger.debug("{}", e, e);
+		return response(e.getMessage(), HttpStatus.BAD_REQUEST);
+	}
+
 	private ResponseEntity<Error> response(String message, HttpStatus status) {
 		return new ResponseEntity<>(new Error(status, message), status);
 	}
