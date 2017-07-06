@@ -36,4 +36,12 @@ public class Classification {
 		return results.getClassificationId();
 	}
 
+	public ClassificationResults getResults() {
+		return results;
+	}
+
+	public void setResults(ClassificationResults results) {
+		this.results = results;
+	}
+	
 }

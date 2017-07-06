@@ -12,28 +12,41 @@ import net.rcarz.jiraclient.User;
 import net.sf.json.JSON;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
+import us.monoid.json.JSONException;
+
 import org.apache.activemq.command.ActiveMQQueue;
 import org.apache.log4j.Level;
 import org.ihtsdo.otf.jms.MessagingHelper;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.snowowl.PathHelper;
+import org.ihtsdo.otf.rest.client.snowowl.pojo.ApiError;
 import org.ihtsdo.otf.rest.client.snowowl.pojo.Branch;
+import org.ihtsdo.otf.rest.client.snowowl.pojo.ClassificationResults.ClassificationStatus;
+import org.ihtsdo.otf.rest.client.snowowl.pojo.Merge;
+import org.ihtsdo.otf.rest.client.snowowl.pojo.MergeReviewsResults;
 import org.ihtsdo.otf.rest.exception.BadRequestException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.*;
+import org.ihtsdo.snowowl.authoring.single.api.rest.ControllerHelper;
+import org.ihtsdo.snowowl.authoring.single.api.review.pojo.BranchState;
 import org.ihtsdo.snowowl.authoring.single.api.review.service.ReviewService;
 import org.ihtsdo.snowowl.authoring.single.api.review.service.TaskMessagesDetail;
 import org.ihtsdo.snowowl.authoring.single.api.service.jira.ImpersonatingJiraClientFactory;
 import org.ihtsdo.snowowl.authoring.single.api.service.jira.JiraHelper;
 import org.ihtsdo.snowowl.authoring.single.api.service.util.TimerUtil;
+import org.ihtsdo.otf.rest.client.snowowl.SnowOwlRestClient;
+import org.ihtsdo.otf.rest.client.snowowl.SnowOwlRestClientFactory;
 import org.ihtsdo.sso.integration.SecurityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import static org.ihtsdo.otf.rest.client.snowowl.pojo.MergeReviewsResults.MergeReviewStatus.CURRENT;
 
 import javax.annotation.PreDestroy;
 import javax.jms.JMSException;
@@ -54,6 +67,12 @@ public class TaskService {
 	private static final int LIMIT_UNLIMITED = -1;
 	private static final String TASK_STATE_CHANGE_QUEUE_NAME = "-authoring.task-state-change";
 
+	@Autowired
+	private NotificationService notificationService;
+	
+	@Autowired
+	private SnowOwlRestClientFactory snowOwlRestClientFactory;
+	
 	@Autowired
 	private BranchService branchService;
 
@@ -354,6 +373,113 @@ public class TaskService {
 
 	public String getTaskBranchPathUsingCache(String projectKey, String taskKey) throws BusinessServiceException {
 		return PathHelper.getTaskPath(getProjectBaseUsingCache(projectKey), projectKey, taskKey);
+	}
+	
+	public synchronized Merge autoPromoteTaskToProject(String projectKey, String taskKey) throws BusinessServiceException {
+		
+		// Call rebase process
+		Merge merge = new Merge();
+		String mergeId = this.autoRebaseTask(projectKey, taskKey);
+		
+		if(null != mergeId) {
+			
+			// Call classification process
+			Classification classification =  this.autoClassificationTask(projectKey, taskKey);
+			
+			if(null != classification && (classification.getResults().getRelationshipChangesCount() == 0 || classification.getStatus().equals(ClassificationStatus.COMPLETED))) {
+				
+				// Call promote process
+				merge = this.autoPromoteTask(projectKey, taskKey, mergeId);
+				if (merge.getStatus() == Merge.Status.COMPLETED) {
+					notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.BranchState, "Success to auto promote task"));
+				}
+			}
+		}
+		
+		return merge;
+	}
+	
+	private Merge autoPromoteTask(String projectKey, String taskKey, String mergeId) throws BusinessServiceException {
+		String taskBranchPath = getTaskBranchPathUsingCache(projectKey, taskKey);
+		Merge merge = branchService.mergeBranchSync(taskBranchPath, PathHelper.getParentPath(taskBranchPath), mergeId);
+		return merge;
+	}
+	
+	private org.ihtsdo.snowowl.authoring.single.api.pojo.Status autoValidateTask(String projectKey, String taskKey) throws BusinessServiceException {
+		status = validationService.startValidation(projectKey, taskKey, ControllerHelper.getUsername());
+		if(status == null && !status.equals("COMPLETED")) {
+			return null;
+		}
+		return status;
+	}
+	
+	private Classification autoClassificationTask(String projectKey, String taskKey) throws BusinessServiceException {
+		String branchPath = getTaskBranchPathUsingCache(projectKey, taskKey);
+		try {
+			Classification classification =  classificationService.startClassification(projectKey, taskKey, branchPath, ControllerHelper.getUsername());
+			return classification;
+		} catch (RestClientException | JSONException e) {
+			notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Classification, "Failed to start classification."));
+			return null;
+		}
+	}
+	
+	private String autoRebaseTask(String projectKey, String taskKey) throws BusinessServiceException {
+		
+		String taskBranchPath = getTaskBranchPathUsingCache(projectKey, taskKey);
+		
+		// Get current task and check branch state
+		AuthoringTask authoringTask = retrieveTask(projectKey, taskKey);
+		String branchState = authoringTask.getBranchState();
+		if (null != authoringTask) {
+			
+			// Will skip rebase process if the branch state is FORWARD or UP_TO_DATE
+			if ((branchState.equalsIgnoreCase(BranchState.FORWARD.toString()) || branchState.equalsIgnoreCase(BranchState.UP_TO_DATE.toString())) ) {
+				return null;
+			} else {
+				try {
+					SnowOwlRestClient client = snowOwlRestClientFactory.getClient();
+					String mergeId = client.createBranchMergeReviews(PathHelper.getParentPath(taskBranchPath), taskBranchPath);
+					MergeReviewsResults mergeReview;
+					int sleepSeconds = 4;
+					int totalWait = 0;
+					int maxTotalWait = 60 * 60;
+					try {
+						do {
+							Thread.sleep(1000 * sleepSeconds);
+							totalWait += sleepSeconds;
+							mergeReview = client.getMergeReviewsResult(mergeId);
+							if (sleepSeconds < 10) {
+								sleepSeconds+=2;
+							}
+						} while (totalWait < maxTotalWait && (mergeReview.getStatus() != CURRENT));
+
+						// Check conflict of merge review
+						if (client.isNoMergeConflict(mergeId)) {
+							
+							// Process rebase task 
+							Merge merge = branchService.mergeBranchSync(PathHelper.getParentPath(taskBranchPath), taskBranchPath, null);
+							if (merge.getStatus() == Merge.Status.COMPLETED) {
+								return mergeId;
+							} else {
+								ApiError apiError = merge.getApiError();
+								String message = apiError != null ? apiError.getMessage() : null;
+								notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Rebase, message));
+							}
+						} else {
+							notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Rebase, "Rebase has conflicts"));
+						}
+					} catch (InterruptedException | RestClientException e) {
+						throw new BusinessServiceException("Failed to fetch merge reviews status.", e);
+					}
+				} catch (RestClientException e) {
+					throw new BusinessServiceException("Failed to start merge reviews.", e);
+				}
+			
+			}
+		}
+		return null;
+		
 	}
 
 	public String getBranchPathUsingCache(String projectKey, String taskKey) throws BusinessServiceException {
@@ -702,6 +828,8 @@ public class TaskService {
 			return id2.compareTo(id1);
 		}
 	};
+
+	private org.ihtsdo.snowowl.authoring.single.api.pojo.Status status;
 
 	public boolean conditionalStateTransition(String projectKey, String taskKey, TaskStatus requiredState,
 			TaskStatus newState) throws JiraException, BusinessServiceException {

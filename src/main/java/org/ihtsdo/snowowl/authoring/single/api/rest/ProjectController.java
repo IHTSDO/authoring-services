@@ -180,6 +180,18 @@ public class ProjectController {
 		}
 		return getResponseEntity(merge);
 	}
+	
+	@ApiOperation(value="Auto promote an authoring Task")
+	@ApiResponses({
+			@ApiResponse(code = 200, message = "OK")
+	})
+	@RequestMapping(value="/projects/{projectKey}/tasks/{taskKey}/auto-promote", method= RequestMethod.POST)
+	public ResponseEntity<String> autoPromoteTask(@PathVariable final String projectKey,
+											  @PathVariable final String taskKey) throws BusinessServiceException {
+		
+		Merge merge = taskService.autoPromoteTaskToProject(projectKey, taskKey);
+		return getResponseEntity(merge);
+	}
 
 	private ResponseEntity<String> getResponseEntity(Merge merge) {
 		if (merge.getStatus() == Merge.Status.COMPLETED) {
