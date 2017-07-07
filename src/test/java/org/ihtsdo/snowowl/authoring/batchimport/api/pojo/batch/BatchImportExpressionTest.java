@@ -2,11 +2,10 @@ package org.ihtsdo.snowowl.authoring.batchimport.api.pojo.batch;
 
 import java.util.List;
 
+import org.ihtsdo.otf.rest.client.snowowl.pojo.DefinitionStatus;
 import org.ihtsdo.otf.rest.exception.ProcessingException;
 import org.junit.Assert;
 import org.junit.Test;
-
-import com.b2international.snowowl.snomed.core.domain.DefinitionStatus;
 
 public class BatchImportExpressionTest {
 

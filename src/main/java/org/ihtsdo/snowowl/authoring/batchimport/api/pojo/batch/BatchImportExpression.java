@@ -5,9 +5,11 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.apache.commons.lang.StringUtils;
+import org.ihtsdo.otf.rest.client.snowowl.pojo.DefinitionStatus;
 import org.ihtsdo.otf.rest.exception.ProcessingException;
+import org.ihtsdo.snowowl.authoring.batchimport.api.service.SnomedBrowserConstants;
 
-public class BatchImportExpression {
+public class BatchImportExpression implements SnomedBrowserConstants {
 	
 	public static final String FULLY_DEFINED = "===";
 	public static final String PRIMITVE = "<<<";
@@ -23,8 +25,6 @@ public class BatchImportExpression {
 	public static final String ATTRIBUTE_SEPARATOR = ",";
 	public static final String TYPE_SEPARATOR = "=";
 	public static char[] termTerminators = new char[] {'|', ':', '+', '{', ',', '}', '=' };
-	
-	enum DefinitionStatus { PRIMITIVE, FULLY_DEFINED }
 
 	private DefinitionStatus definitionStatus;
 	private List<String> focusConcepts;
