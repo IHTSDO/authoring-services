@@ -1,4 +1,4 @@
-package org.ihtsdo.snowowl.authoring.batchimport.api.pojo.browser;
+package org.ihtsdo.snowowl.authoring.batchimport.api.service;
 
 public interface SnomedBrowserConstants {
 	
@@ -18,5 +18,4 @@ public interface SnomedBrowserConstants {
 	
 	enum DescriptionType { SYNONYM, FSN }
 	
-	enum DefinitionStatus { PRIMITIVE, FULLY_DEFINED }
 }
