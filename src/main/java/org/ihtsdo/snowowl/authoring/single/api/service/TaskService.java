@@ -400,6 +400,7 @@ public class TaskService {
 	}
 	
 	private Merge autoPromoteTask(String projectKey, String taskKey, String mergeId) throws BusinessServiceException {
+		notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Classification, "Running promote authoring task"));
 		String taskBranchPath = getTaskBranchPathUsingCache(projectKey, taskKey);
 		Merge merge = branchService.mergeBranchSync(taskBranchPath, PathHelper.getParentPath(taskBranchPath), mergeId);
 		return merge;
@@ -414,6 +415,7 @@ public class TaskService {
 	}
 	
 	private Classification autoClassificationTask(String projectKey, String taskKey) throws BusinessServiceException {
+		notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Classification, "Running classification authoring task"));
 		String branchPath = getTaskBranchPathUsingCache(projectKey, taskKey);
 		try {
 			Classification classification =  classificationService.startClassification(projectKey, taskKey, branchPath, ControllerHelper.getUsername());
@@ -426,6 +428,7 @@ public class TaskService {
 	
 	private String autoRebaseTask(String projectKey, String taskKey) throws BusinessServiceException {
 		
+		notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Rebase, "Running auto rebase authoring task"));
 		String taskBranchPath = getTaskBranchPathUsingCache(projectKey, taskKey);
 		
 		// Get current task and check branch state
