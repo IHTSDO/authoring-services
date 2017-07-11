@@ -64,7 +64,7 @@ public class DialectConversionService {
 		Map<String, String> conversions = new HashMap<>();
 		for (String usWord : words) {
 			if (!StringUtils.isEmpty(usWord)) {
-				String gbWord = dialectUsToGbMap.get(usWord);
+				String gbWord = dialectUsToGbMap.get(usWord.toLowerCase());
 				if (!StringUtils.isEmpty(gbWord)) {
 					// Preserve first letter capitalization
 					if (usWord.substring(0, 1).equals(usWord.substring(0, 1).toUpperCase())) {
