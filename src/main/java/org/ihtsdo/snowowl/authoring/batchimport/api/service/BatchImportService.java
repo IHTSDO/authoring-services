@@ -421,7 +421,6 @@ public class BatchImportService implements SnomedBrowserConstants{
 				removeTemporaryIds(newConcept);
 				ConceptPojo createdConcept;
 				if (!request.isDryRun()) {
-					//createdConcept = browserService.create(branchPath, newConcept, run.getImportRequest().getCreateForAuthor(), defaultLocales);
 					createdConcept = soClient.createConcept(branchPath, newConcept);
 				} else {
 					ConceptPojo dryRunConcept = new ConceptPojo();

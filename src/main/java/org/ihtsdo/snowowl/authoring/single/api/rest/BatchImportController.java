@@ -1,4 +1,4 @@
-package org.ihtsdo.snowowl.authoring.batchimport.api.rest;
+package org.ihtsdo.snowowl.authoring.single.api.rest;
 
 import io.swagger.annotations.*;
 
@@ -12,7 +12,6 @@ import org.ihtsdo.snowowl.authoring.batchimport.api.pojo.batch.BatchImportReques
 import org.ihtsdo.snowowl.authoring.batchimport.api.pojo.batch.BatchImportStatus;
 import org.ihtsdo.snowowl.authoring.batchimport.api.service.BatchImportFormat;
 import org.ihtsdo.snowowl.authoring.batchimport.api.service.BatchImportService;
-import org.ihtsdo.snowowl.authoring.single.api.rest.ControllerHelper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -38,13 +37,13 @@ public class BatchImportController {
 	@Autowired
 	private BatchImportService batchImportService;
 	
-	@Value("+{batch.import.snowowl.url}")
+	@Value("${batch.import.snowowl.url}")
 	private String snowOwlUrl;
 	
-	@Value("+{batch.import.authoring-services.url}")
+	@Value("${batch.import.authoring-services.url}")
 	private String authoringServicesUrl;
 	
-	@Value("+{batch.import.sso.cookie}")
+	@Value("${batch.import.sso.cookie}")
 	private String cookieName;
 
 	@ApiOperation(value="Import 3rd Party Concept file eg SIRS")

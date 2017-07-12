@@ -46,5 +46,6 @@
 
 	<bean class="org.ihtsdo.snowowl.authoring.single.api.service.monitor.MonitorFactory"/>
 
-
+	<bean class="org.ihtsdo.snowowl.authoring.batchimport.api.service.BatchImportService"/>
+	
 </beans>

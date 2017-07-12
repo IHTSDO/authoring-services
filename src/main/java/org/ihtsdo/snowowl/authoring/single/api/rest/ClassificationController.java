@@ -2,21 +2,15 @@ package org.ihtsdo.snowowl.authoring.single.api.rest;
 
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
-import net.rcarz.jiraclient.JiraException;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.Classification;
-import org.ihtsdo.snowowl.authoring.single.api.pojo.Status;
 import org.ihtsdo.snowowl.authoring.single.api.service.ClassificationService;
 import org.ihtsdo.snowowl.authoring.single.api.service.TaskService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import us.monoid.json.JSONException;
-
-import java.io.IOException;
 
 @Api("classification")
 @RestController
