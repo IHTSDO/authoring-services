@@ -155,9 +155,13 @@ public class BatchImportController {
 			@PathVariable(value="batchImportId") 
 			final UUID batchImportId,
 			HttpServletResponse request,
-			HttpServletResponse response) throws BusinessServiceException {
+			HttpServletResponse response) throws BusinessServiceException, FileNotFoundException {
 
-		String csvFileName = "results_" + batchImportService.getImportResultsFile(projectKey, batchImportId).getName();
+		File resultsFile =  batchImportService.getImportResultsFile(projectKey, batchImportId);
+		if (resultsFile == null) {
+			throw new FileNotFoundException("Unable to find results file for batch import " + batchImportId + " on " + projectKey);
+		}
+		String csvFileName = "results_" + resultsFile.getName();
 		response.setContentType("text/csv");
 
 		String headerKey = "Content-Disposition";
