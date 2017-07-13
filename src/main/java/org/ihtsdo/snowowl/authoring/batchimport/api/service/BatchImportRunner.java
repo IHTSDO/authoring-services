@@ -3,8 +3,6 @@ package org.ihtsdo.snowowl.authoring.batchimport.api.service;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 
-import org.ihtsdo.otf.rest.client.snowowl.SnowOwlRestClient;
-import org.ihtsdo.snowowl.authoring.batchimport.api.client.AuthoringServicesClient;
 import org.ihtsdo.snowowl.authoring.batchimport.api.pojo.batch.BatchImportRun;
 import org.ihtsdo.snowowl.authoring.batchimport.api.pojo.batch.BatchImportState;
 import org.slf4j.Logger;
@@ -18,18 +16,12 @@ class BatchImportRunner implements Runnable {
 	private BatchImportService service;
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 	private SecurityContext securityContext;
-	private AuthoringServicesClient asClient;
-	private SnowOwlRestClient soClient;
 	
 	public BatchImportRunner(BatchImportRun batchImportRun,
-			BatchImportService batchImportService, 
-			AuthoringServicesClient asClient,
-			SnowOwlRestClient soClient) {
+			BatchImportService batchImportService) {
 		this.batchImportRun = batchImportRun;
 		this.service = batchImportService;
 		this.securityContext = SecurityContextHolder.getContext();
-		this.asClient = asClient;
-		this.soClient = soClient;
 	}
 
 	@Override
@@ -38,7 +30,7 @@ class BatchImportRunner implements Runnable {
 		try{
 			//Set the security context on this thread before Jira tries to use it
 			SecurityContextHolder.setContext(this.securityContext);
-			service.loadConceptsOntoTasks(batchImportRun, asClient, soClient);
+			service.loadConceptsOntoTasks(batchImportRun);
 			completed = true;
 		} catch (Exception e) {
 			StringWriter sw = new StringWriter();

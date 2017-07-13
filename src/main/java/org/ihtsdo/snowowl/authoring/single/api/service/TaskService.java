@@ -59,7 +59,7 @@ import java.util.stream.Collectors;
 public class TaskService {
 
 	public static final String FAILED_TO_RETRIEVE = "Failed-to-retrieve";
-
+	
 	private static final String INCLUDE_ALL_FIELDS = "*all";
 	private static final String EXCLUDE_STATUSES = " AND (status != \"" + TaskStatus.COMPLETED.getLabel()
 			+ "\" AND status != \"" + TaskStatus.DELETED.getLabel() + "\") ";
@@ -109,28 +109,40 @@ public class TaskService {
 
 	private LoadingCache<String, ProjectDetails> projectDetailsCache;
 	private final ExecutorService executorService;
+	private static final String UNIT_TEST = "UNIT_TEST";
 
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 
 	public TaskService(ImpersonatingJiraClientFactory jiraClientFactory, String jiraUsername) throws JiraException {
 		this.jiraClientFactory = jiraClientFactory;
-
-		logger.info("Fetching Jira custom field names.");
-		final JiraClient jiraClientForFieldLookup = jiraClientFactory.getImpersonatingInstance(jiraUsername);
-		AuthoringTask.setJiraReviewerField(JiraHelper.fieldIdLookup("Reviewer", jiraClientForFieldLookup, null));
-		projectJiraFetchFields = new HashSet<>();
-		projectJiraFetchFields.add("project");
-		jiraExtensionBaseField = JiraHelper.fieldIdLookup("Extension Base", jiraClientForFieldLookup, projectJiraFetchFields);
-		jiraProductCodeField = JiraHelper.fieldIdLookup("Product Code", jiraClientForFieldLookup, projectJiraFetchFields);
-		jiraProjectPromotionField = JiraHelper.fieldIdLookup("SCA Project Promotion", jiraClientForFieldLookup, projectJiraFetchFields);
-		jiraProjectMrcmField = JiraHelper.fieldIdLookup("SCA Project MRCM", jiraClientForFieldLookup, projectJiraFetchFields);
-		jiraCrsIdField = JiraHelper.fieldIdLookup("CRS-ID", jiraClientForFieldLookup, projectJiraFetchFields);
-		jiraProjectTemplatesField = JiraHelper.fieldIdLookup("SCA Project Templates", jiraClientForFieldLookup, projectJiraFetchFields);
-		jiraProjectSpellCheckField = JiraHelper.fieldIdLookup("SCA Project Spell Check", jiraClientForFieldLookup, projectJiraFetchFields);
-		logger.info("Jira custom field names fetched. (e.g. {}).", jiraExtensionBaseField);
 		executorService = Executors.newCachedThreadPool();
-
-		init();
+		
+		if (!jiraUsername.equals(UNIT_TEST)){
+			logger.info("Fetching Jira custom field names.");
+			final JiraClient jiraClientForFieldLookup = jiraClientFactory.getImpersonatingInstance(jiraUsername);
+			AuthoringTask.setJiraReviewerField(JiraHelper.fieldIdLookup("Reviewer", jiraClientForFieldLookup, null));
+			projectJiraFetchFields = new HashSet<>();
+			projectJiraFetchFields.add("project");
+			jiraExtensionBaseField = JiraHelper.fieldIdLookup("Extension Base", jiraClientForFieldLookup, projectJiraFetchFields);
+			jiraProductCodeField = JiraHelper.fieldIdLookup("Product Code", jiraClientForFieldLookup, projectJiraFetchFields);
+			jiraProjectPromotionField = JiraHelper.fieldIdLookup("SCA Project Promotion", jiraClientForFieldLookup, projectJiraFetchFields);
+			jiraProjectMrcmField = JiraHelper.fieldIdLookup("SCA Project MRCM", jiraClientForFieldLookup, projectJiraFetchFields);
+			jiraCrsIdField = JiraHelper.fieldIdLookup("CRS-ID", jiraClientForFieldLookup, projectJiraFetchFields);
+			jiraProjectTemplatesField = JiraHelper.fieldIdLookup("SCA Project Templates", jiraClientForFieldLookup, projectJiraFetchFields);
+			jiraProjectSpellCheckField = JiraHelper.fieldIdLookup("SCA Project Spell Check", jiraClientForFieldLookup, projectJiraFetchFields);
+			logger.info("Jira custom field names fetched. (e.g. {}).", jiraExtensionBaseField);
+		
+			init();
+		} else {
+			projectJiraFetchFields = null;
+			jiraExtensionBaseField = null;
+			jiraProductCodeField = null;
+			jiraProjectPromotionField = null;
+			jiraProjectMrcmField = null;
+			jiraCrsIdField = null;
+			jiraProjectTemplatesField = null;
+			jiraProjectSpellCheckField = null;
+		}
 	}
 
 	public void init() {

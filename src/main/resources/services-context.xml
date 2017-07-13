@@ -37,7 +37,6 @@
 	<bean class="org.ihtsdo.otf.jms.MessagingHelper"/>
 
 	<bean class="org.ihtsdo.snowowl.authoring.single.api.service.dao.ArbitraryFileService"/>
-	
 
 	<!-- Notifications and user monitors -->
 	<bean class="org.ihtsdo.snowowl.authoring.single.api.service.NotificationService"/>

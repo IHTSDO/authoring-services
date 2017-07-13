@@ -5,20 +5,16 @@ import io.swagger.annotations.*;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
-import org.ihtsdo.otf.rest.client.snowowl.SnowOwlRestClient;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
-import org.ihtsdo.snowowl.authoring.batchimport.api.client.AuthoringServicesClient;
 import org.ihtsdo.snowowl.authoring.batchimport.api.pojo.batch.BatchImportRequest;
 import org.ihtsdo.snowowl.authoring.batchimport.api.pojo.batch.BatchImportStatus;
 import org.ihtsdo.snowowl.authoring.batchimport.api.service.BatchImportFormat;
 import org.ihtsdo.snowowl.authoring.batchimport.api.service.BatchImportService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -36,15 +32,6 @@ public class BatchImportController {
 
 	@Autowired
 	private BatchImportService batchImportService;
-	
-	@Value("${batch.import.snowowl.url}")
-	private String snowOwlUrl;
-	
-	@Value("${batch.import.authoring-services.url}")
-	private String authoringServicesUrl;
-	
-	@Value("${batch.import.sso.cookie}")
-	private String cookieName;
 
 	@ApiOperation(value="Import 3rd Party Concept file eg SIRS")
 	@ApiResponses({
@@ -91,35 +78,11 @@ public class BatchImportController {
 			importRequest.setDryRun(dryRun);
 			importRequest.allowLateralizedContent(allowLateralizedContent);
 			parser.close();
-			String ssoCookie = getSsoCookie(request);
-			batchImportService.startImport(batchImportId, importRequest, rows, ControllerHelper.getUsername(), getASClient(ssoCookie), getSOClient(ssoCookie));
+			batchImportService.startImport(batchImportId, importRequest, rows, ControllerHelper.getUsername());
 			response.setHeader("Location", request.getRequestURL() + "/" + batchImportId.toString());
 		} catch (Exception e) {
 			throw new BusinessServiceException ("Unable to import batch file",e);
 		}
-	}
-	
-	private AuthoringServicesClient getASClient(String ssoCookie) throws Exception {
-		return new AuthoringServicesClient(authoringServicesUrl, ssoCookie);
-	}
-	
-	private SnowOwlRestClient getSOClient(String ssoCookie) throws Exception {
-		
-		return new SnowOwlRestClient(snowOwlUrl, ssoCookie);
-	}
-
-	private String getSsoCookie(HttpServletRequest request) throws Exception {
-		String ssoCookie = null;
-		for (Cookie cookie : request.getCookies()) {
-			if (cookie.getName().equals(cookieName)) {
-				ssoCookie = cookie.getName() + "=" + cookie.getValue();
-				break;
- 			}
-		}
-		if (ssoCookie == null) {
-			throw new Exception ("Unable to recover sso cookie '" + cookieName + "' from request - not found.");
-		}
-		return ssoCookie;
 	}
 
 	@ApiOperation( 

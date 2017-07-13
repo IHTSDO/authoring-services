@@ -13,11 +13,16 @@ public class OAuthJiraClientFactory implements ImpersonatingJiraClientFactory {
 	private final String jiraUrl;
 	private final String consumerKey;
 	private final PrivateKey privateKey;
+	private static final String UNIT_TEST = "UNIT_TEST";
 
 	public OAuthJiraClientFactory(String jiraUrl, String consumerKey, String privateKeyPath) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
 		this.jiraUrl = jiraUrl;
 		this.consumerKey = consumerKey;
-		privateKey = OAuthCredentials.getPrivateKey(privateKeyPath);
+		if (!privateKeyPath.equals(UNIT_TEST)) {
+			privateKey = OAuthCredentials.getPrivateKey(privateKeyPath);
+		} else {
+			privateKey = null;
+		}
 	}
 
 	/**

@@ -4,18 +4,22 @@ import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.snowowl.SnowOwlRestClient;
+import org.ihtsdo.otf.rest.client.snowowl.SnowOwlRestClientFactory;
 import org.ihtsdo.otf.rest.client.snowowl.pojo.*;
 import org.ihtsdo.otf.rest.exception.BadRequestException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.otf.rest.exception.ProcessingException;
-import org.ihtsdo.snowowl.authoring.batchimport.api.client.AuthoringServicesClient;
-import org.ihtsdo.snowowl.authoring.batchimport.api.client.AuthoringServicesClientException;
 import org.ihtsdo.snowowl.authoring.batchimport.api.pojo.batch.*;
-import org.ihtsdo.snowowl.authoring.batchimport.api.pojo.task.AuthoringTask;
-import org.ihtsdo.snowowl.authoring.batchimport.api.pojo.task.AuthoringTaskCreateRequest;
 import org.ihtsdo.snowowl.authoring.batchimport.api.service.file.dao.ArbitraryTempFileService;
+import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringTask;
+import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringTaskCreateRequest;
+import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringTaskUpdateRequest;
+import org.ihtsdo.snowowl.authoring.single.api.pojo.User;
+import org.ihtsdo.snowowl.authoring.single.api.service.TaskService;
+import org.ihtsdo.snowowl.authoring.single.api.service.UiStateService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.b2international.commons.AcceptHeader;
@@ -33,9 +37,14 @@ import java.util.concurrent.Executors;
 @Service
 public class BatchImportService implements SnomedBrowserConstants{
 	
-	//We need this created for each request, since it will use the authentication
-	//cookie of the requesting user
-	//private AuthoringServicesClient authoringServicesClient;
+	@Autowired
+	UiStateService stateService;
+	
+	@Autowired
+	TaskService taskService;
+	
+	@Autowired
+	private SnowOwlRestClientFactory snowOwlRestClientFactory;
 	
 	private ArbitraryTempFileService fileService = new ArbitraryTempFileService("batch_import");
 	
@@ -53,8 +62,6 @@ public class BatchImportService implements SnomedBrowserConstants{
 	private static final String SAVE_LIST = "saved-list";	
 	private static final String NO_NOTES = "Concept import pending...";
 	
-	private List<ExtendedLocale> defaultLocales;
-	private static final String defaultLocaleStr = "en-US;q=0.8,en-GB;q=0.6";
 	private static final Map<String, String> ACCEPTABLE_ACCEPTABILIY = new HashMap<>();
 	static {
 		ACCEPTABLE_ACCEPTABILIY.put(SCTID_EN_GB, Acceptability.ACCEPTABLE.toString());
@@ -70,14 +77,13 @@ public class BatchImportService implements SnomedBrowserConstants{
 	
 	public BatchImportService() throws BadRequestException {
 		try {
-			defaultLocales = AcceptHeader.parseExtendedLocales(new StringReader(defaultLocaleStr));
 			executor = Executors.newFixedThreadPool(1); //Want this to be Async, but not expecting more than 1 to run at a time.
-		} catch (IOException | IllegalArgumentException e) {
+		} catch (IllegalArgumentException e) {
 			throw new BadRequestException(e.getMessage());
 		}
 	}
 	
-	public void startImport(UUID batchImportId, BatchImportRequest importRequest, List<CSVRecord> rows, String currentUser, AuthoringServicesClient asClient, SnowOwlRestClient soClient) throws BusinessServiceException {
+	public void startImport(UUID batchImportId, BatchImportRequest importRequest, List<CSVRecord> rows, String currentUser) throws BusinessServiceException {
 		BatchImportRun run = BatchImportRun.createRun(batchImportId, importRequest);
 		currentImports.put(batchImportId, new BatchImportStatus(BatchImportState.RUNNING));
 		prepareConcepts(run, rows);
@@ -86,7 +92,7 @@ public class BatchImportService implements SnomedBrowserConstants{
 		logger.info("Batch Importing {} concepts onto new tasks in project {} - batch import id {} ",rowsToProcess, run.getImportRequest().getProjectKey(), run.getId().toString());
 		
 		if (validateLoadHierarchy(run)) {
-			BatchImportRunner runner = new BatchImportRunner(run, this, asClient, soClient);
+			BatchImportRunner runner = new BatchImportRunner(run, this);
 			executor.execute(runner);
 		} else {
 			run.abortLoad(rows);
@@ -180,21 +186,19 @@ public class BatchImportService implements SnomedBrowserConstants{
 		return false;
 	}
 
-	void loadConceptsOntoTasks(BatchImportRun run, 
-			AuthoringServicesClient asClient, 
-			SnowOwlRestClient soClient) throws AuthoringServicesClientException, BusinessServiceException {
+	void loadConceptsOntoTasks(BatchImportRun run) throws BusinessServiceException {
 		List<List<BatchImportConcept>> batches = collectIntoBatches(run);
 		for (List<BatchImportConcept> thisBatch : batches) {
-			AuthoringTask task = createTask(run, thisBatch, asClient, soClient);
-			Map<String, ConceptPojo> conceptsLoaded = loadConcepts(run, task, thisBatch, soClient);
+			AuthoringTask task = createTask(run, thisBatch);
+			Map<String, ConceptPojo> conceptsLoaded = loadConcepts(run, task, thisBatch);
 			String conceptsLoadedJson = conceptList(conceptsLoaded.values());
 			boolean dryRun = run.getImportRequest().isDryRun();
 			logger.info((dryRun?"Dry ":"") + "Loaded concepts onto task {}: {}",task.getKey(),conceptsLoadedJson);
 			if (!dryRun) {
 				// Update the edit panel so that the UI state exists before the task is transferred
 				if (conceptsLoadedJson.length() > 2) {
-					primeEditPanel(task, run, conceptsLoadedJson, asClient);
-					primeSavedList(task, run, conceptsLoaded.values(), asClient);
+					primeEditPanel(task, run, conceptsLoadedJson);
+					primeSavedList(task, run, conceptsLoaded.values());
 				} else {
 					logger.info("Skipped update of UI-Panel for {}: {}",task.getKey(),conceptsLoadedJson);
 				}
@@ -204,36 +208,57 @@ public class BatchImportService implements SnomedBrowserConstants{
 				if (run.getImportRequest().getConceptsPerTask() == 1) {
 					newSummary = "New concept: " + thisBatch.get(0).getFsn();
 				}
-				updateTaskDetails(task, run, conceptsLoaded, newSummary, asClient);
+				updateTaskDetails(task, run, conceptsLoaded, newSummary);
 			}
 		}
 	}
 
 	private void updateTaskDetails(AuthoringTask task, BatchImportRun run,
-			Map<String, ConceptPojo> conceptsLoaded, String newSummary, 
-			AuthoringServicesClient authoringServicesClient) {
+			Map<String, ConceptPojo> conceptsLoaded, String newSummary) {
 		try {
 			String allNotes = getAllNotes(task, run, conceptsLoaded);
 			if (newSummary != null) {
 				task.setSummary(newSummary);
 			}
 			task.setDescription(allNotes);
-			authoringServicesClient.updateTask( task.getProjectKey(), 
-												task.getKey(),
-												task.getSummary(),
-												task.getDescription(),
-												run.getImportRequest().getCreateForAuthor());
+			updateTask( task.getProjectKey(), 
+						task.getKey(),
+						task.getSummary(),
+						task.getDescription(),
+						run.getImportRequest().getCreateForAuthor());
 			logger.info ("Task {} assigned to {}", task.getKey(), run.getImportRequest().getCreateForAuthor());
 		} catch (Exception e) {
 			logger.error("Failed to update description on task {}",task.getKey(),e);
 		}
 	}
 
-	private void primeEditPanel(AuthoringTask task, BatchImportRun run, String conceptsJson, AuthoringServicesClient authoringServicesClient) {
+	private void updateTask(String projectKey, String taskKey, String summary,
+		String description, String createForAuthor) throws BusinessServiceException {
+		
+		AuthoringTaskUpdateRequest taskUpdate = new AuthoringTask();
+		if (summary != null) {
+			taskUpdate.setSummary(summary);
+		}
+		
+		if (description != null) {
+			taskUpdate.setDescription(description);
+		}
+		
+		if (createForAuthor != null) {
+			User assignee = new User();
+			assignee.setUsername(createForAuthor);
+			taskUpdate.setAssignee(assignee);
+		}
+		
+		taskService.updateTask(projectKey, taskKey, taskUpdate);
+	}
+		
+
+	private void primeEditPanel(AuthoringTask task, BatchImportRun run, String conceptsJson) {
 		try {
 			String user = run.getImportRequest().getCreateForAuthor();
-			authoringServicesClient.persistTaskPanelState(task.getProjectKey(), task.getKey(), user, EDIT_PANEL, conceptsJson);
-		} catch (AuthoringServicesClientException e) {
+			stateService.persistTaskPanelState(task.getProjectKey(), task.getKey(), user, EDIT_PANEL, conceptsJson);
+		} catch (IOException e) {
 			logger.warn("Failed to prime edit panel for task " + task.getKey(), e );
 		}
 	}
@@ -250,7 +275,7 @@ public class BatchImportService implements SnomedBrowserConstants{
 		return json.toString();
 	}
 	
-	private void primeSavedList(AuthoringTask task, BatchImportRun run, Collection<ConceptPojo> conceptsLoaded, AuthoringServicesClient authoringServicesClient) {
+	private void primeSavedList(AuthoringTask task, BatchImportRun run, Collection<ConceptPojo> conceptsLoaded) {
 		try {
 			String user = run.getImportRequest().getCreateForAuthor();
 			StringBuilder json = new StringBuilder("{\"items\":[");
@@ -261,11 +286,12 @@ public class BatchImportService implements SnomedBrowserConstants{
 				isFirst = false;
 			}
 			json.append("]}");
-			authoringServicesClient.persistTaskPanelState(task.getProjectKey(), task.getKey(), user, SAVE_LIST, json.toString());
-		} catch (AuthoringServicesClientException e) {
+			stateService.persistTaskPanelState(task.getProjectKey(), task.getKey(), user, SAVE_LIST, json.toString());
+		} catch (IOException e) {
 			logger.warn("Failed to prime saved list for task " + task.getKey(), e );
 		}
 	}
+
 
 	private StringBuilder toSavedListJson(ConceptPojo thisConcept) {
 		StringBuilder buff = new StringBuilder("{\"concept\":");
@@ -295,9 +321,7 @@ public class BatchImportService implements SnomedBrowserConstants{
 	}
 
 	private AuthoringTask createTask(BatchImportRun run,
-			List<BatchImportConcept> thisBatch, 
-			AuthoringServicesClient asClient,
-			SnowOwlRestClient soClient) throws AuthoringServicesClientException {
+			List<BatchImportConcept> thisBatch) throws BusinessServiceException {
 		BatchImportRequest request = run.getImportRequest();
 		AuthoringTaskCreateRequest taskCreateRequest = new AuthoringTask();
 		
@@ -308,13 +332,13 @@ public class BatchImportService implements SnomedBrowserConstants{
 
 		AuthoringTask task = null;
 		if (!request.isDryRun()) {
-			task = asClient.createTask(request.getProjectKey(), taskCreateRequest);
+			task = taskService.createTask(request.getProjectKey(), taskCreateRequest);
 			
 			//That creates a task in Jira, but we also have to ask the TS to create one so as to actually obtain a branch
 			try {
-				soClient.createProjectTaskIfNeeded(request.getProjectKey(), task.getKey());
+				snowOwlRestClientFactory.getClient().createProjectTaskIfNeeded(request.getProjectKey(), task.getKey());
 			} catch (RestClientException e) {
-				throw new AuthoringServicesClientException("Failed to create task in TS", e);
+				throw new BusinessServiceException("Failed to create task in TS", e);
 			}
 		} else {
 			task = new AuthoringTask();
@@ -409,7 +433,7 @@ public class BatchImportService implements SnomedBrowserConstants{
 	}
 
 	private Map<String, ConceptPojo> loadConcepts(BatchImportRun run, AuthoringTask task,
-			List<BatchImportConcept> thisBatch, SnowOwlRestClient soClient) throws BusinessServiceException {
+			List<BatchImportConcept> thisBatch) throws BusinessServiceException {
 		BatchImportRequest request = run.getImportRequest();
 		String branchPath = "MAIN/" + request.getProjectKey() + "/" + task.getKey();
 		
@@ -423,7 +447,7 @@ public class BatchImportService implements SnomedBrowserConstants{
 				removeTemporaryIds(newConcept);
 				ConceptPojo createdConcept;
 				if (!request.isDryRun()) {
-					createdConcept = soClient.createConcept(branchPath, newConcept);
+					createdConcept = snowOwlRestClientFactory.getClient().createConcept(branchPath, newConcept);
 				} else {
 					ConceptPojo dryRunConcept = new ConceptPojo();
 					dryRunConcept.setConceptId(DRY_RUN);
