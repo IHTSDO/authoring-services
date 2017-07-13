@@ -22,8 +22,10 @@ import com.b2international.commons.AcceptHeader;
 import com.b2international.commons.ExtendedLocale;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.StringReader;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -585,7 +587,7 @@ public class BatchImportService implements SnomedBrowserConstants{
 	public static RelationshipPojo createRelationship(int groupNum, String tmpId, String sourceSCTID, String typeSCTID, String destinationSCTID) {
 		RelationshipPojo rel = new RelationshipPojo();
 		rel.setGroupId(groupNum);
-		rel.setCharacteristicType(CharacteristicType.STATED.toString());
+		rel.setCharacteristicType(CharacteristicType.STATED_RELATIONSHIP.toString());
 		rel.setSourceId(sourceSCTID);
 		rel.setType(new ConceptMiniPojo(typeSCTID));
 		//Set a temporary id so the user can tell which item failed validation
@@ -675,11 +677,19 @@ public class BatchImportService implements SnomedBrowserConstants{
 	
 	public File getImportResultsFile(String projectKey, UUID batchImportId) {
 		File resultDir = new File (getFileLocation(projectKey, batchImportId.toString()));
-		return fileService.listFiles(resultDir.getPath())[0];
+		File[] importResultFiles = fileService.listFiles(resultDir.getPath());
+		if (importResultFiles == null || importResultFiles.length == 0) {
+			logger.warn("Did not detect results file in expected location {}", resultDir);
+			return null;
+		}
+		return importResultFiles[0];
 	}
 
 	public String getImportResults(String projectKey, UUID batchImportId) throws IOException {
 		File resultFile = getImportResultsFile(projectKey, batchImportId);
+		if (resultFile == null) {
+			throw new FileNotFoundException();
+		}
 		return fileService.read(resultFile);
 	}
 	
@@ -707,7 +717,8 @@ public class BatchImportService implements SnomedBrowserConstants{
 
 	public void outputCSV(BatchImportRun batchImportRun) {
 		try {
-			fileService.write(getFilePath(batchImportRun), batchImportRun.resultsAsCSV());
+			Path outputPath = fileService.write(getFilePath(batchImportRun), batchImportRun.resultsAsCSV());
+			logger.info("BatchImport CSV results file for {} written to {}", batchImportRun.getImportRequest().getProjectKey(), outputPath.toAbsolutePath());
 		} catch (Exception e) {
 			logger.error("Failed to save results of batch import",e);
 		}

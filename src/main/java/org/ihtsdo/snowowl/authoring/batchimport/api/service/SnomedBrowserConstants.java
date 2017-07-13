@@ -10,7 +10,7 @@ public interface SnomedBrowserConstants {
 
 	enum RelationshipModifier { EXISTENTIAL }
 	
-	enum CharacteristicType { STATED, INFERRED }
+	enum CharacteristicType { STATED_RELATIONSHIP, DEFINING_RELATIONSHIP, INFERRED_RELATIONSHIP, QUALIFYING_RELATIONSHIP, ADDITIONAL_RELATIONSHIP }
 	
 	enum Acceptability { ACCEPTABLE, PREFERRED }
 	

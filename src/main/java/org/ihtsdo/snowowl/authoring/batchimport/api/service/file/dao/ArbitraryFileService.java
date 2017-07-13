@@ -20,8 +20,10 @@ public class ArbitraryFileService {
 		this.baseDirectory = new File("resources/org.ihtsdo.snowowl.authoring.single.api");
 	}
 
-	public void write(String path, String data) throws IOException {
-		Files.write(getFile(path), data.getBytes(UTF_8));
+	public Path write(String path, String data) throws IOException {
+		Path outputPath = getFile(path);
+		Files.write(outputPath, data.getBytes(UTF_8));
+		return outputPath;
 	}
 
 	public String read(String path) throws IOException {
