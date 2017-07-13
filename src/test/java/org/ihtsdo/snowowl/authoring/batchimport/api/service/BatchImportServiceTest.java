@@ -15,18 +15,20 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
+import org.springframework.context.annotation.ImportResource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-@RunWith(SpringJUnit4ClassRunner.class)
+/*@RunWith(SpringJUnit4ClassRunner.class)
+@ImportResource("classpath:test-services-context.xml")
 @SpringBootApplication(exclude = {DataSourceAutoConfiguration.class, 
 		DataSourceTransactionManagerAutoConfiguration.class, 
-		HibernateJpaAutoConfiguration.class})
+		HibernateJpaAutoConfiguration.class})*/
 public class BatchImportServiceTest {
 	
 	@Autowired
 	BatchImportService service;
 
-	@Test
+	//@Test
 	public void test() throws ProcessingException {
 		String testExpression = "=== 64572001 | Disease |: { 363698007 | Finding site | = 38848004 | Duodenal structure , 116676008 | Associated morphology | = 24551003 | Arteriovenous malformation , 246454002 | Occurrence | = 255399007 | Congenital} ";
 		BatchImportExpression exp = BatchImportExpression.parse(testExpression);
