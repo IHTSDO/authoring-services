@@ -17,6 +17,7 @@ import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringTaskUpdateRequest;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.User;
 import org.ihtsdo.snowowl.authoring.single.api.service.TaskService;
 import org.ihtsdo.snowowl.authoring.single.api.service.UiStateService;
+import org.ihtsdo.sso.integration.SecurityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -256,7 +257,7 @@ public class BatchImportService implements SnomedBrowserConstants{
 
 	private void primeEditPanel(AuthoringTask task, BatchImportRun run, String conceptsJson) {
 		try {
-			String user = run.getImportRequest().getCreateForAuthor();
+			String user = SecurityUtil.getUsername();
 			stateService.persistTaskPanelState(task.getProjectKey(), task.getKey(), user, EDIT_PANEL, conceptsJson);
 		} catch (IOException e) {
 			logger.warn("Failed to prime edit panel for task " + task.getKey(), e );
@@ -277,7 +278,7 @@ public class BatchImportService implements SnomedBrowserConstants{
 	
 	private void primeSavedList(AuthoringTask task, BatchImportRun run, Collection<ConceptPojo> conceptsLoaded) {
 		try {
-			String user = run.getImportRequest().getCreateForAuthor();
+			String user = SecurityUtil.getUsername();
 			StringBuilder json = new StringBuilder("{\"items\":[");
 			boolean isFirst = true;
 			for (ConceptPojo thisConcept : conceptsLoaded) {
