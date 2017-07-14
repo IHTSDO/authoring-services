@@ -8,7 +8,7 @@ public class ArbitraryTempFileService extends ArbitraryFileService {
 
 	public ArbitraryTempFileService(String functionalArea) {
 		logger = LoggerFactory.getLogger(ArbitraryTempFileService.class);
-		this.baseDirectory = new File("work/tmp/" + functionalArea);
+		this.baseDirectory = new File("resources/" + functionalArea);
 	}
 
 	public File[] listFiles(String relativePath) {
