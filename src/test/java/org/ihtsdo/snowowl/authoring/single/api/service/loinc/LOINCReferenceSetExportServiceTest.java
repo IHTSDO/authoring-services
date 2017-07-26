@@ -20,18 +20,18 @@ public class LOINCReferenceSetExportServiceTest {
 	@Test
 	public void testGenerateCompositionalGrammar() throws Exception {
 		ConceptPojo concept = new ConceptPojo();
-		concept.add(new RelationshipPojo(0, ConceptConstants.isA, "71388002", ConceptConstants.STATED_RELATIONSHIP));
+		concept.add(new RelationshipPojo(0, ConceptConstants.isA, "71388002", LOINCReferenceSetExportService.STATED_RELATIONSHIP));
 		assertEquals("71388002", loincReferenceSetExportService.generateCompositionalGrammar(concept));
 
-		concept.add(new RelationshipPojo(0, ConceptConstants.isA, "138875005", ConceptConstants.STATED_RELATIONSHIP));
+		concept.add(new RelationshipPojo(0, ConceptConstants.isA, "138875005", LOINCReferenceSetExportService.STATED_RELATIONSHIP));
 		assertEquals("71388002 + 138875005", loincReferenceSetExportService.generateCompositionalGrammar(concept));
 
-		RelationshipPojo method = new RelationshipPojo(0, "260686004", "129264002", ConceptConstants.STATED_RELATIONSHIP);
+		RelationshipPojo method = new RelationshipPojo(0, "260686004", "129264002", LOINCReferenceSetExportService.STATED_RELATIONSHIP);
 		concept.add(method);
 		assertEquals("71388002 + 138875005 :\n" +
 				"\t260686004 = 129264002", loincReferenceSetExportService.generateCompositionalGrammar(concept));
 
-		RelationshipPojo procedureSite = new RelationshipPojo(0, "405813007", "73903008", ConceptConstants.STATED_RELATIONSHIP);
+		RelationshipPojo procedureSite = new RelationshipPojo(0, "405813007", "73903008", LOINCReferenceSetExportService.STATED_RELATIONSHIP);
 		concept.add(procedureSite);
 		assertEquals("71388002 + 138875005 :\n" +
 				"\t260686004 = 129264002,\n" +

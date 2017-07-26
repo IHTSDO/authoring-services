@@ -42,6 +42,7 @@ public class LOINCReferenceSetExportService {
 
 	private static final String TAB = "\t";
 
+	static final String STATED_RELATIONSHIP = "STATED_RELATIONSHIP";
 	private static final String CORRELATION_ID_PREFIX = "Correlation ID:";
 	private static final String LOINC_UNIQUE_ID_PREFIX = "LOINC Unique ID:";
 
@@ -128,7 +129,7 @@ public class LOINCReferenceSetExportService {
 		SortedSet<RelationshipPojo> parents = new TreeSet<>(RELATIONSHIP_COMPARATOR);
 		Map<Integer, Set<RelationshipPojo>> relationshipMap = new HashMap<>();
 		concept.getRelationships().stream()
-				.filter(r -> ConceptConstants.STATED_RELATIONSHIP.equals(r.getCharacteristicType()))
+				.filter(r -> STATED_RELATIONSHIP.equals(r.getCharacteristicType()))
 				.filter(RelationshipPojo::isActive)
 				.forEach(relationship -> {
 					if (ConceptConstants.isA.equals(relationship.getType().getConceptId())) {
