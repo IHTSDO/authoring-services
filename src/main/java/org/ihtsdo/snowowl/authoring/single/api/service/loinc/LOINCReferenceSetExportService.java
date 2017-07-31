@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
 import java.util.*;
@@ -55,8 +56,13 @@ public class LOINCReferenceSetExportService {
 			.compare(Long.parseLong(r1.getTarget().getConceptId()), Long.parseLong(r2.getTarget().getConceptId()))
 			.result();
 
-	public void exportDelta(String branchPath, OutputStream outputStream) throws BusinessServiceException {
+	public void exportDelta(String branchPath, InputStream previousLoincRF2SnapshotFile, OutputStream outputStream) throws BusinessServiceException {
 		SnowOwlRestClient terminologyServerClient = snowOwlRestClientFactory.getClient();
+
+		Map<String, String> loincToRefsetMemberIdMap = Collections.emptyMap();
+		if (previousLoincRF2SnapshotFile != null) {
+			loincToRefsetMemberIdMap = loadLoincToRefsetMemberIdMap(previousLoincRF2SnapshotFile);
+		}
 
 		// Collect IDs of concepts with logical changes
 		Set<String> conceptsWithLogicalChanges = getIdsOfConceptsWithLogicalChanges(branchPath, terminologyServerClient);
@@ -75,7 +81,8 @@ public class LOINCReferenceSetExportService {
 					String compositionalGrammar = generateCompositionalGrammar(concept);
 
 					// id
-					writer.write(UUID.randomUUID().toString());
+					// Previously released refset member UUID (if file provided and record previously released) or new random UUID
+					writer.write(loincToRefsetMemberIdMap.getOrDefault(loincUniqueId, UUID.randomUUID().toString()));
 					writer.write(TAB);
 
 					// effectiveTime
@@ -83,7 +90,7 @@ public class LOINCReferenceSetExportService {
 					writer.write(TAB);
 
 					// active
-					writer.write("1");
+					writer.write(concept.isActive() ? "1" : "0");
 					writer.write(TAB);
 
 					// moduleId
@@ -164,6 +171,28 @@ public class LOINCReferenceSetExportService {
 			}
 		}
 		return expression.toString();
+	}
+
+	private Map<String, String> loadLoincToRefsetMemberIdMap(InputStream previousLoincRF2SnapshotFile) {
+		// 0	1				2		3			4			5						6			7			8					9				10
+		// id	effectiveTime	active	moduleId	refsetId	referencedComponentId	mapTarget	Expression	definitionStatusId	correlationId	contentOriginId
+
+		Map<String, String> loincToRefsetMemberIdMap = new HashMap<>();
+		try {
+			try (BufferedReader reader = new BufferedReader(new InputStreamReader(previousLoincRF2SnapshotFile))) {
+				reader.readLine();
+				String line;
+				while((line = reader.readLine()) != null) {
+					String[] values = line.split("\\t");
+					loincToRefsetMemberIdMap.put(values[6], values[0]);
+				}
+			}
+		} catch (IOException e) {
+			logger.warn("Failed to read previous LOINC file.", e);
+			// Assumed to be bad input
+			throw new IllegalArgumentException("Failed to read previous LOINC file.", e);
+		}
+		return loincToRefsetMemberIdMap;
 	}
 
 	private String extractIdFromTerms(ConceptPojo concept, String prefix) throws BusinessServiceException {
