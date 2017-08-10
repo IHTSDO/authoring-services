@@ -2,6 +2,8 @@ package org.ihtsdo.snowowl.authoring.single.api.rest;
 
 import com.amazonaws.services.s3.model.S3Object;
 import io.swagger.annotations.ApiOperation;
+
+import org.ihtsdo.snowowl.authoring.single.api.pojo.DialectVariations;
 import org.ihtsdo.snowowl.authoring.single.api.service.DialectConversionService;
 import org.ihtsdo.snowowl.authoring.single.api.service.ServiceException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +31,23 @@ public class DialectConversionController {
 	@RequestMapping(value = "/dialect/en-us/map/en-gb", method = RequestMethod.GET, produces = "application/json")
 	public Map<String, String> convertEnUsToEnGb(@RequestParam Set<String> words) {
 		return dialectConversionService.getAvailableEnUsToEnGbConversions(words);
+	}
+	
+	@ApiOperation(value = "Service API for getting acceptable synonym variations (EN-US/EN-GB dialect).",
+			notes = "This endpoint should allow looking up many words at once and should allow multiple GB synonyms " +
+					"to be returned for each US term looked up. The GB Terms column should allow more than one term " +
+					"to be specified by using a pipe '|' character to separate terms.")
+	@ResponseBody
+	@RequestMapping(value = "/dialect/en-us/synonyms/en-gb", method = RequestMethod.GET, produces = "application/json")
+	public Map<String, Set<String>> synonymsEnUsToEnGb(@RequestParam Set<String> words) {
+		return dialectConversionService.getAvailableSynonymsEnUsToEnGbConversions(words);
+	}
+	
+	@ApiOperation(value = "Service to combine mapping terms and acceptable synonym variations (EN-US/EN-GB dialect).")
+	@ResponseBody
+	@RequestMapping(value = "/dialect/en-us/suggestions/en-gb", method = RequestMethod.GET, produces = "application/json")
+	public DialectVariations suggestionsEnUsToEnGb(@RequestParam Set<String> words) {
+		return dialectConversionService.getAcceptableTermsAndAvailableSynonymsEnUsToEnGbConversions(words);
 	}
 
 	@ApiOperation(value = "Add a pair of words to the EN-US to EN-GB dialect map.",

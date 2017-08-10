@@ -4,7 +4,11 @@ import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
+import com.google.common.collect.Sets;
+
+import org.apache.commons.collections.CollectionUtils;
 import org.ihtsdo.otf.dao.s3.S3ClientImpl;
+import org.ihtsdo.snowowl.authoring.single.api.pojo.DialectVariations;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,6 +20,7 @@ import javax.annotation.PostConstruct;
 import java.io.*;
 import java.nio.file.Files;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -25,23 +30,29 @@ public class DialectConversionService {
 	private final S3ClientImpl s3Client;
 	private final String bucket;
 	private final String usToGbTermsMapPath;
+	private final String usToGbSynonymsMapPath;
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 	private Map<String, String> dialectUsToGbMap;
+	private Map<String, Set<String>> dialectSynonymsUsToGbMap;
 
 	public DialectConversionService(
 			@Value("${aws.key}") String accessKey,
 			@Value("${aws.secretKey}") String secretKey,
 			@Value("${aws.s3.spell-check.bucket}") String bucket,
-			@Value("${aws.s3.dialect.us-to-gb-map.path}") String usToGbTermsMapPath) throws ServiceException, IOException {
+			@Value("${aws.s3.dialect.us-to-gb-map.path}") String usToGbTermsMapPath,
+			@Value("${aws.s3.dialect.us-to-gb-synonyms-map.path}") String usToGbSynonymsMapPath) throws ServiceException, IOException {
 		this.s3Client = new S3ClientImpl(new BasicAWSCredentials(accessKey, secretKey));
 		this.bucket = bucket;
 		this.usToGbTermsMapPath = usToGbTermsMapPath;
+		this.usToGbSynonymsMapPath = usToGbSynonymsMapPath;
 		this.dialectUsToGbMap = new HashMap<>();
+		this.dialectSynonymsUsToGbMap = new HashMap<>();
 	}
 
 	@PostConstruct
 	public void loadList() throws ServiceException {
 		doLoadList(getMapObject().getObjectContent());
+		doLoadSynonymsList(getSynonymsMapObject().getObjectContent());
 	}
 
 	private void doLoadList(InputStream objectContent) throws ServiceException {
@@ -59,8 +70,25 @@ public class DialectConversionService {
 			throw new ServiceException("Failed to load spelling list from S3.", e);
 		}
 	}
+	
+	private void doLoadSynonymsList(InputStream objectContent) throws ServiceException {
+		try (BufferedReader reader = new BufferedReader(new InputStreamReader(objectContent))) {
+			logger.info("Loading US to GB dialect synonyms conversion map");
+			reader.readLine();// Discard header
+			Map<String, Set<String>> newDialectUsToGbMap = new HashMap<>();
+			String line;
+			while ((line = reader.readLine()) != null) {
+				String[] split = line.split("\\t");
+				String[] synSplit = split[1].split("|");
+				newDialectUsToGbMap.put(split[0], Sets.newHashSet(synSplit));
+			}
+			dialectSynonymsUsToGbMap = newDialectUsToGbMap;
+		} catch (IOException e) {
+			throw new ServiceException("Failed to load spelling list from S3.", e);
+		}
+	}
 
-	public Map<String, String > getAvailableEnUsToEnGbConversions(Set<String> words) {
+	public Map<String, String> getAvailableEnUsToEnGbConversions(Set<String> words) {
 		Map<String, String> conversions = new HashMap<>();
 		for (String usWord : words) {
 			if (!StringUtils.isEmpty(usWord)) {
@@ -76,9 +104,44 @@ public class DialectConversionService {
 		}
 		return conversions;
 	}
+	
+	public Map<String, Set<String>> getAvailableSynonymsEnUsToEnGbConversions(Set<String> words) {
+		Map<String, Set<String>> conversions = new HashMap<>();
+		for (String usWord : words) {
+			if (!StringUtils.isEmpty(usWord)) {
+				Set<String> gbWordList = dialectSynonymsUsToGbMap.get(usWord.toLowerCase());
+				if (!CollectionUtils.isEmpty(gbWordList)) {
+					Set<String> newGBWordList = new HashSet<>();
+					for (String gbWord : gbWordList) {
+						// Preserve first letter capitalization
+						if (usWord.substring(0, 1).equals(usWord.substring(0, 1).toUpperCase())) {
+							newGBWordList.add(gbWord.substring(0, 1).toUpperCase() + gbWord.substring(1));
+						}
+					}
+					conversions.put(usWord, newGBWordList);
+				}
+			}
+		}
+		return conversions;
+	}
+	
+	public DialectVariations getAcceptableTermsAndAvailableSynonymsEnUsToEnGbConversions(Set<String> words){
+		DialectVariations result = new DialectVariations();
+		if (CollectionUtils.isEmpty(words)) {
+			return new DialectVariations();
+		}
+		result.setMap(getAvailableEnUsToEnGbConversions(words));
+		result.setSynonyms(getAvailableSynonymsEnUsToEnGbConversions(words));
+		
+		return result;
+	}
 
 	public S3Object getMapObject() {
 		return s3Client.getObject(bucket, usToGbTermsMapPath);
+	}
+	
+	public S3Object getSynonymsMapObject() {
+		return s3Client.getObject(bucket, usToGbSynonymsMapPath);
 	}
 
 	public void replaceMap(MultipartFile file) throws IOException, ServiceException {
