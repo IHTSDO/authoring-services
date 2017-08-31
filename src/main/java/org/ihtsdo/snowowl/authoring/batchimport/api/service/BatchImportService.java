@@ -59,6 +59,7 @@ public class BatchImportService implements SnomedBrowserConstants{
 	private static final String DRY_RUN = "DRY_RUN";
 	private static final int DEFAULT_GROUP = 0;
 	
+	private static final String MAIN_ROOT = "MAIN/";
 	private static final String EDIT_PANEL = "edit-panel";
 	private static final String SAVE_LIST = "saved-list";	
 	private static final String NO_NOTES = "Concept import pending...";
@@ -337,7 +338,10 @@ public class BatchImportService implements SnomedBrowserConstants{
 			
 			//That creates a task in Jira, but we also have to ask the TS to create one so as to actually obtain a branch
 			try {
-				snowOwlRestClientFactory.getClient().createProjectTaskIfNeeded(request.getProjectKey(), task.getKey());
+				//The metadata on the project gives us the full branch, which may not be a simple MAIN/Project
+				String projectPath = calculateProjectPath(task);
+				logger.info("Creating TS task on project path: MAIN/{}", projectPath);
+				snowOwlRestClientFactory.getClient().createProjectTaskIfNeeded(projectPath, task.getKey());
 			} catch (RestClientException e) {
 				throw new BusinessServiceException("Failed to create task in TS", e);
 			}
@@ -347,6 +351,18 @@ public class BatchImportService implements SnomedBrowserConstants{
 			task.setKey(DRY_RUN);
 		}
 		return task;
+	}
+
+	private String calculateProjectPath(AuthoringTask task) throws BusinessServiceException {
+		String projectPath = task.getBranchPath();
+		if (projectPath.startsWith(MAIN_ROOT)) {
+			//Top and tail the MAIN root and the task off the task branch path to get the full project name
+			int idxLastSlash = projectPath.lastIndexOf('/');
+			projectPath = projectPath.substring(MAIN_ROOT.length(), idxLastSlash);
+		} else {
+			throw new BusinessServiceException ("Unexpected branch path in task: " + task.getBranchPath());
+		}
+		return projectPath;
 	}
 
 	private String getRowRange(List<BatchImportConcept> thisBatch) {
@@ -436,8 +452,6 @@ public class BatchImportService implements SnomedBrowserConstants{
 	private Map<String, ConceptPojo> loadConcepts(BatchImportRun run, AuthoringTask task,
 			List<BatchImportConcept> thisBatch) throws BusinessServiceException {
 		BatchImportRequest request = run.getImportRequest();
-		String branchPath = "MAIN/" + request.getProjectKey() + "/" + task.getKey();
-		
 		Map<String, ConceptPojo> conceptsLoaded = new HashMap<>();
 		for (BatchImportConcept thisConcept : thisBatch) {
 			boolean loadedOK = false;
@@ -448,7 +462,7 @@ public class BatchImportService implements SnomedBrowserConstants{
 				removeTemporaryIds(newConcept);
 				ConceptPojo createdConcept;
 				if (!request.isDryRun()) {
-					createdConcept = snowOwlRestClientFactory.getClient().createConcept(branchPath, newConcept);
+					createdConcept = snowOwlRestClientFactory.getClient().createConcept(task.getBranchPath(), newConcept);
 				} else {
 					ConceptPojo dryRunConcept = new ConceptPojo();
 					dryRunConcept.setConceptId(DRY_RUN);
