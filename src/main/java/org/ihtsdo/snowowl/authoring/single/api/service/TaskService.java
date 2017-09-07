@@ -393,6 +393,8 @@ public class TaskService {
 	
 	public synchronized void autoPromoteTaskToProject(String projectKey, String taskKey) throws BusinessServiceException {
 		executorService.submit(() -> {
+			processStatus.setStatus("Queued");
+			autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
 			doAutoPromoteTaskToProject(projectKey, taskKey);
 		});
 	}
@@ -401,50 +403,38 @@ public class TaskService {
 		try {
 			
 			// Call rebase process
-			processStatus.setStatus("INFO");
-			processStatus.setMessage("Under rebasing");
-			autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
 			Merge merge = new Merge();
 			String mergeId = this.autoRebaseTask(projectKey, taskKey);
 			
 			if(null != mergeId) {
 				
 				// Call classification process
-				processStatus.setStatus("INFO");
-				processStatus.setMessage("Under classifying");
-				autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
 				Classification classification =  this.autoClassificationTask(projectKey, taskKey);
 				
 				if(null != classification && (classification.getResults().getRelationshipChangesCount() == 0 || classification.getStatus().equals(ClassificationStatus.COMPLETED))) {
 					
 					// Call promote process
-					processStatus.setStatus("INFO");
-					processStatus.setMessage("Under promoting");
-					autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
 					merge = this.autoPromoteTask(projectKey, taskKey, mergeId);
 					if (merge.getStatus() == Merge.Status.COMPLETED) {
 						notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.BranchState, "Success to auto promote task"));
-						processStatus.setStatus("INFO");
-						processStatus.setMessage("Success to auto promote task");
+						processStatus.setStatus("Completed");
 						autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
 					} else {
-						processStatus.setStatus("ERROR");
-						processStatus.setMessage("Failed to auto promote task");
+						processStatus.setStatus("Failed");
 						autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
 					}
 				}
 			} 
 		} catch (BusinessServiceException e) {
-			processStatus.setStatus("ERROR");
-			processStatus.setMessage("Failed to execute auto promote");
+			processStatus.setStatus("Failed");
+			processStatus.setMessage(e.getMessage());
 			autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
 		}
 	}
 	
 	private Merge autoPromoteTask(String projectKey, String taskKey, String mergeId) throws BusinessServiceException {
 		notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Classification, "Running promote authoring task"));
-		processStatus.setStatus("INFOR");
-		processStatus.setMessage("Running promote authoring task");
+		processStatus.setStatus("Promoting");
 		autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
 		String taskBranchPath = getTaskBranchPathUsingCache(projectKey, taskKey);
 		Merge merge = branchService.mergeBranchSync(taskBranchPath, PathHelper.getParentPath(taskBranchPath), mergeId);
@@ -461,8 +451,7 @@ public class TaskService {
 	
 	private Classification autoClassificationTask(String projectKey, String taskKey) throws BusinessServiceException {
 		notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Classification, "Running classification authoring task"));
-		processStatus.setStatus("INFOR");
-		processStatus.setMessage("Running classification of authoring task");
+		processStatus.setStatus("Classifying");
 		autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
 		String branchPath = getTaskBranchPathUsingCache(projectKey, taskKey);
 		try {
@@ -470,8 +459,8 @@ public class TaskService {
 			return classification;
 		} catch (RestClientException | JSONException e) {
 			notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Classification, "Failed to start classification."));
-			processStatus.setStatus("ERROR");
-			processStatus.setMessage("Failed to start classification.");
+			processStatus.setStatus("Classified with results");
+			processStatus.setMessage(e.getMessage());
 			autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
 			return null;
 		}
@@ -480,8 +469,7 @@ public class TaskService {
 	private String autoRebaseTask(String projectKey, String taskKey) throws BusinessServiceException {
 		
 		notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Rebase, "Running auto rebase authoring task"));
-		processStatus.setStatus("INFO");
-		processStatus.setMessage("Running auto rebase authoring task");
+		processStatus.setStatus("Rebasing");
 		autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
 		String taskBranchPath = getTaskBranchPathUsingCache(projectKey, taskKey);
 		
@@ -522,25 +510,24 @@ public class TaskService {
 								ApiError apiError = merge.getApiError();
 								String message = apiError != null ? apiError.getMessage() : null;
 								notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Rebase, message));
-								processStatus.setStatus("ERROR");
+								processStatus.setStatus("Rebased with conflicts");
 								processStatus.setMessage(message);
 								autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
 							}
 						} else {
 							notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Rebase, "Rebase has conflicts"));
-							processStatus.setStatus("ERROR");
-							processStatus.setMessage("Rebase has conflicts");
+							processStatus.setStatus("Rebased with conflicts");
 							autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
 						}
 					} catch (InterruptedException | RestClientException e) {
-						processStatus.setStatus("ERROR");
-						processStatus.setMessage("Failed to fetch merge reviews status.");
+						processStatus.setStatus("Rebased with conflicts");
+						processStatus.setMessage(e.getMessage());
 						autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
 						throw new BusinessServiceException("Failed to fetch merge reviews status.", e);
 					}
 				} catch (RestClientException e) {
-					processStatus.setStatus("ERROR");
-					processStatus.setMessage("Failed to start merge reviews.");
+					processStatus.setStatus("Rebased with conflicts");
+					processStatus.setMessage(e.getMessage());
 					autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
 					throw new BusinessServiceException("Failed to start merge reviews.", e);
 				}
