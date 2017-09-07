@@ -189,8 +189,18 @@ public class ProjectController {
 	public ResponseEntity<String> autoPromoteTask(@PathVariable final String projectKey,
 											  @PathVariable final String taskKey) throws BusinessServiceException {
 		
-		Merge merge = taskService.autoPromoteTaskToProject(projectKey, taskKey);
-		return getResponseEntity(merge);
+		taskService.autoPromoteTaskToProject(projectKey, taskKey);
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+	
+	@ApiOperation(value="Get status of authoring task auto-promotion.")
+	@ApiResponses({
+			@ApiResponse(code = 200, message = "OK")
+	})
+	@RequestMapping(value="/projects/{projectKey}/tasks/{taskKey}/auto-promote/status", method= RequestMethod.GET)
+	public ProcessStatus getAutoPromoteTaskStatus(@PathVariable final String projectKey,
+										   @PathVariable final String taskKey) throws BusinessServiceException {
+		return taskService.getAutoPromoteStatus(projectKey, taskKey);
 	}
 
 	private ResponseEntity<String> getResponseEntity(Merge merge) {
