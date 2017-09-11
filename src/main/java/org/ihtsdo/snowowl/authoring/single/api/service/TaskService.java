@@ -44,6 +44,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import static org.ihtsdo.otf.rest.client.snowowl.pojo.MergeReviewsResults.MergeReviewStatus.CURRENT;
@@ -392,17 +393,19 @@ public class TaskService {
 	}
 	
 	public synchronized void autoPromoteTaskToProject(String projectKey, String taskKey) throws BusinessServiceException {
+		final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		executorService.submit(() -> {
 			processStatus.setStatus("Queued");
 			autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
-			doAutoPromoteTaskToProject(projectKey, taskKey);
+			doAutoPromoteTaskToProject(projectKey, taskKey, authentication);
 		});
 	}
 	
-	public synchronized void doAutoPromoteTaskToProject(String projectKey, String taskKey){
+	public synchronized void doAutoPromoteTaskToProject(String projectKey, String taskKey, Authentication authentication){
 		try {
 			
 			// Call rebase process
+			SecurityContextHolder.getContext().setAuthentication(authentication);
 			Merge merge = new Merge();
 			String mergeId = this.autoRebaseTask(projectKey, taskKey);
 			
