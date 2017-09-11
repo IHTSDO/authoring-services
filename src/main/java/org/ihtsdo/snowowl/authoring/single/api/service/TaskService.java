@@ -396,6 +396,7 @@ public class TaskService {
 		final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		executorService.submit(() -> {
 			processStatus.setStatus("Queued");
+			SecurityContextHolder.getContext().setAuthentication(authentication);
 			autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
 			doAutoPromoteTaskToProject(projectKey, taskKey, authentication);
 		});
@@ -405,7 +406,6 @@ public class TaskService {
 		try {
 			
 			// Call rebase process
-			SecurityContextHolder.getContext().setAuthentication(authentication);
 			Merge merge = new Merge();
 			String mergeId = this.autoRebaseTask(projectKey, taskKey);
 			
