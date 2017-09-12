@@ -404,30 +404,26 @@ public class TaskService {
 	
 	public synchronized void doAutoPromoteTaskToProject(String projectKey, String taskKey, Authentication authentication){
 		try {
-			
+
 			// Call rebase process
 			Merge merge = new Merge();
 			String mergeId = this.autoRebaseTask(projectKey, taskKey);
-			
-			if(null != mergeId) {
-				
-				// Call classification process
-				Classification classification =  this.autoClassificationTask(projectKey, taskKey);
-				
-				if(null != classification && (classification.getResults().getRelationshipChangesCount() == 0 || classification.getStatus().equals(ClassificationStatus.COMPLETED))) {
-					
-					// Call promote process
-					merge = this.autoPromoteTask(projectKey, taskKey, mergeId);
-					if (merge.getStatus() == Merge.Status.COMPLETED) {
-						notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.BranchState, "Success to auto promote task"));
-						processStatus.setStatus("Completed");
-						autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
-					} else {
-						processStatus.setStatus("Failed");
-						autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
-					}
+
+			// Call classification process
+			Classification classification =  this.autoClassificationTask(projectKey, taskKey);
+			if(null != classification && (classification.getResults().getRelationshipChangesCount() == 0 || classification.getStatus().equals(ClassificationStatus.COMPLETED))) {
+
+				// Call promote process
+				merge = this.autoPromoteTask(projectKey, taskKey, mergeId);
+				if (merge.getStatus() == Merge.Status.COMPLETED) {
+					notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.BranchState, "Success to auto promote task"));
+					processStatus.setStatus("Completed");
+					autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
+				} else {
+					processStatus.setStatus("Failed");
+					autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
 				}
-			} 
+			}
 		} catch (BusinessServiceException e) {
 			processStatus.setStatus("Failed");
 			processStatus.setMessage(e.getMessage());
