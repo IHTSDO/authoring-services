@@ -45,8 +45,8 @@ public class BatchImportController {
 			
 			@ApiParam(value="seconds to delay after creating task")
 			@RequestParam("postTaskDelay") final Integer postTaskDelay,
-			@RequestParam("dryRun") final Boolean dryRun,
-			@RequestParam(value ="allowLateralizedContent", defaultValue = "FALSE") final Boolean allowLateralizedContent,
+			@RequestParam(value ="dryRun", defaultValue = "TRUE") final Boolean dryRun,
+			@RequestParam(value ="allowLateralizedContent", defaultValue = "TRUE") final Boolean allowLateralizedContent,
 			
 			@ApiParam(value="3rd Party import csv file")
 			@RequestPart("file") 
