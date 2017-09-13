@@ -422,6 +422,7 @@ public class TaskService {
 				} else {
 					processStatus.setStatus("Failed");
 					autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
+					processStatus.setMessage(merge.getApiError().getMessage());
 				}
 			}
 		} catch (BusinessServiceException e) {
