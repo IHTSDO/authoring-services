@@ -21,6 +21,7 @@ import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.snowowl.PathHelper;
 import org.ihtsdo.otf.rest.client.snowowl.pojo.ApiError;
 import org.ihtsdo.otf.rest.client.snowowl.pojo.Branch;
+import org.ihtsdo.otf.rest.client.snowowl.pojo.ClassificationResults;
 import org.ihtsdo.otf.rest.client.snowowl.pojo.ClassificationResults.ClassificationStatus;
 import org.ihtsdo.otf.rest.client.snowowl.pojo.Merge;
 import org.ihtsdo.otf.rest.client.snowowl.pojo.MergeReviewsResults;
@@ -416,7 +417,7 @@ public class TaskService {
 			
 			// Call classification process
 			Classification classification =  this.autoClassificationTask(projectKey, taskKey);
-			if(null != classification && (classification.getResults().getRelationshipChangesCount() == 0 || classification.getStatus().equals(ClassificationStatus.COMPLETED))) {
+			if(null != classification && (classification.getResults().getRelationshipChangesCount() == 0)) {
 
 				// Call promote process
 				merge = this.autoPromoteTask(projectKey, taskKey, mergeId);
@@ -464,13 +465,20 @@ public class TaskService {
 		String branchPath = getTaskBranchPathUsingCache(projectKey, taskKey);
 		try {
 			Classification classification =  classificationService.startClassification(projectKey, taskKey, branchPath, ControllerHelper.getUsername());
-			if (null != classification && null != classification.getResults() && classification.getResults().getRelationshipChangesCount() != 0 && !classification.getStatus().equals(ClassificationStatus.COMPLETED)) {
-				processStatus.setStatus("Classified with results");
-				processStatus.setMessage("");
-				autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
+			
+			snowOwlRestClientFactory.getClient().waitForClassificationToComplete(classification.getResults());
+
+			if (classification.getResults().getStatus().equals(ClassificationResults.ClassificationStatus.COMPLETED.toString())) {
+				if (null != classification && null != classification.getResults() && classification.getResults().getRelationshipChangesCount() != 0) {
+					processStatus.setStatus("Classified with results");
+					processStatus.setMessage("");
+					autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
+				}
+			} else {
+				throw new BusinessServiceException(classification.getMessage());
 			}
 			return classification;
-		} catch (RestClientException | JSONException e) {
+		} catch (RestClientException | JSONException | InterruptedException e) {
 			notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Classification, "Failed to start classification."));
 			throw new BusinessServiceException("Failed to classify", e);
 		}
