@@ -424,6 +424,7 @@ public class TaskService {
 					notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.BranchState, "Success to auto promote task"));
 					processStatus.setStatus("Completed");
 					autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
+					stateTransition(projectKey, taskKey, TaskStatus.PROMOTED);
 				} else {
 					processStatus.setStatus("Failed");
 					autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
