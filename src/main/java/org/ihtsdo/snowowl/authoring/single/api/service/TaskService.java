@@ -464,13 +464,15 @@ public class TaskService {
 		String branchPath = getTaskBranchPathUsingCache(projectKey, taskKey);
 		try {
 			Classification classification =  classificationService.startClassification(projectKey, taskKey, branchPath, ControllerHelper.getUsername());
+			if (null != classification && null != classification.getResults() && classification.getResults().getRelationshipChangesCount() != 0 && !classification.getStatus().equals(ClassificationStatus.COMPLETED)) {
+				processStatus.setStatus("Classified with results");
+				processStatus.setMessage("");
+				autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
+			}
 			return classification;
 		} catch (RestClientException | JSONException e) {
 			notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Classification, "Failed to start classification."));
-			processStatus.setStatus("Classified with results");
-			processStatus.setMessage(e.getMessage());
-			autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
-			return null;
+			throw new BusinessServiceException("Failed to classify", e);
 		}
 	}
 	
