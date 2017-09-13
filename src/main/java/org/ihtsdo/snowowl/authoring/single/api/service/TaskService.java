@@ -396,6 +396,7 @@ public class TaskService {
 		final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		executorService.submit(() -> {
 			processStatus.setStatus("Queued");
+			processStatus.setMessage("");
 			SecurityContextHolder.getContext().setAuthentication(authentication);
 			autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
 			doAutoPromoteTaskToProject(projectKey, taskKey, authentication);
@@ -409,22 +410,24 @@ public class TaskService {
 			Merge merge = new Merge();
 			String mergeId = this.autoRebaseTask(projectKey, taskKey);
 
-			if (!mergeId.equals("stopped")) {
-				// Call classification process
-				Classification classification =  this.autoClassificationTask(projectKey, taskKey);
-				if(null != classification && (classification.getResults().getRelationshipChangesCount() == 0 || classification.getStatus().equals(ClassificationStatus.COMPLETED))) {
+			if (null != mergeId && mergeId.equals("stopped")) {
+				return;
+			}
+			
+			// Call classification process
+			Classification classification =  this.autoClassificationTask(projectKey, taskKey);
+			if(null != classification && (classification.getResults().getRelationshipChangesCount() == 0 || classification.getStatus().equals(ClassificationStatus.COMPLETED))) {
 
-					// Call promote process
-					merge = this.autoPromoteTask(projectKey, taskKey, mergeId);
-					if (merge.getStatus() == Merge.Status.COMPLETED) {
-						notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.BranchState, "Success to auto promote task"));
-						processStatus.setStatus("Completed");
-						autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
-					} else {
-						processStatus.setStatus("Failed");
-						autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
-						processStatus.setMessage(merge.getApiError().getMessage());
-					}
+				// Call promote process
+				merge = this.autoPromoteTask(projectKey, taskKey, mergeId);
+				if (merge.getStatus() == Merge.Status.COMPLETED) {
+					notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.BranchState, "Success to auto promote task"));
+					processStatus.setStatus("Completed");
+					autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
+				} else {
+					processStatus.setStatus("Failed");
+					autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
+					processStatus.setMessage(merge.getApiError().getMessage());
 				}
 			}
 		} catch (BusinessServiceException e) {
@@ -437,6 +440,7 @@ public class TaskService {
 	private Merge autoPromoteTask(String projectKey, String taskKey, String mergeId) throws BusinessServiceException {
 		notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Classification, "Running promote authoring task"));
 		processStatus.setStatus("Promoting");
+		processStatus.setMessage("");
 		autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
 		String taskBranchPath = getTaskBranchPathUsingCache(projectKey, taskKey);
 		Merge merge = branchService.mergeBranchSync(taskBranchPath, PathHelper.getParentPath(taskBranchPath), mergeId);
@@ -454,6 +458,7 @@ public class TaskService {
 	private Classification autoClassificationTask(String projectKey, String taskKey) throws BusinessServiceException {
 		notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Classification, "Running classification authoring task"));
 		processStatus.setStatus("Classifying");
+		processStatus.setMessage("");
 		autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
 		String branchPath = getTaskBranchPathUsingCache(projectKey, taskKey);
 		try {
@@ -472,6 +477,7 @@ public class TaskService {
 		
 		notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Rebase, "Running auto rebase authoring task"));
 		processStatus.setStatus("Rebasing");
+		processStatus.setMessage("");
 		autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
 		String taskBranchPath = getTaskBranchPathUsingCache(projectKey, taskKey);
 		
