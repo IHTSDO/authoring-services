@@ -57,6 +57,14 @@ public class DialectConversionController {
 	public void addEnUSToEnGbMapEntry(@RequestParam String enUsWord, @RequestParam String enGbWord) throws IOException, ServiceException {
 		dialectConversionService.addWordPair(enUsWord, enGbWord);
 	}
+	
+	@ApiOperation(value = "Add a pair of words to the EN-US to EN-GB dialect synonyms mapping file.",
+			notes = "The word pair is inserted in the list maintaining alphabetical order. " +
+					"The dialect synonyms mapping is reloaded automatically after the list is updated.")
+	@RequestMapping(value = "/dialect/en-us/synonyms/en-gb", method = RequestMethod.PUT)
+	public void addEnUSToEnGbSynonymsEntry(@RequestParam String enUsWord, @RequestParam String enGbWord) throws IOException, ServiceException {
+		dialectConversionService.addSynonymsWordPair(enUsWord, enGbWord);
+	}
 
 	@ApiOperation(value = "Remove a pair of words from the EN-US to EN-GB dialect map.",
 			notes = "Only the EN-US word is required to find and remove the map entry. " +
@@ -66,6 +74,19 @@ public class DialectConversionController {
 	@RequestMapping(value = "/dialect/en-us/map/en-gb", method = RequestMethod.DELETE)
 	public ResponseEntity<NullType> deleteEnUSToEnGbMapEntry(@RequestParam String enUsWord) throws IOException, ServiceException {
 		if (dialectConversionService.deleteWordPair(enUsWord)) {
+			return ResponseEntity.noContent().build();
+		}
+		return ResponseEntity.notFound().build();
+	}
+	
+	@ApiOperation(value = "Remove a pair of words from the EN-US to EN-GB dialect synonyms mapping.",
+			notes = "Only the EN-US word is required to find and remove the map entry. " +
+					"This function uses a case insensitive search. " +
+					"If the word is not found in the list the response will be 404. " +
+					"The dialect map is reloaded automatically if the word is found after the map is updated.")
+	@RequestMapping(value = "/dialect/en-us/synonyms/en-gb", method = RequestMethod.DELETE)
+	public ResponseEntity<NullType> deleteEnUSToEnGbSynonymsEntry(@RequestParam String enUsWord) throws IOException, ServiceException {
+		if (dialectConversionService.deleteSynonymsWordPair(enUsWord)) {
 			return ResponseEntity.noContent().build();
 		}
 		return ResponseEntity.notFound().build();
@@ -83,6 +104,19 @@ public class DialectConversionController {
 				.header("content-disposition", "attachment; filename=\"dialect_map_en-us_to_en-gb.txt\"")
 				.body(new InputStreamResource(listObject.getObjectContent()));
 	}
+	
+	@ApiOperation(value = "Download the whole EN-US to EN-GB dialect synonyms mapping.",
+			notes = "Visit this endpoint URL directly in your browser, loading through Swagger may not work.")
+	@ResponseBody
+	@RequestMapping(value = "/dialect/en-us/synonyms/en-gb/file", method = RequestMethod.GET, produces = "application/octet-stream")
+	public ResponseEntity<InputStreamResource> downloadEnUSToEnGbSynonyms() {
+		S3Object listObject = dialectConversionService.getSynonymsMapObject();
+		return ResponseEntity.ok()
+				.contentLength(listObject.getObjectMetadata().getContentLength())
+				.contentType(MediaType.APPLICATION_OCTET_STREAM)
+				.header("content-disposition", "attachment; filename=\"us-to-gb-synonyms-map.txt\"")
+				.body(new InputStreamResource(listObject.getObjectContent()));
+	}
 
 	@ApiOperation(value = "Replace the whole EN-US to EN-GB dialect map.",
 			notes = "The dialect map is reloaded automatically once the map is updated.")
@@ -90,6 +124,14 @@ public class DialectConversionController {
 	@RequestMapping(value = "/dialect/en-us/map/en-gb/file", method = RequestMethod.POST, produces = "application/json")
 	public void replaceEnUSToEnGbMap(@RequestParam("file") MultipartFile file) throws IOException, ServiceException {
 		dialectConversionService.replaceMap(file);
+	}
+	
+	@ApiOperation(value = "Replace the whole EN-US to EN-GB dialect synonyms mapping.",
+			notes = "The dialect synonyms mapping is reloaded automatically once the map is updated.")
+	@ResponseBody
+	@RequestMapping(value = "/dialect/en-us/synonyms/en-gb/file", method = RequestMethod.POST, produces = "application/json")
+	public void replaceEnUSToEnGbSynonyms(@RequestParam("file") MultipartFile file) throws IOException, ServiceException {
+		dialectConversionService.replaceSynonymsMap(file);
 	}
 
 }

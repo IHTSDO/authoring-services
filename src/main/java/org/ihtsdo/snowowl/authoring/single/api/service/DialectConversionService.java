@@ -79,8 +79,8 @@ public class DialectConversionService {
 			String line;
 			while ((line = reader.readLine()) != null) {
 				String[] split = line.split("\\t");
-				String[] synSplit = split[1].split("|");
-				newDialectUsToGbMap.put(split[0], Sets.newHashSet(synSplit));
+				String[] synSplit = split[1].split("\\|");
+				newDialectUsToGbMap.put(split[0], Sets.newHashSet(org.apache.commons.lang.StringUtils.stripAll(synSplit)));
 			}
 			dialectSynonymsUsToGbMap = newDialectUsToGbMap;
 		} catch (IOException e) {
@@ -116,6 +116,8 @@ public class DialectConversionService {
 						// Preserve first letter capitalization
 						if (usWord.substring(0, 1).equals(usWord.substring(0, 1).toUpperCase())) {
 							newGBWordList.add(gbWord.substring(0, 1).toUpperCase() + gbWord.substring(1));
+						} else {
+							newGBWordList.add(gbWord);
 						}
 					}
 					conversions.put(usWord, newGBWordList);
@@ -152,6 +154,15 @@ public class DialectConversionService {
 			loadList();
 		}
 	}
+	
+	public void replaceSynonymsMap(MultipartFile file) throws IOException, ServiceException {
+		ObjectMetadata objectMetadata = new ObjectMetadata();
+		objectMetadata.setContentLength(file.getSize());
+		try (InputStream inputStream = file.getInputStream()) {
+			s3Client.putObject(bucket, usToGbSynonymsMapPath, inputStream, objectMetadata);
+			loadList();
+		}
+	}
 
 	public void addWordPair(String newUsWord, String newGbWord) throws IOException, ServiceException {
 		logger.info("Adding word pair to US/GB map '{}'", newUsWord, newGbWord);
@@ -169,6 +180,37 @@ public class DialectConversionService {
 					int comparison = newUsWord.compareToIgnoreCase(usWord);
 					if (comparison == 0) {
 						throw new IllegalArgumentException(String.format("US Word '%s' is already present in this dialect map.", usWord));
+					} else if (comparison < 0) {
+							String newPair = newUsWord + "\t" + newGbWord;
+						logger.info("Inserting '{}' before '{}'", newPair, listPair);
+						writer.write(newPair);
+						writer.newLine();
+						inserted = true;
+					}
+				}
+				writer.write(listPair);
+				writer.newLine();
+			}
+			return true;
+		});
+	}
+	
+	public void addSynonymsWordPair(String newUsWord, String newGbWord) throws IOException, ServiceException {
+		logger.info("Adding word pair to US/GB synonyms mapping '{}'", newUsWord, newGbWord);
+		updateSynonymsList((reader, writer) -> {
+
+			// Write header
+			writer.write(reader.readLine());
+			writer.newLine();
+
+			boolean inserted = false;
+			String listPair;
+			while ((listPair = reader.readLine()) != null) {
+				String usWord = listPair.split("\\t")[0];
+				if (!inserted) {
+					int comparison = newUsWord.compareToIgnoreCase(usWord);
+					if (comparison == 0) {
+						throw new IllegalArgumentException(String.format("US Word '%s' is already present in this dialect synonyms mapping.", usWord));
 					} else if (comparison < 0) {
 							String newPair = newUsWord + "\t" + newGbWord;
 						logger.info("Inserting '{}' before '{}'", newPair, listPair);
@@ -210,6 +252,33 @@ public class DialectConversionService {
 			return wordFound;
 		});
 	}
+	
+	public boolean deleteSynonymsWordPair(String usWord) throws IOException, ServiceException {
+		return updateSynonymsList((reader, writer) -> {
+
+			// Write header
+			writer.write(reader.readLine());
+			writer.newLine();
+
+			boolean wordFound = false;
+			String line;
+			while ((line = reader.readLine()) != null) {
+				String listUsWord = line.split("\\t")[0];
+				if (!wordFound && listUsWord.equalsIgnoreCase(usWord)) {
+					// Don't write this word pair to the new file
+					wordFound = true;
+				} else {
+					writer.write(line);
+					writer.newLine();
+				}
+			}
+			if (!wordFound) {
+				throw new IllegalArgumentException(String.format("Word '%s' is not in the synonyms mapping.", usWord));
+			}
+			logger.info("Removing word pair from US/GB synonyms mapping '{}'", line);
+			return wordFound;
+		});
+	}
 
 	private boolean updateList(FileModifier fileModifier) throws IOException, ServiceException {
 		try (S3ObjectInputStream inputStream = getMapObject().getObjectContent()) {
@@ -223,6 +292,26 @@ public class DialectConversionService {
 					s3Client.putObject(bucket, usToGbTermsMapPath, modifiedList);
 					logger.info("Load US/GB map");
 					doLoadList(new FileInputStream(modifiedList));
+				}
+				return changes;
+			} finally {
+				modifiedList.delete();
+			}
+		}
+	}
+	
+	private boolean updateSynonymsList(FileModifier fileModifier) throws IOException, ServiceException {
+		try (S3ObjectInputStream inputStream = getSynonymsMapObject().getObjectContent()) {
+			File modifiedList = Files.createTempFile("us-gb-synonyms", "txt").toFile();
+			try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
+				boolean changes;
+				try (BufferedWriter writer = new BufferedWriter(new FileWriter(modifiedList))) {
+					changes = fileModifier.modifyFile(reader, writer);
+				}
+				if (changes) {
+					s3Client.putObject(bucket, usToGbSynonymsMapPath, modifiedList);
+					logger.info("Load US/GB synonyms");
+					doLoadSynonymsList(new FileInputStream(modifiedList));
 				}
 				return changes;
 			} finally {
