@@ -393,13 +393,8 @@ public class TaskService {
 		return PathHelper.getTaskPath(getProjectBaseUsingCache(projectKey), projectKey, taskKey);
 	}
 	
-	public synchronized void autoPromoteTaskToProject(String projectKey, String taskKey) throws BusinessServiceException {
+	public void autoPromoteTaskToProject(String projectKey, String taskKey) throws BusinessServiceException {
 		final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-		ProcessStatus processStatus = getAutoPromoteStatus(projectKey, taskKey);
-		if (null != processStatus && (processStatus.getStatus().equals("Rebasing") || processStatus.getStatus().equals("Classifying") || processStatus.getStatus().equals("Promoting"))) {
-			return;
-		}
-		
 		executorService.submit(() -> {
 			processStatus.setStatus("Queued");
 			processStatus.setMessage("");

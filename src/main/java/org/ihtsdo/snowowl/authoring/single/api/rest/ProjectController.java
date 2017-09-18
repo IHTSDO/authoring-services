@@ -191,8 +191,10 @@ public class ProjectController {
 	@RequestMapping(value="/projects/{projectKey}/tasks/{taskKey}/auto-promote", method= RequestMethod.POST)
 	public ResponseEntity<String> autoPromoteTask(@PathVariable final String projectKey,
 											  @PathVariable final String taskKey) throws BusinessServiceException {
-		
-		taskService.autoPromoteTaskToProject(projectKey, taskKey);
+		ProcessStatus currentProcessStatus = taskService.getAutoPromoteStatus(projectKey, taskKey);
+		if (!(null != currentProcessStatus && (currentProcessStatus.getStatus().equals("Rebasing") || currentProcessStatus.getStatus().equals("Classifying") || currentProcessStatus.getStatus().equals("Promoting")))) {
+			taskService.autoPromoteTaskToProject(projectKey, taskKey);
+		}
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 	
