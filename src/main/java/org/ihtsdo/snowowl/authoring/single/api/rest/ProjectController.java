@@ -6,6 +6,9 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import net.rcarz.jiraclient.Issue;
 import net.rcarz.jiraclient.JiraException;
+import us.monoid.json.JSONException;
+
+import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.snowowl.PathHelper;
 import org.ihtsdo.otf.rest.client.snowowl.pojo.ApiError;
 import org.ihtsdo.otf.rest.client.snowowl.pojo.Merge;
@@ -187,7 +190,7 @@ public class ProjectController {
 	})
 	@RequestMapping(value="/projects/{projectKey}/tasks/{taskKey}/auto-promote", method= RequestMethod.POST)
 	public ResponseEntity<String> autoPromoteTask(@PathVariable final String projectKey,
-											  @PathVariable final String taskKey) throws BusinessServiceException {
+											  @PathVariable final String taskKey) throws BusinessServiceException, RestClientException, JSONException {
 		
 		taskService.autoPromoteTaskToProject(projectKey, taskKey);
 		return new ResponseEntity<>(HttpStatus.OK);
