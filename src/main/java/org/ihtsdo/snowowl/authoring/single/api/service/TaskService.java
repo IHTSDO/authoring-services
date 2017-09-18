@@ -393,18 +393,20 @@ public class TaskService {
 		return PathHelper.getTaskPath(getProjectBaseUsingCache(projectKey), projectKey, taskKey);
 	}
 	
-	public synchronized void autoPromoteTaskToProject(String projectKey, String taskKey) throws BusinessServiceException, RestClientException, JSONException {
+	public synchronized void autoPromoteTaskToProject(String projectKey, String taskKey) throws BusinessServiceException {
 		final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-		String branchPath = getTaskBranchPathUsingCache(projectKey, taskKey);
-		if (!snowOwlRestClientFactory.getClient().isClassificationInProgressOnBranch(branchPath)) {
-			executorService.submit(() -> {
-				processStatus.setStatus("Queued");
-				processStatus.setMessage("");
-				SecurityContextHolder.getContext().setAuthentication(authentication);
-				autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
-				doAutoPromoteTaskToProject(projectKey, taskKey, authentication);
-			});
+		ProcessStatus processStatus = getAutoPromoteStatus(projectKey, taskKey);
+		if (null != processStatus && (processStatus.getStatus().equals("Rebasing") || processStatus.getStatus().equals("Classifying") || processStatus.getStatus().equals("Promoting"))) {
+			return;
 		}
+		
+		executorService.submit(() -> {
+			processStatus.setStatus("Queued");
+			processStatus.setMessage("");
+			SecurityContextHolder.getContext().setAuthentication(authentication);
+			autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
+			doAutoPromoteTaskToProject(projectKey, taskKey, authentication);
+		});
 	}
 	
 	public synchronized void doAutoPromoteTaskToProject(String projectKey, String taskKey, Authentication authentication){

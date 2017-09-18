@@ -190,7 +190,7 @@ public class ProjectController {
 	})
 	@RequestMapping(value="/projects/{projectKey}/tasks/{taskKey}/auto-promote", method= RequestMethod.POST)
 	public ResponseEntity<String> autoPromoteTask(@PathVariable final String projectKey,
-											  @PathVariable final String taskKey) throws BusinessServiceException, RestClientException, JSONException {
+											  @PathVariable final String taskKey) throws BusinessServiceException {
 		
 		taskService.autoPromoteTaskToProject(projectKey, taskKey);
 		return new ResponseEntity<>(HttpStatus.OK);
