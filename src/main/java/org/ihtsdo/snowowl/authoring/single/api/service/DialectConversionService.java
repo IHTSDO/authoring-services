@@ -211,8 +211,8 @@ public class DialectConversionService {
 					int comparison = newUsWord.compareToIgnoreCase(usWord);
 					if (comparison == 0) {
 						throw new IllegalArgumentException(String.format("US Word '%s' is already present in this dialect synonyms mapping.", usWord));
-					} else if (comparison < 0) {
-							String newPair = newUsWord + "\t" + newGbWord;
+					} else {
+						String newPair = newUsWord + "\t" + newGbWord;
 						logger.info("Inserting '{}' before '{}'", newPair, listPair);
 						writer.write(newPair);
 						writer.newLine();
