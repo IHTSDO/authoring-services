@@ -22,7 +22,6 @@ import org.ihtsdo.otf.rest.client.snowowl.PathHelper;
 import org.ihtsdo.otf.rest.client.snowowl.pojo.ApiError;
 import org.ihtsdo.otf.rest.client.snowowl.pojo.Branch;
 import org.ihtsdo.otf.rest.client.snowowl.pojo.ClassificationResults;
-import org.ihtsdo.otf.rest.client.snowowl.pojo.ClassificationResults.ClassificationStatus;
 import org.ihtsdo.otf.rest.client.snowowl.pojo.Merge;
 import org.ihtsdo.otf.rest.client.snowowl.pojo.MergeReviewsResults;
 import org.ihtsdo.otf.rest.exception.BadRequestException;
@@ -43,8 +42,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -194,7 +191,12 @@ public class TaskService {
 	}
 
 	public AuthoringProject retrieveProject(String projectKey) throws BusinessServiceException {
-		return buildAuthoringProjects(Collections.singletonList(getProjectTicketOrThrow(projectKey))).get(0);
+		List<Issue> issues = Collections.singletonList(getProjectTicketOrThrow(projectKey));
+		List<AuthoringProject> projects = buildAuthoringProjects(issues);
+		if (projects.size() == 0) {
+			throw new BusinessServiceException ("Failed to recover project: " + projectKey +". See earlier logs for reason");
+		}
+		return projects.get(0);
 	}
 
 	public String getProjectBranchPathUsingCache(String projectKey) throws BusinessServiceException {
@@ -241,7 +243,7 @@ public class TaskService {
 				if (parentBranchOrNull == null) {
 					parentBranchOrNull = branchService.getBranchOrNull(parentPath);
 					if (parentBranchOrNull == null) {
-						logger.warn("Project {} parent branch is null {}", projectKey, parentPath);
+						logger.error("Project {} expected parent branch does not exist: {}", projectKey, parentPath);
 						return;
 					}
 					branchMap.put(parentPath, parentBranchOrNull);
