@@ -34,14 +34,14 @@ public class BatchImportExpression implements SnomedBrowserConstants {
 		
 	}
 	
-	public static BatchImportExpression parse(String expressionStr) throws ProcessingException {
+	public static BatchImportExpression parse(String expressionStr, String moduleId) throws ProcessingException {
 		BatchImportExpression result = new BatchImportExpression();
 		StringBuffer expressionBuff = new StringBuffer(expressionStr);
 		makeMachineReadable(expressionBuff);
 		//After each extract we're left with the remainder of the expression
 		result.definitionStatus = extractDefinitionStatus(expressionBuff);
 		result.focusConcepts = extractFocusConcepts(expressionBuff);
-		result.attributeGroups = extractGroups(expressionBuff);
+		result.attributeGroups = extractGroups(expressionBuff, moduleId);
 		return result;
 	}
 
@@ -79,7 +79,7 @@ public class BatchImportExpression implements SnomedBrowserConstants {
 		return Arrays.asList(focusConcepts);
 	}
 
-	static List<BatchImportGroup> extractGroups(StringBuffer expressionBuff) throws ProcessingException {
+	static List<BatchImportGroup> extractGroups(StringBuffer expressionBuff, String moduleId) throws ProcessingException {
 		List<BatchImportGroup> groups = new ArrayList<>();
 		//Do we have any groups to parse?
 		if (expressionBuff == null || expressionBuff.length() == 0) {
@@ -90,7 +90,7 @@ public class BatchImportExpression implements SnomedBrowserConstants {
 			String[] arrGroup = expressionBuff.toString().split(GROUP_START);
 			int groupNumber = 0;
 			for (String thisGroupStr : arrGroup) {
-				BatchImportGroup newGroup = BatchImportGroup.parse(++groupNumber, thisGroupStr);
+				BatchImportGroup newGroup = BatchImportGroup.parse(++groupNumber, thisGroupStr, moduleId);
 				groups.add(newGroup);
 			}
 		} else if (Character.isDigit(expressionBuff.charAt(0))) {
@@ -101,14 +101,14 @@ public class BatchImportExpression implements SnomedBrowserConstants {
 			int nextGroupClose = expressionBuff.indexOf(Character.toString(GROUP_END_CHAR));
 			//Case no further groups
 			if (nextGroupOpen == -1 && nextGroupClose == -1) {
-				BatchImportGroup newGroup = BatchImportGroup.parse(0, expressionBuff.toString());
+				BatchImportGroup newGroup = BatchImportGroup.parse(0, expressionBuff.toString(), moduleId);
 				groups.add(newGroup);
 			} else if (nextGroupOpen > -1 && nextGroupClose > nextGroupOpen) {
-				BatchImportGroup newGroup = BatchImportGroup.parse(0, expressionBuff.substring(0, nextGroupOpen));
+				BatchImportGroup newGroup = BatchImportGroup.parse(0, expressionBuff.substring(0, nextGroupOpen), moduleId);
 				groups.add(newGroup);
 				//And now work through the bracketed groups
 				StringBuffer remainder = new StringBuffer(expressionBuff.substring(nextGroupOpen, expressionBuff.length()));
-				groups.addAll(extractGroups(remainder));
+				groups.addAll(extractGroups(remainder, moduleId));
 			} else {
 				throw new ProcessingException("Unable to separate grouped from ungrouped attributes in: " + expressionBuff.toString());
 			}

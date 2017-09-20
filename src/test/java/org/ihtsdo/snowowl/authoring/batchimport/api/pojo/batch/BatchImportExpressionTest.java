@@ -68,7 +68,7 @@ public class BatchImportExpressionTest {
 		String expectedType = "246454002";
 		String expectedValue = "38848004";
 		StringBuffer testBuff = new StringBuffer(testExpression);
-		List<BatchImportGroup> groups = BatchImportExpression.extractGroups(testBuff);
+		List<BatchImportGroup> groups = BatchImportExpression.extractGroups(testBuff, null);
 		Assert.assertTrue(groups.size()==1);
 		BatchImportGroup group = groups.get(0);
 		Assert.assertTrue(group.getGroupNumber() == 1);
@@ -78,7 +78,7 @@ public class BatchImportExpressionTest {
 		
 		String testExpression2 = testExpression + testExpression + testExpression;
 		StringBuffer testBuff2 = new StringBuffer(testExpression2);
-		groups = BatchImportExpression.extractGroups(testBuff2);
+		groups = BatchImportExpression.extractGroups(testBuff2, null);
 		Assert.assertTrue(groups.size()==3);
 	}
 	
@@ -90,7 +90,7 @@ public class BatchImportExpressionTest {
 								"structure, 116676008 | Associated morphology | = 23583003 | Inflammation} " +
 								"{363698007 | Finding site | = 45292006 | Vulval structure, 116676008 | Associated morphology | = 56208002 | Ulcer}";
 		String expectedParent = "64572001";
-		BatchImportExpression exp = BatchImportExpression.parse(testExpression);
+		BatchImportExpression exp = BatchImportExpression.parse(testExpression, null);
 		String parent = exp.getFocusConcepts().get(0);
 		Assert.assertEquals(expectedParent, parent);
 		List<BatchImportGroup> groups = exp.getAttributeGroups();
@@ -103,7 +103,7 @@ public class BatchImportExpressionTest {
 				 				"116676008 | Associated morphology | = 24216005 | Congenital absence} {363698007 | Finding site |" +
 				 				"= 20837000 | Structure of right ovary, 116676008 | Associated morphology | = 24216005 | Congenital absence}";
 		String expectedParent = "64572001";
-		BatchImportExpression exp = BatchImportExpression.parse(testExpression);
+		BatchImportExpression exp = BatchImportExpression.parse(testExpression, null);
 		String parent = exp.getFocusConcepts().get(0);
 		Assert.assertEquals(expectedParent, parent);
 		List<BatchImportGroup> groups = exp.getAttributeGroups();
@@ -118,7 +118,7 @@ public class BatchImportExpressionTest {
 								"417746004 | Traumatic injury";
 		String expectedParent1 = "198609003";
 		String expectedParent2 = "417746004";
-		BatchImportExpression exp = BatchImportExpression.parse(testExpression);
+		BatchImportExpression exp = BatchImportExpression.parse(testExpression, null);
 		Assert.assertEquals(expectedParent1, exp.getFocusConcepts().get(0));
 		Assert.assertEquals(expectedParent2, exp.getFocusConcepts().get(1));
 		List<BatchImportGroup> groups = exp.getAttributeGroups();
@@ -132,7 +132,7 @@ public class BatchImportExpressionTest {
 								"45292006 | Vulval structure, 116676008 | Associated morphology | = 23583003 | Inflammation} " +
 								"{363698007 | Finding site | = 45292006 | Vulval structure, 116676008 | Associated morphology | = 56208002 | Ulcer}";
 		String expectedParent1 = "64572001";
-		BatchImportExpression exp = BatchImportExpression.parse(testExpression);
+		BatchImportExpression exp = BatchImportExpression.parse(testExpression, null);
 		Assert.assertEquals(expectedParent1, exp.getFocusConcepts().get(0));
 		List<BatchImportGroup> groups = exp.getAttributeGroups();
 		Assert.assertTrue(groups.size() == 3);
@@ -154,7 +154,7 @@ public class BatchImportExpressionTest {
 	public void testCombination6() throws ProcessingException {
 		String testExpression = "<<< 133906008 | Postpartum care   {260870009  | Priority = 373113001 | Routine}";
 		String expectedParent1 = "133906008";
-		BatchImportExpression exp = BatchImportExpression.parse(testExpression);
+		BatchImportExpression exp = BatchImportExpression.parse(testExpression, null);
 		Assert.assertEquals(expectedParent1, exp.getFocusConcepts().get(0));
 		List<BatchImportGroup> groups = exp.getAttributeGroups();
 		Assert.assertTrue(groups.size() == 1);
@@ -164,7 +164,7 @@ public class BatchImportExpressionTest {
 	public void testCombination7() throws ProcessingException {
 		String testExpression = "<<< 41769001 | Disease suspected |  { 246090004 | Associated finding = 16726004 | Renal osteodystrophy } { 246090004 | Associated finding = 709044004 | Chronic kidney disease | }";
 		String expectedParent1 = "41769001";
-		BatchImportExpression exp = BatchImportExpression.parse(testExpression);
+		BatchImportExpression exp = BatchImportExpression.parse(testExpression, null);
 		Assert.assertEquals(expectedParent1, exp.getFocusConcepts().get(0));
 		List<BatchImportGroup> groups = exp.getAttributeGroups();
 		Assert.assertTrue(groups.size() == 2);

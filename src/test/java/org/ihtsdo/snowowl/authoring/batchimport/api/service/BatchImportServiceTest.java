@@ -31,8 +31,8 @@ public class BatchImportServiceTest {
 	//@Test
 	public void test() throws ProcessingException {
 		String testExpression = "=== 64572001 | Disease |: { 363698007 | Finding site | = 38848004 | Duodenal structure , 116676008 | Associated morphology | = 24551003 | Arteriovenous malformation , 246454002 | Occurrence | = 255399007 | Congenital} ";
-		BatchImportExpression exp = BatchImportExpression.parse(testExpression);
-		Set<RelationshipPojo> rel = service.convertExpressionToRelationships("NEW_SCTID", exp);
+		BatchImportExpression exp = BatchImportExpression.parse(testExpression, null);
+		Set<RelationshipPojo> rel = service.convertExpressionToRelationships("NEW_SCTID", exp, null);
 		//Parent + 3 defining attributes = 4 relationships
 		Assert.assertTrue(rel.size() == 4);
 	}

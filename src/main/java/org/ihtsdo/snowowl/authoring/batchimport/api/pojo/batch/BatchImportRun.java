@@ -12,6 +12,7 @@ import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.snowowl.authoring.batchimport.api.service.BatchImportFormat;
+import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringProject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,6 +25,7 @@ public class BatchImportRun {
 	private BatchImportConcept rootConcept = BatchImportConcept.createRootConcept();
 	private BatchImportRequest importRequest;
 	private BatchImportFormat format;
+	private AuthoringProject project;
 	private UUID id;
 	
 	public static BatchImportRun createRun (UUID batchImportId, BatchImportRequest importRequest) throws BusinessServiceException {
@@ -137,5 +139,13 @@ public class BatchImportRun {
 		}
 		
 		return buff.toString();
+	}
+
+	public AuthoringProject getProject() {
+		return project;
+	}
+
+	public void setProject(AuthoringProject project) {
+		this.project = project;
 	}
 }

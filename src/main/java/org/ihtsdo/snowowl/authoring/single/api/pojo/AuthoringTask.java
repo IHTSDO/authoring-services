@@ -54,7 +54,6 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
 		}
 		created = (String) issue.getField(JIRA_CREATED_FIELD);
 		updated = (String) issue.getField(JIRA_UPDATED_FIELD);
-		
 
 		// declare the object mapper for JSON conversion
 		ObjectMapper mapper = new ObjectMapper();

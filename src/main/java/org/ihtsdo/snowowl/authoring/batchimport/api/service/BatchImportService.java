@@ -3,7 +3,6 @@ package org.ihtsdo.snowowl.authoring.batchimport.api.service;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.ihtsdo.otf.rest.client.RestClientException;
-import org.ihtsdo.otf.rest.client.snowowl.SnowOwlRestClient;
 import org.ihtsdo.otf.rest.client.snowowl.SnowOwlRestClientFactory;
 import org.ihtsdo.otf.rest.client.snowowl.pojo.*;
 import org.ihtsdo.otf.rest.exception.BadRequestException;
@@ -11,6 +10,7 @@ import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.otf.rest.exception.ProcessingException;
 import org.ihtsdo.snowowl.authoring.batchimport.api.pojo.batch.*;
 import org.ihtsdo.snowowl.authoring.batchimport.api.service.file.dao.ArbitraryTempFileService;
+import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringProject;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringTask;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringTaskCreateRequest;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringTaskUpdateRequest;
@@ -23,13 +23,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.b2international.commons.AcceptHeader;
-import com.b2international.commons.ExtendedLocale;
-
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.StringReader;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
@@ -63,6 +59,8 @@ public class BatchImportService implements SnomedBrowserConstants{
 	private static final String EDIT_PANEL = "edit-panel";
 	private static final String SAVE_LIST = "saved-list";	
 	private static final String NO_NOTES = "Concept import pending...";
+	
+	private static final String DEFAULT_MODULE_ID = "defaultModuleId";
 	
 	private static final Map<String, String> ACCEPTABLE_ACCEPTABILIY = new HashMap<>();
 	static {
@@ -153,8 +151,8 @@ public class BatchImportService implements SnomedBrowserConstants{
 		
 		if (run.getFormatter().definesByExpression()) {
 			try{
-				//Expression expression = (Expression) SCGStandaloneSetup.parse(concept.getExpressionStr());
-				BatchImportExpression exp = BatchImportExpression.parse(concept.getExpressionStr());
+				String moduleId = run.getProject().getMetadata().get(DEFAULT_MODULE_ID).toString();
+				BatchImportExpression exp = BatchImportExpression.parse(concept.getExpressionStr(), moduleId);
 				if (exp.getFocusConcepts() == null || exp.getFocusConcepts().size() < 1) {
 					throw new ProcessingException("Unable to determine a parent for concept from expression");
 				} 
@@ -190,6 +188,16 @@ public class BatchImportService implements SnomedBrowserConstants{
 
 	void loadConceptsOntoTasks(BatchImportRun run) throws BusinessServiceException {
 		List<List<BatchImportConcept>> batches = collectIntoBatches(run);
+		
+		String projectKey = run.getImportRequest().getProjectKey();
+		AuthoringProject project = taskService.retrieveProject(projectKey);
+		if (project == null) {
+			throw new BusinessServiceException("Unable to recover project " + projectKey);
+		} else if (!project.getMetadata().containsKey(DEFAULT_MODULE_ID)) {
+			throw new BusinessServiceException("Project " + projectKey + " does not specify its moduleId in the metadata");
+		}
+		run.setProject(project);
+		
 		for (List<BatchImportConcept> thisBatch : batches) {
 			AuthoringTask task = createTask(run, thisBatch);
 			Map<String, ConceptPojo> conceptsLoaded = loadConcepts(run, task, thisBatch);
@@ -453,10 +461,11 @@ public class BatchImportService implements SnomedBrowserConstants{
 			List<BatchImportConcept> thisBatch) throws BusinessServiceException {
 		BatchImportRequest request = run.getImportRequest();
 		Map<String, ConceptPojo> conceptsLoaded = new HashMap<>();
+		String moduleId = run.getProject().getMetadata().get(DEFAULT_MODULE_ID).toString();
 		for (BatchImportConcept thisConcept : thisBatch) {
 			boolean loadedOK = false;
 			try{
-				ConceptPojo newConcept = createBrowserConcept(thisConcept, run.getFormatter());
+				ConceptPojo newConcept = createBrowserConcept(thisConcept, run.getFormatter(), moduleId);
 				String warnings = "";
 				validateConcept(run, task, newConcept);
 				removeTemporaryIds(newConcept);
@@ -514,25 +523,24 @@ public class BatchImportService implements SnomedBrowserConstants{
 		return null;
 	}
 
-	private ConceptPojo createBrowserConcept(
-			BatchImportConcept thisConcept, BatchImportFormat formatter) throws BusinessServiceException {
+	private ConceptPojo createBrowserConcept(BatchImportConcept thisConcept, BatchImportFormat formatter, String moduleId) throws BusinessServiceException {
 		ConceptPojo newConcept = new ConceptPojo();
 		if (!thisConcept.requiresNewSCTID()) {
 			newConcept.setConceptId(thisConcept.getSctid());
 		}
 		newConcept.setActive(true);
-
+		newConcept.setModuleId(moduleId);
 
 		Set<RelationshipPojo> relationships;
 		if (formatter.definesByExpression()) {
-			relationships = convertExpressionToRelationships(thisConcept.getSctid(), thisConcept.getExpression());
+			relationships = convertExpressionToRelationships(thisConcept.getSctid(), thisConcept.getExpression(), moduleId);
 			newConcept.setDefinitionStatus(thisConcept.getExpression().getDefinitionStatus());
 		} else {
 			newConcept.setDefinitionStatus(DefinitionStatus.PRIMITIVE);
 			//Set the Parent
 			relationships = new HashSet<RelationshipPojo>();
 			for (String thisParent : thisConcept.getParents()) {
-				RelationshipPojo isA = createRelationship(DEFAULT_GROUP, "rel_isa", thisConcept.getSctid(), SCTID_ISA, thisParent);
+				RelationshipPojo isA = createRelationship(DEFAULT_GROUP, "rel_isa", thisConcept.getSctid(), SCTID_ISA, thisParent, moduleId);
 				relationships.add(isA);
 			}
 		}
@@ -561,20 +569,20 @@ public class BatchImportService implements SnomedBrowserConstants{
 		}
 		
 		thisConcept.setFsn(fsnTerm);
-		DescriptionPojo fsn = createDescription(fsnTerm, DescriptionType.FSN, PREFERRED_ACCEPTABILIY, languageCode, fsnCase);
+		DescriptionPojo fsn = createDescription(fsnTerm, DescriptionType.FSN, PREFERRED_ACCEPTABILIY, languageCode, fsnCase, moduleId);
 		descriptions.add(fsn);
 		
 		if (formatter.hasMultipleTerms()) {
 			int termIdx = 0;
 			for (BatchImportTerm biTerm : thisConcept.getTerms()) {
-				DescriptionPojo term = createDescription(biTerm, termIdx);
+				DescriptionPojo term = createDescription(biTerm, termIdx, moduleId);
 				descriptions.add(term);
 				termIdx++;
 			}
 		} else {
-			DescriptionPojo pref = createDescription(prefTerm, DescriptionType.SYNONYM, PREFERRED_ACCEPTABILIY, languageCode, CaseSignificance.CASE_INSENSITIVE);
+			DescriptionPojo pref = createDescription(prefTerm, DescriptionType.SYNONYM, PREFERRED_ACCEPTABILIY, languageCode, CaseSignificance.CASE_INSENSITIVE, moduleId);
 			descriptions.add(pref);
-			addSynonyms(descriptions, formatter, languageCode, thisConcept);
+			addSynonyms(descriptions, formatter, languageCode, thisConcept, moduleId);
 		}
 		newConcept.setDescriptions(descriptions);
 		
@@ -582,12 +590,12 @@ public class BatchImportService implements SnomedBrowserConstants{
 	}
 
 	Set<RelationshipPojo> convertExpressionToRelationships(String sourceSCTID,
-			BatchImportExpression expression) {
+			BatchImportExpression expression, String moduleId) {
 		Set<RelationshipPojo> relationships = new HashSet<>();
 		
 		int parentNum = 0;
 		for (String thisParent : expression.getFocusConcepts()) {
-			RelationshipPojo rel = createRelationship(DEFAULT_GROUP, "rel_" + (parentNum++), sourceSCTID, SCTID_ISA, thisParent);
+			RelationshipPojo rel = createRelationship(DEFAULT_GROUP, "rel_" + (parentNum++), sourceSCTID, SCTID_ISA, thisParent, moduleId);
 			relationships.add(rel);
 		}
 		
@@ -599,11 +607,11 @@ public class BatchImportService implements SnomedBrowserConstants{
 	}
 
 	private void addSynonyms(Set<DescriptionPojo> descriptions,
-			BatchImportFormat formatter, String languageCode, BatchImportConcept thisConcept) throws BusinessServiceException {
+			BatchImportFormat formatter, String languageCode, BatchImportConcept thisConcept, String moduleId) throws BusinessServiceException {
 		List<String> allSynonyms = formatter.getAllSynonyms(thisConcept);
 		for (String thisSyn : allSynonyms) {
 			if (!containsDescription (descriptions, thisSyn)){
-				DescriptionPojo syn =  createDescription(thisSyn, DescriptionType.SYNONYM, ACCEPTABLE_ACCEPTABILIY, languageCode, CaseSignificance.CASE_INSENSITIVE);
+				DescriptionPojo syn =  createDescription(thisSyn, DescriptionType.SYNONYM, ACCEPTABLE_ACCEPTABILIY, languageCode, CaseSignificance.CASE_INSENSITIVE, moduleId);
 				descriptions.add(syn);
 			}
 		}
@@ -623,7 +631,7 @@ public class BatchImportService implements SnomedBrowserConstants{
 		return false;
 	}
 
-	public static RelationshipPojo createRelationship(int groupNum, String tmpId, String sourceSCTID, String typeSCTID, String destinationSCTID) {
+	public static RelationshipPojo createRelationship(int groupNum, String tmpId, String sourceSCTID, String typeSCTID, String destinationSCTID, String moduleId) {
 		RelationshipPojo rel = new RelationshipPojo();
 		rel.setGroupId(groupNum);
 		rel.setCharacteristicType(CharacteristicType.STATED_RELATIONSHIP.toString());
@@ -635,10 +643,11 @@ public class BatchImportService implements SnomedBrowserConstants{
 		rel.setTarget(destination);
 		rel.setActive(true);
 		rel.setModifier(RelationshipModifier.EXISTENTIAL.toString());
+		rel.setModuleId(moduleId);
 		return rel;
 	}
 	
-	private DescriptionPojo createDescription(String term, DescriptionType type, Map<String, String> acceptabilityMap, String lang, CaseSignificance caseSig) {
+	private DescriptionPojo createDescription(String term, DescriptionType type, Map<String, String> acceptabilityMap, String lang, CaseSignificance caseSig, String moduleId) {
 		DescriptionPojo desc = new DescriptionPojo();
 		//Set a temporary id so the user can tell which item failed validation
 		desc.setDescriptionId("desc_" + type.toString());
@@ -649,10 +658,11 @@ public class BatchImportService implements SnomedBrowserConstants{
 		desc.setLang(lang);
 		desc.setAcceptabilityMap(acceptabilityMap);
 		desc.setCaseSignificance(caseSig.toString());
+		desc.setModuleId(moduleId);
 		return desc;
 	}
 	
-	private DescriptionPojo createDescription(BatchImportTerm biTerm, int idx) throws BusinessServiceException {
+	private DescriptionPojo createDescription(BatchImportTerm biTerm, int idx, String moduleId) throws BusinessServiceException {
 		DescriptionPojo desc = new DescriptionPojo();
 		//Set a temporary id so the user can tell which item failed validation
 		desc.setDescriptionId("desc_SYN_" + idx);
@@ -660,6 +670,7 @@ public class BatchImportService implements SnomedBrowserConstants{
 		desc.setActive(true);
 		desc.setType(DescriptionType.SYNONYM.toString());
 		desc.setLang(EN_LANGUAGE_CODE);
+		desc.setModuleId(moduleId);
 		desc.setAcceptabilityMap(getAcceptablityAsMap(biTerm));
 		if (biTerm.getCaseSensitivity() == null || biTerm.getCaseSensitivity().isEmpty()) {
 			desc.setCaseSignificance(CaseSignificance.CASE_INSENSITIVE.toString());
