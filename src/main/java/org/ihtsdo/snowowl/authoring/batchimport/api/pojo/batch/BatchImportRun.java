@@ -126,9 +126,18 @@ public class BatchImportRun {
 					.append(detail.isLoaded())
 					.append(",\"")
 					.append(detail.getFailureReason())
-					.append("\",")
+					.append("\",\"")
 					.append(detail.getSctidCreated())
-					.append(",");
+					.append("\",");
+				//Now add the data from the original input file
+				for (int i=0; i<thisRow.size(); i++) {
+					buff.append("\"")
+						.append(thisRow.get(i))
+						.append("\"");
+					if (i<thisRow.size() -1) {
+						buff.append(",");
+					}
+				}
 				out.printRecord(thisRow);
 			}
 		} catch (Exception e) {
