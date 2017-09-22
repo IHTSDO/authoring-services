@@ -9,7 +9,7 @@
 
 	<groupId>org.snomed.authoring</groupId>
 	<artifactId>authoring-services</artifactId>
-	<version>5.3.6</version>
+	<version>5.3.7-SNAPSHOT</version>
 
 	<properties>
 		<java.version>1.8</java.version>
