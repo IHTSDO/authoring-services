@@ -19,6 +19,8 @@ import org.slf4j.LoggerFactory;
 public class BatchImportRun {
 	
 	private final Logger logger = LoggerFactory.getLogger(getClass());
+	
+	private static final String DEFAULT_MODULE_ID = "defaultModuleId";
 
 	private Map <CSVRecord, BatchImportDetail> allRows = new LinkedHashMap<>();
 	private Map <String, BatchImportConcept> allValidConcepts = new HashMap<>();
@@ -156,5 +158,12 @@ public class BatchImportRun {
 
 	public void setProject(AuthoringProject project) {
 		this.project = project;
+	}
+
+	public String getDefaultModuleId() {
+		if (project != null && getProject().getMetadata().get(DEFAULT_MODULE_ID) != null) {
+			return project.getMetadata().get(DEFAULT_MODULE_ID).toString();
+		}
+		return null;
 	}
 }

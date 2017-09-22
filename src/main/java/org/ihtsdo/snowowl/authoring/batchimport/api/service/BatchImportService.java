@@ -60,8 +60,6 @@ public class BatchImportService implements SnomedBrowserConstants{
 	private static final String SAVE_LIST = "saved-list";	
 	private static final String NO_NOTES = "Concept import pending...";
 	
-	private static final String DEFAULT_MODULE_ID = "defaultModuleId";
-	
 	private static final Map<String, String> ACCEPTABLE_ACCEPTABILIY = new HashMap<>();
 	static {
 		ACCEPTABLE_ACCEPTABILIY.put(SCTID_EN_GB, Acceptability.ACCEPTABLE.toString());
@@ -151,7 +149,7 @@ public class BatchImportService implements SnomedBrowserConstants{
 		
 		if (run.getFormatter().definesByExpression()) {
 			try{
-				String moduleId = run.getProject().getMetadata().get(DEFAULT_MODULE_ID).toString();
+				String moduleId = run.getDefaultModuleId();
 				BatchImportExpression exp = BatchImportExpression.parse(concept.getExpressionStr(), moduleId);
 				if (exp.getFocusConcepts() == null || exp.getFocusConcepts().size() < 1) {
 					throw new ProcessingException("Unable to determine a parent for concept from expression");
@@ -193,8 +191,6 @@ public class BatchImportService implements SnomedBrowserConstants{
 		AuthoringProject project = taskService.retrieveProject(projectKey);
 		if (project == null) {
 			throw new BusinessServiceException("Unable to recover project " + projectKey);
-		} else if (!project.getMetadata().containsKey(DEFAULT_MODULE_ID)) {
-			throw new BusinessServiceException("Project " + projectKey + " does not specify its moduleId in the metadata");
 		}
 		run.setProject(project);
 		
@@ -461,7 +457,7 @@ public class BatchImportService implements SnomedBrowserConstants{
 			List<BatchImportConcept> thisBatch) throws BusinessServiceException {
 		BatchImportRequest request = run.getImportRequest();
 		Map<String, ConceptPojo> conceptsLoaded = new HashMap<>();
-		String moduleId = run.getProject().getMetadata().get(DEFAULT_MODULE_ID).toString();
+		String moduleId = run.getDefaultModuleId();
 		for (BatchImportConcept thisConcept : thisBatch) {
 			boolean loadedOK = false;
 			try{
