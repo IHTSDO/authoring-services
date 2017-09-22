@@ -140,7 +140,6 @@ public class BatchImportRun {
 						buff.append(",");
 					}
 				}
-				out.printRecord(thisRow);
 			}
 		} catch (Exception e) {
 			logger.error("Exception while outputting Batch Import results as CSV",e);
