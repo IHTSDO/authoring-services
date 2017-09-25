@@ -38,8 +38,9 @@ public class Application {
 
 	@Bean
 	public SnowOwlRestClientFactory snowOwlRestClientFactory(@Value("${snowowl.url}") String snowOwlUrl,
-															 @Value("${snowowl.reasonerId}") String snowOwlReasonerId) {
-		return new SnowOwlRestClientFactory(snowOwlUrl, snowOwlReasonerId);
+															 @Value("${snowowl.reasonerId}") String snowOwlReasonerId,
+															 @Value("${snowowl.useExternalClassificationService}") boolean snowOwlUseExternalClassificationService) {
+		return new SnowOwlRestClientFactory(snowOwlUrl, snowOwlReasonerId, snowOwlUseExternalClassificationService);
 	}
 
 	@Bean
