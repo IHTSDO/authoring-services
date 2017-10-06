@@ -1,6 +1,7 @@
 package org.ihtsdo.snowowl.authoring.batchimport.api.service;
 
 import org.apache.commons.csv.CSVRecord;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.snowowl.SnowOwlRestClientFactory;
@@ -60,16 +61,24 @@ public class BatchImportService implements SnomedBrowserConstants{
 	private static final String SAVE_LIST = "saved-list";	
 	private static final String NO_NOTES = "Concept import pending...";
 	
-	private static final Map<String, String> ACCEPTABLE_ACCEPTABILIY = new HashMap<>();
+	private static final Map<String, String> INT_ACCEPTABLE_ACCEPTABILIY = new HashMap<>();
 	static {
-		ACCEPTABLE_ACCEPTABILIY.put(SCTID_EN_GB, Acceptability.ACCEPTABLE.toString());
-		ACCEPTABLE_ACCEPTABILIY.put(SCTID_EN_US, Acceptability.ACCEPTABLE.toString());
+		INT_ACCEPTABLE_ACCEPTABILIY.put(SCTID_EN_GB, Acceptability.ACCEPTABLE.toString());
+		INT_ACCEPTABLE_ACCEPTABILIY.put(SCTID_EN_US, Acceptability.ACCEPTABLE.toString());
 	}
-	private static final Map<String, String> PREFERRED_ACCEPTABILIY = new HashMap<>();
+	private static final Map<String, String> INT_PREFERRED_ACCEPTABILIY = new HashMap<>();
 	static {
-		PREFERRED_ACCEPTABILIY.put(SCTID_EN_GB, Acceptability.PREFERRED.toString());
-		PREFERRED_ACCEPTABILIY.put(SCTID_EN_US, Acceptability.PREFERRED.toString());
-	}	
+		INT_PREFERRED_ACCEPTABILIY.put(SCTID_EN_GB, Acceptability.PREFERRED.toString());
+		INT_PREFERRED_ACCEPTABILIY.put(SCTID_EN_US, Acceptability.PREFERRED.toString());
+	}
+	private static final Map<String, String> EXT_ACCEPTABLE_ACCEPTABILIY = new HashMap<>();
+	static {
+		EXT_ACCEPTABLE_ACCEPTABILIY.put(SCTID_EN_US, Acceptability.ACCEPTABLE.toString());
+	}
+	private static final Map<String, String> EXT_PREFERRED_ACCEPTABILIY = new HashMap<>();
+	static {
+		EXT_PREFERRED_ACCEPTABILIY.put(SCTID_EN_US, Acceptability.PREFERRED.toString());
+	}
 	
 	private Map<UUID, BatchImportStatus> currentImports = new HashMap<>();
 	
@@ -149,7 +158,7 @@ public class BatchImportService implements SnomedBrowserConstants{
 		
 		if (run.getFormatter().definesByExpression()) {
 			try{
-				String moduleId = run.getDefaultModuleId();
+				String moduleId = run.getModuleId();
 				BatchImportExpression exp = BatchImportExpression.parse(concept.getExpressionStr(), moduleId);
 				if (exp.getFocusConcepts() == null || exp.getFocusConcepts().size() < 1) {
 					throw new ProcessingException("Unable to determine a parent for concept from expression");
@@ -193,6 +202,7 @@ public class BatchImportService implements SnomedBrowserConstants{
 			throw new BusinessServiceException("Unable to recover project " + projectKey);
 		}
 		run.setProject(project);
+		run.isExtension(projectIsExtension(project));
 		
 		for (List<BatchImportConcept> thisBatch : batches) {
 			AuthoringTask task = createTask(run, thisBatch);
@@ -217,6 +227,12 @@ public class BatchImportService implements SnomedBrowserConstants{
 				updateTaskDetails(task, run, conceptsLoaded, newSummary);
 			}
 		}
+	}
+
+	private boolean projectIsExtension(AuthoringProject project) {
+		//An INT project would be MAIN/PROJECT name.
+		//An extension project will have a longer path, so check for multiple slashes
+		return (StringUtils.countMatches(project.getBranchPath(), "/") > 1);
 	}
 
 	private void updateTaskDetails(AuthoringTask task, BatchImportRun run,
@@ -457,11 +473,10 @@ public class BatchImportService implements SnomedBrowserConstants{
 			List<BatchImportConcept> thisBatch) throws BusinessServiceException {
 		BatchImportRequest request = run.getImportRequest();
 		Map<String, ConceptPojo> conceptsLoaded = new HashMap<>();
-		String moduleId = run.getDefaultModuleId();
 		for (BatchImportConcept thisConcept : thisBatch) {
 			boolean loadedOK = false;
 			try{
-				ConceptPojo newConcept = createBrowserConcept(thisConcept, run.getFormatter(), moduleId);
+				ConceptPojo newConcept = createBrowserConcept(thisConcept, run);
 				String warnings = "";
 				validateConcept(run, task, newConcept);
 				removeTemporaryIds(newConcept);
@@ -519,24 +534,25 @@ public class BatchImportService implements SnomedBrowserConstants{
 		return null;
 	}
 
-	private ConceptPojo createBrowserConcept(BatchImportConcept thisConcept, BatchImportFormat formatter, String moduleId) throws BusinessServiceException {
+	private ConceptPojo createBrowserConcept(BatchImportConcept thisConcept, BatchImportRun run) throws BusinessServiceException {
 		ConceptPojo newConcept = new ConceptPojo();
 		if (!thisConcept.requiresNewSCTID()) {
 			newConcept.setConceptId(thisConcept.getSctid());
 		}
 		newConcept.setActive(true);
-		newConcept.setModuleId(moduleId);
+		newConcept.setModuleId(run.getModuleId());
+		BatchImportFormat formatter = run.getFormatter();
 
 		Set<RelationshipPojo> relationships;
 		if (formatter.definesByExpression()) {
-			relationships = convertExpressionToRelationships(thisConcept.getSctid(), thisConcept.getExpression(), moduleId);
+			relationships = convertExpressionToRelationships(thisConcept.getSctid(), thisConcept.getExpression(), run.getModuleId());
 			newConcept.setDefinitionStatus(thisConcept.getExpression().getDefinitionStatus());
 		} else {
 			newConcept.setDefinitionStatus(DefinitionStatus.PRIMITIVE);
 			//Set the Parent
 			relationships = new HashSet<RelationshipPojo>();
 			for (String thisParent : thisConcept.getParents()) {
-				RelationshipPojo isA = createRelationship(DEFAULT_GROUP, "rel_isa", thisConcept.getSctid(), SCTID_ISA, thisParent, moduleId);
+				RelationshipPojo isA = createRelationship(DEFAULT_GROUP, "rel_isa", thisConcept.getSctid(), SCTID_ISA, thisParent, run.getModuleId());
 				relationships.add(isA);
 			}
 		}
@@ -556,29 +572,30 @@ public class BatchImportService implements SnomedBrowserConstants{
 			}
 		}
 		
-		String languageCode = "en";
-		
 		//Set the FSN
 		CaseSignificance fsnCase = CaseSignificance.CASE_INSENSITIVE;  //default
 		if (formatter.getIndex(BatchImportFormat.FIELD.CAPSFSN) != BatchImportFormat.FIELD_NOT_FOUND) {
 			fsnCase = translateCaseSensitivity(thisConcept.get(formatter.getIndex(BatchImportFormat.FIELD.CAPSFSN)));
 		}
 		
+		Map<String, String> prefAcceptability = run.isExtension() ? EXT_PREFERRED_ACCEPTABILIY : INT_PREFERRED_ACCEPTABILIY;
+		Map<String, String> accepAcceptability = run.isExtension() ? EXT_ACCEPTABLE_ACCEPTABILIY : INT_ACCEPTABLE_ACCEPTABILIY;
+		
 		thisConcept.setFsn(fsnTerm);
-		DescriptionPojo fsn = createDescription(fsnTerm, DescriptionType.FSN, PREFERRED_ACCEPTABILIY, languageCode, fsnCase, moduleId);
+		DescriptionPojo fsn = createDescription(fsnTerm, DescriptionType.FSN, prefAcceptability, fsnCase, run);
 		descriptions.add(fsn);
 		
 		if (formatter.hasMultipleTerms()) {
 			int termIdx = 0;
 			for (BatchImportTerm biTerm : thisConcept.getTerms()) {
-				DescriptionPojo term = createDescription(biTerm, termIdx, moduleId);
+				DescriptionPojo term = createDescription(biTerm, termIdx, run);
 				descriptions.add(term);
 				termIdx++;
 			}
 		} else {
-			DescriptionPojo pref = createDescription(prefTerm, DescriptionType.SYNONYM, PREFERRED_ACCEPTABILIY, languageCode, CaseSignificance.CASE_INSENSITIVE, moduleId);
+			DescriptionPojo pref = createDescription(prefTerm, DescriptionType.SYNONYM, prefAcceptability, CaseSignificance.CASE_INSENSITIVE, run);
 			descriptions.add(pref);
-			addSynonyms(descriptions, formatter, languageCode, thisConcept, moduleId);
+			addSynonyms(descriptions, thisConcept, accepAcceptability, run);
 		}
 		newConcept.setDescriptions(descriptions);
 		
@@ -603,11 +620,12 @@ public class BatchImportService implements SnomedBrowserConstants{
 	}
 
 	private void addSynonyms(Set<DescriptionPojo> descriptions,
-			BatchImportFormat formatter, String languageCode, BatchImportConcept thisConcept, String moduleId) throws BusinessServiceException {
-		List<String> allSynonyms = formatter.getAllSynonyms(thisConcept);
+			BatchImportConcept thisConcept, 
+			Map<String, String> acceptability, BatchImportRun run) throws BusinessServiceException {
+		List<String> allSynonyms = run.getFormatter().getAllSynonyms(thisConcept);
 		for (String thisSyn : allSynonyms) {
 			if (!containsDescription (descriptions, thisSyn)){
-				DescriptionPojo syn =  createDescription(thisSyn, DescriptionType.SYNONYM, ACCEPTABLE_ACCEPTABILIY, languageCode, CaseSignificance.CASE_INSENSITIVE, moduleId);
+				DescriptionPojo syn =  createDescription(thisSyn, DescriptionType.SYNONYM, acceptability, CaseSignificance.CASE_INSENSITIVE, run);
 				descriptions.add(syn);
 			}
 		}
@@ -643,7 +661,7 @@ public class BatchImportService implements SnomedBrowserConstants{
 		return rel;
 	}
 	
-	private DescriptionPojo createDescription(String term, DescriptionType type, Map<String, String> acceptabilityMap, String lang, CaseSignificance caseSig, String moduleId) {
+	private DescriptionPojo createDescription(String term, DescriptionType type, Map<String, String> acceptabilityMap, CaseSignificance caseSig, BatchImportRun run) {
 		DescriptionPojo desc = new DescriptionPojo();
 		//Set a temporary id so the user can tell which item failed validation
 		desc.setDescriptionId("desc_" + type.toString());
@@ -651,22 +669,22 @@ public class BatchImportService implements SnomedBrowserConstants{
 		desc.setActive(true);
 		desc.setType(type.toString());
 		//TODO The language will have to be passed in with the batch import parameters
-		desc.setLang(lang);
+		desc.setLang(run.getLanguageCode());
 		desc.setAcceptabilityMap(acceptabilityMap);
 		desc.setCaseSignificance(caseSig.toString());
-		desc.setModuleId(moduleId);
+		desc.setModuleId(run.getModuleId());
 		return desc;
 	}
 	
-	private DescriptionPojo createDescription(BatchImportTerm biTerm, int idx, String moduleId) throws BusinessServiceException {
+	private DescriptionPojo createDescription(BatchImportTerm biTerm, int idx, BatchImportRun run) throws BusinessServiceException {
 		DescriptionPojo desc = new DescriptionPojo();
 		//Set a temporary id so the user can tell which item failed validation
 		desc.setDescriptionId("desc_SYN_" + idx);
 		desc.setTerm(biTerm.getTerm());
 		desc.setActive(true);
 		desc.setType(DescriptionType.SYNONYM.toString());
-		desc.setLang(EN_LANGUAGE_CODE);
-		desc.setModuleId(moduleId);
+		desc.setLang(run.getLanguageCode());
+		desc.setModuleId(run.getModuleId());
 		desc.setAcceptabilityMap(getAcceptablityAsMap(biTerm));
 		if (biTerm.getCaseSensitivity() == null || biTerm.getCaseSensitivity().isEmpty()) {
 			desc.setCaseSignificance(CaseSignificance.CASE_INSENSITIVE.toString());

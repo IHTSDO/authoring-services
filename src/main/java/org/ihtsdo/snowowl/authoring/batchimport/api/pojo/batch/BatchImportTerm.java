@@ -30,14 +30,8 @@ public class BatchImportTerm {
 	public char getAcceptabilityUS() {
 		return acceptabilityUS;
 	}
-	public void setAcceptabilityUS(char acceptabilityUS) {
-		this.acceptabilityUS = acceptabilityUS;
-	}
 	public char getAcceptabilityGB() {
 		return acceptabilityGB;
-	}
-	public void setAcceptabilityGB(char acceptabilityGB) {
-		this.acceptabilityGB = acceptabilityGB;
 	}
 	public String getCaseSensitivity() {
 		return caseSensitivity;

@@ -29,6 +29,8 @@ public class BatchImportRun {
 	private BatchImportFormat format;
 	private AuthoringProject project;
 	private UUID id;
+	private boolean isExtension;
+	private String languageCode = "en";
 	
 	public static BatchImportRun createRun (UUID batchImportId, BatchImportRequest importRequest) throws BusinessServiceException {
 		BatchImportRun run = new BatchImportRun(importRequest);
@@ -160,10 +162,26 @@ public class BatchImportRun {
 		this.project = project;
 	}
 
-	public String getDefaultModuleId() {
+	public String getModuleId() {
 		if (project != null && getProject().getMetadata().get(DEFAULT_MODULE_ID) != null) {
 			return project.getMetadata().get(DEFAULT_MODULE_ID).toString();
 		}
 		return null;
+	}
+
+	public void isExtension(boolean projectIsExtension) {
+		isExtension = projectIsExtension;
+	}
+	
+	public boolean isExtension() {
+		return isExtension;
+	}
+
+	public String getLanguageCode() {
+		return languageCode;
+	}
+
+	public void setLanguageCode(String languageCode) {
+		this.languageCode = languageCode;
 	}
 }
