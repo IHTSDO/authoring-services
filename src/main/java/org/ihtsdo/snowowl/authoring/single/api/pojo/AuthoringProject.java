@@ -14,6 +14,7 @@ public class AuthoringProject {
 	private String latestClassificationJson;
 	private String validationStatus;
 	private boolean projectPromotionDisabled;
+	private boolean projectRebaseDisabled;
 	private boolean projectMrcmDisabled;
 	private boolean projectTemplatesDisabled;
 	private boolean projectSpellCheckDisabled;
@@ -21,7 +22,7 @@ public class AuthoringProject {
 
 	public AuthoringProject(String key, String title, User leadUser, String branchPath, String branchState,
 							String latestClassificationJson, boolean projectPromotionDisabled,
-							boolean projectMrcmDisabled, boolean projectTemplatesDisabled, boolean projectSpellCheckDisabled) {
+							boolean projectMrcmDisabled, boolean projectTemplatesDisabled, boolean projectSpellCheckDisabled, boolean projectRebaseDisabled) {
 		this.key = key;
 		this.title = title;
 		this.projectLead = leadUser;
@@ -32,6 +33,7 @@ public class AuthoringProject {
 		this.projectMrcmDisabled = projectMrcmDisabled;
 		this.projectTemplatesDisabled = projectTemplatesDisabled;
 		this.projectSpellCheckDisabled = projectSpellCheckDisabled;
+		this.projectRebaseDisabled = projectRebaseDisabled;
 	}
 
 	public String getKey() {
@@ -73,6 +75,14 @@ public class AuthoringProject {
 
 	public void setProjectPromotionDisabled(boolean projectPromotionDisabled) {
 		this.projectPromotionDisabled = projectPromotionDisabled;
+	}
+	
+	public boolean isProjectRebaseDisabled() {
+		return projectRebaseDisabled;
+	}
+
+	public void setProjectRebaseDisabled(boolean projectRebaseDisabled) {
+		this.projectRebaseDisabled = projectRebaseDisabled;
 	}
 
 	public boolean isProjectMrcmDisabled() {

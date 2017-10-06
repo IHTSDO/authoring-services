@@ -100,6 +100,7 @@ public class TaskService {
 	private final String jiraExtensionBaseField;
 	private final String jiraProductCodeField;
 	private final String jiraProjectPromotionField;
+	private final String jiraProjectRebaseField;
 	private final String jiraProjectMrcmField;
 	private final String jiraCrsIdField;
 	private final String jiraProjectTemplatesField;
@@ -129,6 +130,7 @@ public class TaskService {
 			jiraExtensionBaseField = JiraHelper.fieldIdLookup("Extension Base", jiraClientForFieldLookup, projectJiraFetchFields);
 			jiraProductCodeField = JiraHelper.fieldIdLookup("Product Code", jiraClientForFieldLookup, projectJiraFetchFields);
 			jiraProjectPromotionField = JiraHelper.fieldIdLookup("SCA Project Promotion", jiraClientForFieldLookup, projectJiraFetchFields);
+			jiraProjectRebaseField = JiraHelper.fieldIdLookup("SCA Project Rebase", jiraClientForFieldLookup, projectJiraFetchFields);
 			jiraProjectMrcmField = JiraHelper.fieldIdLookup("SCA Project MRCM", jiraClientForFieldLookup, projectJiraFetchFields);
 			jiraCrsIdField = JiraHelper.fieldIdLookup("CRS-ID", jiraClientForFieldLookup, projectJiraFetchFields);
 			jiraProjectTemplatesField = JiraHelper.fieldIdLookup("SCA Project Templates", jiraClientForFieldLookup, projectJiraFetchFields);
@@ -141,6 +143,7 @@ public class TaskService {
 			jiraExtensionBaseField = null;
 			jiraProductCodeField = null;
 			jiraProjectPromotionField = null;
+			jiraProjectRebaseField = null;
 			jiraProjectMrcmField = null;
 			jiraCrsIdField = null;
 			jiraProjectTemplatesField = null;
@@ -233,6 +236,7 @@ public class TaskService {
 				final String latestClassificationJson = classificationService.getLatestClassification(branchPath);
 
 				final boolean promotionDisabled = "Disabled".equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectPromotionField)));
+				final boolean rebaseDisabled = "Disabled".equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectRebaseField)));
 				final boolean mrcmDisabled = "Disabled".equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectMrcmField)));
 				final boolean templatesDisabled = "Disabled".equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectTemplatesField)));
 				final boolean spellCheckDisabled = "Disabled".equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectSpellCheckField)));
@@ -264,7 +268,7 @@ public class TaskService {
 				Map<String, JiraProject> projectMap = unfilteredProjects.get();
 				JiraProject project = projectMap.get(projectKey);
 				final AuthoringProject authoringProject = new AuthoringProject(projectKey, project.getName(),
-						project.getLead(), branchPath, branchState, latestClassificationJson, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled);
+						project.getLead(), branchPath, branchState, latestClassificationJson, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled, rebaseDisabled);
 				authoringProject.setMetadata(metadata);
 				synchronized (authoringProjects) {
 					authoringProjects.add(authoringProject);
