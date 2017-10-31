@@ -619,7 +619,7 @@ public class TaskService {
 	public List<AuthoringTask> listMyTasks(String username, String excludePromoted) throws JiraException, BusinessServiceException {
 		String jql = "assignee = \"" + username + "\" AND type = \"" + AUTHORING_TASK_TYPE + "\" " + EXCLUDE_STATUSES;
 		if (null != excludePromoted && excludePromoted.equalsIgnoreCase("TRUE")) {
-			jql += " AND status = \"Promoted\"";
+			jql += " AND status != \"Promoted\"";
 		}
 		List<Issue> issues = searchIssues(jql, LIMIT_UNLIMITED);
 		return buildAuthoringTasks(issues);
