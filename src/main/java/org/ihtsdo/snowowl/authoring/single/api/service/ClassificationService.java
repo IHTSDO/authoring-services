@@ -1,6 +1,7 @@
 package org.ihtsdo.snowowl.authoring.single.api.service;
 
 import org.ihtsdo.otf.rest.client.RestClientException;
+import org.ihtsdo.otf.rest.client.snowowl.SnowOwlRestClient;
 import org.ihtsdo.otf.rest.client.snowowl.pojo.ClassificationResults;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.Classification;
@@ -14,6 +15,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import us.monoid.json.JSONException;
+
+import java.util.Calendar;
+import java.util.Date;
+import java.util.GregorianCalendar;
 
 public class ClassificationService {
 	
@@ -48,19 +53,24 @@ public class ClassificationService {
 
 		//Now start an asynchronous thread to wait for the results
 		final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-		(new Thread(new ClassificationPoller(projectKey, taskKey, results, authentication))).start();
+		(new Thread(new ClassificationPoller(branchPath, projectKey, taskKey, results, authentication))).start();
 
 		return new Classification(results);
 	}
 
 	private class ClassificationPoller implements Runnable {
 
+		private Date startDate;
+		private int retryAttempts;
+		private final String branchPath;
 		private ClassificationResults results;
 		private String projectKey;
 		private String taskKey;
 		private final Authentication authentication;
 
-		ClassificationPoller(String projectKey, String taskKey, ClassificationResults results, Authentication authentication) {
+		ClassificationPoller(String branchPath, String projectKey, String taskKey, ClassificationResults results, Authentication authentication) {
+			this.startDate = new Date();
+			this.branchPath = branchPath;
 			this.results = results;
 			this.projectKey = projectKey;
 			this.taskKey = taskKey;
@@ -70,18 +80,38 @@ public class ClassificationService {
 		@Override
 		public void run() {
 			SecurityContextHolder.getContext().setAuthentication(authentication);
-			String resultMessage;
+			String resultMessage = null;
 			try {
-				snowOwlRestClientFactory.getClient().waitForClassificationToComplete(results);
-				
-				if (results.getStatus().equals(ClassificationResults.ClassificationStatus.COMPLETED.toString())) {
-					resultMessage = "Classification completed successfully";
-				} else {
-					resultMessage = "Classification is in non-successful state: " + results.getStatus();
+				SnowOwlRestClient terminologyServerClient = snowOwlRestClientFactory.getClient();
+				boolean complete = false;
+				while (!complete) {
+
+					// Function sleeps here
+					terminologyServerClient.waitForClassificationToComplete(results);
+
+					if (results.getStatus().equals(ClassificationResults.ClassificationStatus.COMPLETED.toString())) {
+						resultMessage = "Classification completed successfully";
+						complete = true;
+					} else {
+						// Classification failed
+
+						// If first external classification failed and started less than x seconds ago then retry
+						GregorianCalendar twentySecondsAgo = new GregorianCalendar();
+						twentySecondsAgo.add(Calendar.SECOND, -21);
+						if (retryAttempts < 1 && terminologyServerClient.isUseExternalClassificationService() && startDate.after(twentySecondsAgo.getTime())) {
+							retryAttempts++;
+							results = terminologyServerClient.startClassification(branchPath);
+							startDate = new Date();
+						} else {
+							// Otherwise notify user
+							resultMessage = "Classification failed.";
+							complete = true;
+						}
+					}
 				}
 			} catch (RestClientException | InterruptedException e) {
-				resultMessage = "Classification failed to complete due to " + e.getMessage();
-				logger.error(resultMessage,e);
+				resultMessage = "Classification failed to complete due to an internal error. Please try again.";
+				logger.error(resultMessage, e);
 			}
 
 			if (taskKey != null) {
