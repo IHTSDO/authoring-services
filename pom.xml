@@ -125,7 +125,6 @@
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<configuration>
 					<mainClass>org.ihtsdo.snowowl.authoring.single.api.Application</mainClass>
-					<debug>true</debug>
 					<additionalProperties>
 						<encoding.source>UTF-8</encoding.source>
 						<encoding.reporting>UTF-8</encoding.reporting>
