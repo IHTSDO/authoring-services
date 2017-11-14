@@ -61,7 +61,6 @@ public class ClassificationService {
 	private class ClassificationPoller implements Runnable {
 
 		private Date startDate;
-		private int retryAttempts;
 		private final String branchPath;
 		private ClassificationResults results;
 		private String projectKey;
@@ -81,34 +80,28 @@ public class ClassificationService {
 		public void run() {
 			SecurityContextHolder.getContext().setAuthentication(authentication);
 			String resultMessage = null;
+			SnowOwlRestClient terminologyServerClient = snowOwlRestClientFactory.getClient();
 			try {
-				SnowOwlRestClient terminologyServerClient = snowOwlRestClientFactory.getClient();
-				boolean complete = false;
-				while (!complete) {
 
+				try {
 					// Function sleeps here
+					// - Throws RestClientException if classification failed
 					terminologyServerClient.waitForClassificationToComplete(results);
-
-					if (results.getStatus().equals(ClassificationResults.ClassificationStatus.COMPLETED.toString())) {
-						resultMessage = "Classification completed successfully";
-						complete = true;
+				} catch (RestClientException e) {
+					if (terminologyServerClient.isUseExternalClassificationService() && startDate.after(getTimeSecondsInPast(21))) {
+						// Retry classification just once
+						logger.info("Classification failed on {} in the first {} seconds. Probably due to lack of concurrent RF2 export support in Snow Owl. " +
+								"Waiting 30 seconds before retrying once.", branchPath, 20);
+						Thread.sleep(30_000);
+						results = terminologyServerClient.startClassification(branchPath);
+						terminologyServerClient.waitForClassificationToComplete(results);
 					} else {
-						// Classification failed
-
-						// If first external classification failed and started less than x seconds ago then retry
-						GregorianCalendar twentySecondsAgo = new GregorianCalendar();
-						twentySecondsAgo.add(Calendar.SECOND, -21);
-						if (retryAttempts < 1 && terminologyServerClient.isUseExternalClassificationService() && startDate.after(twentySecondsAgo.getTime())) {
-							retryAttempts++;
-							results = terminologyServerClient.startClassification(branchPath);
-							startDate = new Date();
-						} else {
-							// Otherwise notify user
-							resultMessage = "Classification failed.";
-							complete = true;
-						}
+						// Let exception bubble up
+						throw e;
 					}
 				}
+				resultMessage = "Classification completed successfully";
+
 			} catch (RestClientException | InterruptedException e) {
 				resultMessage = "Classification failed to complete due to an internal error. Please try again.";
 				logger.error(resultMessage, e);
@@ -122,6 +115,12 @@ public class ClassificationService {
 				taskService.addCommentLogErrors(projectKey, resultMessage);
 			}
 			notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Classification, resultMessage));
+		}
+
+		private Date getTimeSecondsInPast(int seconds) {
+			GregorianCalendar calendar = new GregorianCalendar();
+			calendar.add(Calendar.SECOND, -seconds);
+			return calendar.getTime();
 		}
 
 	}
