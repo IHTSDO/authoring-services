@@ -29,7 +29,7 @@ Access the service **API documentation** at [http://localhost:8081/authoring-ser
 
 ## Setup
 ### Configuration options
-The default configuration of this Spring Boot application can be found in [application.properties](blob/master/src/main/resources/application.properties). The defaults can be overridden using command line arguments, for example set a different HTTP port:
+The default configuration of this Spring Boot application can be found in [application.properties](src/main/resources/application.properties). The defaults can be overridden using command line arguments, for example set a different HTTP port:
 ```bash
 java -Xmx1g -jar target/authoring-services*.jar --server.port=8099
 ```
