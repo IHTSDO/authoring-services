@@ -1,4 +1,4 @@
-### Setup Guide
+## Setup Guide
 
 This is work in progress, contributions welcome!
 
