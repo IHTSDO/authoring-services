@@ -428,7 +428,7 @@ public class TaskService {
 				// Call promote process
 				merge = this.autoPromoteTask(projectKey, taskKey, mergeId);
 				if (merge.getStatus() == Merge.Status.COMPLETED) {
-					notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.BranchState, "Success to auto promote task"));
+					notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Promotion, "Automated promotion completed"));
 					processStatus.setStatus("Completed");
 					autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
 					stateTransition(projectKey, taskKey, TaskStatus.PROMOTED);
@@ -453,14 +453,6 @@ public class TaskService {
 		String taskBranchPath = getTaskBranchPathUsingCache(projectKey, taskKey);
 		Merge merge = branchService.mergeBranchSync(taskBranchPath, PathHelper.getParentPath(taskBranchPath), mergeId);
 		return merge;
-	}
-	
-	private org.ihtsdo.snowowl.authoring.single.api.pojo.Status autoValidateTask(String projectKey, String taskKey) throws BusinessServiceException {
-		status = validationService.startValidation(projectKey, taskKey, ControllerHelper.getUsername());
-		if(status == null && !status.equals("COMPLETED")) {
-			return null;
-		}
-		return status;
 	}
 	
 	private Classification autoClassificationTask(String projectKey, String taskKey) throws BusinessServiceException {

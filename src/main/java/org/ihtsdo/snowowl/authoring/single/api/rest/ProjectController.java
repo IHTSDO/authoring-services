@@ -6,6 +6,7 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import net.rcarz.jiraclient.Issue;
 import net.rcarz.jiraclient.JiraException;
+import org.ihtsdo.snowowl.authoring.single.api.service.*;
 import us.monoid.json.JSONException;
 
 import org.ihtsdo.otf.rest.client.RestClientException;
@@ -14,10 +15,6 @@ import org.ihtsdo.otf.rest.client.snowowl.pojo.ApiError;
 import org.ihtsdo.otf.rest.client.snowowl.pojo.Merge;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.*;
-import org.ihtsdo.snowowl.authoring.single.api.service.BranchService;
-import org.ihtsdo.snowowl.authoring.single.api.service.TaskAttachment;
-import org.ihtsdo.snowowl.authoring.single.api.service.TaskService;
-import org.ihtsdo.snowowl.authoring.single.api.service.TaskStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -36,6 +33,9 @@ public class ProjectController {
 
 	@Autowired
 	private BranchService branchService;
+
+	@Autowired
+	private NotificationService notificationService;
 
 	@ApiOperation(value="List authoring Projects")
 	@ApiResponses({
@@ -77,6 +77,8 @@ public class ProjectController {
 		if (merge.getStatus() == Merge.Status.COMPLETED) {
 			List<Issue> promotedIssues = taskService.getTaskIssues(projectKey, TaskStatus.PROMOTED);
 			taskService.stateTransition(promotedIssues, TaskStatus.COMPLETED);
+			notificationService.queueNotification(ControllerHelper.getUsername(),
+					new Notification(projectKey, null, EntityType.Promotion, "Project successfully promoted"));
 		}
 		return getResponseEntity(merge);
 	}
@@ -180,6 +182,8 @@ public class ProjectController {
 		Merge merge = branchService.mergeBranchSync(taskBranchPath, PathHelper.getParentPath(taskBranchPath), mergeRequest.getSourceReviewId());
 		if (merge.getStatus() == Merge.Status.COMPLETED) {
 			taskService.stateTransition(projectKey, taskKey, TaskStatus.PROMOTED);
+			notificationService.queueNotification(ControllerHelper.getUsername(),
+					new Notification(projectKey, taskKey, EntityType.Promotion, "Task successfully promoted"));
 		}
 		return getResponseEntity(merge);
 	}
