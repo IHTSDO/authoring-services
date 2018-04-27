@@ -446,7 +446,6 @@ public class TaskService {
 	}
 	
 	private Merge autoPromoteTask(String projectKey, String taskKey, String mergeId) throws BusinessServiceException {
-		notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Classification, "Running promote authoring task"));
 		processStatus.setStatus("Promoting");
 		processStatus.setMessage("");
 		autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
@@ -456,7 +455,6 @@ public class TaskService {
 	}
 	
 	private Classification autoClassificationTask(String projectKey, String taskKey) throws BusinessServiceException {
-		notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Classification, "Running classification authoring task"));
 		processStatus.setStatus("Classifying");
 		processStatus.setMessage("");
 		autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
@@ -483,8 +481,6 @@ public class TaskService {
 	}
 	
 	private String autoRebaseTask(String projectKey, String taskKey) throws BusinessServiceException {
-		
-		notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Rebase, "Running auto rebase authoring task"));
 		processStatus.setStatus("Rebasing");
 		processStatus.setMessage("");
 		autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
