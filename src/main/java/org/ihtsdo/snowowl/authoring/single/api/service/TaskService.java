@@ -67,12 +67,6 @@ public class TaskService {
 	private static final String TASK_STATE_CHANGE_QUEUE_NAME = "-authoring.task-state-change";
 
 	@Autowired
-	private NotificationService notificationService;
-	
-	@Autowired
-	private SnowOwlRestClientFactory snowOwlRestClientFactory;
-	
-	@Autowired
 	private BranchService branchService;
 
 	@Autowired
@@ -106,8 +100,6 @@ public class TaskService {
 	private final String jiraProjectTemplatesField;
 	private final String jiraProjectSpellCheckField;
 	private final Set<String> projectJiraFetchFields;
-	private final Map<String, ProcessStatus> autoPromoteStatus;
-	private ProcessStatus processStatus;
 
 	private LoadingCache<String, ProjectDetails> projectDetailsCache;
 	private final ExecutorService executorService;
@@ -116,8 +108,6 @@ public class TaskService {
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 
 	public TaskService(ImpersonatingJiraClientFactory jiraClientFactory, String jiraUsername) throws JiraException {
-		autoPromoteStatus = new HashMap<>();
-		processStatus = new ProcessStatus();
 		this.jiraClientFactory = jiraClientFactory;
 		executorService = Executors.newCachedThreadPool();
 		
@@ -397,159 +387,6 @@ public class TaskService {
 
 	public String getTaskBranchPathUsingCache(String projectKey, String taskKey) throws BusinessServiceException {
 		return PathHelper.getTaskPath(getProjectBaseUsingCache(projectKey), projectKey, taskKey);
-	}
-	
-	public void autoPromoteTaskToProject(String projectKey, String taskKey) throws BusinessServiceException {
-		final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-		executorService.submit(() -> {
-			processStatus.setStatus("Queued");
-			processStatus.setMessage("");
-			SecurityContextHolder.getContext().setAuthentication(authentication);
-			autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
-			doAutoPromoteTaskToProject(projectKey, taskKey, authentication);
-		});
-	}
-	
-	public synchronized void doAutoPromoteTaskToProject(String projectKey, String taskKey, Authentication authentication){
-		try {
-
-			// Call rebase process
-			Merge merge = new Merge();
-			String mergeId = this.autoRebaseTask(projectKey, taskKey);
-
-			if (null != mergeId && mergeId.equals("stopped")) {
-				return;
-			}
-			
-			// Call classification process
-			Classification classification =  this.autoClassificationTask(projectKey, taskKey);
-			if(null != classification && (classification.getResults().getRelationshipChangesCount() == 0)) {
-
-				// Call promote process
-				merge = this.autoPromoteTask(projectKey, taskKey, mergeId);
-				if (merge.getStatus() == Merge.Status.COMPLETED) {
-					notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Promotion, "Automated promotion completed"));
-					processStatus.setStatus("Completed");
-					autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
-					stateTransition(projectKey, taskKey, TaskStatus.PROMOTED);
-				} else {
-					processStatus.setStatus("Failed");
-					autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
-					processStatus.setMessage(merge.getApiError().getMessage());
-				}
-			}
-		} catch (BusinessServiceException e) {
-			processStatus.setStatus("Failed");
-			processStatus.setMessage(e.getMessage());
-			autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
-		}
-	}
-	
-	private Merge autoPromoteTask(String projectKey, String taskKey, String mergeId) throws BusinessServiceException {
-		processStatus.setStatus("Promoting");
-		processStatus.setMessage("");
-		autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
-		String taskBranchPath = getTaskBranchPathUsingCache(projectKey, taskKey);
-		Merge merge = branchService.mergeBranchSync(taskBranchPath, PathHelper.getParentPath(taskBranchPath), mergeId);
-		return merge;
-	}
-	
-	private Classification autoClassificationTask(String projectKey, String taskKey) throws BusinessServiceException {
-		processStatus.setStatus("Classifying");
-		processStatus.setMessage("");
-		autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
-		String branchPath = getTaskBranchPathUsingCache(projectKey, taskKey);
-		try {
-			Classification classification =  classificationService.startClassification(projectKey, taskKey, branchPath, ControllerHelper.getUsername());
-			
-			snowOwlRestClientFactory.getClient().waitForClassificationToComplete(classification.getResults());
-
-			if (classification.getResults().getStatus().equals(ClassificationResults.ClassificationStatus.COMPLETED.toString())) {
-				if (null != classification && null != classification.getResults() && classification.getResults().getRelationshipChangesCount() != 0) {
-					processStatus.setStatus("Classified with results");
-					processStatus.setMessage("");
-					autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
-				}
-			} else {
-				throw new BusinessServiceException(classification.getMessage());
-			}
-			return classification;
-		} catch (RestClientException | JSONException | InterruptedException e) {
-			notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Classification, "Failed to start classification."));
-			throw new BusinessServiceException("Failed to classify", e);
-		}
-	}
-	
-	private String autoRebaseTask(String projectKey, String taskKey) throws BusinessServiceException {
-		processStatus.setStatus("Rebasing");
-		processStatus.setMessage("");
-		autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
-		String taskBranchPath = getTaskBranchPathUsingCache(projectKey, taskKey);
-		
-		// Get current task and check branch state
-		AuthoringTask authoringTask = retrieveTask(projectKey, taskKey);
-		String branchState = authoringTask.getBranchState();
-		if (null != authoringTask) {
-			
-			// Will skip rebase process if the branch state is FORWARD or UP_TO_DATE
-			if ((branchState.equalsIgnoreCase(BranchState.FORWARD.toString()) || branchState.equalsIgnoreCase(BranchState.UP_TO_DATE.toString())) ) {
-				return null;
-			} else {
-				try {
-					SnowOwlRestClient client = snowOwlRestClientFactory.getClient();
-					String mergeId = client.createBranchMergeReviews(PathHelper.getParentPath(taskBranchPath), taskBranchPath);
-					MergeReviewsResults mergeReview;
-					int sleepSeconds = 4;
-					int totalWait = 0;
-					int maxTotalWait = 60 * 60;
-					try {
-						do {
-							Thread.sleep(1000 * sleepSeconds);
-							totalWait += sleepSeconds;
-							mergeReview = client.getMergeReviewsResult(mergeId);
-							if (sleepSeconds < 10) {
-								sleepSeconds+=2;
-							}
-						} while (totalWait < maxTotalWait && (mergeReview.getStatus() != CURRENT));
-
-						// Check conflict of merge review
-						if (client.isNoMergeConflict(mergeId)) {
-							
-							// Process rebase task 
-							Merge merge = branchService.mergeBranchSync(PathHelper.getParentPath(taskBranchPath), taskBranchPath, null);
-							if (merge.getStatus() == Merge.Status.COMPLETED) {
-								return mergeId;
-							} else {
-								ApiError apiError = merge.getApiError();
-								String message = apiError != null ? apiError.getMessage() : null;
-								notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Rebase, message));
-								processStatus.setStatus("Rebased with conflicts");
-								processStatus.setMessage(message);
-								autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
-								return "stopped";
-							}
-						} else {
-							notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Rebase, "Rebase has conflicts"));
-							processStatus.setStatus("Rebased with conflicts");
-							autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
-							return "stopped";
-						}
-					} catch (InterruptedException | RestClientException e) {
-						processStatus.setStatus("Rebased with conflicts");
-						processStatus.setMessage(e.getMessage());
-						autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
-						throw new BusinessServiceException("Failed to fetch merge reviews status.", e);
-					}
-				} catch (RestClientException e) {
-					processStatus.setStatus("Rebased with conflicts");
-					processStatus.setMessage(e.getMessage());
-					autoPromoteStatus.put(getAutoPromoteStatusKey(projectKey, taskKey), processStatus);
-					throw new BusinessServiceException("Failed to start merge reviews.", e);
-				}
-			
-			}
-		}
-		return null;
 	}
 
 	public String getBranchPathUsingCache(String projectKey, String taskKey) throws BusinessServiceException {
@@ -1069,14 +906,6 @@ public class TaskService {
 	@PreDestroy
 	public void shutdown() {
 		executorService.shutdown();
-	}
-	
-	public ProcessStatus getAutoPromoteStatus(String projectKey, String taskKey) {
-		return autoPromoteStatus.get(getAutoPromoteStatusKey(projectKey, taskKey));
-	}
-
-	private String getAutoPromoteStatusKey(String projectKey, String taskKey) {
-		return projectKey + "|" + taskKey;
 	}
 
 }
