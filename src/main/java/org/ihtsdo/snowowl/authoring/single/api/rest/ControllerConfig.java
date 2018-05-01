@@ -1,6 +1,7 @@
 package org.ihtsdo.snowowl.authoring.single.api.rest;
 
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+import org.apache.catalina.connector.ClientAbortException;
 import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +14,11 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 public class ControllerConfig {
 
 	private Logger logger = LoggerFactory.getLogger(getClass());
+
+	@ExceptionHandler(ClientAbortException.class)
+	void clientAbortException(ClientAbortException e) {
+		logger.info("Client disconnected.");
+	}
 
 	@ExceptionHandler(Exception.class)
 	ResponseEntity<Error> exceptionCatchAll(Exception e) {

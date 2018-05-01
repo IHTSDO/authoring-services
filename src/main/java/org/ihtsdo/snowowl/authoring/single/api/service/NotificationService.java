@@ -8,6 +8,7 @@ import org.ihtsdo.snowowl.authoring.single.api.pojo.Notification;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.handler.annotation.SendTo;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -30,6 +31,7 @@ public class NotificationService {
 		return null;
 	}
 
+	@SendTo("/topic/user/{username}")
 	public void queueNotification(String username, Notification notification) {
 		final String projectKey = notification.getProject();
 		if (!Strings.isNullOrEmpty(projectKey)) {
