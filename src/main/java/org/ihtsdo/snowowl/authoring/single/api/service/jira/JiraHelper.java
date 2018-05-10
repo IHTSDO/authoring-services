@@ -1,16 +1,21 @@
 package org.ihtsdo.snowowl.authoring.single.api.service.jira;
 
-import net.rcarz.jiraclient.*;
-import net.sf.json.JSONArray;
-import net.sf.json.JSONObject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import net.rcarz.jiraclient.JiraClient;
+import net.rcarz.jiraclient.JiraException;
+import net.rcarz.jiraclient.RestClient;
+import net.rcarz.jiraclient.RestException;
+import net.sf.json.JSONArray;
+import net.sf.json.JSONObject;
 
 public class JiraHelper {
 
@@ -49,6 +54,46 @@ public class JiraHelper {
 			return fieldId;
 		} catch (IOException | URISyntaxException | RestException e) {
 			throw new JiraException("Failed to lookup field ID", e);
+		}
+	}
+
+	public static Object findtUsersByGroupName(JiraClient client, String expand, String groupName)
+			throws JiraException, URISyntaxException {
+		Map<String, String> params = new HashMap<>();
+		params.put("expand", expand);
+		params.put("groupname", groupName);
+		final RestClient restClient = client.getRestClient();
+		StringBuilder strBuilder = new StringBuilder("rest/api/latest/group");
+		URI uri = null;
+		try {
+			uri = restClient.buildURI(strBuilder.toString(), params);
+			Object response = restClient.get(uri);
+			return response;
+		} catch (IOException | URISyntaxException | RestException e) {
+			throw new JiraException("Failed to lookup sca users", e);
+		}
+	}
+
+	public static Object searchUsers(JiraClient client, String username, String groupName, String projectKeys, String issueKey, int maxResults,
+			int startAt) throws JiraException {
+		Map<String, String> params = new HashMap<>();
+		params.put("username", username);
+		params.put("groupname", groupName);
+		params.put("projectKeys", projectKeys);
+		params.put("issueKey", issueKey);
+		params.put("startAt", String.valueOf(startAt));
+		params.put("maxResults", String.valueOf(maxResults));
+		
+		final RestClient restClient = client.getRestClient();
+		StringBuilder strBuilder = new StringBuilder("rest/api/latest/user/assignable/search");
+		URI uri = null;
+		
+		try {
+			uri = restClient.buildURI(strBuilder.toString(), params);
+			Object response = restClient.get(uri);
+			return response;
+		} catch (IOException | URISyntaxException | RestException e) {
+			throw new JiraException("Failed to lookup sca users", e);
 		}
 	}
 
