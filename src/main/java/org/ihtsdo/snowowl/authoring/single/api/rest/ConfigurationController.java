@@ -25,13 +25,11 @@ public class ConfigurationController {
 	private ConfigurationService configurationService;
 	
 	@RequestMapping(value = "/users", method = RequestMethod.GET)
-	@ApiOperation( value = "Returns authoring users from Jira by group name")
+	@ApiOperation( value = "Returns authoring users from Jira")
 	@ResponseBody
-	public Object findtUsersByGroupName(@ApiParam(value="Contains the properties that can be expanded. Example: users[0:50]") 
-										@RequestParam("expand") String expand, 
-										@ApiParam(value="Group name. Example: ihtsdo-sca-author")
-										@RequestParam("groupName")String groupName) throws JiraException, URISyntaxException {
-		return configurationService.findtUsersByGroupName(expand, groupName);
+	public Object gettUsers(@ApiParam(value="Contains the properties that can be expanded. Example: users[0:50]") 
+										@RequestParam("expand") String expand) throws JiraException, URISyntaxException {
+		return configurationService.gettUsers(expand);
 	}
 	
 	@RequestMapping(value = "users/search", method = RequestMethod.GET)
@@ -39,14 +37,12 @@ public class ConfigurationController {
 	@ResponseBody
 	public Object findtUsersByNameAndGroupName(@ApiParam(value="A part of user name that to be searched") 
 											   @RequestParam("username") String username, 
-											   @ApiParam(value="Group name. Example: ihtsdo-sca-author") 
-											   @RequestParam("groupName")	String groupName, 
 											   @ApiParam(value="Project key. Example: TESTINT2,...") 
 											   @RequestParam("projectKeys") String projectKeys, 
 											   @ApiParam(value="Task key. Exameple: TESTINT2-XXX") 
 											   @RequestParam("issueKey") String issueKey,
 											   int maxResults, 
 											   int startAt) throws JiraException, URISyntaxException {
-		return configurationService.searchUsers(username, groupName, projectKeys, issueKey, maxResults, startAt);
+		return configurationService.searchUsers(username, projectKeys, issueKey, maxResults, startAt);
 	}
 }

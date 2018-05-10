@@ -11,18 +11,20 @@ import net.rcarz.jiraclient.JiraException;
 public class ConfigurationService {
 	private final ImpersonatingJiraClientFactory jiraClientFactory;	
 	private final String  jiraUser;
+	private final String groupName;
 
-	public ConfigurationService(ImpersonatingJiraClientFactory jiraClientFactory, String jiraUser) throws JiraException {
+	public ConfigurationService(ImpersonatingJiraClientFactory jiraClientFactory, String jiraUser, String groupName) throws JiraException {
 		this.jiraClientFactory = jiraClientFactory;
 		this.jiraUser = jiraUser;
+		this.groupName = groupName;
 	}
 	
-	public Object findtUsersByGroupName(String expand, String groupName) throws JiraException, URISyntaxException {
+	public Object gettUsers(String expand) throws JiraException, URISyntaxException {
 		final JiraClient jiraClient = jiraClientFactory.getImpersonatingInstance(jiraUser);
 		return JiraHelper.findtUsersByGroupName(jiraClient, expand, groupName);
 	}
 
-	public Object searchUsers(String username, String groupName, String projectKeys, String issueKey, int maxResults, int startAt) throws JiraException {
+	public Object searchUsers(String username, String projectKeys, String issueKey, int maxResults, int startAt) throws JiraException {
 		final JiraClient jiraClient = jiraClientFactory.getImpersonatingInstance(jiraUser);
 		return JiraHelper.searchUsers(jiraClient, username, groupName, projectKeys, issueKey, maxResults, startAt);
 	}

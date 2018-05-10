@@ -56,5 +56,6 @@
 			</bean>
 		</constructor-arg>
 		<constructor-arg value="${jira.username}"/>
+		<constructor-arg value="${jira.groupName}"/>	
 	</bean>
 </beans>
