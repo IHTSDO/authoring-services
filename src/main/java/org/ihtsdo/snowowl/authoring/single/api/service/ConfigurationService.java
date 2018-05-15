@@ -12,11 +12,17 @@ public class ConfigurationService {
 	private final ImpersonatingJiraClientFactory jiraClientFactory;	
 	private final String  jiraUser;
 	private final String groupName;
+	private static final String DEFAULT_GROUP_NAME = "ihtsdo-sca-author";
 
 	public ConfigurationService(ImpersonatingJiraClientFactory jiraClientFactory, String jiraUser, String groupName) throws JiraException {
 		this.jiraClientFactory = jiraClientFactory;
 		this.jiraUser = jiraUser;
-		this.groupName = groupName;
+		
+		if(groupName == null || groupName.isEmpty()) {
+			this.groupName = DEFAULT_GROUP_NAME;
+		} else {
+			this.groupName = groupName;
+		}		
 	}
 	
 	public Object gettUsers(String expand) throws JiraException, URISyntaxException {
