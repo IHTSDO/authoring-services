@@ -4,12 +4,15 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import net.rcarz.jiraclient.Issue;
+import net.rcarz.jiraclient.IssueLink;
 import net.rcarz.jiraclient.JiraClient;
 import net.rcarz.jiraclient.JiraException;
 import net.rcarz.jiraclient.RestClient;
@@ -97,4 +100,17 @@ public class JiraHelper {
 		}
 	}
 
+	public static void deleteIssueLink(JiraClient client, String issueKey, String linkId) throws JiraException {
+		Issue issue = client.getIssue(issueKey);
+		List<IssueLink> issueLinks = issue.getIssueLinks();
+		
+		for (IssueLink issueLink : issueLinks) {
+            if(issueLink.getOutwardIssue() != null 
+            	&& linkId.trim().equalsIgnoreCase(issueLink.getOutwardIssue().getKey())) {
+               issueLink.delete();
+               break;
+            }
+        }
+	}
+	
 }

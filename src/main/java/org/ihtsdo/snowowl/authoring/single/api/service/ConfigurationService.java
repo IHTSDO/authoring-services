@@ -38,4 +38,10 @@ public class ConfigurationService {
 		final JiraClient jiraClient = jiraClientFactory.getImpersonatingInstance(jiraUser);
 		return JiraHelper.searchUsers(jiraClient, username, groupName, projectKeys, issueKey, maxResults, startAt);
 	}
+
+	public void deleteIssueLink(String issueKey, String linkId) throws JiraException {
+		final JiraClient jiraClient = jiraClientFactory.getImpersonatingInstance(jiraUser);
+		JiraHelper.deleteIssueLink(jiraClient, issueKey, linkId);
+		
+	}
 }
