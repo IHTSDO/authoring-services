@@ -89,15 +89,5 @@ public class ReviewMessagesController {
 			@PathVariable final String conceptId) throws ExecutionException, InterruptedException {
 		reviewService.recordConceptView(projectKey, null, conceptId, ControllerHelper.getUsername());
 	}
-	
-	@ApiOperation(value="Send notification to users who are working on a task.")
-	@ApiResponses({
-			@ApiResponse(code = 200, message = "OK")
-	})
-	@RequestMapping(value="/projects/{projectKey}/tasks/{taskKey}/review/notification", method= RequestMethod.POST)
-	public void postReviewNotification(@PathVariable final String projectKey, @PathVariable final String taskKey,
-			@RequestBody String message) throws BadRequestException {
-		reviewService.postNotificationMessage(projectKey, taskKey, message, ControllerHelper.getUsername());
-	}
 
 }

@@ -173,13 +173,4 @@ public class ReviewService {
 	private Collection<ReviewMessageSentListener> getReviewMessageSentListeners() {
 		return applicationContext.getBeansOfType(ReviewMessageSentListener.class).values();
 	}
-
-	public void postNotificationMessage(String projectKey, String taskKey, String message, String username) {
-		
-		final Branch branch = getCreateBranch(projectKey, taskKey);
-		final ReviewMessage reviewMessage = new ReviewMessage(branch, null, null, false, username);
-		for (ReviewMessageSentListener listener : getReviewMessageSentListeners()) {
-			listener.messageSent(reviewMessage, message);
-		}
-	}
 }
