@@ -28,7 +28,7 @@ public class ReviewMessageSentHandler implements ReviewMessageSentListener {
 	private Logger logger = LoggerFactory.getLogger(getClass());
 
 	@Override
-	public void messageSent(ReviewMessage message) {
+	public void messageSent(ReviewMessage message, String event) {
 		try {
 			final List<String> usersToNotify = new ArrayList<>();
 			final Branch branch = message.getBranch();
@@ -40,7 +40,7 @@ public class ReviewMessageSentHandler implements ReviewMessageSentListener {
 			usersToNotify.remove(message.getFromUsername());
 			logger.info("Feedback message for task {} notification to {}", task, usersToNotify);
 			for (String username : usersToNotify) {
-				notificationService.queueNotification(username, new Notification(project, task, EntityType.Feedback, "new"));
+				notificationService.queueNotification(username, new Notification(project, task, EntityType.Feedback, event));
 			}
 		} catch (BusinessServiceException e) {
 			logger.error("Failed to notify user of review feedback.", e);
