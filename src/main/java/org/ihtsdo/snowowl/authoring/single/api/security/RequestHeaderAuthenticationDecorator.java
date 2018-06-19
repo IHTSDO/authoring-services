@@ -59,4 +59,8 @@ public class RequestHeaderAuthenticationDecorator extends org.ihtsdo.sso.integra
 		filterChain.doFilter(request, response);
 	}
 
+	protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		return authentication == null || !authentication.isAuthenticated();
+	}
 }
