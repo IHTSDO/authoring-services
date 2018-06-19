@@ -15,6 +15,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 public class RequestHeaderAuthenticationDecorator extends org.ihtsdo.sso.integration.RequestHeaderAuthenticationDecorator {
@@ -51,7 +52,7 @@ public class RequestHeaderAuthenticationDecorator extends org.ihtsdo.sso.integra
 			token = overrideToken;
 			logger.warn("Using authentication override token"); // We don't log the token
 		}
-		List decoratedRoles = AuthorityUtils.commaSeparatedStringToAuthorityList(roles);
+		List decoratedRoles = roles != null ? AuthorityUtils.commaSeparatedStringToAuthorityList(roles) : new ArrayList();
 		decoratedRoles.addAll(SecurityContextHolder.getContext().getAuthentication().getAuthorities());
 		PreAuthenticatedAuthenticationToken decoratedAuthentication = new PreAuthenticatedAuthenticationToken(username, token, decoratedRoles);
 		decoratedAuthentication.setDetails(SecurityContextHolder.getContext().getAuthentication().getDetails());
