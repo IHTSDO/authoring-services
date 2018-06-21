@@ -520,8 +520,13 @@ public class TaskService {
 								.getLatestClassification(task.getBranchPath());
 						timer.checkpoint("Recovering classification");
 						task.setLatestClassificationJson(latestClassificationJson);
-						task.setBranchState(branchService.getBranchStateOrNull(task.getBranchPath()));
-						timer.checkpoint("Recovering branch state");
+						Branch branch = branchService.getBranchOrNull(task.getBranchPath());
+						if (branch != null) {
+							task.setBranchState(branch.getState());
+							timer.checkpoint("Recovering branch state");
+							task.setBranchBaseTimestamp(branch.getBaseTimestamp());
+							task.setBranchHeadTimestamp(branch.getHeadTimestamp());
+						}
 						startedTasks.put(task.getBranchPath(), task);
 					}
 
