@@ -26,6 +26,8 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
 	private String summary;
 	private TaskStatus status;
 	private String branchState;
+	private Long branchHeadTimestamp;
+	private Long branchBaseTimestamp;
 	private String description;
 	private User assignee;
 	private User reviewer;
@@ -188,6 +190,22 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
 
 	public String getBranchState() {
 		return branchState;
+	}
+
+	public Long getBranchHeadTimestamp() {
+		return branchHeadTimestamp;
+	}
+
+	public void setBranchHeadTimestamp(Long branchHeadTimestamp) {
+		this.branchHeadTimestamp = branchHeadTimestamp;
+	}
+
+	public Long getBranchBaseTimestamp() {
+		return branchBaseTimestamp;
+	}
+
+	public void setBranchBaseTimestamp(Long branchBaseTimestamp) {
+		this.branchBaseTimestamp = branchBaseTimestamp;
 	}
 
 	public static void setJiraReviewerField(String jiraReviewerField) {

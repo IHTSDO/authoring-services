@@ -6,6 +6,8 @@ public class ReviewMessageCreateRequest {
 
 	private String messageHtml;
 
+	private String event;
+	
 	private List<String> subjectConceptIds;
 
 	private boolean feedbackRequested;
@@ -19,6 +21,14 @@ public class ReviewMessageCreateRequest {
 
 	public void setMessageHtml(String messageHtml) {
 		this.messageHtml = messageHtml;
+	}
+
+	public String getEvent() {
+		return event;
+	}
+
+	public void setEvent(String event) {
+		this.event = event;
 	}
 
 	public List<String> getSubjectConceptIds() {

@@ -103,7 +103,7 @@ public class ReviewService {
 		final ReviewMessage message = messageRepository.save(new ReviewMessage(branch, createRequest.getMessageHtml(),
 				subjectConceptIds, createRequest.isFeedbackRequested(), fromUsername));
 		for (ReviewMessageSentListener listener : getReviewMessageSentListeners()) {
-			listener.messageSent(message);
+			listener.messageSent(message, createRequest.getEvent());
 		}
 		return message;
 	}
