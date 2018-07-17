@@ -12,6 +12,7 @@ import java.util.Map;
 public class UiConfiguration {
 
 	private Map<String, String> endpoints;
+	private Map<String, String> features;
 
 	public Map<String, String> getEndpoints() {
 		return endpoints;
@@ -19,5 +20,13 @@ public class UiConfiguration {
 
 	public void setEndpoints(Map<String, String> endpoints) {
 		this.endpoints = endpoints;
+	}
+
+	public Map<String, String> getFeatures() {
+		return features;
+	}
+
+	public void setFeatures(Map<String, String> features) {
+		this.features = features;
 	}
 }
