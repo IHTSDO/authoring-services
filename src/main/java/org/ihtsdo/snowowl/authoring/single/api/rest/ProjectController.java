@@ -1,24 +1,43 @@
 package org.ihtsdo.snowowl.authoring.single.api.rest;
 
+import java.util.List;
+
+import org.ihtsdo.otf.rest.client.snowowl.PathHelper;
+import org.ihtsdo.otf.rest.client.snowowl.pojo.ApiError;
+import org.ihtsdo.otf.rest.client.snowowl.pojo.Merge;
+import org.ihtsdo.otf.rest.exception.BusinessServiceException;
+import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringMain;
+import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringProject;
+import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringTask;
+import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringTaskCreateRequest;
+import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringTaskUpdateRequest;
+import org.ihtsdo.snowowl.authoring.single.api.pojo.EntityType;
+import org.ihtsdo.snowowl.authoring.single.api.pojo.MergeRequest;
+import org.ihtsdo.snowowl.authoring.single.api.pojo.Notification;
+import org.ihtsdo.snowowl.authoring.single.api.pojo.ProcessStatus;
+import org.ihtsdo.snowowl.authoring.single.api.service.BranchService;
+import org.ihtsdo.snowowl.authoring.single.api.service.NotificationService;
+import org.ihtsdo.snowowl.authoring.single.api.service.PromotionService;
+import org.ihtsdo.snowowl.authoring.single.api.service.TaskAttachment;
+import org.ihtsdo.snowowl.authoring.single.api.service.TaskService;
+import org.ihtsdo.snowowl.authoring.single.api.service.TaskStatus;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import net.rcarz.jiraclient.Issue;
 import net.rcarz.jiraclient.JiraException;
-import org.ihtsdo.otf.rest.client.snowowl.PathHelper;
-import org.ihtsdo.otf.rest.client.snowowl.pojo.ApiError;
-import org.ihtsdo.otf.rest.client.snowowl.pojo.Merge;
-import org.ihtsdo.otf.rest.exception.BusinessServiceException;
-import org.ihtsdo.snowowl.authoring.single.api.pojo.*;
-import org.ihtsdo.snowowl.authoring.single.api.service.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @Api("Authoring Projects")
 @RestController
@@ -29,7 +48,7 @@ public class ProjectController {
 	private TaskService taskService;
 
 	@Autowired
-	private TaskAutoPromoteService taskAutoPromoteService;
+	private PromotionService promotionService;
 
 	@Autowired
 	private BranchService branchService;
@@ -178,14 +197,24 @@ public class ProjectController {
 	public ResponseEntity<String> promoteTask(@PathVariable final String projectKey,
 											  @PathVariable final String taskKey,
 											  @RequestBody MergeRequest mergeRequest) throws BusinessServiceException {
-		String taskBranchPath = taskService.getTaskBranchPathUsingCache(projectKey, taskKey);
-		Merge merge = branchService.mergeBranchSync(taskBranchPath, PathHelper.getParentPath(taskBranchPath), mergeRequest.getSourceReviewId());
+		ProcessStatus  processStatus = promotionService.getTaskPromotionStatus(projectKey, taskKey);
+		if (processStatus == null || processStatus.getStatus().equals("Promotion Error")) {
+			promotionService.doTaskPromotion(projectKey, taskKey, mergeRequest);
+		}		
+		return new ResponseEntity<>(HttpStatus.OK);
+		/*Merge merge = branchService.mergeBranchSync(taskBranchPath, PathHelper.getParentPath(taskBranchPath), mergeRequest.getSourceReviewId());
 		if (merge.getStatus() == Merge.Status.COMPLETED) {
 			taskService.stateTransition(projectKey, taskKey, TaskStatus.PROMOTED);
 			notificationService.queueNotification(ControllerHelper.getUsername(),
 					new Notification(projectKey, taskKey, EntityType.Promotion, "Task successfully promoted"));
 		}
-		return getResponseEntity(merge);
+		return getResponseEntity(merge);*/
+	}
+	
+	@RequestMapping(value="/projects/{projectKey}/tasks/{taskKey}/promote/status", method= RequestMethod.GET)
+	public ProcessStatus getTaskPromotionStatus(@PathVariable final String projectKey,
+										   @PathVariable final String taskKey) throws BusinessServiceException {
+		return promotionService.getTaskPromotionStatus(projectKey, taskKey);
 	}
 	
 	@ApiOperation(value="Auto promote an authoring Task")
@@ -195,9 +224,9 @@ public class ProjectController {
 	@RequestMapping(value="/projects/{projectKey}/tasks/{taskKey}/auto-promote", method= RequestMethod.POST)
 	public ResponseEntity<String> autoPromoteTask(@PathVariable final String projectKey,
 											  @PathVariable final String taskKey) throws BusinessServiceException {
-		ProcessStatus currentProcessStatus = taskAutoPromoteService.getAutoPromoteStatus(projectKey, taskKey);
+		ProcessStatus currentProcessStatus = promotionService.getAutomateTaskPromotionStatus(projectKey, taskKey);
 		if (!(null != currentProcessStatus && (currentProcessStatus.getStatus().equals("Rebasing") || currentProcessStatus.getStatus().equals("Classifying") || currentProcessStatus.getStatus().equals("Promoting")))) {
-			taskAutoPromoteService.autoPromoteTaskToProject(projectKey, taskKey);
+			promotionService.doAutomateTaskPromotion(projectKey, taskKey);
 		}
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
@@ -207,9 +236,9 @@ public class ProjectController {
 			@ApiResponse(code = 200, message = "OK")
 	})
 	@RequestMapping(value="/projects/{projectKey}/tasks/{taskKey}/auto-promote/status", method= RequestMethod.GET)
-	public ProcessStatus getAutoPromoteTaskStatus(@PathVariable final String projectKey,
+	public ProcessStatus getAutomateTaskPromotionStatus(@PathVariable final String projectKey,
 										   @PathVariable final String taskKey) throws BusinessServiceException {
-		return taskAutoPromoteService.getAutoPromoteStatus(projectKey, taskKey);
+		return promotionService.getAutomateTaskPromotionStatus(projectKey, taskKey);
 	}
 
 	private ResponseEntity<String> getResponseEntity(Merge merge) {
