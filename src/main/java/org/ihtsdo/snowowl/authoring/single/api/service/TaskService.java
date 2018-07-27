@@ -6,6 +6,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 import net.rcarz.jiraclient.*;
 import net.rcarz.jiraclient.Status;
 import net.rcarz.jiraclient.User;
@@ -100,6 +101,7 @@ public class TaskService {
 	private final String jiraProjectTemplatesField;
 	private final String jiraProjectSpellCheckField;
 	private final Set<String> projectJiraFetchFields;
+	private final Set<String> myTasksRequiredFields;
 
 	private LoadingCache<String, ProjectDetails> projectDetailsCache;
 	private final ExecutorService executorService;
@@ -139,6 +141,17 @@ public class TaskService {
 			jiraProjectTemplatesField = null;
 			jiraProjectSpellCheckField = null;
 		}
+
+		myTasksRequiredFields = Sets.newHashSet(
+				Field.PROJECT,
+				Field.SUMMARY,
+				Field.STATUS,
+				Field.DESCRIPTION,
+				Field.ASSIGNEE,
+				Field.CREATED_DATE,
+				Field.UPDATED_DATE,
+				Field.LABELS,
+				AuthoringTask.jiraReviewerField);
 	}
 
 	public void init() {
@@ -446,7 +459,7 @@ public class TaskService {
 		if (null != excludePromoted && excludePromoted.equalsIgnoreCase("TRUE")) {
 			jql += " AND status != \"Promoted\"";
 		}
-		List<Issue> issues = searchIssues(jql, LIMIT_UNLIMITED);
+		List<Issue> issues = searchIssues(jql, LIMIT_UNLIMITED, myTasksRequiredFields);
 		return buildAuthoringTasks(issues);
 	}
 
