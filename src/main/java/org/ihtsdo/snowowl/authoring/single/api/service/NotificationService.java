@@ -50,7 +50,7 @@ public class NotificationService {
 		}
 	}
 
-	private final CacheBuilder<Notification, String> userNotificationCacheBuilder = CacheBuilder.<Notification, String>newBuilder()
+	private final CacheBuilder<Notification, String> userNotificationCacheBuilder = CacheBuilder.newBuilder()
 			.expireAfterWrite(1, TimeUnit.MINUTES)
 			.removalListener(removalNotification -> {
 				Notification notification = removalNotification.getKey();
