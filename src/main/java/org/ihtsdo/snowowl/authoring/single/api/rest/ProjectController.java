@@ -18,6 +18,7 @@ import org.ihtsdo.snowowl.authoring.single.api.pojo.ProcessStatus;
 import org.ihtsdo.snowowl.authoring.single.api.service.BranchService;
 import org.ihtsdo.snowowl.authoring.single.api.service.NotificationService;
 import org.ihtsdo.snowowl.authoring.single.api.service.PromotionService;
+import org.ihtsdo.snowowl.authoring.single.api.service.RebaseService;
 import org.ihtsdo.snowowl.authoring.single.api.service.TaskAttachment;
 import org.ihtsdo.snowowl.authoring.single.api.service.TaskService;
 import org.ihtsdo.snowowl.authoring.single.api.service.TaskStatus;
@@ -49,6 +50,9 @@ public class ProjectController {
 
 	@Autowired
 	private PromotionService promotionService;
+	
+	@Autowired
+	private RebaseService rebaseService;
 
 	@Autowired
 	private BranchService branchService;
@@ -184,9 +188,21 @@ public class ProjectController {
 	@RequestMapping(value="/projects/{projectKey}/tasks/{taskKey}/rebase", method= RequestMethod.POST)
 	public ResponseEntity<String> rebaseTask(@PathVariable final String projectKey,
 											 @PathVariable final String taskKey) throws BusinessServiceException {
-		String taskBranchPath = taskService.getTaskBranchPathUsingCache(projectKey, taskKey);
-		Merge merge = branchService.mergeBranchSync(PathHelper.getParentPath(taskBranchPath), taskBranchPath, null);
-		return getResponseEntity(merge);
+		ProcessStatus  processStatus = rebaseService.getTaskRebaseStatus(projectKey, taskKey);
+		if (processStatus == null || processStatus.getStatus().equals("Rebase Error") || processStatus.getStatus().equals(Merge.Status.CONFLICTS.name())) {
+			rebaseService.doTaskRebase(projectKey, taskKey);
+		}		
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+	
+	@ApiOperation(value="Get rebase status of an authoring Task")
+	@ApiResponses({
+			@ApiResponse(code = 200, message = "OK")
+	})
+	@RequestMapping(value="/projects/{projectKey}/tasks/{taskKey}/rebase/status", method= RequestMethod.GET)
+	public ProcessStatus getRebaseTaskStatus(@PathVariable final String projectKey,
+											 @PathVariable final String taskKey) throws BusinessServiceException {
+		return rebaseService.getTaskRebaseStatus(projectKey, taskKey);
 	}
 
 	@ApiOperation(value="Promote an authoring Task")
@@ -198,7 +214,7 @@ public class ProjectController {
 											  @PathVariable final String taskKey,
 											  @RequestBody MergeRequest mergeRequest) throws BusinessServiceException {
 		ProcessStatus  processStatus = promotionService.getTaskPromotionStatus(projectKey, taskKey);
-		if (processStatus == null || processStatus.getStatus().equals("Promotion Error")) {
+		if (processStatus == null || processStatus.getStatus().equals("Promotion Error") || processStatus.getStatus().equals(Merge.Status.CONFLICTS.name())) {
 			promotionService.doTaskPromotion(projectKey, taskKey, mergeRequest);
 		}		
 		return new ResponseEntity<>(HttpStatus.OK);
