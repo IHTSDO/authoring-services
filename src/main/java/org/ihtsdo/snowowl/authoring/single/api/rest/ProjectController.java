@@ -106,7 +106,12 @@ public class ProjectController {
 	})
 	@RequestMapping(value="/projects/{projectKey}/promote", method= RequestMethod.POST)
 	public ResponseEntity<String> promoteProject(@PathVariable final String projectKey, @RequestBody MergeRequest mergeRequest) throws BusinessServiceException {
-		String projectBranchPath = taskService.getProjectBranchPathUsingCache(projectKey);
+		ProcessStatus  processStatus = promotionService.getProjectPromotionStatus(projectKey);
+		if (processStatus == null || processStatus.getStatus().equals("Promotion Error") || processStatus.getStatus().equals(Merge.Status.CONFLICTS.name())) {
+			promotionService.doProjectPromotion(projectKey, mergeRequest);
+		}		
+		return new ResponseEntity<>(HttpStatus.OK);
+		/*String projectBranchPath = taskService.getProjectBranchPathUsingCache(projectKey);
 		Merge merge = branchService.mergeBranchSync(projectBranchPath, PathHelper.getParentPath(projectBranchPath), mergeRequest.getSourceReviewId());
 		if (merge.getStatus() == Merge.Status.COMPLETED) {
 			List<Issue> promotedIssues = taskService.getTaskIssues(projectKey, TaskStatus.PROMOTED);
@@ -114,7 +119,16 @@ public class ProjectController {
 			notificationService.queueNotification(ControllerHelper.getUsername(),
 					new Notification(projectKey, null, EntityType.Promotion, "Project successfully promoted"));
 		}
-		return getResponseEntity(merge);
+		return getResponseEntity(merge);*/
+	}
+	
+	@ApiOperation(value="Retrieve status information about project promotion")
+	@ApiResponses({
+			@ApiResponse(code = 200, message = "OK")
+	})
+	@RequestMapping(value="/projects/{projectKey}/promote/status", method= RequestMethod.GET)
+	public ProcessStatus getProjectPromotionStatus(@PathVariable final String projectKey) throws BusinessServiceException {
+		return promotionService.getProjectPromotionStatus(projectKey);
 	}
 
 	@ApiOperation(value="Retrieve status information about the MAIN branch")

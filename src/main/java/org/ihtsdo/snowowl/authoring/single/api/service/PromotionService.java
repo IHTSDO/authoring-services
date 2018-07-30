@@ -3,6 +3,7 @@ package org.ihtsdo.snowowl.authoring.single.api.service;
 import static org.ihtsdo.otf.rest.client.snowowl.pojo.MergeReviewsResults.MergeReviewStatus.CURRENT;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -34,6 +35,7 @@ import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import net.rcarz.jiraclient.Issue;
 import us.monoid.json.JSONException;
 
 @Service
@@ -58,6 +60,8 @@ public class PromotionService {
 	
 	private final Map<String, ProcessStatus> taskPromotionStatus;
 	
+	private final Map<String, ProcessStatus> projectPromotionStatus;
+	
 	private ProcessStatus processStatus;
 
 	private final ExecutorService executorService;
@@ -65,6 +69,7 @@ public class PromotionService {
 	public PromotionService() {
 		automateTaskPromotionStatus = new HashMap<>();
 		taskPromotionStatus = new HashMap<>();
+		projectPromotionStatus = new HashMap<>();
 		processStatus = new ProcessStatus();
 		executorService = Executors.newCachedThreadPool();
 	}
@@ -123,6 +128,53 @@ public class PromotionService {
 				taskPromotionStatus.put(parseKey(projectKey, taskKey), taskProcessStatus);
 			}
 		});
+	}
+	
+	public void doProjectPromotion(String projectKey, MergeRequest mergeRequest) {
+		final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		ProcessStatus projectProcessStatus = new ProcessStatus();
+		executorService.submit(() -> {
+			SecurityContextHolder.getContext().setAuthentication(authentication);			
+			try {
+				
+				projectProcessStatus.setStatus("Rebasing");
+				projectProcessStatus.setMessage("Task is rebasing");
+				projectPromotionStatus.put(projectKey, projectProcessStatus);
+				String projectBranchPath = taskService.getProjectBranchPathUsingCache(projectKey);
+				Merge merge = branchService.mergeBranchSync(projectBranchPath, PathHelper.getParentPath(projectBranchPath), mergeRequest.getSourceReviewId());
+				if (merge.getStatus() == Merge.Status.COMPLETED) {
+					List<Issue> promotedIssues = taskService.getTaskIssues(projectKey, TaskStatus.PROMOTED);
+					taskService.stateTransition(promotedIssues, TaskStatus.COMPLETED);
+					notificationService.queueNotification(ControllerHelper.getUsername(),
+							new Notification(projectKey, null, EntityType.Promotion, "Project successfully promoted"));
+					projectProcessStatus.setStatus("Promotion Complete");
+					projectProcessStatus.setMessage("Task successfully promoted");
+					projectPromotionStatus.put(projectKey, projectProcessStatus);
+				} else if (merge.getStatus().equals(Merge.Status.CONFLICTS)) {
+					try {
+						ObjectMapper mapper = new ObjectMapper();
+						String jsonInString = mapper.writeValueAsString(merge);
+						projectProcessStatus.setStatus(Merge.Status.CONFLICTS.name());
+						projectProcessStatus.setMessage(jsonInString);
+						projectPromotionStatus.put(projectKey, projectProcessStatus);
+					} catch (JsonProcessingException e) {
+						e.printStackTrace();
+					}
+				} else {
+					ApiError apiError = merge.getApiError();
+					String message = apiError != null ? apiError.getMessage() : null;
+					projectProcessStatus.setStatus("Promotion Error");
+					projectProcessStatus.setMessage(message);
+					projectPromotionStatus.put(projectKey, projectProcessStatus);
+				}
+			} catch (BusinessServiceException e) {
+				e.printStackTrace();
+				projectProcessStatus.setStatus("Promotion Error");
+				projectProcessStatus.setMessage(e.getMessage());
+				projectPromotionStatus.put(projectKey, projectProcessStatus);
+			}
+		});
+		
 	}
 	
 	private synchronized void doAutomateTaskPromotion(String projectKey, String taskKey, Authentication authentication){
@@ -284,4 +336,7 @@ public class PromotionService {
 		return taskPromotionStatus.get(parseKey(projectKey, taskKey));
 	}
 
+	public ProcessStatus getProjectPromotionStatus(String projectKey) {
+		return projectPromotionStatus.get(projectKey);
+	}
 }
