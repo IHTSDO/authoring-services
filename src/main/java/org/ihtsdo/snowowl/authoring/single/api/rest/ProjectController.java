@@ -84,9 +84,20 @@ public class ProjectController {
 	})
 	@RequestMapping(value="/projects/{projectKey}/rebase", method= RequestMethod.POST)
 	public ResponseEntity<String> rebaseProject(@PathVariable final String projectKey) throws BusinessServiceException {
-		String projectBranchPath = taskService.getProjectBranchPathUsingCache(projectKey);
-		Merge merge = branchService.mergeBranchSync(PathHelper.getParentPath(projectBranchPath), projectBranchPath, null);
-		return getResponseEntity(merge);
+		ProcessStatus  processStatus = rebaseService.getProjectRebaseStatus(projectKey);
+		if (processStatus == null || processStatus.getStatus().equals("Rebase Error") || processStatus.getStatus().equals(Merge.Status.CONFLICTS.name())) {
+			rebaseService.doProjectRebase(projectKey);
+		}		
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+	
+	@ApiOperation(value="Get rebase status of an authoring project")
+	@ApiResponses({
+			@ApiResponse(code = 200, message = "OK")
+	})
+	@RequestMapping(value="/projects/{projectKey}/rebase/status", method= RequestMethod.GET)
+	public ProcessStatus getProjectRebaseStatus(@PathVariable final String projectKey) throws BusinessServiceException {
+		return rebaseService.getProjectRebaseStatus(projectKey);
 	}
 
 	@ApiOperation(value="Promote an authoring Project")

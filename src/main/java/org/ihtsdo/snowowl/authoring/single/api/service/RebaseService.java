@@ -30,11 +30,14 @@ public class RebaseService {
 	private BranchService branchService;
 
 	private final Map<String, ProcessStatus> taskRebaseStatus;
+	
+	private final Map<String, ProcessStatus> projectRebaseStatus;
 
 	private final ExecutorService executorService;
 
 	public RebaseService() {
 		taskRebaseStatus = new HashMap<>();
+		projectRebaseStatus = new HashMap<>(); 
 		executorService = Executors.newCachedThreadPool();
 	}
 
@@ -78,6 +81,47 @@ public class RebaseService {
 			}
 		});
 	}
+	
+	public void doProjectRebase(String projectKey) {
+		final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		ProcessStatus projectProcessStatus = new ProcessStatus();
+		executorService.submit(() -> {
+			SecurityContextHolder.getContext().setAuthentication(authentication);
+			try {
+
+				projectProcessStatus.setStatus("Rebasing");
+				projectRebaseStatus.put(projectKey, projectProcessStatus);
+				String projectBranchPath = taskService.getProjectBranchPathUsingCache(projectKey);
+				Merge merge = branchService.mergeBranchSync(PathHelper.getParentPath(projectBranchPath), projectBranchPath, null);
+				if (merge.getStatus() == Merge.Status.COMPLETED) {
+					projectProcessStatus.setStatus("Rebase Complete");
+					projectRebaseStatus.put(projectKey, projectProcessStatus);
+				} else if (merge.getStatus().equals(Merge.Status.CONFLICTS)) {
+					try {
+						ObjectMapper mapper = new ObjectMapper();
+						String jsonInString = mapper.writeValueAsString(merge);
+						projectProcessStatus.setStatus(Merge.Status.CONFLICTS.name());
+						projectProcessStatus.setMessage(jsonInString);
+						projectRebaseStatus.put(projectKey, projectProcessStatus);
+					} catch (JsonProcessingException e) {
+						e.printStackTrace();
+					}
+				} else {
+					ApiError apiError = merge.getApiError();
+					String message = apiError != null ? apiError.getMessage() : null;
+					projectProcessStatus.setStatus("Rebase Error");
+					projectProcessStatus.setMessage(message);
+					projectRebaseStatus.put(projectKey, projectProcessStatus);
+				}
+			} catch (BusinessServiceException e) {
+				e.printStackTrace();
+				projectProcessStatus.setStatus("Rebase Error");
+				projectProcessStatus.setMessage(e.getMessage());
+				projectRebaseStatus.put(projectKey, projectProcessStatus);
+			}
+		});
+		
+	}
 
 	private String parseKey(String projectKey, String taskKey) {
 		return projectKey + "|" + taskKey;
@@ -91,4 +135,10 @@ public class RebaseService {
 	public ProcessStatus getTaskRebaseStatus(String projectKey, String taskKey) {
 		return taskRebaseStatus.get(parseKey(projectKey, taskKey));
 	}
+
+	public ProcessStatus getProjectRebaseStatus(String projectKey) {
+		return projectRebaseStatus.get(projectKey);
+	}
+
+	
 }
