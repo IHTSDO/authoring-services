@@ -17,9 +17,8 @@ function connect(username) {
     var socket = new SockJS('authoring-services-websocket');
     stompClient = Stomp.over(socket);
     stompClient.connect({}, function (frame) {
-        setConnected(true);
         console.log('Connected: ' + frame);
-        stompClient.subscribe('/topic/user/' + username, function (message) {
+        stompClient.subscribe('/topic/user/' + username + '/notifications', function (message) {
             console.log('Notification ' + JSON.parse(message.body).content);
         });
     });

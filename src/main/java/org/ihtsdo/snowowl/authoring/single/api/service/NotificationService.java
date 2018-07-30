@@ -8,15 +8,22 @@ import org.ihtsdo.snowowl.authoring.single.api.pojo.Notification;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.SendTo;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.stereotype.Service;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+@Service
 public class NotificationService {
 
 	@Autowired
 	private TaskService taskService;
+
+	@Autowired
+	private SimpMessagingTemplate simpMessagingTemplate;
 
 	private final Map<String, List<Notification>> pendingNotifications = new HashMap<>();
 
@@ -31,8 +38,7 @@ public class NotificationService {
 		return null;
 	}
 
-	@SendTo("/topic/user/{username}")
-	public void queueNotification(String username, Notification notification) {
+	public Notification queueNotification(String username, Notification notification) {
 		final String projectKey = notification.getProject();
 		if (!Strings.isNullOrEmpty(projectKey)) {
 			try {
@@ -48,6 +54,8 @@ public class NotificationService {
 			}
 			pendingNotifications.get(username).add(notification);
 		}
+		simpMessagingTemplate.convertAndSend("/topic/user/" + username + "/notifications", notification);
+		return notification;
 	}
 
 	private final CacheBuilder<Notification, String> userNotificationCacheBuilder = CacheBuilder.newBuilder()

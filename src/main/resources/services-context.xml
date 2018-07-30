@@ -38,9 +38,6 @@
 
 	<bean class="org.ihtsdo.snowowl.authoring.single.api.service.dao.ArbitraryFileService"/>
 
-	<!-- Notifications and user monitors -->
-	<bean class="org.ihtsdo.snowowl.authoring.single.api.service.NotificationService"/>
-
 	<bean class="org.ihtsdo.snowowl.authoring.single.api.service.monitor.MonitorService"/>
 
 	<bean class="org.ihtsdo.snowowl.authoring.single.api.service.monitor.MonitorFactory"/>
