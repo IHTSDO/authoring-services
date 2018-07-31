@@ -42,7 +42,7 @@ public class RebaseService {
 	}
 
 	public void doTaskRebase(String projectKey, String taskKey) throws BusinessServiceException {
-		String taskBranchPath = taskService.getTaskBranchPathUsingCache(projectKey, taskKey);
+		
 		final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		ProcessStatus taskProcessStatus = new ProcessStatus();
 		executorService.submit(() -> {
@@ -51,7 +51,8 @@ public class RebaseService {
 
 				taskProcessStatus.setStatus("Rebasing");
 				taskRebaseStatus.put(parseKey(projectKey, taskKey), taskProcessStatus);
-				Merge merge = branchService.mergeBranchSync(taskBranchPath, PathHelper.getParentPath(taskBranchPath),
+				String taskBranchPath = taskService.getTaskBranchPathUsingCache(projectKey, taskKey);
+				Merge merge = branchService.mergeBranchSync(PathHelper.getParentPath(taskBranchPath), taskBranchPath,
 						null);
 				if (merge.getStatus() == Merge.Status.COMPLETED) {
 					taskProcessStatus.setStatus("Rebase Complete");
