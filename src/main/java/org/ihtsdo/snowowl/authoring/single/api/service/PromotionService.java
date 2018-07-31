@@ -138,7 +138,7 @@ public class PromotionService {
 			try {
 				
 				projectProcessStatus.setStatus("Rebasing");
-				projectProcessStatus.setMessage("Task is rebasing");
+				projectProcessStatus.setMessage("Project is rebasing");
 				projectPromotionStatus.put(projectKey, projectProcessStatus);
 				String projectBranchPath = taskService.getProjectBranchPathUsingCache(projectKey);
 				Merge merge = branchService.mergeBranchSync(projectBranchPath, PathHelper.getParentPath(projectBranchPath), mergeRequest.getSourceReviewId());
@@ -148,7 +148,7 @@ public class PromotionService {
 					notificationService.queueNotification(ControllerHelper.getUsername(),
 							new Notification(projectKey, null, EntityType.Promotion, "Project successfully promoted"));
 					projectProcessStatus.setStatus("Promotion Complete");
-					projectProcessStatus.setMessage("Task successfully promoted");
+					projectProcessStatus.setMessage("Project successfully promoted");
 					projectPromotionStatus.put(projectKey, projectProcessStatus);
 				} else if (merge.getStatus().equals(Merge.Status.CONFLICTS)) {
 					try {
