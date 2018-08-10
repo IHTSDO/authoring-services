@@ -60,18 +60,14 @@ public class JiraHelper {
 		}
 	}
 
-	public static Object findtUsersByGroupName(JiraClient client, String expand, String groupName)
-			throws JiraException, URISyntaxException {
+	public static Object findUsersByGroupName(JiraClient client, String expand, String groupName) throws JiraException {
 		Map<String, String> params = new HashMap<>();
 		params.put("expand", expand);
 		params.put("groupname", groupName);
 		final RestClient restClient = client.getRestClient();
-		StringBuilder strBuilder = new StringBuilder("rest/api/latest/group");
-		URI uri = null;
 		try {
-			uri = restClient.buildURI(strBuilder.toString(), params);
-			Object response = restClient.get(uri);
-			return response;
+			URI uri = restClient.buildURI("rest/api/latest/group", params);
+			return restClient.get(uri);
 		} catch (IOException | URISyntaxException | RestException e) {
 			throw new JiraException("Failed to lookup sca users", e);
 		}
@@ -88,11 +84,8 @@ public class JiraHelper {
 		params.put("maxResults", String.valueOf(maxResults));
 		
 		final RestClient restClient = client.getRestClient();
-		StringBuilder strBuilder = new StringBuilder("rest/api/latest/user/assignable/search");
-		URI uri = null;
-		
 		try {
-			uri = restClient.buildURI(strBuilder.toString(), params);
+			URI uri = restClient.buildURI("rest/api/latest/user/assignable/search", params);
 			Object response = restClient.get(uri);
 			return response;
 		} catch (IOException | URISyntaxException | RestException e) {

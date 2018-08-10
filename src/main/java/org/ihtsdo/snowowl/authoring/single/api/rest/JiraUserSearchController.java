@@ -2,7 +2,7 @@ package org.ihtsdo.snowowl.authoring.single.api.rest;
 
 import java.net.URISyntaxException;
 
-import org.ihtsdo.snowowl.authoring.single.api.service.ConfigurationService;
+import org.ihtsdo.snowowl.authoring.single.api.service.JiraUserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,30 +19,30 @@ import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 import net.rcarz.jiraclient.JiraException;
 
-@Api("Configuration")
+@Api("User Search")
 @RestController
 @RequestMapping(produces = {MediaType.APPLICATION_JSON_VALUE })
-public class ConfigurationController {
+public class JiraUserSearchController {
 	
 	@Autowired
-	private ConfigurationService configurationService;
+	private JiraUserService configurationService;
 	
 	@RequestMapping(value = "/users", method = RequestMethod.GET)
 	@ApiOperation( value = "Returns authoring users from Jira")
 	@ResponseBody
-	public Object gettUsers(@ApiParam(value="Contains the properties that can be expanded. Example: users[0:50]") 
-										@RequestParam("expand") String expand) throws JiraException, URISyntaxException {
-		return configurationService.gettUsers(expand);
+	public Object getUsers(@ApiParam(value="Contains the properties that can be expanded. Example: users[0:50]")
+										@RequestParam(value = "expand", defaultValue = "users[0:50]") String expand) throws JiraException, URISyntaxException {
+		return configurationService.getUsers(expand);
 	}
 	
 	@RequestMapping(value = "users/search", method = RequestMethod.GET)
 	@ApiOperation( value = "Returns authoring users from Jira by search conditions")
 	@ResponseBody
-	public Object findtUsersByNameAndGroupName(@ApiParam(value="A part of user name that to be searched") 
-											   @RequestParam("username") String username, 
-											   @ApiParam(value="Project key. Example: TESTINT2,...") 
-											   @RequestParam("projectKeys") String projectKeys, 
-											   @ApiParam(value="Task key. Exameple: TESTINT2-XXX") 
+	public Object findUsersByNameAndGroupName(@ApiParam(value="A part of user name that to be searched")
+											   @RequestParam("username") String username,
+											   @ApiParam(value="Project key. Example: TESTINT2,...")
+											   @RequestParam("projectKeys") String projectKeys,
+											   @ApiParam(value="Task key. Exameple: TESTINT2-XXX")
 											   @RequestParam("issueKey") String issueKey,
 											   int maxResults, 
 											   int startAt) throws JiraException, URISyntaxException {
@@ -54,7 +54,7 @@ public class ConfigurationController {
 		@ApiResponse(code = 200, message = "OK")
 	})
 	@RequestMapping(value = "/issue-key/{issueKey}/issue-link/{linkId}", method = RequestMethod.DELETE)
-	public void deleteIssueLink (@ApiParam(value="Task key. Ex: TESTINT2-XXX") 
+	public void deleteIssueLink(@ApiParam(value="Task key. Ex: TESTINT2-XXX")
 								 @PathVariable final String issueKey,
 								 @ApiParam(value="Issue ID. Ex: CRT-XXX") 
 								 @PathVariable final String linkId) throws JiraException {

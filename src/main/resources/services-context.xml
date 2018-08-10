@@ -8,14 +8,14 @@
 		<constructor-arg value="${jiraProjectFilterProductCodes}"/>
 	</bean>
 
+	<bean class="org.ihtsdo.snowowl.authoring.single.api.service.jira.OAuthJiraClientFactory" name="jiraClientFactory">
+		<constructor-arg value="${jira.url}"/>
+		<constructor-arg value="${jira.consumerKey}"/>
+		<constructor-arg value="${jira.privateKeyName}"/>
+	</bean>
+
 	<bean class="org.ihtsdo.snowowl.authoring.single.api.service.TaskService">
-		<constructor-arg>
-			<bean class="org.ihtsdo.snowowl.authoring.single.api.service.jira.OAuthJiraClientFactory">
-				<constructor-arg value="${jira.url}"/>
-				<constructor-arg value="${jira.consumerKey}"/>
-				<constructor-arg value="${jira.privateKeyName}"/>
-			</bean>
-		</constructor-arg>
+		<constructor-arg ref="jiraClientFactory"/>
 		<constructor-arg value="${jira.username}"/>
 	</bean>
 
@@ -30,9 +30,9 @@
 		<constructor-arg value="${orchestration.username}"/>
 		<constructor-arg value="${orchestration.password}"/>
 	</bean>
-	
+
 	<bean class="org.ihtsdo.snowowl.authoring.single.api.service.UiStateService"/>
-	
+
 	<bean class="org.ihtsdo.snowowl.authoring.single.api.service.ValidationService" init-method="init"/>
 	<bean class="org.ihtsdo.otf.jms.MessagingHelper"/>
 
@@ -46,16 +46,11 @@
 	<bean class="org.ihtsdo.snowowl.authoring.single.api.service.monitor.MonitorFactory"/>
 
 	<bean class="org.ihtsdo.snowowl.authoring.batchimport.api.service.BatchImportService"/>
-	
-	<bean class="org.ihtsdo.snowowl.authoring.single.api.service.ConfigurationService">
-		<constructor-arg>
-			<bean class="org.ihtsdo.snowowl.authoring.single.api.service.jira.OAuthJiraClientFactory">
-				<constructor-arg value="${jira.url}"/>
-				<constructor-arg value="${jira.consumerKey}"/>
-				<constructor-arg value="${jira.privateKeyName}"/>
-			</bean>
-		</constructor-arg>
-		<constructor-arg value="${jira.username}"/>
-		<constructor-arg value="${jira.groupName}"/>	
+
+	<bean class="org.ihtsdo.snowowl.authoring.scheduler.api.service.ScheduleServiceStub"/>
+
+	<bean class="org.ihtsdo.snowowl.authoring.single.api.service.JiraUserService">
+		<constructor-arg ref="jiraClientFactory"/>
+		<constructor-arg value="${jira.groupName}"/>
 	</bean>
 </beans>
