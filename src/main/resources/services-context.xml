@@ -47,8 +47,6 @@
 
 	<bean class="org.ihtsdo.snowowl.authoring.batchimport.api.service.BatchImportService"/>
 
-	<bean class="org.ihtsdo.snowowl.authoring.scheduler.api.service.ScheduleServiceStub"/>
-
 	<bean class="org.ihtsdo.snowowl.authoring.single.api.service.JiraUserService">
 		<constructor-arg ref="jiraClientFactory"/>
 		<constructor-arg value="${jira.groupName}"/>
