@@ -132,7 +132,7 @@ public class ReviewService {
 
 				// get the view date and save in task messages detail
 				Date viewDate = reviewConcept.getViewDate();
-				if(detail.getViewDate() != null) {
+				if(null != detail.getViewDate() && null != viewDate) {
 					if (viewDate.after(detail.getViewDate())) {
 						detail.setViewDate(viewDate);
 					}
