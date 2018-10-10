@@ -267,7 +267,7 @@ public class ProjectController {
 											  @PathVariable final String taskKey) throws BusinessServiceException {
 		ProcessStatus currentProcessStatus = promotionService.getAutomateTaskPromotionStatus(projectKey, taskKey);
 		if (!(null != currentProcessStatus && (currentProcessStatus.getStatus().equals("Rebasing") || currentProcessStatus.getStatus().equals("Classifying") || currentProcessStatus.getStatus().equals("Promoting")))) {
-			promotionService.doAutomateTaskPromotion(projectKey, taskKey);
+			promotionService.queueAutomateTaskPromotion(projectKey, taskKey);
 		}
 		return new ResponseEntity<>(HttpStatus.OK);
 	}

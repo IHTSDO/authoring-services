@@ -1,11 +1,10 @@
 package org.ihtsdo.snowowl.authoring.single.api;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.util.ISO8601DateFormat;
-import com.google.common.base.Charsets;
-import io.kaicode.rest.util.branchpathrewrite.BranchPathUriRewriteFilter;
+import static com.google.common.base.Predicates.not;
+import static springfox.documentation.builders.PathSelectors.regex;
+
+import java.util.TimeZone;
+
 import org.ihtsdo.otf.rest.client.snowowl.SnowOwlRestClientFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
@@ -19,20 +18,25 @@ import org.springframework.http.converter.ResourceHttpMessageConverter;
 import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.jms.annotation.EnableJms;
+import org.springframework.scheduling.annotation.EnableScheduling;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.util.ISO8601DateFormat;
+import com.google.common.base.Charsets;
+
+import io.kaicode.rest.util.branchpathrewrite.BranchPathUriRewriteFilter;
 import springfox.documentation.builders.RequestHandlerSelectors;
 import springfox.documentation.spi.DocumentationType;
 import springfox.documentation.spring.web.plugins.Docket;
 import springfox.documentation.swagger2.annotations.EnableSwagger2;
 
-import java.util.TimeZone;
-
-import static com.google.common.base.Predicates.not;
-import static springfox.documentation.builders.PathSelectors.regex;
-
 @SpringBootApplication
 @ImportResource("classpath:services-context.xml")
 @EnableJms
 @EnableSwagger2
+@EnableScheduling
 public class Application {
 
 	@Bean
