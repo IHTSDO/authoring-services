@@ -1,8 +1,11 @@
 package org.ihtsdo.snowowl.authoring.single.api.pojo;
 
+import java.util.Date;
+
 public class ProcessStatus {
-	String status;
-	String message;
+	private String status;
+	private String message;
+	private Date completeDate;
 	
 	public ProcessStatus(String status, String message) {
 		this.status = status;
@@ -25,6 +28,14 @@ public class ProcessStatus {
 
 	public void setMessage(String message) {
 		this.message = message;
+	}
+
+	public Date getCompleteDate() {
+		return completeDate;
+	}
+
+	public void setCompleteDate(Date completeDate) {
+		this.completeDate = completeDate;
 	}
 	
 }

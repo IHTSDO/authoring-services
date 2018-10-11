@@ -2,6 +2,7 @@ package org.ihtsdo.snowowl.authoring.single.api.service;
 
 import static org.ihtsdo.otf.rest.client.snowowl.pojo.MergeReviewsResults.MergeReviewStatus.CURRENT;
 
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -251,6 +252,7 @@ public class PromotionService {
 			if (classification.getResults().getStatus().equals(ClassificationResults.ClassificationStatus.COMPLETED.toString())) {
 				if (null != classification && null != classification.getResults() && classification.getResults().getRelationshipChangesCount() != 0) {
 					status = new ProcessStatus("Classified with results",""); 
+					status.setCompleteDate(new Date());
 					automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
 				}
 			} else {
@@ -305,12 +307,14 @@ public class PromotionService {
 							String message = apiError != null ? apiError.getMessage() : null;
 							notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Rebase, message));
 							status = new ProcessStatus("Rebased with conflicts",message);
+							status.setCompleteDate(new Date());
 							automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
 							return "stopped";
 						}
 					} else {
 						notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Rebase, "Rebase has conflicts"));
 						status = new ProcessStatus("Rebased with conflicts","");
+						status.setCompleteDate(new Date());
 						automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
 						return "stopped";
 					}
@@ -321,6 +325,7 @@ public class PromotionService {
 				}
 			} catch (RestClientException e) {
 				status = new ProcessStatus("Rebased with conflicts",e.getMessage());
+				status.setCompleteDate(new Date());
 				automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
 				throw new BusinessServiceException("Failed to start merge reviews.", e);
 			}
