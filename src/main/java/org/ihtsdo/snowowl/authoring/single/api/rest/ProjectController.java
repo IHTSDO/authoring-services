@@ -85,7 +85,7 @@ public class ProjectController {
 	@RequestMapping(value="/projects/{projectKey}/rebase", method= RequestMethod.POST)
 	public ResponseEntity<String> rebaseProject(@PathVariable final String projectKey) throws BusinessServiceException {
 		ProcessStatus  processStatus = rebaseService.getProjectRebaseStatus(projectKey);
-		if (processStatus == null || processStatus.getStatus().equals("Rebase Error") || processStatus.getStatus().equals(Merge.Status.CONFLICTS.name())) {
+		if (processStatus == null || !processStatus.getStatus().equals("Rebasing")) {
 			rebaseService.doProjectRebase(projectKey);
 		}		
 		return new ResponseEntity<>(HttpStatus.OK);
@@ -214,7 +214,7 @@ public class ProjectController {
 	public ResponseEntity<String> rebaseTask(@PathVariable final String projectKey,
 											 @PathVariable final String taskKey) throws BusinessServiceException {
 		ProcessStatus  processStatus = rebaseService.getTaskRebaseStatus(projectKey, taskKey);
-		if (processStatus == null || processStatus.getStatus().equals("Rebase Error") || processStatus.getStatus().equals(Merge.Status.CONFLICTS.name())) {
+		if (processStatus == null || !processStatus.getStatus().equals("Rebasing")) {
 			rebaseService.doTaskRebase(projectKey, taskKey);
 		}		
 		return new ResponseEntity<>(HttpStatus.OK);
