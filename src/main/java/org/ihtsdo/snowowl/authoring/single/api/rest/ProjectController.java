@@ -107,7 +107,7 @@ public class ProjectController {
 	@RequestMapping(value="/projects/{projectKey}/promote", method= RequestMethod.POST)
 	public ResponseEntity<String> promoteProject(@PathVariable final String projectKey, @RequestBody MergeRequest mergeRequest) throws BusinessServiceException {
 		ProcessStatus  processStatus = promotionService.getProjectPromotionStatus(projectKey);
-		if (processStatus == null || processStatus.getStatus().equals("Promotion Error") || processStatus.getStatus().equals(Merge.Status.CONFLICTS.name())) {
+		if (processStatus == null || !processStatus.getStatus().equals("Rebasing")) {
 			promotionService.doProjectPromotion(projectKey, mergeRequest);
 		}		
 		return new ResponseEntity<>(HttpStatus.OK);
@@ -239,7 +239,7 @@ public class ProjectController {
 											  @PathVariable final String taskKey,
 											  @RequestBody MergeRequest mergeRequest) throws BusinessServiceException {
 		ProcessStatus  processStatus = promotionService.getTaskPromotionStatus(projectKey, taskKey);
-		if (processStatus == null || processStatus.getStatus().equals("Promotion Error") || processStatus.getStatus().equals(Merge.Status.CONFLICTS.name())) {
+		if (processStatus == null || !processStatus.getStatus().equals("Rebasing")) {
 			promotionService.doTaskPromotion(projectKey, taskKey, mergeRequest);
 		}		
 		return new ResponseEntity<>(HttpStatus.OK);
