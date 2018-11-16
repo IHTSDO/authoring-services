@@ -1,7 +1,10 @@
 package org.ihtsdo.snowowl.authoring.single.api.pojo;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import java.util.List;
+
 import org.ihtsdo.snowowl.authoring.single.api.service.TaskStatus;
+
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 @JsonDeserialize(as = AuthoringTask.class)
 public interface AuthoringTaskUpdateRequest extends AuthoringTaskCreateRequest {
@@ -14,7 +17,7 @@ public interface AuthoringTaskUpdateRequest extends AuthoringTaskCreateRequest {
 
 	void setAssignee(User assignee);
 
-	User getReviewer();
+	List<User> getReviewers();
 
-	void setReviewer(User reviewer);
+	void setReviewers(List<User> reviewer);
 }

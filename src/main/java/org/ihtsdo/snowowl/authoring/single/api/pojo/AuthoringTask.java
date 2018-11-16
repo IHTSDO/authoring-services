@@ -1,9 +1,11 @@
 package org.ihtsdo.snowowl.authoring.single.api.pojo;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
-import org.ihtsdo.snowowl.authoring.single.api.review.service.TaskMessagesStatus;
 import org.ihtsdo.otf.rest.client.snowowl.PathHelper;
+import org.ihtsdo.snowowl.authoring.single.api.review.service.TaskMessagesStatus;
 import org.ihtsdo.snowowl.authoring.single.api.service.TaskStatus;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -12,6 +14,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import net.rcarz.jiraclient.Issue;
+import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
 public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskUpdateRequest {
@@ -20,6 +23,7 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
 	public static final String JIRA_UPDATED_FIELD = "updated";
 
 	public static String jiraReviewerField;
+	public static String jiraReviewersField;
 
 	private String key;
 	private String projectKey;
@@ -30,7 +34,7 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
 	private Long branchBaseTimestamp;
 	private String description;
 	private User assignee;
-	private User reviewer;
+	private List<User> reviewers;
 	private String created;
 	private String updated;
 	private String latestClassificationJson;
@@ -68,11 +72,20 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
 		}
 		
 		// set the reviewer object
+		reviewers = new ArrayList<User>();
 		Object reviewerObj = issue.getField(jiraReviewerField);
 		if (reviewerObj != null && reviewerObj instanceof JSONObject) {
-			reviewer = new User((JSONObject)reviewerObj);
+			reviewers.add(new User((JSONObject)reviewerObj));
 		}
-
+		
+		Object reviewersObj = issue.getField(jiraReviewersField);
+		if (reviewersObj != null && reviewersObj instanceof JSONArray) {
+			JSONArray array = (JSONArray) reviewersObj;
+			if (array.size() > 0) {
+				array.forEach(item -> reviewers.add(new User((JSONObject) item)));
+			}
+		}
+		
 		branchPath = PathHelper.getTaskPath(extensionBase, projectKey, key);
 	}
 
@@ -168,12 +181,12 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
 		return "".equals(latestValidationStatus) ? null : latestValidationStatus;
 	}
 
-	public User getReviewer() {
-		return reviewer;
+	public List<User> getReviewers() {
+		return reviewers;
 	}
 
-	public void setReviewer(User reviewer) {
-		this.reviewer = reviewer;
+	public void setReviewers(List<User> reviewers) {
+		this.reviewers = reviewers;
 	}
 
 	public void setFeedbackMessagesStatus(TaskMessagesStatus unreadFeedbackMessages) {
@@ -212,6 +225,10 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
 		AuthoringTask.jiraReviewerField = jiraReviewerField;
 	}
 
+	public static void setJiraReviewersField(String jiraReviewersField) {
+		AuthoringTask.jiraReviewersField = jiraReviewersField;
+	}
+	
 	public String getBranchPath() {
 		return branchPath;
 	}

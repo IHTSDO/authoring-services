@@ -13,40 +13,29 @@ import net.rcarz.jiraclient.User;
 import net.sf.json.JSON;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
-import us.monoid.json.JSONException;
 
 import org.apache.activemq.command.ActiveMQQueue;
 import org.apache.log4j.Level;
 import org.ihtsdo.otf.jms.MessagingHelper;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.snowowl.PathHelper;
-import org.ihtsdo.otf.rest.client.snowowl.pojo.ApiError;
 import org.ihtsdo.otf.rest.client.snowowl.pojo.Branch;
-import org.ihtsdo.otf.rest.client.snowowl.pojo.ClassificationResults;
-import org.ihtsdo.otf.rest.client.snowowl.pojo.Merge;
-import org.ihtsdo.otf.rest.client.snowowl.pojo.MergeReviewsResults;
 import org.ihtsdo.otf.rest.exception.BadRequestException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.*;
-import org.ihtsdo.snowowl.authoring.single.api.rest.ControllerHelper;
-import org.ihtsdo.snowowl.authoring.single.api.review.pojo.BranchState;
 import org.ihtsdo.snowowl.authoring.single.api.review.service.ReviewService;
 import org.ihtsdo.snowowl.authoring.single.api.review.service.TaskMessagesDetail;
 import org.ihtsdo.snowowl.authoring.single.api.service.jira.ImpersonatingJiraClientFactory;
 import org.ihtsdo.snowowl.authoring.single.api.service.jira.JiraHelper;
 import org.ihtsdo.snowowl.authoring.single.api.service.util.TimerUtil;
-import org.ihtsdo.otf.rest.client.snowowl.SnowOwlRestClient;
-import org.ihtsdo.otf.rest.client.snowowl.SnowOwlRestClientFactory;
 import org.ihtsdo.sso.integration.SecurityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import static org.ihtsdo.otf.rest.client.snowowl.pojo.MergeReviewsResults.MergeReviewStatus.CURRENT;
 
 import javax.annotation.PreDestroy;
 import javax.jms.JMSException;
@@ -117,6 +106,7 @@ public class TaskService {
 			logger.info("Fetching Jira custom field names.");
 			final JiraClient jiraClientForFieldLookup = jiraClientFactory.getImpersonatingInstance(jiraUsername);
 			AuthoringTask.setJiraReviewerField(JiraHelper.fieldIdLookup("Reviewer", jiraClientForFieldLookup, null));
+			AuthoringTask.setJiraReviewersField(JiraHelper.fieldIdLookup("Reviewers", jiraClientForFieldLookup, null));
 			projectJiraFetchFields = new HashSet<>();
 			projectJiraFetchFields.add("project");
 			jiraExtensionBaseField = JiraHelper.fieldIdLookup("Extension Base", jiraClientForFieldLookup, projectJiraFetchFields);
@@ -151,7 +141,8 @@ public class TaskService {
 				Field.CREATED_DATE,
 				Field.UPDATED_DATE,
 				Field.LABELS,
-				AuthoringTask.jiraReviewerField);
+				AuthoringTask.jiraReviewerField,
+				AuthoringTask.jiraReviewersField);
 	}
 
 	public void init() {
@@ -465,7 +456,7 @@ public class TaskService {
 
 	public List<AuthoringTask> listMyOrUnassignedReviewTasks() throws JiraException, BusinessServiceException {
 		List<Issue> issues = searchIssues("type = \"" + AUTHORING_TASK_TYPE + "\" " + "AND assignee != currentUser() "
-				+ "AND (Reviewer = currentUser() OR (Reviewer = null AND status = \"" + TaskStatus.IN_REVIEW.getLabel()
+				+ "AND (Reviewer = currentUser() OR Reviewers = currentUser() OR (Reviewer = null AND Reviewers = null AND status = \"" + TaskStatus.IN_REVIEW.getLabel()
 				+ "\")) " + EXCLUDE_STATUSES, LIMIT_UNLIMITED);
 		return buildAuthoringTasks(issues);
 	}
@@ -655,15 +646,23 @@ public class TaskService {
 				fieldUpdates = true;
 			}
 
-			final org.ihtsdo.snowowl.authoring.single.api.pojo.User reviewer = taskUpdateRequest.getReviewer();
-			if (reviewer != null) {
-				final String username = reviewer.getUsername();
-				if (username == null || username.isEmpty()) {
+			final List<org.ihtsdo.snowowl.authoring.single.api.pojo.User> reviewers = taskUpdateRequest.getReviewers();
+			if (reviewers != null) {
+				if (reviewers.size() > 0) {
+					List<User> users = new ArrayList<User>();
+					
+					for (int i = 0 ; i < reviewers.size(); i++) {
+						org.ihtsdo.snowowl.authoring.single.api.pojo.User reviewer = reviewers.get(i);
+						users.add(getUser(reviewer.getUsername()));
+					}
 					updateRequest.field(AuthoringTask.jiraReviewerField, null);
+					updateRequest.field(AuthoringTask.jiraReviewersField, users);
+					fieldUpdates = true;
 				} else {
-					updateRequest.field(AuthoringTask.jiraReviewerField, getUser(username));
+					updateRequest.field(AuthoringTask.jiraReviewerField, null);
+					updateRequest.field(AuthoringTask.jiraReviewersField, null);
+					fieldUpdates = true;
 				}
-				fieldUpdates = true;
 			}
 
 			final String summary = taskUpdateRequest.getSummary();
