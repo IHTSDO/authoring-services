@@ -122,7 +122,7 @@ public class ValidationService {
 	private Status doStartValidation(String path, String username, String projectKey, String taskKey, String effectiveTime) throws BusinessServiceException {
 		try {
 			final Map<String, Object> mergedBranchMetadata = branchService.getBranchMetadataIncludeInherited(path);
-			Map<String, String> properties = new HashMap<>();
+			Map<String, Object> properties = new HashMap<>();
 			copyProperty(ASSERTION_GROUP_NAMES, mergedBranchMetadata, properties);
 			copyProperty(PREVIOUS_RELEASE, mergedBranchMetadata, properties);
 			copyProperty(DEPENDENCY_RELEASE, mergedBranchMetadata, properties);
@@ -149,7 +149,7 @@ public class ValidationService {
 		}
 	}
 
-	private void copyProperty(String key, Map<String, Object> metadata, Map<String, String> properties) {
+	private void copyProperty(String key, Map<String, Object> metadata, Map<String, Object> properties) {
 		final String value = (String) metadata.get(key);
 		if (!Strings.isNullOrEmpty(value)) {
 			properties.put(key, value);
