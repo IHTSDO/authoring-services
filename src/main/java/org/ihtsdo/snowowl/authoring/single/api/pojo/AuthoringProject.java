@@ -1,15 +1,17 @@
 package org.ihtsdo.snowowl.authoring.single.api.pojo;
 
 import com.fasterxml.jackson.annotation.JsonRawValue;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 import java.util.Map;
 
+@JsonDeserialize
 public class AuthoringProject {
 
-	private final String key;
-	private final String title;
-	private final User projectLead;
-	private final String branchPath;
+	private String key;
+	private String title;
+	private User projectLead;
+	private String branchPath;
 	private String branchState;
 	private String latestClassificationJson;
 	private String validationStatus;
@@ -18,11 +20,16 @@ public class AuthoringProject {
 	private boolean projectMrcmDisabled;
 	private boolean projectTemplatesDisabled;
 	private boolean projectSpellCheckDisabled;
+	private boolean projectScheduledRebaseDisabled;
 	private Map<String, Object> metadata;
 
+	public AuthoringProject() {
+	}
+	
 	public AuthoringProject(String key, String title, User leadUser, String branchPath, String branchState,
 							String latestClassificationJson, boolean projectPromotionDisabled,
-							boolean projectMrcmDisabled, boolean projectTemplatesDisabled, boolean projectSpellCheckDisabled, boolean projectRebaseDisabled) {
+							boolean projectMrcmDisabled, boolean projectTemplatesDisabled, boolean projectSpellCheckDisabled, boolean projectRebaseDisabled,
+							boolean projectScheduledRebaseDisabled) {
 		this.key = key;
 		this.title = title;
 		this.projectLead = leadUser;
@@ -34,6 +41,7 @@ public class AuthoringProject {
 		this.projectTemplatesDisabled = projectTemplatesDisabled;
 		this.projectSpellCheckDisabled = projectSpellCheckDisabled;
 		this.projectRebaseDisabled = projectRebaseDisabled;
+		this.projectScheduledRebaseDisabled = projectScheduledRebaseDisabled;
 	}
 
 	public String getKey() {
@@ -107,6 +115,14 @@ public class AuthoringProject {
 
 	public boolean isProjectSpellCheckDisabled() {
 		return projectSpellCheckDisabled;
+	}
+
+	public boolean isProjectScheduledRebaseDisabled() {
+		return projectScheduledRebaseDisabled;
+	}
+
+	public void setProjectScheduledRebaseDisabled(boolean projectScheduledRebaseDisabled) {
+		this.projectScheduledRebaseDisabled = projectScheduledRebaseDisabled;
 	}
 
 	public void setProjectSpellCheckDisabled(boolean projectSpellCheckDisabled) {

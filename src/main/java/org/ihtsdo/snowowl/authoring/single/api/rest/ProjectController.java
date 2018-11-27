@@ -2,26 +2,18 @@ package org.ihtsdo.snowowl.authoring.single.api.rest;
 
 import java.util.List;
 
-import org.ihtsdo.otf.rest.client.snowowl.PathHelper;
-import org.ihtsdo.otf.rest.client.snowowl.pojo.ApiError;
-import org.ihtsdo.otf.rest.client.snowowl.pojo.Merge;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringMain;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringProject;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringTask;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringTaskCreateRequest;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringTaskUpdateRequest;
-import org.ihtsdo.snowowl.authoring.single.api.pojo.EntityType;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.MergeRequest;
-import org.ihtsdo.snowowl.authoring.single.api.pojo.Notification;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.ProcessStatus;
-import org.ihtsdo.snowowl.authoring.single.api.service.BranchService;
-import org.ihtsdo.snowowl.authoring.single.api.service.NotificationService;
 import org.ihtsdo.snowowl.authoring.single.api.service.PromotionService;
 import org.ihtsdo.snowowl.authoring.single.api.service.RebaseService;
 import org.ihtsdo.snowowl.authoring.single.api.service.TaskAttachment;
 import org.ihtsdo.snowowl.authoring.single.api.service.TaskService;
-import org.ihtsdo.snowowl.authoring.single.api.service.TaskStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -37,7 +29,6 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
-import net.rcarz.jiraclient.Issue;
 import net.rcarz.jiraclient.JiraException;
 
 @Api("Authoring Projects")
@@ -53,12 +44,6 @@ public class ProjectController {
 	
 	@Autowired
 	private RebaseService rebaseService;
-
-	@Autowired
-	private BranchService branchService;
-
-	@Autowired
-	private NotificationService notificationService;
 
 	@ApiOperation(value="List authoring Projects")
 	@ApiResponses({
@@ -191,6 +176,13 @@ public class ProjectController {
 	public AuthoringTask updateTask(@PathVariable final String projectKey, @PathVariable final String taskKey,  @RequestBody final AuthoringTaskUpdateRequest updatedTask) throws BusinessServiceException {
 		return taskService.updateTask(projectKey, taskKey, updatedTask);
 	}
+	
+	@ApiOperation(value = "Update a Project")
+	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
+	@RequestMapping(value = "/projects/{projectKey}", method = RequestMethod.PUT)
+	public AuthoringProject updateProject(@PathVariable final String projectKey,  @RequestBody final AuthoringProject updatedProject) throws BusinessServiceException {
+		return taskService.updateProject(projectKey,  updatedProject);
+	}
 
 	@ApiOperation(value = "Retrieve Task Attachments")
 	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
@@ -280,16 +272,6 @@ public class ProjectController {
 	public ProcessStatus getAutomateTaskPromotionStatus(@PathVariable final String projectKey,
 										   @PathVariable final String taskKey) throws BusinessServiceException {
 		return promotionService.getAutomateTaskPromotionStatus(projectKey, taskKey);
-	}
-
-	private ResponseEntity<String> getResponseEntity(Merge merge) {
-		if (merge.getStatus() == Merge.Status.COMPLETED) {
-			return new ResponseEntity<>(HttpStatus.OK);
-		} else {
-			ApiError apiError = merge.getApiError();
-			String message = apiError != null ? apiError.getMessage() : null;
-			return new ResponseEntity<>(message, HttpStatus.CONFLICT);
-		}
 	}
 
 }

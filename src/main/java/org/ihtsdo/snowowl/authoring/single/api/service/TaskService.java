@@ -1,18 +1,28 @@
 package org.ihtsdo.snowowl.authoring.single.api.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.google.common.base.Strings;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Sets;
-import net.rcarz.jiraclient.*;
-import net.rcarz.jiraclient.Status;
-import net.rcarz.jiraclient.User;
-import net.sf.json.JSON;
-import net.sf.json.JSONArray;
-import net.sf.json.JSONObject;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import javax.annotation.PreDestroy;
+import javax.jms.JMSException;
 
 import org.apache.activemq.command.ActiveMQQueue;
 import org.apache.log4j.Level;
@@ -23,7 +33,13 @@ import org.ihtsdo.otf.rest.client.snowowl.pojo.Branch;
 import org.ihtsdo.otf.rest.exception.BadRequestException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
-import org.ihtsdo.snowowl.authoring.single.api.pojo.*;
+import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringMain;
+import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringProject;
+import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringTask;
+import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringTaskCreateRequest;
+import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringTaskUpdateRequest;
+import org.ihtsdo.snowowl.authoring.single.api.pojo.JiraProject;
+import org.ihtsdo.snowowl.authoring.single.api.pojo.TaskTransferRequest;
 import org.ihtsdo.snowowl.authoring.single.api.review.service.ReviewService;
 import org.ihtsdo.snowowl.authoring.single.api.review.service.TaskMessagesDetail;
 import org.ihtsdo.snowowl.authoring.single.api.service.jira.ImpersonatingJiraClientFactory;
@@ -37,15 +53,38 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-import javax.annotation.PreDestroy;
-import javax.jms.JMSException;
-import java.net.URI;
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.base.Strings;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
+
+import net.rcarz.jiraclient.Attachment;
+import net.rcarz.jiraclient.ChangeLog;
+import net.rcarz.jiraclient.ChangeLogEntry;
+import net.rcarz.jiraclient.ChangeLogItem;
+import net.rcarz.jiraclient.Field;
+import net.rcarz.jiraclient.Issue;
+import net.rcarz.jiraclient.IssueLink;
+import net.rcarz.jiraclient.JiraClient;
+import net.rcarz.jiraclient.JiraException;
+import net.rcarz.jiraclient.Resource;
+import net.rcarz.jiraclient.RestClient;
+import net.rcarz.jiraclient.RestException;
+import net.rcarz.jiraclient.Status;
+import net.rcarz.jiraclient.Transition;
+import net.rcarz.jiraclient.User;
+import net.sf.json.JSON;
+import net.sf.json.JSONArray;
+import net.sf.json.JSONObject;
 
 public class TaskService {
+
+	private static final String ENABLED_TEXT = "Enabled";
+
+	private static final String DISABLED_TEXT = "Disabled";
 
 	public static final String FAILED_TO_RETRIEVE = "Failed-to-retrieve";
 	
@@ -85,6 +124,7 @@ public class TaskService {
 	private final String jiraProductCodeField;
 	private final String jiraProjectPromotionField;
 	private final String jiraProjectRebaseField;
+	private final String jiraProjectScheduledRebaseField;
 	private final String jiraProjectMrcmField;
 	private final String jiraCrsIdField;
 	private final String jiraProjectTemplatesField;
@@ -113,6 +153,7 @@ public class TaskService {
 			jiraProductCodeField = JiraHelper.fieldIdLookup("Product Code", jiraClientForFieldLookup, projectJiraFetchFields);
 			jiraProjectPromotionField = JiraHelper.fieldIdLookup("SCA Project Promotion", jiraClientForFieldLookup, projectJiraFetchFields);
 			jiraProjectRebaseField = JiraHelper.fieldIdLookup("SCA Project Rebase", jiraClientForFieldLookup, projectJiraFetchFields);
+			jiraProjectScheduledRebaseField = JiraHelper.fieldIdLookup("SCA Project Scheduled Rebase", jiraClientForFieldLookup, projectJiraFetchFields);
 			jiraProjectMrcmField = JiraHelper.fieldIdLookup("SCA Project MRCM", jiraClientForFieldLookup, projectJiraFetchFields);
 			jiraCrsIdField = JiraHelper.fieldIdLookup("CRS-ID", jiraClientForFieldLookup, projectJiraFetchFields);
 			jiraProjectTemplatesField = JiraHelper.fieldIdLookup("SCA Project Templates", jiraClientForFieldLookup, projectJiraFetchFields);
@@ -126,6 +167,7 @@ public class TaskService {
 			jiraProductCodeField = null;
 			jiraProjectPromotionField = null;
 			jiraProjectRebaseField = null;
+			jiraProjectScheduledRebaseField = null;
 			jiraProjectMrcmField = null;
 			jiraCrsIdField = null;
 			jiraProjectTemplatesField = null;
@@ -229,11 +271,12 @@ public class TaskService {
 
 				final String latestClassificationJson = classificationService.getLatestClassification(branchPath);
 
-				final boolean promotionDisabled = "Disabled".equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectPromotionField)));
-				final boolean rebaseDisabled = "Disabled".equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectRebaseField)));
-				final boolean mrcmDisabled = "Disabled".equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectMrcmField)));
-				final boolean templatesDisabled = "Disabled".equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectTemplatesField)));
-				final boolean spellCheckDisabled = "Disabled".equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectSpellCheckField)));
+				final boolean promotionDisabled = DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectPromotionField)));
+				final boolean rebaseDisabled = DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectRebaseField)));
+				final boolean scheduledRebaseDisabled = DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectScheduledRebaseField)));
+				final boolean mrcmDisabled = DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectMrcmField)));
+				final boolean templatesDisabled = DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectTemplatesField)));
+				final boolean spellCheckDisabled = DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectSpellCheckField)));
 
 				final Branch branchOrNull = branchService.getBranchOrNull(branchPath);
 				String parentPath = PathHelper.getParentPath(branchPath);
@@ -262,7 +305,7 @@ public class TaskService {
 				Map<String, JiraProject> projectMap = unfilteredProjects.get();
 				JiraProject project = projectMap.get(projectKey);
 				final AuthoringProject authoringProject = new AuthoringProject(projectKey, project.getName(),
-						project.getLead(), branchPath, branchState, latestClassificationJson, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled, rebaseDisabled);
+						project.getLead(), branchPath, branchState, latestClassificationJson, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled, rebaseDisabled, scheduledRebaseDisabled);
 				authoringProject.setMetadata(metadata);
 				synchronized (authoringProjects) {
 					authoringProjects.add(authoringProject);
@@ -698,6 +741,62 @@ public class TaskService {
 		return retrieveTask(projectKey, taskKey);
 	}
 
+	public AuthoringProject updateProject(String projectKey, AuthoringProject updatedProject) throws BusinessServiceException {
+		try {
+			List<Issue> issues = Collections.singletonList(getProjectTicketOrThrow(projectKey));
+			if (issues.size() == 0) {
+				throw new BusinessServiceException ("Failed to recover project: " + projectKey);
+			}
+			Issue project = issues.get(0);
+			
+			
+			// For some reason, it's not possible to update some custom fields in type of 
+			// - Radio button
+			// - Checkbox
+			// - Select List
+			// by using Jira Client. So we have to use REST api to update those fields manually.
+			final Boolean projectScheduledRebaseDisabled = updatedProject.isProjectScheduledRebaseDisabled();
+			if (projectScheduledRebaseDisabled != null) {
+				JSONObject obj = (JSONObject) project.getField(jiraProjectScheduledRebaseField);
+				String oldVal = obj.getString("value");
+				boolean changed = (oldVal.equals(ENABLED_TEXT) && projectScheduledRebaseDisabled) || (oldVal.equals(DISABLED_TEXT) && !projectScheduledRebaseDisabled);
+				if (changed) {
+					/*if(!project.getReporter().getName().equals(getUsername())) {
+						throw new BusinessServiceException ("No permisson to turn on/off automatic rebase.");
+					}*/
+					
+					JSONObject updateObj = new JSONObject();
+					updateObj.put("value", projectScheduledRebaseDisabled ? DISABLED_TEXT : ENABLED_TEXT);
+					
+					JSONObject fieldmap = new JSONObject();
+					fieldmap.put(jiraProjectScheduledRebaseField, updateObj);
+					
+					JSONObject req = new JSONObject();
+					req.put("fields", fieldmap);
+					try {
+						RestClient restclient = getJiraClient().getRestClient();
+						URI uri = new URI(project.getSelf());
+						restclient.put(uri, req);
+					} catch (RestException | IOException | URISyntaxException e) {
+						throw new BusinessServiceException("Failed to update SCA Project Scheduled Rebase.", e);
+					}
+				}
+			}
+			
+			// TO DO
+			// Remove the follow-ng block of code if there is further implementation
+			final Issue.FluentUpdate updateRequest = project.update();
+			boolean fieldUpdates = false;
+			if (fieldUpdates) {
+				updateRequest.execute();
+			}
+		} catch (JiraException e) {
+			throw new BusinessServiceException("Failed to update project.", e);
+		}
+		
+		return retrieveProject(projectKey);
+	}
+	
 	private org.ihtsdo.snowowl.authoring.single.api.pojo.User getPojoUserOrNull(User lead) {
 		org.ihtsdo.snowowl.authoring.single.api.pojo.User leadUser = null;
 		if (lead != null) {
