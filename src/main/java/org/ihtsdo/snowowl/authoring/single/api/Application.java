@@ -19,7 +19,6 @@ import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.jms.annotation.EnableJms;
 import org.springframework.scheduling.annotation.EnableScheduling;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -39,8 +38,6 @@ import springfox.documentation.swagger2.annotations.EnableSwagger2;
 @EnableSwagger2
 @EnableScheduling
 public class Application {
-
-	private static final int THREADS_COUNT = 2; // For now, Only ScheduledRebaseService and PromotionService are using scheduled tasks
 
 	@Bean
 	public SnowOwlRestClientFactory snowOwlRestClientFactory(@Value("${snowowl.url}") String snowOwlUrl,
@@ -91,13 +88,6 @@ public class Application {
 				.apis(RequestHandlerSelectors.any())
 				.paths(not(regex("/error")))
 				.build();
-	}
-	
-	@Bean
-	public ThreadPoolTaskScheduler threadPoolTaskScheduler() {
-	    ThreadPoolTaskScheduler threadPoolTaskScheduler = new ThreadPoolTaskScheduler();
-	    threadPoolTaskScheduler.setPoolSize(THREADS_COUNT);
-	    return threadPoolTaskScheduler;
 	}
 	
 	public static void main(String[] args) {
