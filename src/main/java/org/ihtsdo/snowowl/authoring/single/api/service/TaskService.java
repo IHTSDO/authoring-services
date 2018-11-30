@@ -292,8 +292,12 @@ public class TaskService {
 
 				String branchState = null;
 				Map<String, Object> metadata = new HashMap<>();
+				Long baseTimeStamp = null;
+				Long headTimeStamp = null;
 				if (branchOrNull != null) {
 					branchState = branchOrNull.getState();
+					baseTimeStamp = branchOrNull.getBaseTimestamp();
+					headTimeStamp = branchOrNull.getHeadTimestamp();
 					metadata.putAll(parentBranchOrNull.getMetadata());
 					if (branchOrNull.getMetadata() != null) {
 						metadata.putAll(branchOrNull.getMetadata());
@@ -305,7 +309,7 @@ public class TaskService {
 				Map<String, JiraProject> projectMap = unfilteredProjects.get();
 				JiraProject project = projectMap.get(projectKey);
 				final AuthoringProject authoringProject = new AuthoringProject(projectKey, project.getName(),
-						project.getLead(), branchPath, branchState, latestClassificationJson, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled, rebaseDisabled, scheduledRebaseDisabled);
+						project.getLead(), branchPath, branchState, baseTimeStamp, headTimeStamp, latestClassificationJson, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled, rebaseDisabled, scheduledRebaseDisabled);
 				authoringProject.setMetadata(metadata);
 				synchronized (authoringProjects) {
 					authoringProjects.add(authoringProject);

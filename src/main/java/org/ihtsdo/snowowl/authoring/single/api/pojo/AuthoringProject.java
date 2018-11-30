@@ -1,9 +1,9 @@
 package org.ihtsdo.snowowl.authoring.single.api.pojo;
 
+import java.util.Map;
+
 import com.fasterxml.jackson.annotation.JsonRawValue;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-
-import java.util.Map;
 
 @JsonDeserialize
 public class AuthoringProject {
@@ -15,6 +15,8 @@ public class AuthoringProject {
 	private String branchState;
 	private String latestClassificationJson;
 	private String validationStatus;
+	private Long branchHeadTimestamp;
+	private Long branchBaseTimestamp;
 	private boolean projectPromotionDisabled;
 	private boolean projectRebaseDisabled;
 	private boolean projectMrcmDisabled;
@@ -26,7 +28,7 @@ public class AuthoringProject {
 	public AuthoringProject() {
 	}
 	
-	public AuthoringProject(String key, String title, User leadUser, String branchPath, String branchState,
+	public AuthoringProject(String key, String title, User leadUser, String branchPath, String branchState, Long baseTimeStamp, Long headTimeStamp,
 							String latestClassificationJson, boolean projectPromotionDisabled,
 							boolean projectMrcmDisabled, boolean projectTemplatesDisabled, boolean projectSpellCheckDisabled, boolean projectRebaseDisabled,
 							boolean projectScheduledRebaseDisabled) {
@@ -35,6 +37,8 @@ public class AuthoringProject {
 		this.projectLead = leadUser;
 		this.branchPath = branchPath;
 		this.branchState = branchState;
+		this.branchBaseTimestamp = baseTimeStamp;
+		this.branchHeadTimestamp = headTimeStamp;
 		this.latestClassificationJson = latestClassificationJson;
 		this.projectPromotionDisabled = projectPromotionDisabled;
 		this.projectMrcmDisabled = projectMrcmDisabled;
@@ -73,6 +77,22 @@ public class AuthoringProject {
 		return latestClassificationJson;
 	}
 	
+	public Long getBranchHeadTimestamp() {
+		return branchHeadTimestamp;
+	}
+
+	public void setBranchHeadTimestamp(Long branchHeadTimestamp) {
+		this.branchHeadTimestamp = branchHeadTimestamp;
+	}
+
+	public Long getBranchBaseTimestamp() {
+		return branchBaseTimestamp;
+	}
+
+	public void setBranchBaseTimestamp(Long branchBaseTimestamp) {
+		this.branchBaseTimestamp = branchBaseTimestamp;
+	}
+
 	public String getBranchState() {
 		return branchState;
 	}
