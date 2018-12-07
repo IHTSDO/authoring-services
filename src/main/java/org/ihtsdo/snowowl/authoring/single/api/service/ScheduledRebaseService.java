@@ -2,7 +2,6 @@ package org.ihtsdo.snowowl.authoring.single.api.service;
 
 
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Map;
@@ -104,7 +103,7 @@ public class ScheduledRebaseService {
 		cronJobRunning = false;
 	}
 
-	private void setSecurityContext() throws URISyntaxException, MalformedURLException, IOException {
+	private void setSecurityContext() throws URISyntaxException, IOException {
 		IMSRestClient imsClient = new IMSRestClient(imsUrl);
 		String token = imsClient.login(username, password);
 		PreAuthenticatedAuthenticationToken decoratedAuthentication = new PreAuthenticatedAuthenticationToken(username,token);
