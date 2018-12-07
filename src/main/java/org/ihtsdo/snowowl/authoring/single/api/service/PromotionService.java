@@ -1,11 +1,10 @@
 package org.ihtsdo.snowowl.authoring.single.api.service;
 
-import static org.ihtsdo.otf.rest.client.snowowl.pojo.MergeReviewsResults.MergeReviewStatus.CURRENT;
-
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -14,12 +13,10 @@ import javax.annotation.PreDestroy;
 
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.snowowl.PathHelper;
-import org.ihtsdo.otf.rest.client.snowowl.SnowOwlRestClient;
 import org.ihtsdo.otf.rest.client.snowowl.SnowOwlRestClientFactory;
 import org.ihtsdo.otf.rest.client.snowowl.pojo.ApiError;
 import org.ihtsdo.otf.rest.client.snowowl.pojo.ClassificationResults;
 import org.ihtsdo.otf.rest.client.snowowl.pojo.Merge;
-import org.ihtsdo.otf.rest.client.snowowl.pojo.MergeReviewsResults;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringTask;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.AutomatePromoteProcess;
@@ -202,8 +199,8 @@ public class PromotionService {
 		try {
 
 			// Call rebase process
-			String mergeId = this.autoRebaseTask(projectKey, taskKey);
-			if (null != mergeId && mergeId.equals("stopped")) {
+			String rebaseStatus = this.autoRebaseTask(projectKey, taskKey);
+			if (null != rebaseStatus && rebaseStatus.equals("stopped")) {
 				return;
 			}
 
@@ -265,6 +262,7 @@ public class PromotionService {
 		}
 	}
 
+	@SuppressWarnings("rawtypes")
 	private String autoRebaseTask(String projectKey, String taskKey) throws BusinessServiceException {
 		ProcessStatus status = new ProcessStatus("Rebasing","");
 		automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
@@ -279,57 +277,41 @@ public class PromotionService {
 			return null;
 		} else {
 			try {
-				SnowOwlRestClient client = snowOwlRestClientFactory.getClient();
-				String mergeId = client.createBranchMergeReviews(PathHelper.getParentPath(taskBranchPath), taskBranchPath);
-				MergeReviewsResults mergeReview;
-				int sleepSeconds = 4;
-				int totalWait = 0;
-				int maxTotalWait = 60 * 60;
-				try {
-					do {
-						Thread.sleep(1000 * sleepSeconds);
-						totalWait += sleepSeconds;
-						mergeReview = client.getMergeReviewsResult(mergeId);
-						if (sleepSeconds < 10) {
-							sleepSeconds+=2;
-						}
-					} while (totalWait < maxTotalWait && (mergeReview.getStatus() != CURRENT));
+				Set mergeReviewResult = branchService.generateBranchMergeReviews(PathHelper.getParentPath(taskBranchPath), taskBranchPath);
 
-					// Check conflict of merge review
-					if (client.isNoMergeConflict(mergeId)) {
+				// Check conflict of merge review
+				if (mergeReviewResult.isEmpty()) {
 
-						// Process rebase task
-						Merge merge = branchService.mergeBranchSync(PathHelper.getParentPath(taskBranchPath), taskBranchPath, null);
-						if (merge.getStatus() == Merge.Status.COMPLETED) {
-							return mergeId;
-						} else {
-							ApiError apiError = merge.getApiError();
-							String message = apiError != null ? apiError.getMessage() : null;
-							notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Rebase, message));
-							status = new ProcessStatus("Rebased with conflicts",message);
-							status.setCompleteDate(new Date());
-							automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
-							return "stopped";
-						}
+					// Process rebase task
+					Merge merge = branchService.mergeBranchSync(PathHelper.getParentPath(taskBranchPath), taskBranchPath, null);
+					if (merge.getStatus() == Merge.Status.COMPLETED) {
+						return merge.getStatus().name();
 					} else {
-						notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Rebase, "Rebase has conflicts"));
-						status = new ProcessStatus("Rebased with conflicts","");
+						ApiError apiError = merge.getApiError();
+						String message = apiError != null ? apiError.getMessage() : null;
+						notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Rebase, message));
+						status = new ProcessStatus("Rebased with conflicts",message);
 						status.setCompleteDate(new Date());
 						automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
 						return "stopped";
 					}
-				} catch (InterruptedException | RestClientException e) {
-					status = new ProcessStatus("Rebased with conflicts",e.getMessage());
+				} else {
+					notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Rebase, "Rebase has conflicts"));
+					status = new ProcessStatus("Rebased with conflicts","");
+					status.setCompleteDate(new Date());
 					automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
-					throw new BusinessServiceException("Failed to fetch merge reviews status.", e);
+					return "stopped";
 				}
+			} catch (InterruptedException e) {
+				status = new ProcessStatus("Rebased with conflicts",e.getMessage());
+				automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
+				throw new BusinessServiceException("Failed to fetch merge reviews status.", e);
 			} catch (RestClientException e) {
 				status = new ProcessStatus("Rebased with conflicts",e.getMessage());
 				status.setCompleteDate(new Date());
 				automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
 				throw new BusinessServiceException("Failed to start merge reviews.", e);
-			}
-
+			} 
 		}
 	}
 

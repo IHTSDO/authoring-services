@@ -6,6 +6,7 @@ import org.ihtsdo.otf.rest.client.snowowl.SnowOwlRestClient;
 import org.ihtsdo.otf.rest.client.snowowl.SnowOwlRestClientFactory;
 import org.ihtsdo.otf.rest.client.snowowl.pojo.Branch;
 import org.ihtsdo.otf.rest.client.snowowl.pojo.Merge;
+import org.ihtsdo.otf.rest.client.snowowl.pojo.MergeReviewsResults;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,9 +15,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.ihtsdo.otf.rest.client.snowowl.pojo.Merge.Status.IN_PROGRESS;
 import static org.ihtsdo.otf.rest.client.snowowl.pojo.Merge.Status.SCHEDULED;
+import static org.ihtsdo.otf.rest.client.snowowl.pojo.MergeReviewsResults.MergeReviewStatus.CURRENT;
 
 public class BranchService {
 	
@@ -109,6 +112,27 @@ public class BranchService {
 		}
 	}
 
+	@SuppressWarnings("rawtypes")
+	public Set generateBranchMergeReviews(String sourceBranchPath, String targetBranchPath) throws InterruptedException, RestClientException {
+		SnowOwlRestClient client = snowOwlRestClientFactory.getClient();
+		String mergeId = client.createBranchMergeReviews(sourceBranchPath, targetBranchPath);
+		MergeReviewsResults mergeReview;
+		int sleepSeconds = 4;
+		int totalWait = 0;
+		int maxTotalWait = 60 * 60;
+		
+		do {
+			Thread.sleep(1000 * sleepSeconds);
+			totalWait += sleepSeconds;
+			mergeReview = client.getMergeReviewsResult(mergeId);
+			if (sleepSeconds < 10) {
+				sleepSeconds+=2;
+			}
+		} while (totalWait < maxTotalWait && (mergeReview.getStatus() != CURRENT));
+		
+		return client.getMergeReviewsDetails(mergeId);
+	}
+	
 	private List<String> getBranchPathStack(String path) {
 		List<String> paths = new ArrayList<>();
 		paths.add(path);

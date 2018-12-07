@@ -1,6 +1,5 @@
 package org.ihtsdo.snowowl.authoring.single.api.service;
 
-import static org.ihtsdo.otf.rest.client.snowowl.pojo.MergeReviewsResults.MergeReviewStatus.CURRENT;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -13,11 +12,8 @@ import java.util.stream.Collectors;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.ims.IMSRestClient;
 import org.ihtsdo.otf.rest.client.snowowl.PathHelper;
-import org.ihtsdo.otf.rest.client.snowowl.SnowOwlRestClient;
-import org.ihtsdo.otf.rest.client.snowowl.SnowOwlRestClientFactory;
 import org.ihtsdo.otf.rest.client.snowowl.pojo.ApiError;
 import org.ihtsdo.otf.rest.client.snowowl.pojo.Merge;
-import org.ihtsdo.otf.rest.client.snowowl.pojo.MergeReviewsResults;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringProject;
 import org.ihtsdo.snowowl.authoring.single.api.review.pojo.BranchState;
@@ -52,19 +48,16 @@ public class ScheduledRebaseService {
 	@Autowired
 	private BranchService branchService;
 	
-	@Autowired
-	private SnowOwlRestClientFactory snowOwlRestClientFactory;
-	
-	private static boolean cronJobRunning = false;
+	private boolean cronJobRunning = false;
 
 	@Scheduled(cron = "${scheduled.rebase.project.cron}")
 	@SuppressWarnings("rawtypes")
 	public void rebaseProjects()
-			throws JiraException, BusinessServiceException, MalformedURLException, URISyntaxException, IOException, RestClientException, InterruptedException {
+			throws JiraException, BusinessServiceException, URISyntaxException, IOException, RestClientException, InterruptedException {
 		if (cronJobRunning) {
 			return;
 		} else {
-			cronJobRunning = !cronJobRunning;
+			cronJobRunning = true;
 		}
 		
 		setSecurityContext();
@@ -73,59 +66,42 @@ public class ScheduledRebaseService {
 
 		List<AuthoringProject> projects = taskService.listProjects();
 		projects = projects.stream().filter(project -> !project.isProjectScheduledRebaseDisabled()).collect(Collectors.toList());
-		if (!projects.isEmpty()) {
-			for (AuthoringProject project : projects) {
-				logger.info("Performing scheduled rebase of project " + project.getKey() + ".");
-				if (BranchState.UP_TO_DATE.name().equals(project.getBranchState()) 
-				  ||BranchState.FORWARD.name().equals(project.getBranchState())) {
-					logger.info("No rebase needed for project  " + project.getKey() + " with branch state " + project.getBranchState() + ".");					
-				} else {
-					try {
-						String projectBranchPath = taskService.getProjectBranchPathUsingCache(project.getKey());
-						
-						SnowOwlRestClient client = snowOwlRestClientFactory.getClient();
-						String mergeId = client.createBranchMergeReviews(PathHelper.getParentPath(projectBranchPath), projectBranchPath);
-						MergeReviewsResults mergeReview;
-						int sleepSeconds = 4;
-						int totalWait = 0;
-						int maxTotalWait = 60 * 60;
-						
-						do {
-							Thread.sleep(1000 * sleepSeconds);
-							totalWait += sleepSeconds;
-							mergeReview = client.getMergeReviewsResult(mergeId);
-							if (sleepSeconds < 10) {
-								sleepSeconds+=2;
-							}
-						} while (totalWait < maxTotalWait && (mergeReview.getStatus() != CURRENT));
-						
-						// Check conflict of merge review
-						if (client.isNoMergeConflict(mergeId)) {
-							Merge merge = branchService.mergeBranchSync(PathHelper.getParentPath(projectBranchPath), projectBranchPath, null);
-							if (merge.getStatus() == Merge.Status.COMPLETED) {
-								logger.info("Rebase of project " + project.getKey() + " successful.");
-							} else if (merge.getStatus().equals(Merge.Status.CONFLICTS)) {
-								Map<String, Object> additionalInfo =  merge.getApiError().getAdditionalInfo();
-								List conflicts = (List) additionalInfo.get("conflicts");
-								logger.info(conflicts.size() + " conflicts found for project " + project.getKey() + " , skipping rebase.");
-							} else {
-								ApiError apiError = merge.getApiError();
-								String message = apiError != null ? apiError.getMessage() : null;
-								logger.info("Rebase of project " + project.getKey() + " failed. Error message: " + message);
-							}
+		for (AuthoringProject project : projects) {
+			logger.info("Performing scheduled rebase of project " + project.getKey() + ".");
+			if (BranchState.UP_TO_DATE.name().equals(project.getBranchState()) 
+			  ||BranchState.FORWARD.name().equals(project.getBranchState())) {
+				logger.info("No rebase needed for project  " + project.getKey() + " with branch state " + project.getBranchState() + ".");					
+			} else {
+				try {
+					String projectBranchPath = taskService.getProjectBranchPathUsingCache(project.getKey());
+					
+					Set mergeReviewResult = branchService.generateBranchMergeReviews(PathHelper.getParentPath(projectBranchPath), projectBranchPath);
+					
+					// Check conflict of merge review
+					if (mergeReviewResult.isEmpty()) {
+						Merge merge = branchService.mergeBranchSync(PathHelper.getParentPath(projectBranchPath), projectBranchPath, null);
+						if (merge.getStatus() == Merge.Status.COMPLETED) {
+							logger.info("Rebase of project " + project.getKey() + " successful.");
+						} else if (merge.getStatus().equals(Merge.Status.CONFLICTS)) {
+							Map<String, Object> additionalInfo =  merge.getApiError().getAdditionalInfo();
+							List conflicts = (List) additionalInfo.get("conflicts");
+							logger.info(conflicts.size() + " conflicts found for project " + project.getKey() + " , skipping rebase.");
 						} else {
-							Set mergeReviewResult = client.getMergeReviewsDetails(mergeId);
-							logger.info(mergeReviewResult.size() + " conflicts found for project " + project.getKey() + " , skipping rebase.");
+							ApiError apiError = merge.getApiError();
+							String message = apiError != null ? apiError.getMessage() : null;
+							logger.info("Rebase of project " + project.getKey() + " failed. Error message: " + message);
 						}
-						
-					} catch (BusinessServiceException e) {
-						logger.info("Rebase of project " + project.getKey() + " failed. Error message: " + e.getMessage());
+					} else {
+						logger.info(mergeReviewResult.size() + " conflicts found for project " + project.getKey() + " , skipping rebase.");
 					}
+					
+				} catch (BusinessServiceException e) {
+					logger.info("Rebase of project " + project.getKey() + " failed. Error message: " + e.getMessage());
 				}
 			}
 		}
 		logger.info("Scheduled rebase complete.");
-		cronJobRunning = !cronJobRunning;
+		cronJobRunning = false;
 	}
 
 	private void setSecurityContext() throws URISyntaxException, MalformedURLException, IOException {
