@@ -45,6 +45,9 @@ public class ProjectController {
 	@Autowired
 	private RebaseService rebaseService;
 
+	@Autowired
+	private ScheduledRebaseService scheduledRebaseService;
+
 	@ApiOperation(value="List authoring Projects")
 	@ApiResponses({
 			@ApiResponse(code = 200, message = "OK")
@@ -272,6 +275,16 @@ public class ProjectController {
 	public ProcessStatus getAutomateTaskPromotionStatus(@PathVariable final String projectKey,
 										   @PathVariable final String taskKey) throws BusinessServiceException {
 		return promotionService.getAutomateTaskPromotionStatus(projectKey, taskKey);
+	}
+
+	@ApiOperation(
+			value="Manual trigger for scheduled project rebase process.",
+			notes = "This endpoint is asynchronous so will return straight away.")
+	@ApiResponse(code = 200, message = "OK")
+	@RequestMapping(value="/projects/auto-rebase", method= RequestMethod.POST)
+	public ResponseEntity<String> autoRebaseProjects() throws BusinessServiceException {
+		scheduledRebaseService.rebaseProjectsManualTrigger();
+		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
 }

@@ -20,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
@@ -107,6 +108,12 @@ public class ScheduledRebaseService {
 		} finally {
 			cronJobRunning = false;
 		}
+	}
+
+	@Async
+	public void rebaseProjectsManualTrigger() throws BusinessServiceException {
+		logger.info("Manual trigger used for Scheduled project rebase.");
+		rebaseProjects();
 	}
 
 	private void loginToIMSAndSetSecurityContext() throws URISyntaxException, IOException {
