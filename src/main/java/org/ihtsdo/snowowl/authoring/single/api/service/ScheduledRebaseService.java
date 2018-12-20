@@ -102,9 +102,6 @@ public class ScheduledRebaseService {
 				}
 			}
 
-			logger.info("Logging in again to bump IMS cache.");
-			loginToIMSAndSetSecurityContext();
-
 			logger.info("Scheduled rebase complete.");
 		} finally {
 			cronJobRunning = false;
@@ -113,7 +110,8 @@ public class ScheduledRebaseService {
 
 	private void loginToIMSAndSetSecurityContext() throws URISyntaxException, IOException {
 		IMSRestClient imsClient = new IMSRestClient(imsUrl);
-		String token = imsClient.login(username, password);
+		logger.info("Logging in to IMS and forcing new session.");
+		String token = imsClient.loginForceNewSession(username, password);
 		PreAuthenticatedAuthenticationToken decoratedAuthentication = new PreAuthenticatedAuthenticationToken(username, token);
 		SecurityContextHolder.getContext().setAuthentication(decoratedAuthentication);
 	}
