@@ -54,53 +54,57 @@ public class ScheduledRebaseService {
 	public void rebaseProjects()
 			throws JiraException, BusinessServiceException, URISyntaxException, IOException, RestClientException, InterruptedException {
 		if (cronJobRunning) {
+			logger.info("Scheduled rebase already running. Ignoring this trigger.");
 			return;
 		} else {
 			cronJobRunning = true;
 		}
-		
-		setSecurityContext();
-		
-		logger.info("Starting scheduled rebase for all configured projects.");
 
-		List<AuthoringProject> projects = taskService.listProjects();
-		projects = projects.stream().filter(project -> !project.isProjectScheduledRebaseDisabled()).collect(Collectors.toList());
-		for (AuthoringProject project : projects) {
-			logger.info("Performing scheduled rebase of project " + project.getKey() + ".");
-			if (BranchState.UP_TO_DATE.name().equals(project.getBranchState()) 
-			  ||BranchState.FORWARD.name().equals(project.getBranchState())) {
-				logger.info("No rebase needed for project  " + project.getKey() + " with branch state " + project.getBranchState() + ".");					
-			} else {
-				try {
-					String projectBranchPath = taskService.getProjectBranchPathUsingCache(project.getKey());
-					
-					Set mergeReviewResult = branchService.generateBranchMergeReviews(PathHelper.getParentPath(projectBranchPath), projectBranchPath);
-					
-					// Check conflict of merge review
-					if (mergeReviewResult.isEmpty()) {
-						Merge merge = branchService.mergeBranchSync(PathHelper.getParentPath(projectBranchPath), projectBranchPath, null);
-						if (merge.getStatus() == Merge.Status.COMPLETED) {
-							logger.info("Rebase of project " + project.getKey() + " successful.");
-						} else if (merge.getStatus().equals(Merge.Status.CONFLICTS)) {
-							Map<String, Object> additionalInfo =  merge.getApiError().getAdditionalInfo();
-							List conflicts = (List) additionalInfo.get("conflicts");
-							logger.info(conflicts.size() + " conflicts found for project " + project.getKey() + " , skipping rebase.");
+		try {
+			setSecurityContext();
+
+			logger.info("Starting scheduled rebase for all configured projects.");
+
+			List<AuthoringProject> projects = taskService.listProjects();
+			projects = projects.stream().filter(project -> !project.isProjectScheduledRebaseDisabled()).collect(Collectors.toList());
+			for (AuthoringProject project : projects) {
+				logger.info("Performing scheduled rebase of project " + project.getKey() + ".");
+				if (BranchState.UP_TO_DATE.name().equals(project.getBranchState())
+						|| BranchState.FORWARD.name().equals(project.getBranchState())) {
+					logger.info("No rebase needed for project  " + project.getKey() + " with branch state " + project.getBranchState() + ".");
+				} else {
+					try {
+						String projectBranchPath = taskService.getProjectBranchPathUsingCache(project.getKey());
+
+						Set mergeReviewResult = branchService.generateBranchMergeReviews(PathHelper.getParentPath(projectBranchPath), projectBranchPath);
+
+						// Check conflict of merge review
+						if (mergeReviewResult.isEmpty()) {
+							Merge merge = branchService.mergeBranchSync(PathHelper.getParentPath(projectBranchPath), projectBranchPath, null);
+							if (merge.getStatus() == Merge.Status.COMPLETED) {
+								logger.info("Rebase of project " + project.getKey() + " successful.");
+							} else if (merge.getStatus().equals(Merge.Status.CONFLICTS)) {
+								Map<String, Object> additionalInfo = merge.getApiError().getAdditionalInfo();
+								List conflicts = (List) additionalInfo.get("conflicts");
+								logger.info(conflicts.size() + " conflicts found for project " + project.getKey() + " , skipping rebase.");
+							} else {
+								ApiError apiError = merge.getApiError();
+								String message = apiError != null ? apiError.getMessage() : null;
+								logger.info("Rebase of project " + project.getKey() + " failed. Error message: " + message);
+							}
 						} else {
-							ApiError apiError = merge.getApiError();
-							String message = apiError != null ? apiError.getMessage() : null;
-							logger.info("Rebase of project " + project.getKey() + " failed. Error message: " + message);
+							logger.info(mergeReviewResult.size() + " conflicts found for project " + project.getKey() + " , skipping rebase.");
 						}
-					} else {
-						logger.info(mergeReviewResult.size() + " conflicts found for project " + project.getKey() + " , skipping rebase.");
+
+					} catch (BusinessServiceException e) {
+						logger.info("Rebase of project " + project.getKey() + " failed. Error message: " + e.getMessage());
 					}
-					
-				} catch (BusinessServiceException e) {
-					logger.info("Rebase of project " + project.getKey() + " failed. Error message: " + e.getMessage());
 				}
 			}
+			logger.info("Scheduled rebase complete.");
+		} finally {
+			cronJobRunning = false;
 		}
-		logger.info("Scheduled rebase complete.");
-		cronJobRunning = false;
 	}
 
 	private void setSecurityContext() throws URISyntaxException, IOException {
