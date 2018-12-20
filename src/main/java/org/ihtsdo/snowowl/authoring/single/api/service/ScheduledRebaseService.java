@@ -61,7 +61,7 @@ public class ScheduledRebaseService {
 		}
 
 		try {
-			setSecurityContext();
+			loginToIMSAndSetSecurityContext();
 
 			logger.info("Starting scheduled rebase for all configured projects.");
 
@@ -101,16 +101,20 @@ public class ScheduledRebaseService {
 					}
 				}
 			}
+
+			logger.info("Logging in again to bump IMS cache.");
+			loginToIMSAndSetSecurityContext();
+
 			logger.info("Scheduled rebase complete.");
 		} finally {
 			cronJobRunning = false;
 		}
 	}
 
-	private void setSecurityContext() throws URISyntaxException, IOException {
+	private void loginToIMSAndSetSecurityContext() throws URISyntaxException, IOException {
 		IMSRestClient imsClient = new IMSRestClient(imsUrl);
 		String token = imsClient.login(username, password);
-		PreAuthenticatedAuthenticationToken decoratedAuthentication = new PreAuthenticatedAuthenticationToken(username,token);
+		PreAuthenticatedAuthenticationToken decoratedAuthentication = new PreAuthenticatedAuthenticationToken(username, token);
 		SecurityContextHolder.getContext().setAuthentication(decoratedAuthentication);
 	}
 
