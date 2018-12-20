@@ -51,8 +51,7 @@ public class ScheduledRebaseService {
 
 	@Scheduled(cron = "${scheduled.rebase.project.cron}")
 	@SuppressWarnings("rawtypes")
-	public void rebaseProjects()
-			throws JiraException, BusinessServiceException, URISyntaxException, IOException, RestClientException, InterruptedException {
+	public void rebaseProjects() throws BusinessServiceException {
 		if (cronJobRunning) {
 			logger.info("Scheduled rebase already running. Ignoring this trigger.");
 			return;
@@ -103,6 +102,8 @@ public class ScheduledRebaseService {
 			}
 
 			logger.info("Scheduled rebase complete.");
+		} catch (IOException | URISyntaxException | RestClientException | InterruptedException | JiraException e) {
+			throw new BusinessServiceException("Error while rebasing projects", e);
 		} finally {
 			cronJobRunning = false;
 		}
