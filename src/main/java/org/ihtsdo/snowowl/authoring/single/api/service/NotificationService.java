@@ -29,6 +29,7 @@ public class NotificationService {
 
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 
+	@Deprecated
 	public List<Notification> retrieveNewNotifications(String username) {
 		if (pendingNotifications.containsKey(username)) {
 			synchronized (pendingNotifications) {

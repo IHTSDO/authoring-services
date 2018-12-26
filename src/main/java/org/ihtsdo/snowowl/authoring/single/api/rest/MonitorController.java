@@ -20,10 +20,10 @@ import org.springframework.web.bind.annotation.RestController;
 import java.io.IOException;
 import java.util.List;
 
-@Api("Notifications")
+@Api("Monitor")
 @RestController
 @RequestMapping(produces={MediaType.APPLICATION_JSON_VALUE})
-public class NotificationController {
+public class MonitorController {
 
 	@Autowired
 	private NotificationService notificationService;
@@ -36,10 +36,17 @@ public class NotificationController {
 			@ApiResponse(code = 200, message = "OK")
 	})
 	@RequestMapping(value="/notifications", method= RequestMethod.GET)
+	@Deprecated
 	public List<Notification> retrieveNotifications() throws IOException {
 		final String username = ControllerHelper.getUsername();
 		monitorService.keepMonitorsAlive(username);
 		return notificationService.retrieveNewNotifications(username);
+	}
+	
+	@RequestMapping(value="/monitor/keep-alive", method= RequestMethod.POST)
+	public void keepMonitorsAlive() {
+		final String username = ControllerHelper.getUsername();
+		monitorService.keepMonitorsAlive(username);
 	}
 
 	@ApiOperation(value="Set user focus for notifications.", notes = "A Task or Project can be monitored for " +
