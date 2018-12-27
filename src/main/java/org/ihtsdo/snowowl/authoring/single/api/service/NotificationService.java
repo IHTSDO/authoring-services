@@ -3,6 +3,8 @@ package org.ihtsdo.snowowl.authoring.single.api.service;
 import com.google.common.base.Strings;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+
+import org.apache.commons.collections.CollectionUtils;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.Notification;
 import org.slf4j.Logger;
@@ -38,7 +40,18 @@ public class NotificationService {
 		}
 		return null;
 	}
-
+	
+	public void sendNotification(String username) {
+		if (pendingNotifications.containsKey(username)) {
+			synchronized (pendingNotifications) {
+				List<Notification> notifications = pendingNotifications.remove(username);
+				if (!CollectionUtils.isEmpty(notifications)) {
+					simpMessagingTemplate.convertAndSend("/topic/user/" + username + "/notifications", notifications.get(notifications.size() - 1));
+				}
+			}
+		}
+	}
+	
 	public Notification queueNotification(String username, Notification notification) {
 		final String projectKey = notification.getProject();
 		if (!Strings.isNullOrEmpty(projectKey)) {
@@ -55,7 +68,7 @@ public class NotificationService {
 			}
 			pendingNotifications.get(username).add(notification);
 		}
-		simpMessagingTemplate.convertAndSend("/topic/user/" + username + "/notifications", notification);
+		
 		return notification;
 	}
 

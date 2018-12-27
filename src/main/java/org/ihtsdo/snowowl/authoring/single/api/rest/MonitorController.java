@@ -47,6 +47,7 @@ public class MonitorController {
 	public void keepMonitorsAlive() {
 		final String username = ControllerHelper.getUsername();
 		monitorService.keepMonitorsAlive(username);
+		notificationService.sendNotification(username);
 	}
 
 	@ApiOperation(value="Set user focus for notifications.", notes = "A Task or Project can be monitored for " +
