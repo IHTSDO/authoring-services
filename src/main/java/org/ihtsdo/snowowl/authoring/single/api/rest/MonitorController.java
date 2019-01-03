@@ -43,13 +43,6 @@ public class MonitorController {
 		return notificationService.retrieveNewNotifications(username);
 	}
 	
-	@RequestMapping(value="/monitor/keep-alive", method= RequestMethod.POST)
-	public void keepMonitorsAlive() {
-		final String username = ControllerHelper.getUsername();
-		monitorService.keepMonitorsAlive(username);
-		notificationService.sendNotification(username);
-	}
-
 	@ApiOperation(value="Set user focus for notifications.", notes = "A Task or Project can be monitored for " +
 			"rebase opportunities or stale reports. Notifications will be made available. " +
 			"Each additional POST will replace the previous monitor. " +
