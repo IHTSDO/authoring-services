@@ -43,7 +43,10 @@ public class WebSocketConfiguration extends AbstractWebSocketMessageBrokerConfig
 
 	@Scheduled(cron = "*/10 * * * * *")
 	public void readWebSocketConnections() {
-		logger.info("Current users: {}", simpUserRegistry.getUsers());
+		if (logger.isDebugEnabled()) {
+			logger.debug("Current users: {}", simpUserRegistry.getUsers());
+		}
+		
 		Set<SimpUser> currentUsers = simpUserRegistry.getUsers();
 		for (SimpUser simpUser : currentUsers) {
 			String username =  simpUser.getName();
