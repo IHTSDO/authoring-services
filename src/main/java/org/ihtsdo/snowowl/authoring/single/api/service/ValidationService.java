@@ -43,6 +43,7 @@ public class ValidationService {
 	public static final String PREVIOUS_RELEASE = "previousRelease";
 	public static final String DEPENDENCY_RELEASE = "dependencyRelease";
 	public static final String SHORT_NAME ="shortname";
+	public static final String PREVIOUS_PACKAGES = "classification.previousPackage";
 	
 	@Value("${orchestration.name}")
 	private String orchestrationName;
@@ -127,6 +128,7 @@ public class ValidationService {
 			copyProperty(PREVIOUS_RELEASE, mergedBranchMetadata, properties);
 			copyProperty(DEPENDENCY_RELEASE, mergedBranchMetadata, properties);
 			copyProperty(SHORT_NAME, mergedBranchMetadata, properties);
+			copyProperty(PREVIOUS_PACKAGES, mergedBranchMetadata, properties);
 			properties.put(PATH, path);
 			properties.put(USERNAME, username);
 			if (projectKey != null) {
