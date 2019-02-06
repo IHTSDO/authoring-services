@@ -564,46 +564,47 @@ public class TaskService {
 					AuthoringTask task = new AuthoringTask(issue, projectDetails.getBaseBranchPath());
 
 					allTasks.add(task);
-					// We only need to recover classification and validation
-					// statuses for task that are not new ie mature
+					// Fetch the extra statuses for tasks that are not new and have a branch
 					if (task.getStatus() != TaskStatus.NEW) {
-						String latestClassificationJson = classificationService
-								.getLatestClassification(task.getBranchPath());
-						timer.checkpoint("Recovering classification");
-						task.setLatestClassificationJson(latestClassificationJson);
 						Branch branch = branchService.getBranchOrNull(task.getBranchPath());
+						timer.checkpoint("Recovered branch state");
 						if (branch != null) {
 							task.setBranchState(branch.getState());
-							timer.checkpoint("Recovering branch state");
 							task.setBranchBaseTimestamp(branch.getBaseTimestamp());
 							task.setBranchHeadTimestamp(branch.getHeadTimestamp());
+
+							task.setLatestClassificationJson(classificationService.getLatestClassification(task.getBranchPath()));
+							timer.checkpoint("Recovered classification");
+
+							// get the review message details and append to task
+							TaskMessagesDetail detail = reviewService.getTaskMessagesDetail(task.getProjectKey(), task.getKey(),
+									username);
+							task.setFeedbackMessagesStatus(detail.getTaskMessagesStatus());
+							task.setFeedbackMessageDate(detail.getLastMessageDate());
+							task.setViewDate(detail.getViewDate());
+							timer.checkpoint("Recovered feedback messages");
+
+							startedTasks.put(task.getBranchPath(), task);
 						}
-						startedTasks.put(task.getBranchPath(), task);
 					}
-
-					// get the review message details and append to task
-					TaskMessagesDetail detail = reviewService.getTaskMessagesDetail(task.getProjectKey(), task.getKey(),
-							username);
-					task.setFeedbackMessagesStatus(detail.getTaskMessagesStatus());
-					task.setFeedbackMessageDate(detail.getLastMessageDate());
-					task.setViewDate(detail.getViewDate());
-					timer.checkpoint("Recovering feedback messages");
-
 				}
 			}
 
-			final ImmutableMap<String, String> validationStatuses = validationService
-					.getValidationStatuses(startedTasks.keySet());
-			timer.checkpoint("Recovering " + (validationStatuses == null ? "null" : validationStatuses.size())
-					+ " ValidationStatuses");
+			// Fetch validation statuses in bulk
+			if (!startedTasks.isEmpty()) {
+				Set<String> paths = startedTasks.keySet();
+				final ImmutableMap<String, String> validationStatuses = validationService.getValidationStatuses(paths);
+				timer.checkpoint("Recovered " + (validationStatuses == null ? "null" : validationStatuses.size()) + " ValidationStatuses");
 
-			if (validationStatuses == null || validationStatuses.size() == 0) {
-				logger.error("Failed to recover validation statuses - check logs for reason");
-			} else {
-				for (final String path : startedTasks.keySet()) {
-					startedTasks.get(path).setLatestValidationStatus(validationStatuses.get(path));
+				if (validationStatuses == null || validationStatuses.isEmpty()) {
+					logger.warn("Failed to recover validation statuses for {} branches including '{}'.", paths.size(), paths.iterator().next());
+				} else {
+					for (final String path : paths) {
+						startedTasks.get(path).setLatestValidationStatus(validationStatuses.get(path));
+					}
 				}
 			}
+
 			timer.finish();
 		} catch (ExecutionException | RestClientException | ServiceException e) {
 			throw new BusinessServiceException("Failed to retrieve task list.", e);

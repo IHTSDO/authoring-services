@@ -61,13 +61,13 @@ public class ValidationService {
 	@Autowired
 	private BranchService branchService;
 
-	private LoadingCache<String, String> validationStatusCache;
+	private LoadingCache<String, String> validationStatusLoadingCache;
 
 	private Logger logger = LoggerFactory.getLogger(getClass());
 
 	@PostConstruct
 	public void init() {
-		validationStatusCache = CacheBuilder.newBuilder()
+		validationStatusLoadingCache = CacheBuilder.newBuilder()
 				.maximumSize(10000)
 				.build(
 						new CacheLoader<String, String>() {
@@ -80,7 +80,7 @@ public class ValidationService {
 								final ImmutableMap.Builder<String, String> map = ImmutableMap.builder();
 								List<String> pathsToLoad = new ArrayList<>();
 								for (String path : paths) {
-									final String status = validationStatusCache.getIfPresent(path);
+									final String status = validationStatusLoadingCache.getIfPresent(path);
 									if (status != null) {
 										map.put(path, status);
 									} else {
@@ -107,9 +107,9 @@ public class ValidationService {
 	}
 
 	void updateValidationStatusCache(String path, String validationStatus) {
-		logger.info("Cache value before '{}'", validationStatusCache.getIfPresent(path));
-		validationStatusCache.put(path, validationStatus);
-		logger.info("Cache value after '{}'", validationStatusCache.getIfPresent(path));
+		logger.info("Cache value before '{}'", validationStatusLoadingCache.getIfPresent(path));
+		validationStatusLoadingCache.put(path, validationStatus);
+		logger.info("Cache value after '{}'", validationStatusLoadingCache.getIfPresent(path));
 
 	}
 
@@ -144,7 +144,7 @@ public class ValidationService {
 			}
 			String prefix = orchestrationName + ".";
 			messagingHelper.send( prefix + VALIDATION_REQUEST_QUEUE, "", properties, prefix + VALIDATION_RESPONSE_QUEUE);
-			validationStatusCache.put(path, STATUS_SCHEDULED);
+			validationStatusLoadingCache.put(path, STATUS_SCHEDULED);
 			return new Status(STATUS_SCHEDULED);
 		} catch (JsonProcessingException | JMSException e) {
 			throw new BusinessServiceException("Failed to send validation request, please contact support.", e);
@@ -188,11 +188,11 @@ public class ValidationService {
 	}
 
 	public ImmutableMap<String, String> getValidationStatuses(Collection<String> paths) throws ExecutionException {
-		return validationStatusCache.getAll(paths);
+		return validationStatusLoadingCache.getAll(paths);
 	}
 	
 	public String getValidationStatus(String path) throws ExecutionException {
-		return validationStatusCache.get(path);
+		return validationStatusLoadingCache.get(path);
 	}
 
 	private List<String> getValidationStatusesWithoutCache(List<String> paths) {
@@ -234,6 +234,6 @@ public class ValidationService {
 	}
 
 	public void clearStatusCache() {
-		validationStatusCache.invalidateAll();
+		validationStatusLoadingCache.invalidateAll();
 	}
 }
