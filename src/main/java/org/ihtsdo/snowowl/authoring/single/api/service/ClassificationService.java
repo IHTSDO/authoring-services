@@ -3,6 +3,7 @@ package org.ihtsdo.snowowl.authoring.single.api.service;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.snowowl.SnowOwlRestClient;
 import org.ihtsdo.otf.rest.client.snowowl.pojo.ClassificationResults;
+import org.ihtsdo.otf.rest.client.snowowl.pojo.ClassificationStatus;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.Classification;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.EntityType;
@@ -16,12 +17,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import us.monoid.json.JSONException;
 
-import java.util.Calendar;
-import java.util.Date;
-import java.util.GregorianCalendar;
-
 public class ClassificationService {
-	
+
 	@Autowired
 	private TaskService taskService;
 
@@ -49,7 +46,7 @@ public class ClassificationService {
 		logger.info("Requesting classification of path {} for user {}", branchPath, callerUsername);
 		ClassificationResults results = snowOwlRestClientFactory.getClient().startClassification(branchPath);
 		//If we started the classification without an exception then it's state will be RUNNING (or queued)
-		results.setStatus(ClassificationResults.ClassificationStatus.RUNNING.toString());
+		results.setStatus(ClassificationStatus.RUNNING);
 
 		//Now start an asynchronous thread to wait for the results
 		final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

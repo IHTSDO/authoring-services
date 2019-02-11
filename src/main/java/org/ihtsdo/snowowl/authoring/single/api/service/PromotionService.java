@@ -15,7 +15,7 @@ import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.snowowl.PathHelper;
 import org.ihtsdo.otf.rest.client.snowowl.SnowOwlRestClientFactory;
 import org.ihtsdo.otf.rest.client.snowowl.pojo.ApiError;
-import org.ihtsdo.otf.rest.client.snowowl.pojo.ClassificationResults;
+import org.ihtsdo.otf.rest.client.snowowl.pojo.ClassificationStatus;
 import org.ihtsdo.otf.rest.client.snowowl.pojo.Merge;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringTask;
@@ -206,7 +206,7 @@ public class PromotionService {
 
 			// Call classification process
 			Classification classification =  this.autoClassificationTask(projectKey, taskKey);
-			if(null != classification && (classification.getResults().getRelationshipChangesCount() == 0)) {
+			if(null != classification && !classification.getResults().isInferredRelationshipChangesFound()) {
 
 				// Call promote process
 				Merge merge = new Merge();
@@ -246,8 +246,8 @@ public class PromotionService {
 
 			snowOwlRestClientFactory.getClient().waitForClassificationToComplete(classification.getResults());
 
-			if (classification.getResults().getStatus().equals(ClassificationResults.ClassificationStatus.COMPLETED.toString())) {
-				if (null != classification && null != classification.getResults() && classification.getResults().getRelationshipChangesCount() != 0) {
+			if (classification.getResults().getStatus().equals(ClassificationStatus.COMPLETED.toString())) {
+				if (classification.getResults().isInferredRelationshipChangesFound()) {
 					status = new ProcessStatus("Classified with results",""); 
 					status.setCompleteDate(new Date());
 					automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
