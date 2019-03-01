@@ -40,11 +40,13 @@ public class ValidationService {
 	public static final String STATUS_COMPLETE = "COMPLETED";
 	public static final String STATUS_NOT_TRIGGERED = "NOT_TRIGGERED";
 	public static final String ASSERTION_GROUP_NAMES = "assertionGroupNames";
+	public static final String RVF_DROOLS_ASSERTION_GROUP_NAMES = "rvfDroolsAssertionGroupNames";
 	public static final String PREVIOUS_RELEASE = "previousRelease";
 	public static final String DEPENDENCY_RELEASE = "dependencyRelease";
 	public static final String SHORT_NAME ="shortname";
 	public static final String PREVIOUS_PACKAGE = "previousPackage";
 	public static final String DEPENDENCE_PACKAGE = "dependencePackage";
+	public static final String DEFAULT_MODULE_ID = "defaultModuleId";
 	
 	@Value("${orchestration.name}")
 	private String orchestrationName;
@@ -126,11 +128,13 @@ public class ValidationService {
 			final Map<String, Object> mergedBranchMetadata = branchService.getBranchMetadataIncludeInherited(path);
 			Map<String, Object> properties = new HashMap<>();
 			copyProperty(ASSERTION_GROUP_NAMES, mergedBranchMetadata, properties);
+			copyProperty(RVF_DROOLS_ASSERTION_GROUP_NAMES, mergedBranchMetadata, properties);
 			copyProperty(PREVIOUS_RELEASE, mergedBranchMetadata, properties);
 			copyProperty(DEPENDENCY_RELEASE, mergedBranchMetadata, properties);
 			copyProperty(SHORT_NAME, mergedBranchMetadata, properties);
 			copyProperty(PREVIOUS_PACKAGE, mergedBranchMetadata, properties);
 			copyProperty(DEPENDENCE_PACKAGE, mergedBranchMetadata, properties);
+			copyProperty(DEFAULT_MODULE_ID, mergedBranchMetadata, properties);
 			properties.put(PATH, path);
 			properties.put(USERNAME, username);
 			if (projectKey != null) {
