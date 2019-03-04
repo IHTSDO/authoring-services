@@ -7,6 +7,7 @@ import org.ihtsdo.snowowl.authoring.single.api.service.jira.JiraHelper;
 import org.ihtsdo.sso.integration.SecurityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 
 public class JiraUserService {
 
@@ -14,6 +15,9 @@ public class JiraUserService {
 	private final String groupName;
 	private static final String DEFAULT_GROUP_NAME = "ihtsdo-sca-author";
 	private final Logger logger = LoggerFactory.getLogger(getClass());
+
+	@Value("${jira.username}")
+	private String adminJiraUsername;
 
 	public JiraUserService(ImpersonatingJiraClientFactory jiraClientFactory, String groupName) {
 		this.jiraClientFactory = jiraClientFactory;
@@ -27,11 +31,17 @@ public class JiraUserService {
 	}
 	
 	public Object getUsers(String expand) throws JiraException {
-		return JiraHelper.findUsersByGroupName(getJiraClient(), expand, groupName);
+		// Jira doesn't allow listing users without admin rights so we are using the authoring-services username here rather than the logged in user.
+		JiraClient adminJiraClient = getAdminJiraClient();
+
+		return JiraHelper.findUsersByGroupName(adminJiraClient, expand, groupName);
 	}
 
 	public Object searchUsers(String username, String projectKeys, String issueKey, int maxResults, int startAt) throws JiraException {
-		return JiraHelper.searchUsers(getJiraClient(), username, groupName, projectKeys, issueKey, maxResults, startAt);
+		// Jira doesn't allow listing users without admin rights so we are using the authoring-services username here rather than the logged in user.
+		JiraClient adminJiraClient = getAdminJiraClient();
+
+		return JiraHelper.searchUsers(adminJiraClient, username, groupName, projectKeys, issueKey, maxResults, startAt);
 	}
 
 	public void deleteIssueLink(String issueKey, String linkId) throws JiraException {
@@ -40,5 +50,10 @@ public class JiraUserService {
 
 	private JiraClient getJiraClient() {
 		return jiraClientFactory.getImpersonatingInstance(SecurityUtil.getUsername());
+	}
+
+	// Use with caution
+	private JiraClient getAdminJiraClient() {
+		return jiraClientFactory.getImpersonatingInstance(adminJiraUsername);
 	}
 }
