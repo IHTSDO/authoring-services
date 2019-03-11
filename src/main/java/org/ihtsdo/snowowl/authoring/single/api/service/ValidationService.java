@@ -45,7 +45,7 @@ public class ValidationService {
 	public static final String DEPENDENCY_RELEASE = "dependencyRelease";
 	public static final String SHORT_NAME ="shortname";
 	public static final String PREVIOUS_PACKAGE = "previousPackage";
-	public static final String DEPENDENCE_PACKAGE = "dependencePackage";
+	public static final String DEPENDENCY_PACKAGE = "dependencyPackage";
 	public static final String DEFAULT_MODULE_ID = "defaultModuleId";
 	
 	@Value("${orchestration.name}")
@@ -133,7 +133,7 @@ public class ValidationService {
 			copyProperty(DEPENDENCY_RELEASE, mergedBranchMetadata, properties);
 			copyProperty(SHORT_NAME, mergedBranchMetadata, properties);
 			copyProperty(PREVIOUS_PACKAGE, mergedBranchMetadata, properties);
-			copyProperty(DEPENDENCE_PACKAGE, mergedBranchMetadata, properties);
+			copyProperty(DEPENDENCY_PACKAGE, mergedBranchMetadata, properties);
 			copyProperty(DEFAULT_MODULE_ID, mergedBranchMetadata, properties);
 			properties.put(PATH, path);
 			properties.put(USERNAME, username);
