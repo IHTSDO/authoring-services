@@ -144,7 +144,7 @@ public class TaskService {
 		
 		if (!jiraUsername.equals(UNIT_TEST)){
 			logger.info("Fetching Jira custom field names.");
-			final JiraClient jiraClientForFieldLookup = jiraClientFactory.getImpersonatingInstance(jiraUsername);
+			final JiraClient jiraClientForFieldLookup = jiraClientFactory.getAdminInstance();
 			AuthoringTask.setJiraReviewerField(JiraHelper.fieldIdLookup("Reviewer", jiraClientForFieldLookup, null));
 			AuthoringTask.setJiraReviewersField(JiraHelper.fieldIdLookup("Reviewers", jiraClientForFieldLookup, null));
 			projectJiraFetchFields = new HashSet<>();
