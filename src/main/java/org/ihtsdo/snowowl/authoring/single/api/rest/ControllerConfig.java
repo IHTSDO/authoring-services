@@ -3,6 +3,7 @@ package org.ihtsdo.snowowl.authoring.single.api.rest;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import org.apache.catalina.connector.ClientAbortException;
 import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
+import org.ihtsdo.snowowl.authoring.single.api.service.UnauthorizedServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -18,6 +19,12 @@ public class ControllerConfig {
 	@ExceptionHandler(ClientAbortException.class)
 	void clientAbortException(ClientAbortException e) {
 		logger.info("Client disconnected.");
+	}
+
+	@ExceptionHandler(UnauthorizedServiceException.class)
+	ResponseEntity<Error> unauthorizedServiceException(UnauthorizedServiceException e) {
+		logger.info("Returning FORBIDDEN status code.", e);
+		return response(e.getMessage(), HttpStatus.FORBIDDEN);
 	}
 
 	@ExceptionHandler(Exception.class)

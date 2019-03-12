@@ -2,6 +2,7 @@ package org.ihtsdo.snowowl.authoring.single.api.service.jira;
 
 import net.rcarz.jiraclient.JiraClient;
 import net.rcarz.jiraclient.JiraException;
+import org.ihtsdo.snowowl.authoring.single.api.service.UnauthorizedServiceException;
 import org.ihtsdo.sso.integration.SecurityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,11 +41,11 @@ public class OAuthJiraClientFactory implements ImpersonatingJiraClientFactory {
 		if (username == null) {
 			logger.error("Jira client requested but with NULL username! In Spring Security session Authentication Token is '{}', Username is '{}'",
 					SecurityUtil.getAuthenticationToken(), SecurityUtil.getUsername());
-			throw new RuntimeException("Denied Jira access.");
+			throw new UnauthorizedServiceException("Denied Jira access.");
 		} else if (username.equals(adminJiraUsername)) {
 			logger.error("Jira client requested but with ADMIN username! In Spring Security session Authentication Token is '{}', Username is '{}'",
 					SecurityUtil.getAuthenticationToken(), SecurityUtil.getUsername());
-			throw new RuntimeException("Denied Jira access.");
+			throw new UnauthorizedServiceException("Denied Jira access.");
 		}
 		return doGetJiraClient(username);
 	}
