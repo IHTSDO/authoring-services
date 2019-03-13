@@ -14,10 +14,12 @@ import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.message.BasicNameValuePair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import sun.misc.BASE64Decoder;
 
 import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.ByteBuffer;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
@@ -158,6 +160,7 @@ public class OAuthCredentials implements ICredentials {
 		if (startIndex != -1) {
 			int endIndex = privateKeyString.indexOf(END_PRIVATE_KEY);
 			privateKeyString = privateKeyString.substring(startIndex + BEGIN_PRIVATE_KEY.length(), endIndex);
+			privateKeyString = privateKeyString.replace("\n", "");
 			// decode private key
 			PKCS8EncodedKeySpec privSpec = new PKCS8EncodedKeySpec(Base64.getDecoder().decode(privateKeyString));
 			return KeyFactory.getInstance(RSA).generatePrivate(privSpec);
