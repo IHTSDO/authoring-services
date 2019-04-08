@@ -118,7 +118,7 @@ public class ScheduledRebaseService {
 
 	private void loginToIMSAndSetSecurityContext() throws URISyntaxException, IOException {
 		IMSRestClient imsClient = new IMSRestClient(imsUrl);
-		logger.info("Logging in to IMS and forcing new session.");
+		logger.info("Logging in to IMS and forcing new session." + imsUrl);
 		String token = imsClient.loginForceNewSession(username, password);
 		PreAuthenticatedAuthenticationToken decoratedAuthentication = new PreAuthenticatedAuthenticationToken(username, token);
 		SecurityContextHolder.getContext().setAuthentication(decoratedAuthentication);
