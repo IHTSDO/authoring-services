@@ -33,10 +33,10 @@ public class ScheduledRebaseService {
 
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 
-	@Value("${jira.username}")
+	@Value("${auto.rebase.username}")
 	private String username;
 
-	@Value("${jira.password}")
+	@Value("${auto.rebase.password}")
 	private String password;
 
 	@Value("${ims.url}")
@@ -62,22 +62,18 @@ public class ScheduledRebaseService {
 
 		try {
 			loginToIMSAndSetSecurityContext();
-
 			logger.info("Starting scheduled rebase for all configured projects.");
-
 			List<AuthoringProject> projects = taskService.listProjects();
 			projects = projects.stream().filter(project -> !project.isProjectScheduledRebaseDisabled()).collect(Collectors.toList());
 			for (AuthoringProject project : projects) {
 				logger.info("Performing scheduled rebase of project " + project.getKey() + ".");
-				if (BranchState.UP_TO_DATE.name().equals(project.getBranchState())
+				if (project.getBranchState() == null || BranchState.UP_TO_DATE.name().equals(project.getBranchState())
 						|| BranchState.FORWARD.name().equals(project.getBranchState())) {
 					logger.info("No rebase needed for project  " + project.getKey() + " with branch state " + project.getBranchState() + ".");
 				} else {
 					try {
 						String projectBranchPath = taskService.getProjectBranchPathUsingCache(project.getKey());
-
 						Set mergeReviewResult = branchService.generateBranchMergeReviews(PathHelper.getParentPath(projectBranchPath), projectBranchPath);
-
 						// Check conflict of merge review
 						if (mergeReviewResult.isEmpty()) {
 							Merge merge = branchService.mergeBranchSync(PathHelper.getParentPath(projectBranchPath), projectBranchPath, null);
@@ -107,6 +103,7 @@ public class ScheduledRebaseService {
 			throw new BusinessServiceException("Error while rebasing projects", e);
 		} finally {
 			cronJobRunning = false;
+			SecurityContextHolder.getContext().setAuthentication(null);
 		}
 	}
 
@@ -116,9 +113,8 @@ public class ScheduledRebaseService {
 		rebaseProjects();
 	}
 
-	private void loginToIMSAndSetSecurityContext() throws URISyntaxException, IOException {
+	private void loginToIMSAndSetSecurityContext() throws URISyntaxException, IOException, RestClientException {
 		IMSRestClient imsClient = new IMSRestClient(imsUrl);
-		logger.info("Logging in to IMS and forcing new session." + imsUrl);
 		String token = imsClient.loginForceNewSession(username, password);
 		PreAuthenticatedAuthenticationToken decoratedAuthentication = new PreAuthenticatedAuthenticationToken(username, token);
 		SecurityContextHolder.getContext().setAuthentication(decoratedAuthentication);
