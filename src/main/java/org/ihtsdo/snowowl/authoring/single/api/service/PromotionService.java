@@ -244,8 +244,7 @@ public class PromotionService {
 		String branchPath = taskService.getTaskBranchPathUsingCache(projectKey, taskKey);
 		try {
 			Classification classification =  classificationService.startClassification(projectKey, taskKey, branchPath, ControllerHelper.getUsername());
-			snowOwlRestClientFactory.getClient().waitForClassificationToComplete(classification.getResults());
-
+			classification.setResults(snowOwlRestClientFactory.getClient().waitForClassificationToComplete(classification.getResults()));
 			if (ClassificationStatus.COMPLETED == classification.getResults().getStatus()) {
 				if (classification.getResults().isInferredRelationshipChangesFound()) {
 					status = new ProcessStatus("Classified with results",""); 
