@@ -206,7 +206,7 @@ public class PromotionService {
 
 			// Call classification process
 			Classification classification =  this.autoClassificationTask(projectKey, taskKey);
-			if(null != classification && !classification.getResults().isInferredRelationshipChangesFound()) {
+			if (null != classification && !classification.getResults().isInferredRelationshipChangesFound()) {
 
 				// Call promote process
 				Merge merge = new Merge();
@@ -224,6 +224,7 @@ public class PromotionService {
 		} catch (BusinessServiceException e) {
 			ProcessStatus status = new ProcessStatus("Failed",e.getMessage());
 			automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
+			logger.error("Failed to auto promote task " + taskKey , e);
 		} finally {
 			SecurityContextHolder.getContext().setAuthentication(null);
 		}
@@ -243,10 +244,9 @@ public class PromotionService {
 		String branchPath = taskService.getTaskBranchPathUsingCache(projectKey, taskKey);
 		try {
 			Classification classification =  classificationService.startClassification(projectKey, taskKey, branchPath, ControllerHelper.getUsername());
-
 			snowOwlRestClientFactory.getClient().waitForClassificationToComplete(classification.getResults());
 
-			if (classification.getResults().getStatus().equals(ClassificationStatus.COMPLETED.toString())) {
+			if (ClassificationStatus.COMPLETED == classification.getResults().getStatus()) {
 				if (classification.getResults().isInferredRelationshipChangesFound()) {
 					status = new ProcessStatus("Classified with results",""); 
 					status.setCompleteDate(new Date());
