@@ -9,6 +9,7 @@ import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.ReleaseRequest;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.Status;
 import org.ihtsdo.snowowl.authoring.single.api.service.ValidationService;
+import org.ihtsdo.sso.integration.SecurityUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
@@ -27,17 +28,15 @@ public class ValidationController {
 	@ApiOperation(value = "Initiate validation on MAIN")
 	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
 	@RequestMapping(value = "/main/validation", method = RequestMethod.POST)
-	public Status startValidation( @RequestBody(required=false) final ReleaseRequest releaseRequest) throws JiraException,
-			JSONException, IOException, BusinessServiceException {
-		return validationService.startValidation(releaseRequest, ControllerHelper.getUsername());
+	public Status startValidation( @RequestBody(required=false) final ReleaseRequest releaseRequest) throws BusinessServiceException {
+		return validationService.startValidation(releaseRequest, ControllerHelper.getUsername(), SecurityUtil.getAuthenticationToken());
 	}
 
 	@ApiOperation(value = "Initiate validation on a Task")
 	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
 	@RequestMapping(value = "/projects/{projectKey}/tasks/{taskKey}/validation", method = RequestMethod.POST)
-	public Status startValidation(@PathVariable final String projectKey, @PathVariable final String taskKey) throws JiraException,
-			JSONException, IOException, BusinessServiceException {
-		return validationService.startValidation(projectKey, taskKey, ControllerHelper.getUsername());
+	public Status startValidation(@PathVariable final String projectKey, @PathVariable final String taskKey) throws BusinessServiceException {
+		return validationService.startValidation(projectKey, taskKey, ControllerHelper.getUsername(), SecurityUtil.getAuthenticationToken());
 	}
 
 	@ApiOperation(value = "Recover the most recent validation on a Task")
@@ -63,9 +62,8 @@ public class ValidationController {
 	@ApiOperation(value = "Initiate validation on a Project")
 	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
 	@RequestMapping(value = "/projects/{projectKey}/validation", method = RequestMethod.POST)
-	public Status startValidation(@PathVariable final String projectKey) throws JiraException, JSONException, IOException,
-			BusinessServiceException {
-		return validationService.startValidation(projectKey, ControllerHelper.getUsername());
+	public Status startValidation(@PathVariable final String projectKey) throws BusinessServiceException {
+		return validationService.startValidation(projectKey, ControllerHelper.getUsername(), SecurityUtil.getAuthenticationToken());
 	}
 
 	@ApiOperation(value = "Recover the most recent validation on Project")

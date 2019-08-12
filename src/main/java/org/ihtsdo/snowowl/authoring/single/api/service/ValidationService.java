@@ -32,6 +32,7 @@ public class ValidationService {
 	public static final String VALIDATION_RESPONSE_QUEUE = "sca.termserver-release-validation.response";
 	public static final String PATH = "path";
 	public static final String USERNAME = "username";
+	public static final String X_AUTH_TOKEN = "X-AUTH-token";
 	public static final String PROJECT = "project";
 	public static final String TASK = "task";
 	public static final String EFFECTIVE_TIME = "effective-time";
@@ -47,7 +48,7 @@ public class ValidationService {
 	public static final String PREVIOUS_PACKAGE = "previousPackage";
 	public static final String DEPENDENCY_PACKAGE = "dependencyPackage";
 	public static final String DEFAULT_MODULE_ID = "defaultModuleId";
-	
+
 	@Value("${orchestration.name}")
 	private String orchestrationName;
 
@@ -115,15 +116,15 @@ public class ValidationService {
 
 	}
 
-	public Status startValidation(String projectKey, String taskKey, String username) throws BusinessServiceException {
-		return doStartValidation(taskService.getTaskBranchPathUsingCache(projectKey, taskKey), username, projectKey, taskKey, null);
+	public Status startValidation(String projectKey, String taskKey, String username, String authenticationToken) throws BusinessServiceException {
+		return doStartValidation(taskService.getTaskBranchPathUsingCache(projectKey, taskKey), username, authenticationToken, projectKey, taskKey, null);
 	}
 
-	public Status startValidation(String projectKey, String username) throws BusinessServiceException {
-		return doStartValidation(taskService.getProjectBranchPathUsingCache(projectKey), username, projectKey, null, null);
+	public Status startValidation(String projectKey, String username, String authenticationToken) throws BusinessServiceException {
+		return doStartValidation(taskService.getProjectBranchPathUsingCache(projectKey), username, authenticationToken, projectKey, null, null);
 	}
 
-	private Status doStartValidation(String path, String username, String projectKey, String taskKey, String effectiveTime) throws BusinessServiceException {
+	private Status doStartValidation(String path, String username, String authenticationToken, String projectKey, String taskKey, String effectiveTime) throws BusinessServiceException {
 		try {
 			final Map<String, Object> mergedBranchMetadata = branchService.getBranchMetadataIncludeInherited(path);
 			Map<String, Object> properties = new HashMap<>();
@@ -137,6 +138,7 @@ public class ValidationService {
 			copyProperty(DEFAULT_MODULE_ID, mergedBranchMetadata, properties);
 			properties.put(PATH, path);
 			properties.put(USERNAME, username);
+			properties.put(X_AUTH_TOKEN, authenticationToken);
 			if (projectKey != null) {
 				properties.put(PROJECT, projectKey);
 			}
@@ -147,7 +149,7 @@ public class ValidationService {
 				properties.put(EFFECTIVE_TIME, effectiveTime);
 			}
 			String prefix = orchestrationName + ".";
-			messagingHelper.send( prefix + VALIDATION_REQUEST_QUEUE, "", properties, prefix + VALIDATION_RESPONSE_QUEUE);
+			messagingHelper.send(prefix + VALIDATION_REQUEST_QUEUE, "", properties, prefix + VALIDATION_RESPONSE_QUEUE);
 			validationStatusLoadingCache.put(path, STATUS_SCHEDULED);
 			return new Status(STATUS_SCHEDULED);
 		} catch (JsonProcessingException | JMSException e) {
@@ -222,7 +224,7 @@ public class ValidationService {
 
 	//Start validation for MAIN
 	public Status startValidation(ReleaseRequest releaseRequest,
-			String username) throws BusinessServiceException {
+			String username, String authenticationToken) throws BusinessServiceException {
 		String effectiveDate = null;
 		if (releaseRequest != null && releaseRequest.getEffectiveDate() != null) {
 			String potentialEffectiveDate = releaseRequest.getEffectiveDate();
@@ -234,7 +236,7 @@ public class ValidationService {
 				logger.error("Unable to set effective date for MAIN validation, unrecognised: " + potentialEffectiveDate, e);
 			}
 		}
-		return doStartValidation(PathHelper.getMainPath(), username, null, null, effectiveDate);
+		return doStartValidation(PathHelper.getMainPath(), username, authenticationToken, null, null, effectiveDate);
 	}
 
 	public void clearStatusCache() {
