@@ -63,7 +63,7 @@ public class ScheduledRebaseService {
 		try {
 			loginToIMSAndSetSecurityContext();
 			logger.info("Starting scheduled rebase for all configured projects.");
-			List<AuthoringProject> projects = taskService.listProjects();
+			List<AuthoringProject> projects = taskService.listProjects(false);
 			projects = projects.stream().filter(project -> !project.isProjectScheduledRebaseDisabled()).collect(Collectors.toList());
 			for (AuthoringProject project : projects) {
 				logger.info("Performing scheduled rebase of project " + project.getKey() + ".");

@@ -35,8 +35,8 @@ public class ProjectController {
 	@ApiOperation(value="List authoring Projects")
 	@ApiResponse(code = 200, message = "OK")
 	@RequestMapping(value="/projects", method= RequestMethod.GET)
-	public List<AuthoringProject> listProjects() throws JiraException, BusinessServiceException {
-		return taskService.listProjects();
+	public List<AuthoringProject> listProjects(@RequestParam(value = "lightweight", required = false)  Boolean lightweight) throws JiraException, BusinessServiceException {
+		return taskService.listProjects(lightweight);
 	}
 
 	@ApiOperation(value="Retrieve an authoring Project")

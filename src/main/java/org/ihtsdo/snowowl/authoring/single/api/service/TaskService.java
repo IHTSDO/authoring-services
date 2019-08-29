@@ -209,7 +209,7 @@ public class TaskService {
 				});
 	}
 
-	public List<AuthoringProject> listProjects() throws JiraException, BusinessServiceException {
+	public List<AuthoringProject> listProjects(Boolean lightweight) throws JiraException, BusinessServiceException {
 		final TimerUtil timer = new TimerUtil("ProjectsList");
 		List<Issue> projectTickets = new ArrayList<>();
 		// Search for authoring project tickets this user has visibility of
@@ -223,15 +223,19 @@ public class TaskService {
 			}
 		}
 		timer.checkpoint("Jira searches");
-		final List<AuthoringProject> authoringProjects = buildAuthoringProjects(projectTickets);
-		timer.checkpoint("validation and classification");
+		final List<AuthoringProject> authoringProjects = buildAuthoringProjects(projectTickets, lightweight == null ? false : lightweight);
+		if (lightweight != null && lightweight) {
+			timer.checkpoint("project path search only without validation and classification");
+		} else {
+			timer.checkpoint("validation and classification");
+		}
 		timer.finish();
 		return authoringProjects;
 	}
 
 	public AuthoringProject retrieveProject(String projectKey) throws BusinessServiceException {
 		List<Issue> issues = Collections.singletonList(getProjectTicketOrThrow(projectKey));
-		List<AuthoringProject> projects = buildAuthoringProjects(issues);
+		List<AuthoringProject> projects = buildAuthoringProjects(issues, false);
 		if (projects.size() == 0) {
 			throw new BusinessServiceException ("Failed to recover project: " + projectKey +". See earlier logs for reason");
 		}
@@ -250,7 +254,7 @@ public class TaskService {
 		}
 	}
 
-	private List<AuthoringProject> buildAuthoringProjects(List<Issue> projectTickets) throws BusinessServiceException {
+	private List<AuthoringProject> buildAuthoringProjects(List<Issue> projectTickets, boolean lightweight) throws BusinessServiceException {
 		if (projectTickets.isEmpty()) {
 			return new ArrayList<>();
 		}
@@ -268,9 +272,12 @@ public class TaskService {
 				final String projectKey = projectTicket.getProject().getKey();
 				final String extensionBase = getProjectDetailsPopulatingCache(projectTicket).getBaseBranchPath();
 				final String branchPath = PathHelper.getProjectPath(extensionBase, projectKey);
-
-				final String latestClassificationJson = classificationService.getLatestClassification(branchPath);
-
+				
+				String latestClassificationJson = null;
+				if (!lightweight) {
+					latestClassificationJson = classificationService.getLatestClassification(branchPath);
+				}
+				
 				final boolean promotionDisabled = DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectPromotionField)));
 				final boolean rebaseDisabled = DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectRebaseField)));
 				final boolean scheduledRebaseDisabled = DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectScheduledRebaseField)));
@@ -319,17 +326,18 @@ public class TaskService {
 			}
 		});
 
-		final ImmutableMap<String, String> validationStatuses;
-		try {
-			validationStatuses = validationService
-					.getValidationStatuses(branchPaths);
-			for (AuthoringProject authoringProject : authoringProjects) {
-				String branchPath = authoringProject.getBranchPath();
-				String validationStatus = validationStatuses.get(branchPath);
-				authoringProject.setValidationStatus(validationStatus);
+		if (!lightweight) {
+			final ImmutableMap<String, String> validationStatuses;
+			try {
+				validationStatuses = validationService.getValidationStatuses(branchPaths);
+				for (AuthoringProject authoringProject : authoringProjects) {
+					String branchPath = authoringProject.getBranchPath();
+					String validationStatus = validationStatuses.get(branchPath);
+					authoringProject.setValidationStatus(validationStatus);
+				}
+			} catch (ExecutionException e) {
+				logger.warn("Failed to fetch validation statuses for branch paths {}", branchPaths);
 			}
-		} catch (ExecutionException e) {
-			logger.warn("Failed to fetch validation statuses for branch paths {}", branchPaths);
 		}
 		return authoringProjects;
 	}
