@@ -92,8 +92,8 @@ public class ProjectController {
 	@ApiOperation(value="List Tasks within a Project")
 	@ApiResponse(code = 200, message = "OK")
 	@RequestMapping(value="/projects/{projectKey}/tasks", method= RequestMethod.GET)
-	public List<AuthoringTask> listTasks(@PathVariable final String projectKey) throws BusinessServiceException {
-		return taskService.listTasks(projectKey);
+	public List<AuthoringTask> listTasks(@PathVariable final String projectKey, @RequestParam(value = "lightweight", required = false)  Boolean lightweight) throws BusinessServiceException {
+		return taskService.listTasks(projectKey, lightweight);
 	}
 
 	@ApiOperation(value="List authenticated user's Tasks across Projects")

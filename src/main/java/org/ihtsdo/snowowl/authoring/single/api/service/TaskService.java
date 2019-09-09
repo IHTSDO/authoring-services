@@ -52,6 +52,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Strings;
@@ -420,7 +421,7 @@ public class TaskService {
 		}
 	}
 
-	public List<AuthoringTask> listTasks(String projectKey) throws BusinessServiceException {
+	public List<AuthoringTask> listTasks(String projectKey, Boolean lightweight) throws BusinessServiceException {
 		getProjectOrThrow(projectKey);
 		List<Issue> issues;
 		try {
@@ -428,13 +429,13 @@ public class TaskService {
 		} catch (JiraException e) {
 			throw new BusinessServiceException("Failed to list tasks.", e);
 		}
-		return buildAuthoringTasks(issues);
+		return buildAuthoringTasks(issues, lightweight);
 	}
 
 	public AuthoringTask retrieveTask(String projectKey, String taskKey) throws BusinessServiceException {
 		try {
 			Issue issue = getIssue(projectKey, taskKey);
-			final List<AuthoringTask> authoringTasks = buildAuthoringTasks(Collections.singletonList(issue));
+			final List<AuthoringTask> authoringTasks = buildAuthoringTasks(Collections.singletonList(issue), false);
 			return !authoringTasks.isEmpty() ? authoringTasks.get(0) : null;
 		} catch (JiraException e) {
 			if (e.getCause() instanceof RestException && ((RestException) e.getCause()).getHttpStatusCode() == 404) {
@@ -506,14 +507,14 @@ public class TaskService {
 			jql += " AND status != \"Promoted\"";
 		}
 		List<Issue> issues = searchIssues(jql, LIMIT_UNLIMITED, myTasksRequiredFields);
-		return buildAuthoringTasks(issues);
+		return buildAuthoringTasks(issues, false);
 	}
 
 	public List<AuthoringTask> listMyOrUnassignedReviewTasks() throws JiraException, BusinessServiceException {
 		List<Issue> issues = searchIssues("type = \"" + AUTHORING_TASK_TYPE + "\" " + "AND assignee != currentUser() "
 				+ "AND (Reviewer = currentUser() OR Reviewers = currentUser() OR (Reviewer = null AND Reviewers = null AND status = \"" + TaskStatus.IN_REVIEW.getLabel()
 				+ "\")) " + EXCLUDE_STATUSES, LIMIT_UNLIMITED);
-		return buildAuthoringTasks(issues);
+		return buildAuthoringTasks(issues, false);
 	}
 
 	private String getProjectTaskJQL(String projectKey, TaskStatus taskStatus) {
@@ -552,7 +553,7 @@ public class TaskService {
 		return createTask(projectKey, getUsername(), taskCreateRequest);
 	}
 
-	private List<AuthoringTask> buildAuthoringTasks(List<Issue> tasks) throws BusinessServiceException {
+	private List<AuthoringTask> buildAuthoringTasks(List<Issue> tasks, Boolean lightweight) throws BusinessServiceException {
 		final TimerUtil timer = new TimerUtil("BuildTaskList", Level.DEBUG);
 		final String username = getUsername();
 		List<AuthoringTask> allTasks = new ArrayList<>();
@@ -580,39 +581,40 @@ public class TaskService {
 							task.setBranchState(branch.getState());
 							task.setBranchBaseTimestamp(branch.getBaseTimestamp());
 							task.setBranchHeadTimestamp(branch.getHeadTimestamp());
-
-							task.setLatestClassificationJson(classificationService.getLatestClassification(task.getBranchPath()));
-							timer.checkpoint("Recovered classification");
-
-							// get the review message details and append to task
-							TaskMessagesDetail detail = reviewService.getTaskMessagesDetail(task.getProjectKey(), task.getKey(),
-									username);
-							task.setFeedbackMessagesStatus(detail.getTaskMessagesStatus());
-							task.setFeedbackMessageDate(detail.getLastMessageDate());
-							task.setViewDate(detail.getViewDate());
-							timer.checkpoint("Recovered feedback messages");
-
+							
+							if (lightweight == null || !lightweight) {
+								task.setLatestClassificationJson(classificationService.getLatestClassification(task.getBranchPath()));
+								timer.checkpoint("Recovered classification");
+								// get the review message details and append to task
+								TaskMessagesDetail detail = reviewService.getTaskMessagesDetail(task.getProjectKey(), task.getKey(),
+										username);
+								task.setFeedbackMessagesStatus(detail.getTaskMessagesStatus());
+								task.setFeedbackMessageDate(detail.getLastMessageDate());
+								task.setViewDate(detail.getViewDate());
+								timer.checkpoint("Recovered feedback messages");
+							}
 							startedTasks.put(task.getBranchPath(), task);
 						}
 					}
 				}
 			}
 
-			// Fetch validation statuses in bulk
-			if (!startedTasks.isEmpty()) {
-				Set<String> paths = startedTasks.keySet();
-				final ImmutableMap<String, String> validationStatuses = validationService.getValidationStatuses(paths);
-				timer.checkpoint("Recovered " + (validationStatuses == null ? "null" : validationStatuses.size()) + " ValidationStatuses");
+			if (lightweight == null || !lightweight) {
+				// Fetch validation statuses in bulk
+				if (!startedTasks.isEmpty()) {
+					Set<String> paths = startedTasks.keySet();
+					final ImmutableMap<String, String> validationStatuses = validationService.getValidationStatuses(paths);
+					timer.checkpoint("Recovered " + (validationStatuses == null ? "null" : validationStatuses.size()) + " ValidationStatuses");
 
-				if (validationStatuses == null || validationStatuses.isEmpty()) {
-					logger.warn("Failed to recover validation statuses for {} branches including '{}'.", paths.size(), paths.iterator().next());
-				} else {
-					for (final String path : paths) {
-						startedTasks.get(path).setLatestValidationStatus(validationStatuses.get(path));
+					if (validationStatuses == null || validationStatuses.isEmpty()) {
+						logger.warn("Failed to recover validation statuses for {} branches including '{}'.", paths.size(), paths.iterator().next());
+					} else {
+						for (final String path : paths) {
+							startedTasks.get(path).setLatestValidationStatus(validationStatuses.get(path));
+						}
 					}
 				}
 			}
-
 			timer.finish();
 		} catch (ExecutionException | RestClientException | ServiceException e) {
 			throw new BusinessServiceException("Failed to retrieve task list.", e);
@@ -1014,7 +1016,7 @@ public class TaskService {
 			URI ex = restClient.buildURI(Resource.getBaseUri() + "project", Collections.singletonMap("expand", "lead"));
 			JSON response = restClient.get(ex);
 			JSONArray projectsArray = JSONArray.fromObject(response);
-			ArrayList projects = new ArrayList(projectsArray.size());
+			ArrayList<JiraProject> projects = new ArrayList<>();
 
 			for(int i = 0; i < projectsArray.size(); ++i) {
 				JSONObject p = projectsArray.getJSONObject(i);
