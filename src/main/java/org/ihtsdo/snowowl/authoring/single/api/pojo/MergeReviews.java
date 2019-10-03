@@ -1,7 +1,7 @@
 package org.ihtsdo.snowowl.authoring.single.api.pojo;
 
-import org.ihtsdo.otf.rest.client.snowowl.pojo.MergeReviewsResults;
-import org.ihtsdo.otf.rest.client.snowowl.pojo.MergeReviewsResults.MergeReviewStatus;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.MergeReviewsResults;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.MergeReviewsResults.MergeReviewStatus;
 
 public class MergeReviews {
 	private String message;

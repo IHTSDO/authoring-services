@@ -2,11 +2,11 @@ package org.ihtsdo.snowowl.authoring.single.api.service;
 
 import com.google.common.collect.Lists;
 import org.ihtsdo.otf.rest.client.RestClientException;
-import org.ihtsdo.otf.rest.client.snowowl.SnowOwlRestClient;
-import org.ihtsdo.otf.rest.client.snowowl.SnowOwlRestClientFactory;
-import org.ihtsdo.otf.rest.client.snowowl.pojo.Branch;
-import org.ihtsdo.otf.rest.client.snowowl.pojo.Merge;
-import org.ihtsdo.otf.rest.client.snowowl.pojo.MergeReviewsResults;
+import org.ihtsdo.otf.rest.client.terminologyserver.SnowOwlRestClient;
+import org.ihtsdo.otf.rest.client.terminologyserver.SnowOwlRestClientFactory;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Merge;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.MergeReviewsResults;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,9 +17,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static org.ihtsdo.otf.rest.client.snowowl.pojo.Merge.Status.IN_PROGRESS;
-import static org.ihtsdo.otf.rest.client.snowowl.pojo.Merge.Status.SCHEDULED;
-import static org.ihtsdo.otf.rest.client.snowowl.pojo.MergeReviewsResults.MergeReviewStatus.CURRENT;
+import static org.ihtsdo.otf.rest.client.terminologyserver.pojo.Merge.Status.IN_PROGRESS;
+import static org.ihtsdo.otf.rest.client.terminologyserver.pojo.Merge.Status.SCHEDULED;
+import static org.ihtsdo.otf.rest.client.terminologyserver.pojo.MergeReviewsResults.MergeReviewStatus.CURRENT;
 
 public class BranchService {
 	

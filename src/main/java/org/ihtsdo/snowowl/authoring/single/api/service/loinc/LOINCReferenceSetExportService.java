@@ -2,23 +2,23 @@ package org.ihtsdo.snowowl.authoring.single.api.service.loinc;
 
 import com.google.common.collect.ComparisonChain;
 import org.ihtsdo.otf.rest.client.RestClientException;
-import org.ihtsdo.otf.rest.client.snowowl.SnowOwlRestClient;
-import org.ihtsdo.otf.rest.client.snowowl.pojo.ConceptPojo;
-import org.ihtsdo.otf.rest.client.snowowl.pojo.DescriptionPojo;
-import org.ihtsdo.otf.rest.client.snowowl.pojo.RelationshipPojo;
+import org.ihtsdo.otf.rest.client.terminologyserver.SnowOwlRestClient;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.AxiomPojo;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ConceptPojo;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.DescriptionPojo;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.RelationshipPojo;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.otf.snomedboot.ReleaseImportException;
 import org.ihtsdo.otf.snomedboot.ReleaseImporter;
 import org.ihtsdo.otf.snomedboot.domain.ConceptConstants;
 import org.ihtsdo.otf.snomedboot.factory.ImpotentComponentFactory;
 import org.ihtsdo.otf.snomedboot.factory.LoadingProfile;
-import org.ihtsdo.otf.rest.client.snowowl.SnowOwlRestClientFactory;
+import org.ihtsdo.otf.rest.client.terminologyserver.SnowOwlRestClientFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
 import java.util.*;
@@ -135,16 +135,20 @@ public class LOINCReferenceSetExportService {
 	public String generateCompositionalGrammar(ConceptPojo concept) {
 		SortedSet<RelationshipPojo> parents = new TreeSet<>(RELATIONSHIP_COMPARATOR);
 		Map<Integer, Set<RelationshipPojo>> relationshipMap = new HashMap<>();
-		concept.getRelationships().stream()
-				.filter(r -> STATED_RELATIONSHIP.equals(r.getCharacteristicType()))
-				.filter(RelationshipPojo::isActive)
-				.forEach(relationship -> {
-					if (ConceptConstants.isA.equals(relationship.getType().getConceptId())) {
-						parents.add(relationship);
-					} else {
-						relationshipMap.computeIfAbsent(relationship.getGroupId(), k -> new TreeSet<>(RELATIONSHIP_COMPARATOR)).add(relationship);
-					}
-				});
+		Set<AxiomPojo> classAxioms = concept.getClassAxioms();
+		if (classAxioms != null) {
+			for (AxiomPojo classAxiom : classAxioms) {
+				classAxiom.getRelationships()
+						.forEach(relationship -> {
+							if (ConceptConstants.isA.equals(relationship.getType().getConceptId())) {
+								parents.add(relationship);
+							} else {
+								relationshipMap.computeIfAbsent(relationship.getGroupId(), k -> new TreeSet<>(RELATIONSHIP_COMPARATOR)).add(relationship);
+							}
+						});
+
+			}
+		}
 
 		StringBuilder expression = new StringBuilder();
 		for (RelationshipPojo parent : parents) {

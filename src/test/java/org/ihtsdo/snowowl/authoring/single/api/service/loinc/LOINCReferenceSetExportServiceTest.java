@@ -1,7 +1,8 @@
 package org.ihtsdo.snowowl.authoring.single.api.service.loinc;
 
-import org.ihtsdo.otf.rest.client.snowowl.pojo.ConceptPojo;
-import org.ihtsdo.otf.rest.client.snowowl.pojo.RelationshipPojo;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.AxiomPojo;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ConceptPojo;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.RelationshipPojo;
 import org.ihtsdo.otf.snomedboot.domain.ConceptConstants;
 import org.junit.Before;
 import org.junit.Test;
@@ -20,19 +21,22 @@ public class LOINCReferenceSetExportServiceTest {
 	@Test
 	public void testGenerateCompositionalGrammar() throws Exception {
 		ConceptPojo concept = new ConceptPojo();
-		concept.add(new RelationshipPojo(0, ConceptConstants.isA, "71388002", LOINCReferenceSetExportService.STATED_RELATIONSHIP));
+		AxiomPojo axiomPojo = new AxiomPojo(
+				new RelationshipPojo(0, ConceptConstants.isA, "71388002", LOINCReferenceSetExportService.STATED_RELATIONSHIP)
+		);
+		concept.addClassAxiom(axiomPojo);
 		assertEquals("71388002", loincReferenceSetExportService.generateCompositionalGrammar(concept));
 
-		concept.add(new RelationshipPojo(0, ConceptConstants.isA, "138875005", LOINCReferenceSetExportService.STATED_RELATIONSHIP));
+		axiomPojo.add(new RelationshipPojo(0, ConceptConstants.isA, "138875005", LOINCReferenceSetExportService.STATED_RELATIONSHIP));
 		assertEquals("71388002 + 138875005", loincReferenceSetExportService.generateCompositionalGrammar(concept));
 
 		RelationshipPojo method = new RelationshipPojo(0, "260686004", "129264002", LOINCReferenceSetExportService.STATED_RELATIONSHIP);
-		concept.add(method);
+		axiomPojo.add(method);
 		assertEquals("71388002 + 138875005 :\n" +
 				"\t260686004 = 129264002", loincReferenceSetExportService.generateCompositionalGrammar(concept));
 
 		RelationshipPojo procedureSite = new RelationshipPojo(0, "405813007", "73903008", LOINCReferenceSetExportService.STATED_RELATIONSHIP);
-		concept.add(procedureSite);
+		axiomPojo.add(procedureSite);
 		assertEquals("71388002 + 138875005 :\n" +
 				"\t260686004 = 129264002,\n" +
 				"\t405813007 = 73903008", loincReferenceSetExportService.generateCompositionalGrammar(concept));

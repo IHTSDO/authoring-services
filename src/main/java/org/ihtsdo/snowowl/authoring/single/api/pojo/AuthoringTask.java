@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-import org.ihtsdo.otf.rest.client.snowowl.PathHelper;
+import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
 import org.ihtsdo.snowowl.authoring.single.api.review.service.TaskMessagesStatus;
 import org.ihtsdo.snowowl.authoring.single.api.service.TaskStatus;
 

@@ -1,8 +1,8 @@
 package org.ihtsdo.snowowl.authoring.single.api.pojo;
 
 
-import org.ihtsdo.otf.rest.client.snowowl.pojo.ClassificationResults;
-import org.ihtsdo.otf.rest.client.snowowl.pojo.ClassificationStatus;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ClassificationResults;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ClassificationStatus;
 
 public class Classification {
 
