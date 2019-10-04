@@ -209,15 +209,14 @@ public class PromotionService {
 			if (null != classification && !classification.getResults().isInferredRelationshipChangesFound()) {
 
 				// Call promote process
-				Merge merge = new Merge();
-				merge = this.autoPromoteTask(projectKey, taskKey);
+				Merge merge = this.autoPromoteTask(projectKey, taskKey);
 				if (merge.getStatus() == Merge.Status.COMPLETED) {
 					notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Promotion, "Automated promotion completed"));
 					ProcessStatus status = new ProcessStatus("Completed","");
 					automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
 					taskService.stateTransition(projectKey, taskKey, TaskStatus.PROMOTED);
 				} else {
-					ProcessStatus status = new ProcessStatus("Failed",merge.getApiError().getMessage());
+					ProcessStatus status = new ProcessStatus("Failed",merge.getApiError() == null ? "" : merge.getApiError().getMessage());
 					automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
 				}
 			}
