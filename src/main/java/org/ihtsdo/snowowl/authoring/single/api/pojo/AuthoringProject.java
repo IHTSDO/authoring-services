@@ -23,6 +23,7 @@ public class AuthoringProject {
 	private boolean projectTemplatesDisabled;
 	private boolean projectSpellCheckDisabled;
 	private boolean projectScheduledRebaseDisabled;
+	private boolean taskPromotionDisabled;
 	private Map<String, Object> metadata;
 
 	public AuthoringProject() {
@@ -31,7 +32,8 @@ public class AuthoringProject {
 	public AuthoringProject(String key, String title, User leadUser, String branchPath, String branchState, Long baseTimeStamp, Long headTimeStamp,
 							String latestClassificationJson, boolean projectPromotionDisabled,
 							boolean projectMrcmDisabled, boolean projectTemplatesDisabled, boolean projectSpellCheckDisabled, boolean projectRebaseDisabled,
-							boolean projectScheduledRebaseDisabled) {
+							boolean projectScheduledRebaseDisabled,
+							boolean taskPromotionDisabled) {
 		this.key = key;
 		this.title = title;
 		this.projectLead = leadUser;
@@ -46,6 +48,7 @@ public class AuthoringProject {
 		this.projectSpellCheckDisabled = projectSpellCheckDisabled;
 		this.projectRebaseDisabled = projectRebaseDisabled;
 		this.projectScheduledRebaseDisabled = projectScheduledRebaseDisabled;
+		this.taskPromotionDisabled = taskPromotionDisabled;
 	}
 
 	public String getKey() {
@@ -151,5 +154,14 @@ public class AuthoringProject {
 
 	public void setMetadata(Map<String, Object> metadata) {
 		this.metadata = metadata;
+	}
+
+
+	public boolean isTaskPromotionDisabled() {
+		return taskPromotionDisabled;
+	}
+
+	public void setTaskPromotionDisabled(boolean taskPromotionDisabled) {
+		this.taskPromotionDisabled = taskPromotionDisabled;
 	}
 }
