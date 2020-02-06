@@ -26,6 +26,8 @@ import javax.annotation.PreDestroy;
 import javax.jms.JMSException;
 
 import org.apache.activemq.command.ActiveMQQueue;
+import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.math.NumberUtils;
 import org.apache.log4j.Level;
 import org.ihtsdo.otf.jms.MessagingHelper;
 import org.ihtsdo.otf.rest.client.RestClientException;
@@ -511,6 +513,35 @@ public class TaskService {
 
 		return issues;
 
+	}
+
+	/**
+	 * Search issues based on Jira Summary or ID field
+	 *
+	 * @param criteria
+	 * @param lightweight
+	 * @return
+	 * @throws JiraException
+	 * @throws BusinessServiceException
+	 */
+	public List<AuthoringTask> searchTasks(String criteria, Boolean lightweight) throws JiraException, BusinessServiceException {
+		if (StringUtils.isEmpty(criteria)) {
+			return Collections.EMPTY_LIST;
+		}
+		String[] arrayStr = criteria.split("-");
+		boolean isJiraId = arrayStr.length == 2 && NumberUtils.isNumber(arrayStr[1]);
+		String jql = "type = \"" + AUTHORING_TASK_TYPE + "\"" + " AND status != \"" + TaskStatus.DELETED.getLabel() + "\"" + (isJiraId ? " AND id = \"" + criteria + "\"" : " AND summary ~ \"" + criteria + "\"");
+		List<Issue> issues;
+		try {
+			issues = searchIssues(jql, LIMIT_UNLIMITED, myTasksRequiredFields);
+		} catch (JiraException exception) {
+			if (isJiraId) {
+				return Collections.EMPTY_LIST;
+			} else {
+				throw exception;
+			}
+		}
+		return buildAuthoringTasks(issues, lightweight == null ? false : lightweight);
 	}
 
 	public List<AuthoringTask> listMyTasks(String username, String excludePromoted) throws JiraException, BusinessServiceException {

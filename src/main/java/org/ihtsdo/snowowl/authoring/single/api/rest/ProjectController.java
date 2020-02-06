@@ -110,6 +110,13 @@ public class ProjectController {
 		return taskService.listMyOrUnassignedReviewTasks();
 	}
 
+	@ApiOperation(value = "Search tasks across Projects")
+	@ApiResponse(code = 200, message = "OK")
+	@RequestMapping(value = "/projects/tasks/search", method = RequestMethod.GET)
+	public List<AuthoringTask> searchTasks(@RequestParam(value = "criteria") String criteria, @RequestParam(value = "lightweight", required = false) Boolean lightweight) throws JiraException, BusinessServiceException {
+		return taskService.searchTasks(criteria, lightweight);
+	}
+
 	@ApiOperation(value="Retrieve a Task within a Project")
 	@ApiResponse(code = 200, message = "OK")
 	@RequestMapping(value="/projects/{projectKey}/tasks/{taskKey}", method= RequestMethod.GET)
