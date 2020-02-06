@@ -21,6 +21,7 @@ import java.util.concurrent.Future;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.jms.JMSException;
 
@@ -33,6 +34,7 @@ import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch;
 import org.ihtsdo.otf.rest.exception.BadRequestException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
+import org.ihtsdo.snowowl.authoring.single.api.configuration.ConfigUtils;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringMain;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringProject;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringTask;
@@ -116,6 +118,8 @@ public class TaskService {
 	private MessagingHelper messagingHelper;
 
 	@Value("${task-state-change.notification-queues}")
+	private String taskStateChangeNotificationQueuesString;
+
 	private Set<String> taskStateChangeNotificationQueues;
 
 	private final ImpersonatingJiraClientFactory jiraClientFactory;
@@ -141,7 +145,7 @@ public class TaskService {
 	public TaskService(ImpersonatingJiraClientFactory jiraClientFactory, String jiraUsername) throws JiraException {
 		this.jiraClientFactory = jiraClientFactory;
 		executorService = Executors.newCachedThreadPool();
-		
+
 		if (!jiraUsername.equals(UNIT_TEST)){
 			logger.info("Fetching Jira custom field names.");
 			final JiraClient jiraClientForFieldLookup = jiraClientFactory.getAdminInstance();
@@ -209,6 +213,12 @@ public class TaskService {
 						return keyToBaseMap;
 					}
 				});
+	}
+
+	@PostConstruct
+	public void postConstruct() {
+		taskStateChangeNotificationQueues = ConfigUtils.getStringSet(taskStateChangeNotificationQueuesString);
+		logger.info("{} task state notification queues configured {}", taskStateChangeNotificationQueues.size(), taskStateChangeNotificationQueues);
 	}
 
 	public List<AuthoringProject> listProjects(Boolean lightweight) throws JiraException, BusinessServiceException {
