@@ -93,7 +93,6 @@ public class TaskService {
 			+ "\" AND status != \"" + TaskStatus.DELETED.getLabel() + "\") ";
 	private static final String AUTHORING_TASK_TYPE = "SCA Authoring Task";
 	private static final int LIMIT_UNLIMITED = -1;
-	private static final String TASK_STATE_CHANGE_QUEUE_NAME = "-authoring.task-state-change";
 
 	@Autowired
 	private BranchService branchService;
@@ -116,8 +115,8 @@ public class TaskService {
 	@Autowired
 	private MessagingHelper messagingHelper;
 
-	@Value("${orchestration.name}")
-	private String orchestrationName;
+	@Value("${task-state-change.notification-queues}")
+	private Set<String> taskStateChangeNotificationQueues;
 
 	private final ImpersonatingJiraClientFactory jiraClientFactory;
 	private final String jiraExtensionBaseField;
@@ -911,19 +910,23 @@ public class TaskService {
 		issue.transition().execute(transition);
 		issue.refresh();
 
-		// Send JMS Task State Notification
-		try {
-			Map<String, String> properties = new HashMap<>();
-			properties.put("key", key);
-			properties.put("status", newStateLabel);
+		if (!taskStateChangeNotificationQueues.isEmpty()) {
+			// Send JMS Task State Notification
+			try {
+				Map<String, String> properties = new HashMap<>();
+				properties.put("key", key);
+				properties.put("status", newStateLabel);
 
-			// To comma separated list
-			final String labelsString = issue.getLabels().toString();
-			properties.put("labels", labelsString.substring(1, labelsString.length() - 1).replace(", ", ","));
+				// To comma separated list
+				final String labelsString = issue.getLabels().toString();
+				properties.put("labels", labelsString.substring(1, labelsString.length() - 1).replace(", ", ","));
 
-			messagingHelper.send(new ActiveMQQueue(orchestrationName + TASK_STATE_CHANGE_QUEUE_NAME), properties);
-		} catch (JsonProcessingException | JMSException e) {
-			logger.error("Failed to send task state change notification for {} {}.", key, newStateLabel, e);
+				for (String queue : taskStateChangeNotificationQueues) {
+					messagingHelper.send(new ActiveMQQueue(queue), properties);
+				}
+			} catch (JsonProcessingException | JMSException e) {
+				logger.error("Failed to send task state change notification for {} {}.", key, newStateLabel, e);
+			}
 		}
 	}
 
