@@ -106,8 +106,8 @@ public class ProjectController {
 	@ApiOperation(value="List review tasks, with the current user or unassigned reviewer, across Projects")
 	@ApiResponse(code = 200, message = "OK")
 	@RequestMapping(value="/projects/review-tasks", method= RequestMethod.GET)
-	public List<AuthoringTask> listMyOrUnassignedReviewTasks() throws JiraException, BusinessServiceException {
-		return taskService.listMyOrUnassignedReviewTasks();
+	public List<AuthoringTask> listMyOrUnassignedReviewTasks(@RequestParam(value = "excludePromoted", required = false) String excludePromoted) throws JiraException, BusinessServiceException {
+		return taskService.listMyOrUnassignedReviewTasks(excludePromoted);
 	}
 
 	@ApiOperation(value = "Search tasks across Projects")

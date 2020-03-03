@@ -553,10 +553,14 @@ public class TaskService {
 		return buildAuthoringTasks(issues, false);
 	}
 
-	public List<AuthoringTask> listMyOrUnassignedReviewTasks() throws JiraException, BusinessServiceException {
-		List<Issue> issues = searchIssues("type = \"" + AUTHORING_TASK_TYPE + "\" " + "AND assignee != currentUser() "
+	public List<AuthoringTask> listMyOrUnassignedReviewTasks(String excludePromoted) throws JiraException, BusinessServiceException {
+		String jql = "type = \"" + AUTHORING_TASK_TYPE + "\" " + "AND assignee != currentUser() "
 				+ "AND (Reviewer = currentUser() OR Reviewers = currentUser() OR (Reviewer = null AND Reviewers = null AND status = \"" + TaskStatus.IN_REVIEW.getLabel()
-				+ "\")) " + EXCLUDE_STATUSES, LIMIT_UNLIMITED);
+				+ "\")) " + EXCLUDE_STATUSES;
+		if (null != excludePromoted && excludePromoted.equalsIgnoreCase("TRUE")) {
+			jql += " AND status != \"Promoted\"";
+		}
+		List<Issue> issues = searchIssues(jql, LIMIT_UNLIMITED);
 		return buildAuthoringTasks(issues, false);
 	}
 
