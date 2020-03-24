@@ -83,7 +83,7 @@ public class ScheduledRebaseService {
 						Set mergeReviewResult =  client.getMergeReviewsDetails(mergeId);
 						// Check conflict of merge review
 						if (mergeReviewResult.isEmpty()) {
-							Merge merge = branchService.mergeBranchSync(PathHelper.getParentPath(projectBranchPath), projectBranchPath, null);
+							Merge merge = branchService.mergeBranchSync(PathHelper.getParentPath(projectBranchPath), projectBranchPath, mergeId);
 							if (merge.getStatus() == Merge.Status.COMPLETED) {
 								logger.info("Rebase of project " + project.getKey() + " successful.");
 							} else if (merge.getStatus().equals(Merge.Status.CONFLICTS)) {
