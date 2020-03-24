@@ -13,6 +13,7 @@ import javax.annotation.PreDestroy;
 
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
+import org.ihtsdo.otf.rest.client.terminologyserver.SnowOwlRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowOwlRestClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ApiError;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ClassificationStatus;
@@ -275,13 +276,15 @@ public class PromotionService {
 			return null;
 		} else {
 			try {
-				Set mergeReviewResult = branchService.generateBranchMergeReviews(PathHelper.getParentPath(taskBranchPath), taskBranchPath);
+				String mergeId = branchService.generateBranchMergeReviews(PathHelper.getParentPath(taskBranchPath), taskBranchPath);
+				SnowOwlRestClient client = snowOwlRestClientFactory.getClient();
+				Set mergeReviewResult =  client.getMergeReviewsDetails(mergeId);
 
 				// Check conflict of merge review
 				if (mergeReviewResult.isEmpty()) {
 
 					// Process rebase task
-					Merge merge = branchService.mergeBranchSync(PathHelper.getParentPath(taskBranchPath), taskBranchPath, null);
+					Merge merge = branchService.mergeBranchSync(PathHelper.getParentPath(taskBranchPath), taskBranchPath, mergeId);
 					if (merge.getStatus() == Merge.Status.COMPLETED) {
 						return merge.getStatus().name();
 					} else {

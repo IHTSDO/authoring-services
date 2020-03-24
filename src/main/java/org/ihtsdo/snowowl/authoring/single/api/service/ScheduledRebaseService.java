@@ -11,6 +11,8 @@ import java.util.stream.Collectors;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.ims.IMSRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
+import org.ihtsdo.otf.rest.client.terminologyserver.SnowOwlRestClient;
+import org.ihtsdo.otf.rest.client.terminologyserver.SnowOwlRestClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ApiError;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Merge;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
@@ -47,7 +49,10 @@ public class ScheduledRebaseService {
 	
 	@Autowired
 	private BranchService branchService;
-	
+
+	@Autowired
+	private SnowOwlRestClientFactory snowOwlRestClientFactory;
+
 	private boolean cronJobRunning = false;
 
 	@Scheduled(cron = "${scheduled.rebase.project.cron}")
@@ -73,7 +78,9 @@ public class ScheduledRebaseService {
 				} else {
 					try {
 						String projectBranchPath = taskService.getProjectBranchPathUsingCache(project.getKey());
-						Set mergeReviewResult = branchService.generateBranchMergeReviews(PathHelper.getParentPath(projectBranchPath), projectBranchPath);
+						String mergeId = branchService.generateBranchMergeReviews(PathHelper.getParentPath(projectBranchPath), projectBranchPath);
+						SnowOwlRestClient client = snowOwlRestClientFactory.getClient();
+						Set mergeReviewResult =  client.getMergeReviewsDetails(mergeId);
 						// Check conflict of merge review
 						if (mergeReviewResult.isEmpty()) {
 							Merge merge = branchService.mergeBranchSync(PathHelper.getParentPath(projectBranchPath), projectBranchPath, null);

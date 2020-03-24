@@ -113,7 +113,7 @@ public class BranchService {
 	}
 
 	@SuppressWarnings("rawtypes")
-	public Set generateBranchMergeReviews(String sourceBranchPath, String targetBranchPath) throws InterruptedException, RestClientException {
+	public String generateBranchMergeReviews(String sourceBranchPath, String targetBranchPath) throws InterruptedException, RestClientException {
 		SnowOwlRestClient client = snowOwlRestClientFactory.getClient();
 		String mergeId = client.createBranchMergeReviews(sourceBranchPath, targetBranchPath);
 		MergeReviewsResults mergeReview;
@@ -129,8 +129,8 @@ public class BranchService {
 				sleepSeconds+=2;
 			}
 		} while (totalWait < maxTotalWait && (mergeReview.getStatus() != CURRENT));
-		
-		return client.getMergeReviewsDetails(mergeId);
+
+		return mergeId;
 	}
 	
 	private List<String> getBranchPathStack(String path) {
