@@ -48,6 +48,7 @@ public class ValidationService {
 	public static final String PREVIOUS_PACKAGE = "previousPackage";
 	public static final String DEPENDENCY_PACKAGE = "dependencyPackage";
 	public static final String DEFAULT_MODULE_ID = "defaultModuleId";
+	public static final String ENABLE_MRCM_VALIDATION = "enableMRCMValidation";
 
 	@Value("${orchestration.name}")
 	private String orchestrationName;
@@ -139,6 +140,7 @@ public class ValidationService {
 			properties.put(PATH, path);
 			properties.put(USERNAME, username);
 			properties.put(X_AUTH_TOKEN, authenticationToken);
+			properties.put(ENABLE_MRCM_VALIDATION, true);
 			if (projectKey != null) {
 				properties.put(PROJECT, projectKey);
 			}
