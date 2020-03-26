@@ -908,15 +908,11 @@ public class TaskService {
 		return null;
 	}
 
-	public static Comparator<ChangeLogEntry> CHANGELOG_ID_COMPARATOR_DESC = new Comparator<ChangeLogEntry>() {
-		public int compare(ChangeLogEntry entry1, ChangeLogEntry entry2) {
-			Integer id1 = new Integer(entry1.getId());
-			Integer id2 = new Integer(entry2.getId());
-			return id2.compareTo(id1);
-		}
+	public static Comparator<ChangeLogEntry> CHANGELOG_ID_COMPARATOR_DESC = (entry1, entry2) -> {
+		Integer id1 = Integer.parseInt(entry1.getId());
+		Integer id2 = Integer.parseInt(entry2.getId());
+		return id2.compareTo(id1);
 	};
-
-	private org.ihtsdo.snowowl.authoring.single.api.pojo.Status status;
 
 	public boolean conditionalStateTransition(String projectKey, String taskKey, TaskStatus requiredState,
 			TaskStatus newState) throws JiraException, BusinessServiceException {
