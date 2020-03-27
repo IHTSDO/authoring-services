@@ -118,14 +118,14 @@ public class ValidationService {
 	}
 
 	public Status startValidation(String projectKey, String taskKey, String username, String authenticationToken) throws BusinessServiceException {
-		return doStartValidation(taskService.getTaskBranchPathUsingCache(projectKey, taskKey), username, authenticationToken, projectKey, taskKey, null);
+		return doStartValidation(taskService.getTaskBranchPathUsingCache(projectKey, taskKey), username, authenticationToken, projectKey, taskKey, null, false);
 	}
 
 	public Status startValidation(String projectKey, String username, String authenticationToken) throws BusinessServiceException {
-		return doStartValidation(taskService.getProjectBranchPathUsingCache(projectKey), username, authenticationToken, projectKey, null, null);
+		return doStartValidation(taskService.getProjectBranchPathUsingCache(projectKey), username, authenticationToken, projectKey, null, null, true);
 	}
 
-	private Status doStartValidation(String path, String username, String authenticationToken, String projectKey, String taskKey, String effectiveTime) throws BusinessServiceException {
+	private Status doStartValidation(String path, String username, String authenticationToken, String projectKey, String taskKey, String effectiveTime, boolean enableMRCMValidation) throws BusinessServiceException {
 		try {
 			final Map<String, Object> mergedBranchMetadata = branchService.getBranchMetadataIncludeInherited(path);
 			Map<String, Object> properties = new HashMap<>();
@@ -140,7 +140,7 @@ public class ValidationService {
 			properties.put(PATH, path);
 			properties.put(USERNAME, username);
 			properties.put(X_AUTH_TOKEN, authenticationToken);
-			properties.put(ENABLE_MRCM_VALIDATION, true);
+			properties.put(ENABLE_MRCM_VALIDATION, enableMRCMValidation);
 			if (projectKey != null) {
 				properties.put(PROJECT, projectKey);
 			}
@@ -238,7 +238,7 @@ public class ValidationService {
 				logger.error("Unable to set effective date for MAIN validation, unrecognised: " + potentialEffectiveDate, e);
 			}
 		}
-		return doStartValidation(PathHelper.getMainPath(), username, authenticationToken, null, null, effectiveDate);
+		return doStartValidation(PathHelper.getMainPath(), username, authenticationToken, null, null, effectiveDate, false);
 	}
 
 	public void clearStatusCache() {
