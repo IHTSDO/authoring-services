@@ -1,6 +1,7 @@
 package org.ihtsdo.snowowl.authoring.single.api.service;
 
 import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.services.s3.model.AccessControlList;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
@@ -139,7 +140,9 @@ public class SpellingListsService {
 					changes = fileModifier.modifyFile(reader, writer);
 				}
 				if (changes) {
+					AccessControlList acl = s3Client.getObjectAcl(bucket, path);
 					s3Client.putObject(bucket, path, modifiedList);
+					s3Client.setObjectAcl(bucket, path, acl);
 					doLoadList(new FileInputStream(modifiedList));
 				}
 				return changes;
