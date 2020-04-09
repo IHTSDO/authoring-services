@@ -1,6 +1,7 @@
 package org.ihtsdo.snowowl.authoring.single.api.service;
 
 import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.services.s3.model.AccessControlList;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
@@ -150,7 +151,9 @@ public class DialectConversionService {
 		ObjectMetadata objectMetadata = new ObjectMetadata();
 		objectMetadata.setContentLength(file.getSize());
 		try (InputStream inputStream = file.getInputStream()) {
+			AccessControlList acl = s3Client.getObjectAcl(bucket, usToGbTermsMapPath);
 			s3Client.putObject(bucket, usToGbTermsMapPath, inputStream, objectMetadata);
+			s3Client.setObjectAcl(bucket, usToGbTermsMapPath, acl);
 			loadList();
 		}
 	}
@@ -159,13 +162,15 @@ public class DialectConversionService {
 		ObjectMetadata objectMetadata = new ObjectMetadata();
 		objectMetadata.setContentLength(file.getSize());
 		try (InputStream inputStream = file.getInputStream()) {
+			AccessControlList acl = s3Client.getObjectAcl(bucket, usToGbSynonymsMapPath);
 			s3Client.putObject(bucket, usToGbSynonymsMapPath, inputStream, objectMetadata);
+			s3Client.setObjectAcl(bucket, usToGbSynonymsMapPath, acl);
 			loadList();
 		}
 	}
 
 	public void addWordPair(String newUsWord, String newGbWord) throws IOException, ServiceException {
-		logger.info("Adding word pair to US/GB map '{}'", newUsWord, newGbWord);
+		logger.info("Adding word pair to US/GB map '{}' '{}'", newUsWord, newGbWord);
 		updateList((reader, writer) -> {
 
 			// Write header
@@ -196,7 +201,7 @@ public class DialectConversionService {
 	}
 	
 	public void addSynonymsWordPair(String newUsWord, String newGbWord) throws IOException, ServiceException {
-		logger.info("Adding word pair to US/GB synonyms mapping '{}'", newUsWord, newGbWord);
+		logger.info("Adding word pair to US/GB synonyms mapping '{}' '{}'", newUsWord, newGbWord);
 		updateSynonymsList((reader, writer) -> {
 
 			// Write header
@@ -289,7 +294,9 @@ public class DialectConversionService {
 					changes = fileModifier.modifyFile(reader, writer);
 				}
 				if (changes) {
+					AccessControlList acl = s3Client.getObjectAcl(bucket, usToGbTermsMapPath);
 					s3Client.putObject(bucket, usToGbTermsMapPath, modifiedList);
+					s3Client.setObjectAcl(bucket, usToGbTermsMapPath, acl);
 					logger.info("Load US/GB map");
 					doLoadList(new FileInputStream(modifiedList));
 				}
@@ -309,7 +316,9 @@ public class DialectConversionService {
 					changes = fileModifier.modifyFile(reader, writer);
 				}
 				if (changes) {
+					AccessControlList acl = s3Client.getObjectAcl(bucket, usToGbSynonymsMapPath);
 					s3Client.putObject(bucket, usToGbSynonymsMapPath, modifiedList);
+					s3Client.setObjectAcl(bucket, usToGbSynonymsMapPath, acl);
 					logger.info("Load US/GB synonyms");
 					doLoadSynonymsList(new FileInputStream(modifiedList));
 				}
