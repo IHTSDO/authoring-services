@@ -118,7 +118,7 @@ public class ValidationService {
 	}
 
 	public Status startValidation(String projectKey, String taskKey, String username, String authenticationToken) throws BusinessServiceException {
-		return doStartValidation(taskService.getTaskBranchPathUsingCache(projectKey, taskKey), username, authenticationToken, projectKey, taskKey, null, false);
+		return doStartValidation(taskService.getTaskBranchPathUsingCache(projectKey, taskKey), username, authenticationToken, projectKey, taskKey, null, true);
 	}
 
 	public Status startValidation(String projectKey, String username, String authenticationToken) throws BusinessServiceException {
