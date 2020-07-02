@@ -13,8 +13,8 @@ import javax.annotation.PreDestroy;
 
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
-import org.ihtsdo.otf.rest.client.terminologyserver.SnowOwlRestClient;
-import org.ihtsdo.otf.rest.client.terminologyserver.SnowOwlRestClientFactory;
+import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
+import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ApiError;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ClassificationStatus;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Merge;
@@ -52,7 +52,7 @@ public class PromotionService {
 	private NotificationService notificationService;
 
 	@Autowired
-	private SnowOwlRestClientFactory snowOwlRestClientFactory;
+	private SnowstormRestClientFactory snowstormRestClientFactory;
 
 	@Autowired
 	private BranchService branchService;
@@ -206,8 +206,8 @@ public class PromotionService {
 			}
 
 			// Call classification process
-			Classification classification =  this.autoClassificationTask(projectKey, taskKey);
-			if (null != classification && !classification.getResults().isInferredRelationshipChangesFound()) {
+			Classification classification = this.autoClassificationTask(projectKey, taskKey);
+			if (classification != null && !classification.getResults().isRelationshipChangesFound()) {
 
 				// Call promote process
 				Merge merge = this.autoPromoteTask(projectKey, taskKey);
@@ -244,9 +244,9 @@ public class PromotionService {
 		String branchPath = taskService.getTaskBranchPathUsingCache(projectKey, taskKey);
 		try {
 			Classification classification =  classificationService.startClassification(projectKey, taskKey, branchPath, ControllerHelper.getUsername());
-			classification.setResults(snowOwlRestClientFactory.getClient().waitForClassificationToComplete(classification.getResults()));
+			classification.setResults(snowstormRestClientFactory.getClient().waitForClassificationToComplete(classification.getResults()));
 			if (ClassificationStatus.COMPLETED == classification.getResults().getStatus()) {
-				if (classification.getResults().isInferredRelationshipChangesFound()) {
+				if (classification.getResults().isRelationshipChangesFound()) {
 					status = new ProcessStatus("Classified with results",""); 
 					status.setCompleteDate(new Date());
 					automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
@@ -277,7 +277,7 @@ public class PromotionService {
 		} else {
 			try {
 				String mergeId = branchService.generateBranchMergeReviews(PathHelper.getParentPath(taskBranchPath), taskBranchPath);
-				SnowOwlRestClient client = snowOwlRestClientFactory.getClient();
+				SnowstormRestClient client = snowstormRestClientFactory.getClient();
 				Set mergeReviewResult =  client.getMergeReviewsDetails(mergeId);
 
 				// Check conflict of merge review

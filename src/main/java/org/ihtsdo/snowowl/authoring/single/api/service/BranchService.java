@@ -2,8 +2,8 @@ package org.ihtsdo.snowowl.authoring.single.api.service;
 
 import com.google.common.collect.Lists;
 import org.ihtsdo.otf.rest.client.RestClientException;
-import org.ihtsdo.otf.rest.client.terminologyserver.SnowOwlRestClient;
-import org.ihtsdo.otf.rest.client.terminologyserver.SnowOwlRestClientFactory;
+import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
+import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Merge;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.MergeReviewsResults;
@@ -15,7 +15,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import static org.ihtsdo.otf.rest.client.terminologyserver.pojo.Merge.Status.IN_PROGRESS;
 import static org.ihtsdo.otf.rest.client.terminologyserver.pojo.Merge.Status.SCHEDULED;
@@ -24,11 +23,11 @@ import static org.ihtsdo.otf.rest.client.terminologyserver.pojo.MergeReviewsResu
 public class BranchService {
 	
 	@Autowired
-	private SnowOwlRestClientFactory snowOwlRestClientFactory;
+	private SnowstormRestClientFactory snowstormRestClientFactory;
 
 	public String getBranchState(String branchPath) throws ServiceException {
 		try {
-			return snowOwlRestClientFactory.getClient().getBranch(branchPath).getState();
+			return snowstormRestClientFactory.getClient().getBranch(branchPath).getState();
 		} catch (RestClientException e) {
 			throw new ServiceException("Failed to fetch branch state for branch " + branchPath, e);
 		}
@@ -36,7 +35,7 @@ public class BranchService {
 
 	public Branch getBranchOrNull(String branchPath) throws ServiceException {
 		try {
-			return snowOwlRestClientFactory.getClient().getBranch(branchPath);
+			return snowstormRestClientFactory.getClient().getBranch(branchPath);
 		} catch (RestClientException e) {
 			throw new ServiceException("Failed to fetch branch " + branchPath, e);
 		}
@@ -49,7 +48,7 @@ public class BranchService {
 
 	private void createBranch(String branchPath) throws ServiceException {
 		try {
-			snowOwlRestClientFactory.getClient().createBranch(branchPath);
+			snowstormRestClientFactory.getClient().createBranch(branchPath);
 		} catch (RestClientException e) {
 			throw new ServiceException("Failed to create branch " + branchPath, e);
 		}
@@ -85,7 +84,7 @@ public class BranchService {
 		Logger logger = LoggerFactory.getLogger(getClass());
 		logger.info("Attempting branch merge from '{}' to '{}'", sourcePath, targetPath);
 		try {
-			SnowOwlRestClient client = snowOwlRestClientFactory.getClient();
+			SnowstormRestClient client = snowstormRestClientFactory.getClient();
 			String mergeId = client.startMerge(sourcePath, targetPath, reviewId);
 			Merge merge;
 			int sleepSeconds = 4;
@@ -114,7 +113,7 @@ public class BranchService {
 
 	@SuppressWarnings("rawtypes")
 	public String generateBranchMergeReviews(String sourceBranchPath, String targetBranchPath) throws InterruptedException, RestClientException {
-		SnowOwlRestClient client = snowOwlRestClientFactory.getClient();
+		SnowstormRestClient client = snowstormRestClientFactory.getClient();
 		String mergeId = client.createBranchMergeReviews(sourceBranchPath, targetBranchPath);
 		MergeReviewsResults mergeReview;
 		int sleepSeconds = 4;

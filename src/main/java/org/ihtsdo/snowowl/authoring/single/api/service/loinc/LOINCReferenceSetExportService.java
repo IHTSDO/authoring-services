@@ -2,7 +2,8 @@ package org.ihtsdo.snowowl.authoring.single.api.service.loinc;
 
 import com.google.common.collect.ComparisonChain;
 import org.ihtsdo.otf.rest.client.RestClientException;
-import org.ihtsdo.otf.rest.client.terminologyserver.SnowOwlRestClient;
+import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
+import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.AxiomPojo;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ConceptPojo;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.DescriptionPojo;
@@ -13,7 +14,6 @@ import org.ihtsdo.otf.snomedboot.ReleaseImporter;
 import org.ihtsdo.otf.snomedboot.domain.ConceptConstants;
 import org.ihtsdo.otf.snomedboot.factory.ImpotentComponentFactory;
 import org.ihtsdo.otf.snomedboot.factory.LoadingProfile;
-import org.ihtsdo.otf.rest.client.terminologyserver.SnowOwlRestClientFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,7 +39,7 @@ public class LOINCReferenceSetExportService {
 	private String originallyInLoincConceptId;
 
 	@Autowired
-	private SnowOwlRestClientFactory snowOwlRestClientFactory;
+	private SnowstormRestClientFactory snowstormRestClientFactory;
 
 	private static final String TAB = "\t";
 
@@ -57,7 +57,7 @@ public class LOINCReferenceSetExportService {
 			.result();
 
 	public void exportDelta(String branchPath, InputStream previousLoincRF2SnapshotFile, OutputStream outputStream) throws BusinessServiceException {
-		SnowOwlRestClient terminologyServerClient = snowOwlRestClientFactory.getClient();
+		SnowstormRestClient terminologyServerClient = snowstormRestClientFactory.getClient();
 
 		Map<String, String> loincToRefsetMemberIdMap = Collections.emptyMap();
 		if (previousLoincRF2SnapshotFile != null) {
@@ -212,11 +212,11 @@ public class LOINCReferenceSetExportService {
 				"because there is no term with prefix " + prefix);
 	}
 
-	private Set<String> getIdsOfConceptsWithLogicalChanges(String branchPath, SnowOwlRestClient terminologyServerClient) throws BusinessServiceException {
+	private Set<String> getIdsOfConceptsWithLogicalChanges(String branchPath, SnowstormRestClient terminologyServerClient) throws BusinessServiceException {
 		Set<String> conceptsWithLogicalChanges = new HashSet<>();
 		// Export RF2 Delta
-		File deltaExportZip = terminologyServerClient.export(new SnowOwlRestClient.ExportConfigurationBuilder()
-				.setType(SnowOwlRestClient.ExportType.DELTA)
+		File deltaExportZip = terminologyServerClient.export(new SnowstormRestClient.ExportConfigurationBuilder()
+				.setType(SnowstormRestClient.ExportType.DELTA)
 				.setBranchPath(branchPath)
 				.setIncludeUnpublished(true)
 				.addModuleId(loincModuleConceptId));

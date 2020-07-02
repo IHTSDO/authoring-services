@@ -1,7 +1,8 @@
 package org.ihtsdo.snowowl.authoring.single.api.service;
 
 import org.ihtsdo.otf.rest.client.RestClientException;
-import org.ihtsdo.otf.rest.client.terminologyserver.SnowOwlRestClient;
+import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
+import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ClassificationResults;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ClassificationStatus;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
@@ -9,7 +10,6 @@ import org.ihtsdo.snowowl.authoring.single.api.pojo.Classification;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.EntityType;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.Notification;
 import org.ihtsdo.snowowl.authoring.single.api.rest.ControllerHelper;
-import org.ihtsdo.otf.rest.client.terminologyserver.SnowOwlRestClientFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,15 +23,15 @@ public class ClassificationService {
 	private TaskService taskService;
 
 	@Autowired
-	private SnowOwlRestClientFactory snowOwlRestClientFactory;
+	private SnowstormRestClientFactory snowstormRestClientFactory;
 
 	@Autowired
 	private NotificationService notificationService;
 
-	private Logger logger = LoggerFactory.getLogger(getClass());
+	private final Logger logger = LoggerFactory.getLogger(getClass());
 
 	public synchronized Classification startClassification(String projectKey, String taskKey, String branchPath, String username) throws RestClientException, JSONException, BusinessServiceException {
-		if (!snowOwlRestClientFactory.getClient().isClassificationInProgressOnBranch(branchPath)) {
+		if (!snowstormRestClientFactory.getClient().isClassificationInProgressOnBranch(branchPath)) {
 			return callClassification(projectKey, taskKey, branchPath, username);
 		} else {
 			throw new IllegalStateException("Classification already in progress on this branch.");
@@ -39,12 +39,12 @@ public class ClassificationService {
 	}
 
 	public String getLatestClassification(String branchPath) throws RestClientException {
-		return snowOwlRestClientFactory.getClient().getLatestClassificationOnBranch(branchPath);
+		return snowstormRestClientFactory.getClient().getLatestClassificationOnBranch(branchPath);
 	}
 
 	private Classification callClassification(String projectKey, String taskKey, String branchPath, String callerUsername) throws RestClientException {
 		logger.info("Requesting classification of path {} for user {}", branchPath, callerUsername);
-		ClassificationResults results = snowOwlRestClientFactory.getClient().startClassification(branchPath);
+		ClassificationResults results = snowstormRestClientFactory.getClient().startClassification(branchPath);
 		//If we started the classification without an exception then it's state will be RUNNING (or queued)
 		results.setStatus(ClassificationStatus.RUNNING);
 
@@ -73,7 +73,7 @@ public class ClassificationService {
 		public void run() {
 			SecurityContextHolder.getContext().setAuthentication(authentication);
 			String resultMessage = null;
-			SnowOwlRestClient terminologyServerClient = snowOwlRestClientFactory.getClient();
+			SnowstormRestClient terminologyServerClient = snowstormRestClientFactory.getClient();
 			try {
 				// Function sleeps here
 				// - Throws RestClientException if classification failed

@@ -1,11 +1,12 @@
 package org.ihtsdo.snowowl.authoring.single.api;
 
-import static com.google.common.base.Predicates.not;
-import static springfox.documentation.builders.PathSelectors.regex;
-
-import java.util.TimeZone;
-
-import org.ihtsdo.otf.rest.client.terminologyserver.SnowOwlRestClientFactory;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.util.ISO8601DateFormat;
+import com.google.common.base.Charsets;
+import io.kaicode.rest.util.branchpathrewrite.BranchPathUriRewriteFilter;
+import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -19,18 +20,15 @@ import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.jms.annotation.EnableJms;
 import org.springframework.scheduling.annotation.EnableScheduling;
-
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.util.ISO8601DateFormat;
-import com.google.common.base.Charsets;
-
-import io.kaicode.rest.util.branchpathrewrite.BranchPathUriRewriteFilter;
 import springfox.documentation.builders.RequestHandlerSelectors;
 import springfox.documentation.spi.DocumentationType;
 import springfox.documentation.spring.web.plugins.Docket;
 import springfox.documentation.swagger2.annotations.EnableSwagger2;
+
+import java.util.TimeZone;
+
+import static com.google.common.base.Predicates.not;
+import static springfox.documentation.builders.PathSelectors.regex;
 
 @SpringBootApplication
 @ImportResource("classpath:services-context.xml")
@@ -40,10 +38,8 @@ import springfox.documentation.swagger2.annotations.EnableSwagger2;
 public class Application {
 
 	@Bean
-	public SnowOwlRestClientFactory snowOwlRestClientFactory(@Value("${snowowl.url}") String snowOwlUrl,
-															 @Value("${snowowl.reasonerId}") String snowOwlReasonerId,
-															 @Value("${snowowl.useExternalClassificationService}") boolean snowOwlUseExternalClassificationService) {
-		return new SnowOwlRestClientFactory(snowOwlUrl, snowOwlReasonerId, snowOwlUseExternalClassificationService);
+	public SnowstormRestClientFactory snowOwlRestClientFactory(@Value("${snowowl.url}") String snowstormUrl, @Value("${snowowl.reasonerId}") String reasonerId) {
+		return new SnowstormRestClientFactory(snowstormUrl, reasonerId);
 	}
 
 	@Bean
