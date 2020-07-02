@@ -3,16 +3,7 @@ package org.ihtsdo.snowowl.authoring.single.api.service;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -32,7 +23,10 @@ import org.apache.log4j.Level;
 import org.ihtsdo.otf.jms.MessagingHelper;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
+import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
+import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
 import org.ihtsdo.otf.rest.exception.BadRequestException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
@@ -103,6 +97,9 @@ public class TaskService {
 
 	@Autowired
 	private ClassificationService classificationService;
+
+	@Autowired
+	private SnowstormRestClientFactory snowstormRestClientFactory;
 
 	@Autowired
 	private ReviewService reviewService;
@@ -274,7 +271,10 @@ public class TaskService {
 		}
 		final List<AuthoringProject> authoringProjects = new ArrayList<>();
 		final Set<String> branchPaths = new HashSet<>();
-		final Map<String, Branch> branchMap = new ConcurrentHashMap<>();
+		final Map<String, Branch> parentBranchCache = new ConcurrentHashMap<>();
+		final SnowstormRestClient snowstormRestClient = snowstormRestClientFactory.getClient();
+		List<CodeSystem> codeSystems = snowstormRestClient.getCodeSystems();
+
 		SecurityContext securityContext = SecurityContextHolder.getContext();
 
 		JiraClient jiraClient = getJiraClient();
@@ -302,15 +302,16 @@ public class TaskService {
 
 				final Branch branchOrNull = branchService.getBranchOrNull(branchPath);
 				String parentPath = PathHelper.getParentPath(branchPath);
-				Branch parentBranchOrNull = branchMap.get(parentPath);
+				Branch parentBranchOrNull = parentBranchCache.get(parentPath);
 				if (parentBranchOrNull == null) {
 					parentBranchOrNull = branchService.getBranchOrNull(parentPath);
 					if (parentBranchOrNull == null) {
 						logger.error("Project {} expected parent branch does not exist: {}", projectKey, parentPath);
 						return;
 					}
-					branchMap.put(parentPath, parentBranchOrNull);
+					parentBranchCache.put(parentPath, parentBranchOrNull);
 				}
+				CodeSystem codeSystem = codeSystems.stream().filter(c -> parentPath.equals(c.getBranchPath())).findFirst().orElse(null);
 
 				String branchState = null;
 				Map<String, Object> metadata = new HashMap<>();
@@ -333,6 +334,7 @@ public class TaskService {
 				final AuthoringProject authoringProject = new AuthoringProject(projectKey, project.getName(),
 						project.getLead(), branchPath, branchState, baseTimeStamp, headTimeStamp, latestClassificationJson, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled, rebaseDisabled, scheduledRebaseDisabled, taskPromotionDisabled);
 				authoringProject.setMetadata(metadata);
+				authoringProject.setCodeSystem(codeSystem);
 				synchronized (authoringProjects) {
 					authoringProjects.add(authoringProject);
 				}

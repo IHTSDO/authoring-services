@@ -4,6 +4,7 @@ import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonRawValue;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
 
 @JsonDeserialize
 public class AuthoringProject {
@@ -25,6 +26,7 @@ public class AuthoringProject {
 	private boolean projectScheduledRebaseDisabled;
 	private boolean taskPromotionDisabled;
 	private Map<String, Object> metadata;
+	private CodeSystem codeSystem;
 
 	public AuthoringProject() {
 	}
@@ -163,5 +165,13 @@ public class AuthoringProject {
 
 	public void setTaskPromotionDisabled(boolean taskPromotionDisabled) {
 		this.taskPromotionDisabled = taskPromotionDisabled;
+	}
+
+	public void setCodeSystem(CodeSystem codeSystem) {
+		this.codeSystem = codeSystem;
+	}
+
+	public CodeSystem getCodeSystem() {
+		return codeSystem;
 	}
 }
