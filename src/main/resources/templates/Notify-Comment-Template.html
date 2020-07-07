@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Authoring Platform - New comment on task</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <style>
+        .dummy {
+            xtext-decoration: line-through;
+        }
+
+        .dummy:before {
+            content: "${";
+        }
+
+        .dummy:after {
+            content: "}";
+        }
+    </style>
+</head>
+<body>
+<p>Dear<span th:text="${receiverNames}"></span></p>
+This is an automated notification for a new comment on the following task:<br/>
+<strong>Task ID:</strong> <span th:text="${taskId}"></span><br/>
+<strong>Task Title:</strong> <span th:text="${taskTitle}"></span><br/>
+
+<p>The new comment is:<br/>
+<span th:utext="${comment}"></span><br/></p>
+<strong>Date:</strong> <span th:text="${date}"></span><br/>
+
+
+<p>
+Please do not respond to this message. Instead, please visit the task to see further information - <a href="${requestUrl}" th:href="${requestUrl}"> Please click here </a>.<br/>
+</p>
+<p>Best Regards<br/>
+    SNOMED International Team</p>
+</body>
+</html>

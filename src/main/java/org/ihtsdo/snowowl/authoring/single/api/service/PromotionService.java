@@ -268,7 +268,7 @@ public class PromotionService {
 		String taskBranchPath = taskService.getTaskBranchPathUsingCache(projectKey, taskKey);
 
 		// Get current task and check branch state
-		AuthoringTask authoringTask = taskService.retrieveTask(projectKey, taskKey);
+		AuthoringTask authoringTask = taskService.retrieveTask(projectKey, taskKey, true);
 		String branchState = authoringTask.getBranchState();
 
 		// Will skip rebase process if the branch state is FORWARD or UP_TO_DATE

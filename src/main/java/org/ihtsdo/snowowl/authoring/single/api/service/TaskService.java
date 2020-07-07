@@ -38,6 +38,7 @@ import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringTaskCreateRequest;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringTaskUpdateRequest;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.JiraProject;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.TaskTransferRequest;
+import org.ihtsdo.snowowl.authoring.single.api.rest.ControllerHelper;
 import org.ihtsdo.snowowl.authoring.single.api.review.service.ReviewService;
 import org.ihtsdo.snowowl.authoring.single.api.review.service.TaskMessagesDetail;
 import org.ihtsdo.snowowl.authoring.single.api.service.jira.ImpersonatingJiraClientFactory;
@@ -115,6 +116,9 @@ public class TaskService {
 
 	@Autowired
 	private MessagingHelper messagingHelper;
+
+	@Autowired
+	private EmailService emailService;
 
 	@Value("${task-state-change.notification-queues}")
 	private String taskStateChangeNotificationQueuesString;
@@ -453,10 +457,10 @@ public class TaskService {
 		return buildAuthoringTasks(issues, lightweight);
 	}
 
-	public AuthoringTask retrieveTask(String projectKey, String taskKey) throws BusinessServiceException {
+	public AuthoringTask retrieveTask(String projectKey, String taskKey, Boolean lightweight) throws BusinessServiceException {
 		try {
 			Issue issue = getIssue(projectKey, taskKey);
-			final List<AuthoringTask> authoringTasks = buildAuthoringTasks(Collections.singletonList(issue), false);
+			final List<AuthoringTask> authoringTasks = buildAuthoringTasks(Collections.singletonList(issue), lightweight);
 			return !authoringTasks.isEmpty() ? authoringTasks.get(0) : null;
 		} catch (JiraException e) {
 			if (e.getCause() instanceof RestException && ((RestException) e.getCause()).getHttpStatusCode() == 404) {
@@ -725,6 +729,8 @@ public class TaskService {
 			throws BusinessServiceException {
 		try {
 			Issue issue = getIssue(projectKey, taskKey);
+			final List<AuthoringTask> authoringTasks = buildAuthoringTasks(Collections.singletonList(issue), true);
+			AuthoringTask authoringTask = !authoringTasks.isEmpty() ? authoringTasks.get(0) : null;
 			// Act on each field received
 			final TaskStatus status = taskUpdateRequest.getStatus();
 
@@ -764,9 +770,11 @@ public class TaskService {
 					List<User> users = new ArrayList<User>();
 					
 					for (int i = 0 ; i < reviewers.size(); i++) {
-						org.ihtsdo.snowowl.authoring.single.api.pojo.User reviewer = reviewers.get(i);
-						users.add(getUser(reviewer.getUsername()));
+						users.add(getUser(reviewers.get(i).getUsername()));
 					}
+					// Send email to new reviewers
+					emailService.sendTaskReviewAssingedNotification(projectKey, taskKey, authoringTask.getSummary(), getNewReviewers(authoringTask.getReviewers(), reviewers));
+
 					updateRequest.field(AuthoringTask.jiraReviewerField, null);
 					updateRequest.field(AuthoringTask.jiraReviewersField, users);
 					fieldUpdates = true;
@@ -807,7 +815,7 @@ public class TaskService {
 		}
 
 		// Pick up those changes in a new Task object
-		return retrieveTask(projectKey, taskKey);
+		return retrieveTask(projectKey, taskKey, false);
 	}
 
 	public AuthoringProject updateProject(String projectKey, AuthoringProject updatedProject) throws BusinessServiceException {
@@ -865,7 +873,13 @@ public class TaskService {
 		
 		return retrieveProject(projectKey);
 	}
-	
+
+	private Collection<org.ihtsdo.snowowl.authoring.single.api.pojo.User> getNewReviewers(List<org.ihtsdo.snowowl.authoring.single.api.pojo.User> currentReviewers,
+																						  List<org.ihtsdo.snowowl.authoring.single.api.pojo.User> reviewers) {
+		reviewers.removeAll(currentReviewers);
+		return reviewers.stream().filter(r -> !ControllerHelper.getUsername().equals(r.getUsername())).collect(Collectors.toList());
+	}
+
 	private org.ihtsdo.snowowl.authoring.single.api.pojo.User getPojoUserOrNull(User lead) {
 		org.ihtsdo.snowowl.authoring.single.api.pojo.User leadUser = null;
 		if (lead != null) {

@@ -2,6 +2,8 @@ package org.ihtsdo.snowowl.authoring.single.api.pojo;
 
 import net.sf.json.JSONObject;
 
+import java.util.Objects;
+
 public class User {
 	
 	private static final String JSON_FIELD_EMAIL = "emailAddress";
@@ -66,5 +68,19 @@ public class User {
 
 	public void setAvatarUrl(String avatarUrl) {
 		this.avatarUrl = avatarUrl;
+	}
+
+	@Override
+	public boolean equals(Object other) {
+		if (other instanceof User) {
+			String otherUsername = ((User)other).getUsername();
+			return this.username.equals(otherUsername);
+		}
+		return false;
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(username);
 	}
 }
