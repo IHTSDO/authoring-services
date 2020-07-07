@@ -1,7 +1,6 @@
 package org.ihtsdo.snowowl.authoring.single.api.service;
 
 import org.ihtsdo.snowowl.authoring.single.api.pojo.User;
-import org.ihtsdo.snowowl.authoring.single.api.rest.ControllerHelper;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -149,7 +148,7 @@ public class EmailService {
 
 	private boolean isAllowedEmailNotification(String username) {
 		try {
-			String userPreference = uiStateService.retrievePanelState(ControllerHelper.getUsername(), "user-preferences");
+			String userPreference = uiStateService.retrievePanelState(username, "user-preferences");
 			if (userPreference != null) {
 				JSONObject jsonObject = new JSONObject(userPreference);
 				return jsonObject.getBoolean("allowedEmailNotification");
