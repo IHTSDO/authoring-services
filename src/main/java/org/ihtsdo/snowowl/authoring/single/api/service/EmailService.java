@@ -2,6 +2,7 @@ package org.ihtsdo.snowowl.authoring.single.api.service;
 
 import org.ihtsdo.snowowl.authoring.single.api.pojo.User;
 import org.ihtsdo.snowowl.authoring.single.api.rest.ControllerHelper;
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,7 +65,7 @@ public class EmailService {
 		if (null == toEmails || 0 == toEmails.size()) {
 			return null;
 		}
-		
+
 		try {
 			Session session = Session.getDefaultInstance(System.getProperties());
 			// Create a default MimeMessage object.
@@ -158,6 +159,9 @@ public class EmailService {
 			}
 		} catch (IOException e) {
 			logger.error("Could not find user-preferences for user: " + username);
+			return  false;
+		} catch (JSONException e) {
+			logger.info("The JSON property allowedEmailNotification does not present in user-preferences");
 			return  false;
 		}
 	}
