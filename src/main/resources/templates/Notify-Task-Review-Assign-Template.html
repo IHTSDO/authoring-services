@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Authoring Platform - Task assigned</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <style>
+        .dummy {
+            xtext-decoration: line-through;
+        }
+
+        .dummy:before {
+            content: "${";
+        }
+
+        .dummy:after {
+            content: "}";
+        }
+    </style>
+</head>
+<body>
+<p>Dear<span th:text="${receiverNames}"></span></p>
+The following task has been assigned to you:<br/>
+<strong>Task ID:</strong> <span th:text="${taskId}"></span><br/>
+<strong>Task Title:</strong> <span th:text="${taskTitle}"></span><br/>
+<strong>Date:</strong> <span th:text="${date}"></span><br/>
+
+<p>
+Please do not respond to this message. Instead, please visit the task to see further information - <a href="${requestUrl}" th:href="${requestUrl}"> Please click here </a>.<br/>
+</p>
+<p>Best Regards<br/>
+    SNOMED International Team</p>
+</body>
+</html>

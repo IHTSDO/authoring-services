@@ -121,7 +121,7 @@ public class ProjectController {
 	@ApiResponse(code = 200, message = "OK")
 	@RequestMapping(value="/projects/{projectKey}/tasks/{taskKey}", method= RequestMethod.GET)
 	public AuthoringTask retrieveTask(@PathVariable final String projectKey, @PathVariable final String taskKey) throws BusinessServiceException {
-		return taskService.retrieveTask(projectKey, taskKey);
+		return taskService.retrieveTask(projectKey, taskKey, false);
 	}
 
 	@ApiOperation(value="Create a Task within a Project")

@@ -61,6 +61,14 @@
 			<artifactId>spring-boot-starter-websocket</artifactId>
 		</dependency>
 		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-mail</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-thymeleaf</artifactId>
+		</dependency>
+		<dependency>
 			<groupId>org.apache.activemq</groupId>
 			<artifactId>activemq-broker</artifactId>
 		</dependency>
@@ -120,6 +128,17 @@
 			<artifactId>aws-java-sdk</artifactId>
 			<version>1.10.0</version>
 		</dependency>
+		<!-- Email -->
+		<dependency>
+			<groupId>javax.mail</groupId>
+			<artifactId>javax.mail-api</artifactId>
+			<version>1.5.0-b01</version>
+		</dependency>
+		<dependency>
+			<groupId>javax.mail</groupId>
+			<artifactId>mail</artifactId>
+			<version>1.5.0-b01</version>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -150,15 +169,13 @@
 	<repositories>
 		<repository>
 			<id>ihtsdo-releases</id>
-			<releases><enabled>true</enabled></releases>
-			<snapshots><enabled>false</enabled></snapshots>
-			<url>https://maven.ihtsdotools.org/content/repositories/releases/</url>
+			<name>IHTSDO Public Nexus Releases</name>
+			<url>https://nexus3.ihtsdotools.org/repository/maven-releases/</url>
 		</repository>
 		<repository>
 			<id>ihtsdo-snapshots</id>
-			<releases><enabled>false</enabled></releases>
-			<snapshots><enabled>true</enabled></snapshots>
-			<url>https://maven.ihtsdotools.org/content/repositories/snapshots/</url>
+			<name>IHTSDO Public Nexus Snapshots</name>
+			<url>https://nexus3.ihtsdotools.org/repository/maven-snapshots/</url>
 		</repository>
 	</repositories>
 
@@ -214,12 +231,12 @@
 		<repository>
 			<id>ihtsdo-public-nexus</id>
 			<name>IHTSDO Public Nexus Releases</name>
-			<url>https://maven.ihtsdotools.org/content/repositories/releases/</url>
+			<url>https://nexus3.ihtsdotools.org/repository/maven-releases/</url>
 		</repository>
 		<snapshotRepository>
 			<id>ihtsdo-public-nexus</id>
 			<name>IHTSDO Public Nexus Snapshots</name>
-			<url>https://maven.ihtsdotools.org/content/repositories/snapshots/</url>
+			<url>https://nexus3.ihtsdotools.org/repository/maven-snapshots/</url>
 		</snapshotRepository>
 	</distributionManagement>
 

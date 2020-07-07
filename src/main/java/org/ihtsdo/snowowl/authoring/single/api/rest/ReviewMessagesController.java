@@ -56,7 +56,7 @@ public class ReviewMessagesController {
 	})
 	@RequestMapping(value="/projects/{projectKey}/tasks/{taskKey}/review/message", method= RequestMethod.POST)
 	public ReviewMessage postTaskReviewMessage(@PathVariable final String projectKey, @PathVariable final String taskKey,
-			@RequestBody ReviewMessageCreateRequest createRequest) throws BadRequestException {
+			@RequestBody ReviewMessageCreateRequest createRequest) throws BusinessServiceException {
 		return reviewService.postReviewMessage(projectKey, taskKey, createRequest, ControllerHelper.getUsername());
 	}
 
@@ -66,7 +66,7 @@ public class ReviewMessagesController {
 	})
 	@RequestMapping(value="/projects/{projectKey}/review/message", method= RequestMethod.POST)
 	public ReviewMessage postProjectReviewMessage(@PathVariable final String projectKey,
-			@RequestBody ReviewMessageCreateRequest createRequest) throws BadRequestException {
+			@RequestBody ReviewMessageCreateRequest createRequest) throws BusinessServiceException {
 		return reviewService.postReviewMessage(projectKey, null, createRequest, ControllerHelper.getUsername());
 	}
 

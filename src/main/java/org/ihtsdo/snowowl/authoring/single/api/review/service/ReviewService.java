@@ -2,6 +2,7 @@ package org.ihtsdo.snowowl.authoring.single.api.review.service;
 
 import org.ihtsdo.otf.rest.exception.BadRequestException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
+import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringTask;
 import org.ihtsdo.snowowl.authoring.single.api.review.domain.Branch;
 import org.ihtsdo.snowowl.authoring.single.api.review.domain.ReviewConceptView;
 import org.ihtsdo.snowowl.authoring.single.api.review.domain.ReviewMessage;
@@ -10,6 +11,8 @@ import org.ihtsdo.snowowl.authoring.single.api.review.pojo.ReviewMessageCreateRe
 import org.ihtsdo.snowowl.authoring.single.api.review.repository.BranchRepository;
 import org.ihtsdo.snowowl.authoring.single.api.review.repository.ReviewConceptViewRepository;
 import org.ihtsdo.snowowl.authoring.single.api.review.repository.ReviewMessageRepository;
+import org.ihtsdo.snowowl.authoring.single.api.service.EmailService;
+import org.ihtsdo.snowowl.authoring.single.api.service.TaskService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
@@ -31,6 +34,12 @@ public class ReviewService {
 
 	@Autowired
 	private ApplicationContext applicationContext;
+
+	@Autowired
+	private EmailService emailService;
+
+	@Autowired
+	private TaskService taskService;
 
 	@Transactional
 	public List<ReviewConcept> retrieveTaskReviewConceptDetails(String projectKey, String taskKey, String username)
@@ -94,7 +103,7 @@ public class ReviewService {
 	}
 
 	public ReviewMessage postReviewMessage(String projectKey, String taskKey, ReviewMessageCreateRequest createRequest,
-			String fromUsername) throws BadRequestException {
+			String fromUsername) throws BusinessServiceException {
 		final List<String> subjectConceptIds = createRequest.getSubjectConceptIds();
 		if (subjectConceptIds == null || subjectConceptIds.isEmpty()) {
 			throw new BadRequestException("There must be at least one id in subjectConceptIds");
@@ -105,6 +114,12 @@ public class ReviewService {
 		for (ReviewMessageSentListener listener : getReviewMessageSentListeners()) {
 			listener.messageSent(message, createRequest.getEvent());
 		}
+		// Send email to Author
+		AuthoringTask authoringTask = taskService.retrieveTask(projectKey, taskKey, true);
+		if (authoringTask.getAssignee() != null && !fromUsername.equals(authoringTask.getAssignee().getUsername())) {
+			emailService.sendCommentAddedNotification(projectKey, taskKey, authoringTask.getSummary(), createRequest.getMessageHtml(), Collections.singleton(authoringTask.getAssignee()));
+		}
+
 		return message;
 	}
 
