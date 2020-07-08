@@ -737,6 +737,11 @@ public class TaskService {
 						throw new BadRequestException("Requested status is unknown.");
 					}
 					stateTransition(issue, status);
+
+					// Send email to Author once the task has been reviewed completely
+					if (TaskStatus.REVIEW_COMPLETED.equals(status)) {
+						emailService.sendTaskReviewCompletedNotification(projectKey, taskKey, authoringTask.getSummary(), Collections.singleton(authoringTask.getAssignee()));
+					}
 				}
 			}
 
