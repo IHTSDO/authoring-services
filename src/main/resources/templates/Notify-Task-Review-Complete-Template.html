@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <title>Authoring Platform - Task assigned</title>
+    <title>Authoring Platform - Task Review Completed</title>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <style>
         .dummy {
@@ -19,7 +19,7 @@
 </head>
 <body>
 <p>Dear <span th:text="${receiverNames}"></span></p>
-The following task has been assigned to you:<br/>
+The following task has been marked as completed:<br/>
 <strong>Task ID:</strong> <span th:text="${taskId}"></span><br/>
 <strong>Task Title:</strong> <span th:text="${taskTitle}"></span><br/>
 <strong>Date:</strong> <span th:text="${date}"></span><br/>
