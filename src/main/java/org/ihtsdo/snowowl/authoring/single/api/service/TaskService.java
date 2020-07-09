@@ -778,7 +778,7 @@ public class TaskService {
 						users.add(getUser(reviewers.get(i).getUsername()));
 					}
 					// Send email to new reviewers
-					emailService.sendTaskReviewAssingedNotification(projectKey, taskKey, authoringTask.getSummary(), getNewReviewers(authoringTask.getReviewers(), reviewers));
+					emailService.sendTaskReviewAssignedNotification(projectKey, taskKey, authoringTask.getSummary(), getNewReviewers(authoringTask.getReviewers(), reviewers));
 
 					updateRequest.field(AuthoringTask.jiraReviewerField, null);
 					updateRequest.field(AuthoringTask.jiraReviewersField, users);
