@@ -312,6 +312,11 @@ public class TaskService {
 					parentBranchCache.put(parentPath, parentBranchOrNull);
 				}
 				CodeSystem codeSystem = codeSystems.stream().filter(c -> parentPath.equals(c.getBranchPath())).findFirst().orElse(null);
+				if (codeSystem == null && parentPath.contains("/")) {
+					// Attempt match using branch grandfather
+					String grandfatherPath = PathHelper.getParentPath(parentPath);
+					codeSystem = codeSystems.stream().filter(c -> grandfatherPath.equals(c.getBranchPath())).findFirst().orElse(null);
+				}
 
 				String branchState = null;
 				Map<String, Object> metadata = new HashMap<>();
