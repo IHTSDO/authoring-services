@@ -22,7 +22,7 @@
 		<dependency>
 			<groupId>org.ihtsdo.otf.common</groupId>
 			<artifactId>otf-common</artifactId>
-			<version>4.1.1-SNAPSHOT</version>
+			<version>4.1.1</version>
 		</dependency>
 		<dependency>
 			<groupId>org.ihtsdo.otf</groupId>
