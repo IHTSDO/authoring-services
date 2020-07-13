@@ -207,7 +207,7 @@ public class PromotionService {
 
 			// Call classification process
 			Classification classification = this.autoClassificationTask(projectKey, taskKey);
-			if (classification != null && !classification.getResults().isRelationshipChangesFound()) {
+			if (classification != null && !classification.getResults().isInferredRelationshipChangesFound()) {
 
 				// Call promote process
 				Merge merge = this.autoPromoteTask(projectKey, taskKey);
@@ -246,7 +246,7 @@ public class PromotionService {
 			Classification classification =  classificationService.startClassification(projectKey, taskKey, branchPath, ControllerHelper.getUsername());
 			classification.setResults(snowstormRestClientFactory.getClient().waitForClassificationToComplete(classification.getResults()));
 			if (ClassificationStatus.COMPLETED == classification.getResults().getStatus()) {
-				if (classification.getResults().isRelationshipChangesFound()) {
+				if (classification.getResults().isInferredRelationshipChangesFound()) {
 					status = new ProcessStatus("Classified with results",""); 
 					status.setCompleteDate(new Date());
 					automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
