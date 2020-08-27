@@ -256,8 +256,11 @@ public class PromotionService {
 			}
 			return classification;
 		} catch (RestClientException | JSONException | InterruptedException e) {
-			notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Classification, "Failed to start classification."));
+			notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Classification, "Failed to start classification"));
 			throw new BusinessServiceException("Failed to classify", e);
+		} catch (IllegalStateException e) {
+			notificationService.queueNotification(ControllerHelper.getUsername(), new Notification(projectKey, taskKey, EntityType.Classification, "Failed to start classification due to classification already in progress"));
+			throw new BusinessServiceException(e.getMessage(), e);
 		}
 	}
 
