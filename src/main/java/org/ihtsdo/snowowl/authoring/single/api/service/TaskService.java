@@ -459,7 +459,7 @@ public class TaskService {
 
 	public AuthoringTask retrieveTask(String projectKey, String taskKey, Boolean lightweight) throws BusinessServiceException {
 		try {
-			Issue issue = getIssue(projectKey, taskKey);
+			Issue issue = getIssue(taskKey);
 			final List<AuthoringTask> authoringTasks = buildAuthoringTasks(Collections.singletonList(issue), lightweight);
 			return !authoringTasks.isEmpty() ? authoringTasks.get(0) : null;
 		} catch (JiraException e) {
@@ -485,11 +485,11 @@ public class TaskService {
 		return null;
 	}
 
-	private Issue getIssue(String projectKey, String taskKey) throws JiraException {
-		return getIssue(projectKey, taskKey, false);
+	private Issue getIssue(String taskKey) throws JiraException {
+		return getIssue(taskKey, false);
 	}
 
-	private Issue getIssue(String projectKey, String taskKey, boolean includeAll) throws JiraException {
+	private Issue getIssue(String taskKey, boolean includeAll) throws JiraException {
 		// If we don't need all fields, then the existing implementation is
 		// sufficient
 		if (includeAll) {
@@ -688,8 +688,8 @@ public class TaskService {
 		}
 	}
 
-	public boolean taskIsState(String projectKey, String taskKey, TaskStatus state) throws JiraException {
-		Issue issue = getIssue(projectKey, taskKey);
+	public boolean taskIsState(String taskKey, TaskStatus state) throws JiraException {
+		Issue issue = getIssue(taskKey);
 		String currentState = issue.getStatus().getName();
 		return currentState.equals(state.getLabel());
 	}
@@ -701,14 +701,14 @@ public class TaskService {
 
 	public void addCommentLogErrors(String projectKey, String taskKey, String commentString) {
 		try {
-			addComment(projectKey, taskKey, commentString);
+			addComment(taskKey, commentString);
 		} catch (JiraException e) {
 			logger.error("Failed to set message on jira ticket {}/{}: {}", projectKey, taskKey, commentString, e);
 		}
 	}
 
-	public void addComment(String projectKey, String taskKey, String commentString) throws JiraException {
-		Issue issue = getIssue(projectKey, taskKey);
+	public void addComment(String taskKey, String commentString) throws JiraException {
+		Issue issue = getIssue(taskKey);
 		issue.addComment(commentString);
 		issue.update(); // Pick up new comment locally too
 	}
@@ -728,7 +728,7 @@ public class TaskService {
 	public AuthoringTask updateTask(String projectKey, String taskKey, AuthoringTaskUpdateRequest taskUpdateRequest)
 			throws BusinessServiceException {
 		try {
-			Issue issue = getIssue(projectKey, taskKey);
+			Issue issue = getIssue(taskKey);
 			final List<AuthoringTask> authoringTasks = buildAuthoringTasks(Collections.singletonList(issue), true);
 			AuthoringTask authoringTask = !authoringTasks.isEmpty() ? authoringTasks.get(0) : null;
 			// Act on each field received
@@ -741,7 +741,7 @@ public class TaskService {
 					if (status == TaskStatus.UNKNOWN) {
 						throw new BadRequestException("Requested status is unknown.");
 					}
-					stateTransition(issue, status);
+					stateTransition(issue, status, projectKey);
 
 					// Send email to Author once the task has been reviewed completely
 					if (TaskStatus.REVIEW_COMPLETED.equals(status)) {
@@ -913,7 +913,7 @@ public class TaskService {
 		try {
 			// Recover the change log for the issue and work through it to find
 			// the change specified
-			ChangeLog changeLog = getIssue(projectKey, taskKey, true).getChangeLog();
+			ChangeLog changeLog = getIssue(taskKey, true).getChangeLog();
 			if (changeLog != null) {
 				// Sort changeLog entries descending to get most recent change
 				// first
@@ -942,9 +942,9 @@ public class TaskService {
 
 	public boolean conditionalStateTransition(String projectKey, String taskKey, TaskStatus requiredState,
 			TaskStatus newState) throws JiraException, BusinessServiceException {
-		final Issue issue = getIssue(projectKey, taskKey);
+		final Issue issue = getIssue(taskKey);
 		if (TaskStatus.fromLabel(issue.getStatus().getName()) == requiredState) {
-			stateTransition(issue, newState);
+			stateTransition(issue, newState, projectKey);
 			return true;
 		}
 		return false;
@@ -953,23 +953,23 @@ public class TaskService {
 	public void stateTransition(String projectKey, String taskKey, TaskStatus newState)
 			throws BusinessServiceException {
 		try {
-			stateTransition(getIssue(projectKey, taskKey), newState);
+			stateTransition(getIssue(taskKey), newState, projectKey);
 		} catch (JiraException e) {
 			throw new BusinessServiceException("Failed to transition state of task " + taskKey, e);
 		}
 	}
 
-	public void stateTransition(List<Issue> issues, TaskStatus newState) {
+	public void stateTransition(List<Issue> issues, TaskStatus newState, String projectKey) {
 		for (Issue issue : issues) {
 			try {
-				stateTransition(issue, newState);
+				stateTransition(issue, newState, projectKey);
 			} catch (JiraException | BusinessServiceException e) {
 				logger.error("Failed to transition issue {} to {}", issue.getKey(), newState.getLabel());
 			}
 		}
 	}
 
-	private void stateTransition(Issue issue, TaskStatus newState) throws JiraException, BusinessServiceException {
+	private void stateTransition(Issue issue, TaskStatus newState, String projectKey) throws JiraException, BusinessServiceException {
 		final Transition transition = getTransitionToOrThrow(issue, newState);
 		final String key = issue.getKey();
 		final String newStateLabel = newState.getLabel();
@@ -983,6 +983,15 @@ public class TaskService {
 				Map<String, String> properties = new HashMap<>();
 				properties.put("key", key);
 				properties.put("status", newStateLabel);
+
+				if (TaskStatus.COMPLETED.equals(newState)) {
+					try {
+						String conceptsStr = uiService.retrieveTaskPanelState(projectKey, issue.getKey(), ControllerHelper.getUsername(), "crs-concepts");
+						properties.put("concepts", conceptsStr);
+					} catch (IOException e) {
+						// Do nothing when no crs concepts was specified in the task
+					}
+				}
 
 				// To comma separated list
 				final String labelsString = issue.getLabels().toString();
@@ -1014,7 +1023,7 @@ public class TaskService {
 		final RestClient restClient = getJiraClient().getRestClient();
 
 		try {
-			Issue issue = getIssue(projectKey, taskKey);
+			Issue issue = getIssue(taskKey);
 		
 			for (IssueLink issueLink : issue.getIssueLinks()) {
 
@@ -1022,7 +1031,7 @@ public class TaskService {
 
 				// need to forcibly retrieve the issue in order to get
 				// attachments
-				Issue issue1 = this.getIssue(null, linkedIssue.getKey(), true);
+				Issue issue1 = this.getIssue(linkedIssue.getKey(), true);
 
 				String crsId = issue1.getField(jiraCrsIdField).toString();
 				if (crsId == null) {
@@ -1074,7 +1083,7 @@ public class TaskService {
 
 	public void leaveCommentForTask(String projectKey, String taskKey, String comment) throws BusinessServiceException {
 		try {
-			addComment(projectKey, taskKey, comment);
+			addComment(taskKey, comment);
 		} catch (JiraException e) {
 			if (e.getCause() instanceof RestException && ((RestException) e.getCause()).getHttpStatusCode() == 404) {
 				throw new ResourceNotFoundException("Task not found " + toString(projectKey, taskKey), e);

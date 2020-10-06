@@ -162,7 +162,7 @@ public class PromotionService {
 				Merge merge = branchService.mergeBranchSync(projectBranchPath, PathHelper.getParentPath(projectBranchPath), mergeRequest.getSourceReviewId());
 				if (merge.getStatus() == Merge.Status.COMPLETED) {
 					List<Issue> promotedIssues = taskService.getTaskIssues(projectKey, TaskStatus.PROMOTED);
-					taskService.stateTransition(promotedIssues, TaskStatus.COMPLETED);
+					taskService.stateTransition(promotedIssues, TaskStatus.COMPLETED, projectKey);
 					notificationService.queueNotification(ControllerHelper.getUsername(),
 							new Notification(projectKey, null, EntityType.Promotion, "Project successfully promoted"));
 					projectProcessStatus.setStatus("Promotion Complete");
