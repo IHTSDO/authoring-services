@@ -986,10 +986,12 @@ public class TaskService {
 
 				if (TaskStatus.COMPLETED.equals(newState)) {
 					try {
-						String conceptsStr = uiService.retrieveTaskPanelState(projectKey, issue.getKey(), ControllerHelper.getUsername(), "crs-concepts");
-						properties.put("concepts", conceptsStr);
+						String conceptsStr = uiService.retrieveTaskPanelStateWithoutThrowingResourceNotFoundException(projectKey, issue.getKey(), issue.getAssignee().getName(), "crs-concepts");
+						if (StringUtils.isNotEmpty(conceptsStr)) {
+							properties.put("concepts", conceptsStr);
+						}
 					} catch (IOException e) {
-						// Do nothing when no crs concepts was specified in the task
+						logger.error("Error while reading crs-concepts.json for task {}. Message: {}", issue.getKey(), e.getMessage());
 					}
 				}
 

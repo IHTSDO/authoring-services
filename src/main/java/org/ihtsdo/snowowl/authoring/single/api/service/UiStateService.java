@@ -26,6 +26,14 @@ public class UiStateService {
 		}
 	}
 
+	public String retrieveTaskPanelStateWithoutThrowingResourceNotFoundException(String projectKey, String taskKey, String username, String panelId) throws IOException {
+		try {
+			return arbitraryJsonService.read(getTaskUserPanelPath(projectKey, taskKey, username, panelId));
+		} catch (NoSuchFileException e) {
+			return null;
+		}
+	}
+
 	public void persistPanelState(String username, String panelId, String jsonState) throws IOException {
 		arbitraryJsonService.write(getUserPanelPath(username, panelId), jsonState);
 	}
