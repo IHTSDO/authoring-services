@@ -881,9 +881,18 @@ public class TaskService {
 	}
 
 	private Collection<org.ihtsdo.snowowl.authoring.single.api.pojo.User> getNewReviewers(List<org.ihtsdo.snowowl.authoring.single.api.pojo.User> currentReviewers,
-																						  List<org.ihtsdo.snowowl.authoring.single.api.pojo.User> reviewers) {
+																						  List<org.ihtsdo.snowowl.authoring.single.api.pojo.User> reviewers) throws BusinessServiceException {
 		reviewers.removeAll(currentReviewers);
-		return reviewers.stream().filter(r -> !ControllerHelper.getUsername().equals(r.getUsername())).collect(Collectors.toList());
+		Collection<org.ihtsdo.snowowl.authoring.single.api.pojo.User> results = reviewers.stream().filter(r -> !ControllerHelper.getUsername().equals(r.getUsername())).collect(Collectors.toList());
+
+		for (org.ihtsdo.snowowl.authoring.single.api.pojo.User user : results) {
+			if (user.getEmail() == null || user.getDisplayName() == null) {
+				User jiraUser = getUser(user.getUsername());
+				user.setEmail(jiraUser.getEmail());
+				user.setDisplayName(jiraUser.getDisplayName());
+			}
+		}
+		return  results;
 	}
 
 	private org.ihtsdo.snowowl.authoring.single.api.pojo.User getPojoUserOrNull(User lead) {
