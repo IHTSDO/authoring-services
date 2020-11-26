@@ -34,11 +34,8 @@ public class UiStateController {
 			@ApiResponse(code = 200, message = "OK")
 	})
 	@PostMapping(value = "/projects/{projectKey}/tasks/{taskKey}/ui-state/{panelId}")
-	public void persistTaskUiPanelState(@PathVariable final String projectKey,
-										@PathVariable final String taskKey,
-										@PathVariable final String panelId,
-										@RequestBody final String jsonState)
-			throws IOException, BusinessServiceException, JiraException {
+	public void persistTaskUiPanelState(@PathVariable final String projectKey, @PathVariable final String taskKey, @PathVariable final String panelId,
+			@RequestBody final String jsonState) throws IOException, BusinessServiceException, JiraException {
 		// TODO - move this to an explicit "Start progress" endpoint.
 		taskService.conditionalStateTransition(projectKey, taskKey, TaskStatus.NEW, TaskStatus.IN_PROGRESS);
 		uiStateService.persistTaskPanelState(projectKey, taskKey, ControllerHelper.getUsername(), panelId, jsonState);
@@ -49,9 +46,7 @@ public class UiStateController {
 			@ApiResponse(code = 200, message = "OK")
 	})
 	@GetMapping(value = "/projects/{projectKey}/tasks/{taskKey}/ui-state/{panelId}")
-	public String retrieveTaskUiPanelState(@PathVariable final String projectKey,
-										   @PathVariable final String taskKey,
-										   @PathVariable final String panelId) throws IOException {
+	public String retrieveTaskUiPanelState(@PathVariable final String projectKey, @PathVariable final String taskKey, @PathVariable final String panelId) throws IOException {
 		return uiStateService.retrieveTaskPanelState(projectKey, taskKey, ControllerHelper.getUsername(), panelId);
 	}
 
@@ -60,9 +55,7 @@ public class UiStateController {
 			@ApiResponse(code = 200, message = "OK")
 	})
 	@DeleteMapping(value = "/projects/{projectKey}/tasks/{taskKey}/ui-state/{panelId}")
-	public void deleteTaskUiPanelState(@PathVariable final String projectKey,
-									   @PathVariable final String taskKey,
-									   @PathVariable final String panelId) throws IOException {
+	public void deleteTaskUiPanelState(@PathVariable final String projectKey, @PathVariable final String taskKey, @PathVariable final String panelId) throws IOException {
 		uiStateService.deleteTaskPanelState(projectKey, taskKey, ControllerHelper.getUsername(), panelId);
 	}
 
@@ -72,10 +65,9 @@ public class UiStateController {
 			@ApiResponse(code = 200, message = "OK")
 	})
 	@PostMapping(value = "/projects/{projectKey}/tasks/{taskKey}/shared-ui-state/{panelId}")
-	public void persistSharedTaskUiPanelState(@PathVariable final String projectKey,
-											  @PathVariable final String taskKey,
-											  @PathVariable final String panelId,
-											  @RequestBody final String jsonState) throws IOException {
+	public void persistSharedTaskUiPanelState(
+			@PathVariable final String projectKey, @PathVariable final String taskKey,
+			@PathVariable final String panelId, @RequestBody final String jsonState) throws IOException {
 		uiStateService.persistTaskPanelState(projectKey, taskKey, SHARED, panelId, jsonState);
 	}
 
@@ -84,9 +76,9 @@ public class UiStateController {
 			@ApiResponse(code = 200, message = "OK")
 	})
 	@GetMapping(value = "/projects/{projectKey}/tasks/{taskKey}/shared-ui-state/{panelId}")
-	public String retrieveSharedTaskUiPanelState(@PathVariable final String projectKey,
-												 @PathVariable final String taskKey,
-												 @PathVariable final String panelId) throws IOException {
+	public String retrieveSharedTaskUiPanelState(
+			@PathVariable final String projectKey, @PathVariable final String taskKey,
+			@PathVariable final String panelId) throws IOException {
 		return uiStateService.retrieveTaskPanelState(projectKey, taskKey, SHARED, panelId);
 	}
 
@@ -95,9 +87,7 @@ public class UiStateController {
 			@ApiResponse(code = 200, message = "OK")
 	})
 	@DeleteMapping(value = "/projects/{projectKey}/tasks/{taskKey}/shared-ui-state/{panelId}")
-	public void deleteSharedTaskUiPanelState(@PathVariable final String projectKey,
-											 @PathVariable final String taskKey,
-											 @PathVariable final String panelId) throws IOException {
+	public void deleteSharedTaskUiPanelState(@PathVariable final String projectKey, @PathVariable final String taskKey, @PathVariable final String panelId) throws IOException {
 		uiStateService.deleteTaskPanelState(projectKey, taskKey, SHARED, panelId);
 	}
 
@@ -108,8 +98,7 @@ public class UiStateController {
 			@ApiResponse(code = 200, message = "OK")
 	})
 	@PostMapping(value = "/ui-state/{panelId}")
-	public void persistUiPanelState(@PathVariable final String panelId,
-									@RequestBody final String jsonState) throws IOException {
+	public void persistUiPanelState(@PathVariable final String panelId, @RequestBody final String jsonState) throws IOException {
 		uiStateService.persistPanelState(ControllerHelper.getUsername(), panelId, jsonState);
 	}
 

@@ -16,18 +16,11 @@ public class UiStateService {
 	@Autowired
 	private UiStateResourceService resourceService;
 
-	public void persistTaskPanelState(final String projectKey,
-									  final String taskKey,
-									  final String username,
-									  final String panelId,
-									  final String jsonState) throws IOException {
+	public void persistTaskPanelState(final String projectKey, final String taskKey, final String username, final String panelId, final String jsonState) throws IOException {
 		resourceService.write(getTaskUserPanelPath(projectKey, taskKey, username, panelId), jsonState);
 	}
 
-	public String retrieveTaskPanelState(final String projectKey,
-										 final String taskKey,
-										 final String username,
-										 final String panelId) throws IOException {
+	public String retrieveTaskPanelState(final String projectKey, final String taskKey, final String username, final String panelId) throws IOException {
 		try {
 			return resourceService.read(getTaskUserPanelPath(projectKey, taskKey, username, panelId));
 		} catch (NoSuchFileException e) {
@@ -35,10 +28,7 @@ public class UiStateService {
 		}
 	}
 
-	public String retrieveTaskPanelStateWithoutThrowingResourceNotFoundException(final String projectKey,
-																				 final String taskKey,
-																				 final String username,
-																				 final String panelId)
+	public String retrieveTaskPanelStateWithoutThrowingResourceNotFoundException(final String projectKey, final String taskKey, final String username, final String panelId)
 			throws IOException {
 		try {
 			return resourceService.read(getTaskUserPanelPath(projectKey, taskKey, username, panelId));
@@ -47,14 +37,11 @@ public class UiStateService {
 		}
 	}
 
-	public void persistPanelState(final String username,
-								  final String panelId,
-								  final String jsonState) throws IOException {
+	public void persistPanelState(final String username, final String panelId, final String jsonState) throws IOException {
 		resourceService.write(getUserPanelPath(username, panelId), jsonState);
 	}
 
-	public String retrievePanelState(final String username,
-									 final String panelId) throws IOException {
+	public String retrievePanelState(final String username, final String panelId) throws IOException {
 		try {
 			return resourceService.read(getUserPanelPath(username, panelId));
 		} catch (NoSuchFileException e) {
@@ -62,40 +49,27 @@ public class UiStateService {
 		}
 	}
 	
-	private String getTaskUserPath(final String projectKey,
-								   final String taskKey,
-								   final String username) {
+	private String getTaskUserPath(final String projectKey, final String taskKey, final String username) {
 		return projectKey + "/" + taskKey + "/user/" + username + "/ui-panel/";
 	}
 
-	private String getTaskUserPanelPath(final String projectKey,
-										final String taskKey,
-										final String username,
-										final String panelId) {
+	private String getTaskUserPanelPath(final String projectKey, final String taskKey, final String username, final String panelId) {
 		return getTaskUserPath(projectKey, taskKey, username) + panelId + ".json";
 	}
 
-	private String getUserPanelPath(final String username,
-									final String panelId) {
+	private String getUserPanelPath(final String username, final String panelId) {
 		return "/user/" + username + "/ui-panel/" + panelId + ".json";
 	}
 
-
-	public void deleteTaskPanelState(final String projectKey,
-									 final String taskKey,
-									 final String username,
-									 final String panelId) throws IOException {
+	public void deleteTaskPanelState(final String projectKey, final String taskKey, final String username, final String panelId) throws IOException {
 		resourceService.delete(getTaskUserPanelPath(projectKey, taskKey, username, panelId));
 	}
 
-	public void deletePanelState(final String username,
-								 final String panelId) throws IOException {
+	public void deletePanelState(final String username, final String panelId) throws IOException {
 		resourceService.delete(getUserPanelPath(username, panelId));
 	}
 
-	public void transferTask(final String projectKey,
-							 final String taskKey,
-							 final TaskTransferRequest taskTransferRequest) throws BusinessServiceException {
+	public void transferTask(final String projectKey, final String taskKey, final TaskTransferRequest taskTransferRequest) throws BusinessServiceException {
 		try {
 			resourceService.move(getTaskUserPath(projectKey, taskKey, taskTransferRequest.getCurrentUser()),
 								 getTaskUserPath(projectKey, taskKey, taskTransferRequest.getNewUser()));
