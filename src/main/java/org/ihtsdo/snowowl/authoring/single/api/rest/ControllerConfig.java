@@ -3,7 +3,7 @@ package org.ihtsdo.snowowl.authoring.single.api.rest;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import org.apache.catalina.connector.ClientAbortException;
 import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
-import org.ihtsdo.snowowl.authoring.single.api.service.UnauthorizedServiceException;
+import org.ihtsdo.snowowl.authoring.single.api.service.exceptions.UnauthorizedServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;

@@ -41,6 +41,7 @@ import org.ihtsdo.snowowl.authoring.single.api.pojo.TaskTransferRequest;
 import org.ihtsdo.snowowl.authoring.single.api.rest.ControllerHelper;
 import org.ihtsdo.snowowl.authoring.single.api.review.service.ReviewService;
 import org.ihtsdo.snowowl.authoring.single.api.review.service.TaskMessagesDetail;
+import org.ihtsdo.snowowl.authoring.single.api.service.exceptions.ServiceException;
 import org.ihtsdo.snowowl.authoring.single.api.service.jira.ImpersonatingJiraClientFactory;
 import org.ihtsdo.snowowl.authoring.single.api.service.jira.JiraHelper;
 import org.ihtsdo.snowowl.authoring.single.api.service.util.TimerUtil;

@@ -12,6 +12,7 @@ import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.ReleaseRequest;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.Status;
+import org.ihtsdo.snowowl.authoring.single.api.service.exceptions.ServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;

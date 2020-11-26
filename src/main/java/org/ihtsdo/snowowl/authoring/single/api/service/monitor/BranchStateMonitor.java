@@ -3,7 +3,7 @@ package org.ihtsdo.snowowl.authoring.single.api.service.monitor;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.EntityType;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.Notification;
 import org.ihtsdo.snowowl.authoring.single.api.service.BranchService;
-import org.ihtsdo.snowowl.authoring.single.api.service.ServiceException;
+import org.ihtsdo.snowowl.authoring.single.api.service.exceptions.ServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
