@@ -5,7 +5,7 @@ import io.swagger.annotations.ApiOperation;
 
 import org.ihtsdo.snowowl.authoring.single.api.pojo.DialectVariations;
 import org.ihtsdo.snowowl.authoring.single.api.service.DialectConversionService;
-import org.ihtsdo.snowowl.authoring.single.api.service.ServiceException;
+import org.ihtsdo.snowowl.authoring.single.api.service.exceptions.ServiceException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.MediaType;

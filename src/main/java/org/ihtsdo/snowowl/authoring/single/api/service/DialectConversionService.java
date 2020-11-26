@@ -10,6 +10,7 @@ import com.google.common.collect.Sets;
 import org.apache.commons.collections.CollectionUtils;
 import org.ihtsdo.otf.dao.s3.S3ClientImpl;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.DialectVariations;
+import org.ihtsdo.snowowl.authoring.single.api.service.exceptions.ServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;

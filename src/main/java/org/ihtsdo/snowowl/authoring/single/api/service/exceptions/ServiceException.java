@@ -1,4 +1,4 @@
-package org.ihtsdo.snowowl.authoring.single.api.service;
+package org.ihtsdo.snowowl.authoring.single.api.service.exceptions;
 
 public class ServiceException extends Exception {
 

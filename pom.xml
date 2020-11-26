@@ -16,13 +16,37 @@
 		<packageName>${project.artifactId}</packageName>
 		<execFinalName>${project.build.finalName}.jar</execFinalName>
 		<springfox-swagger.version>2.7.0</springfox-swagger.version>
+		<spring.version>5.1.5.RELEASE</spring.version>
+		<jackson.version>2.11.3</jackson.version>
+		<spring-cloud.version>1.2.2.RELEASE</spring-cloud.version>
+		<spring-aws-core.version>1.2.4.RELEASE</spring-aws-core.version>
 	</properties>
 
 	<dependencies>
 		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-core</artifactId>
+			<version>${spring.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-aws-autoconfigure</artifactId>
+			<version>${spring-cloud.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-aws-core</artifactId>
+			<version>${spring-aws-core.version}</version>
+		</dependency>
+		<dependency>
 			<groupId>org.ihtsdo.otf.common</groupId>
 			<artifactId>otf-common</artifactId>
-			<version>4.1.1</version>
+			<version>4.2.0-SNAPSHOT</version>
+		</dependency>
+		<dependency>
+			<groupId>org.ihtsdo.otf.common</groupId>
+			<artifactId>resource-manager</artifactId>
+			<version>4.2.0-SNAPSHOT</version>
 		</dependency>
 		<dependency>
 			<groupId>org.ihtsdo.otf</groupId>
@@ -38,6 +62,12 @@
 			<groupId>org.snomed.otf</groupId>
 			<artifactId>snomed-boot</artifactId>
 			<version>1.2.0</version>
+			<exclusions>
+				<exclusion>
+					<groupId>com.google.collections</groupId>
+					<artifactId>google-collections</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>io.kaicode</groupId>
@@ -126,7 +156,7 @@
 		<dependency>
 			<groupId>com.amazonaws</groupId>
 			<artifactId>aws-java-sdk</artifactId>
-			<version>1.10.0</version>
+			<version>1.11.906</version>
 		</dependency>
 		<!-- Email -->
 		<dependency>

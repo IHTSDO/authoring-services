@@ -1,21 +1,18 @@
 package org.ihtsdo.snowowl.authoring.single.api.service;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
-import javax.jms.JMSException;
-
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.base.Strings;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
+import net.rcarz.jiraclient.Status;
+import net.rcarz.jiraclient.User;
+import net.rcarz.jiraclient.*;
+import net.sf.json.JSON;
+import net.sf.json.JSONArray;
+import net.sf.json.JSONObject;
 import org.apache.activemq.command.ActiveMQQueue;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.math.NumberUtils;
@@ -31,16 +28,11 @@ import org.ihtsdo.otf.rest.exception.BadRequestException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
 import org.ihtsdo.snowowl.authoring.single.api.configuration.ConfigUtils;
-import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringMain;
-import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringProject;
-import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringTask;
-import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringTaskCreateRequest;
-import org.ihtsdo.snowowl.authoring.single.api.pojo.AuthoringTaskUpdateRequest;
-import org.ihtsdo.snowowl.authoring.single.api.pojo.JiraProject;
-import org.ihtsdo.snowowl.authoring.single.api.pojo.TaskTransferRequest;
+import org.ihtsdo.snowowl.authoring.single.api.pojo.*;
 import org.ihtsdo.snowowl.authoring.single.api.rest.ControllerHelper;
 import org.ihtsdo.snowowl.authoring.single.api.review.service.ReviewService;
 import org.ihtsdo.snowowl.authoring.single.api.review.service.TaskMessagesDetail;
+import org.ihtsdo.snowowl.authoring.single.api.service.exceptions.ServiceException;
 import org.ihtsdo.snowowl.authoring.single.api.service.jira.ImpersonatingJiraClientFactory;
 import org.ihtsdo.snowowl.authoring.single.api.service.jira.JiraHelper;
 import org.ihtsdo.snowowl.authoring.single.api.service.util.TimerUtil;
@@ -52,32 +44,16 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.google.common.base.Strings;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Sets;
-
-import net.rcarz.jiraclient.Attachment;
-import net.rcarz.jiraclient.ChangeLog;
-import net.rcarz.jiraclient.ChangeLogEntry;
-import net.rcarz.jiraclient.ChangeLogItem;
-import net.rcarz.jiraclient.Field;
-import net.rcarz.jiraclient.Issue;
-import net.rcarz.jiraclient.IssueLink;
-import net.rcarz.jiraclient.JiraClient;
-import net.rcarz.jiraclient.JiraException;
-import net.rcarz.jiraclient.Resource;
-import net.rcarz.jiraclient.RestClient;
-import net.rcarz.jiraclient.RestException;
-import net.rcarz.jiraclient.Status;
-import net.rcarz.jiraclient.Transition;
-import net.rcarz.jiraclient.User;
-import net.sf.json.JSON;
-import net.sf.json.JSONArray;
-import net.sf.json.JSONObject;
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
+import javax.jms.JMSException;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class TaskService {
 

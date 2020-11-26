@@ -2,7 +2,7 @@ package org.ihtsdo.snowowl.authoring.single.api.service.jira;
 
 import net.rcarz.jiraclient.JiraClient;
 import net.rcarz.jiraclient.JiraException;
-import org.ihtsdo.snowowl.authoring.single.api.service.UnauthorizedServiceException;
+import org.ihtsdo.snowowl.authoring.single.api.service.exceptions.UnauthorizedServiceException;
 import org.ihtsdo.sso.integration.SecurityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

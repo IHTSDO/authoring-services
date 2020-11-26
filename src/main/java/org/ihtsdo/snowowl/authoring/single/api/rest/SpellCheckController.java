@@ -2,8 +2,7 @@ package org.ihtsdo.snowowl.authoring.single.api.rest;
 
 import com.amazonaws.services.s3.model.S3Object;
 import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.SwaggerDefinition;
-import org.ihtsdo.snowowl.authoring.single.api.service.ServiceException;
+import org.ihtsdo.snowowl.authoring.single.api.service.exceptions.ServiceException;
 import org.ihtsdo.snowowl.authoring.single.api.service.SpellingListsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.InputStreamResource;
