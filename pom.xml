@@ -153,11 +153,6 @@
 			<artifactId>commons-csv</artifactId>
 			<version>1.2</version>
 		</dependency>
-		<dependency>
-			<groupId>com.amazonaws</groupId>
-			<artifactId>aws-java-sdk</artifactId>
-			<version>1.11.906</version>
-		</dependency>
 		<!-- Email -->
 		<dependency>
 			<groupId>javax.mail</groupId>
