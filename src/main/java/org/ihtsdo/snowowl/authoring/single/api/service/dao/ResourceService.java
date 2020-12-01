@@ -1,6 +1,9 @@
 package org.ihtsdo.snowowl.authoring.single.api.service.dao;
 
+import com.amazonaws.services.s3.model.AmazonS3Exception;
+
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 
 /**
@@ -27,10 +30,10 @@ public interface ResourceService {
 	 * @param path Which is the location to the resource.
 	 * @return value which represents the {@code InputStream} of
 	 * the resource.
-	 * @throws IOException If an error occurs while trying to read
-	 *                     the resource.
+	 * @throws AmazonS3Exception If an error occurs while trying to read
+	 *                           the resource.
 	 */
-	String read(String path) throws IOException;
+	String read(String path) throws AmazonS3Exception;
 
 	/**
 	 * Reads the resource from the file location, into memory.
@@ -38,10 +41,12 @@ public interface ResourceService {
 	 * @param file Which contains the location of the resource.
 	 * @return value which represents the {@code InputStream} of
 	 * the resource.
-	 * @throws IOException If an error occurs while trying to read
-	 *                     the resource.
+	 * @throws AmazonS3Exception     If an error occurs while trying to read
+	 *                               the resource.
+	 * @throws FileNotFoundException If an error occurs while trying to
+	 *                               access the file.
 	 */
-	String read(File file) throws IOException;
+	String read(File file) throws AmazonS3Exception, FileNotFoundException;
 
 	/**
 	 * Deletes the resource, specified by the {@code relativePath}.
@@ -61,9 +66,9 @@ public interface ResourceService {
 	 *                 resides.
 	 * @param toPath   The new location to move the resource
 	 *                 to.
-	 * @throws IOException If an error occurs while trying to
-	 *                     move the file from the current location,
-	 *                     to the new location.
+	 * @throws AmazonS3Exception If an error occurs while trying to
+	 *                           move the file from the current location,
+	 *                           to the new location.
 	 */
-	void move(String fromPath, String toPath) throws IOException;
+	void move(String fromPath, String toPath) throws AmazonS3Exception;
 }

@@ -986,13 +986,9 @@ public class TaskService {
 				properties.put("status", newStateLabel);
 
 				if (TaskStatus.COMPLETED.equals(newState)) {
-					try {
-						String conceptsStr = uiService.retrieveTaskPanelStateWithoutThrowingResourceNotFoundException(projectKey, issue.getKey(), issue.getAssignee().getName(), "crs-concepts");
-						if (StringUtils.isNotEmpty(conceptsStr)) {
-							properties.put("concepts", conceptsStr);
-						}
-					} catch (IOException e) {
-						logger.error("Error while reading crs-concepts.json for task {}. Message: {}", issue.getKey(), e.getMessage());
+					String conceptsStr = uiService.retrieveTaskPanelStateWithoutThrowingResourceNotFoundException(projectKey, issue.getKey(), issue.getAssignee().getName(), "crs-concepts");
+					if (StringUtils.isNotEmpty(conceptsStr)) {
+						properties.put("concepts", conceptsStr);
 					}
 				}
 

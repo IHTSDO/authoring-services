@@ -124,8 +124,6 @@ public class EmailService {
                 JSONObject jsonObject = new JSONObject(userPreference);
                 return jsonObject.getBoolean("allowedEmailNotification");
             }
-        } catch (IOException e) {
-            logger.info("Could not find user-preferences for user: " + username);
         } catch (JSONException e) {
             logger.info("The JSON property allowedEmailNotification does not present in user-preferences for user: " + username);
 

@@ -28,7 +28,7 @@ public class UiStateResourceServiceTest {
 	}
 
 	@Test(expected = PathNotProvidedException.class)
-	public void testReadThrowsPathNotProvidedExceptionWhenPathIsNull() throws IOException {
+	public void testReadThrowsPathNotProvidedExceptionWhenPathIsNull() {
 		uiStateResourceService.read((String) null);
 	}
 
@@ -43,12 +43,12 @@ public class UiStateResourceServiceTest {
 	}
 
 	@Test(expected = PathNotProvidedException.class)
-	public void testMoveThrowsPathNotProvidedExceptionWhenFromPathIsNull() throws IOException {
+	public void testMoveThrowsPathNotProvidedExceptionWhenFromPathIsNull() {
 		uiStateResourceService.move(null, "");
 	}
 
 	@Test(expected = PathNotProvidedException.class)
-	public void testMoveThrowsPathNotProvidedExceptionWhenToPathIsNull() throws IOException {
+	public void testMoveThrowsPathNotProvidedExceptionWhenToPathIsNull() {
 		uiStateResourceService.move("", null);
 	}
 }

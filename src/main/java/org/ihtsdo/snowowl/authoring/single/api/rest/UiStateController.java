@@ -46,7 +46,7 @@ public class UiStateController {
 			@ApiResponse(code = 200, message = "OK")
 	})
 	@GetMapping(value = "/projects/{projectKey}/tasks/{taskKey}/ui-state/{panelId}")
-	public String retrieveTaskUiPanelState(@PathVariable final String projectKey, @PathVariable final String taskKey, @PathVariable final String panelId) throws IOException {
+	public String retrieveTaskUiPanelState(@PathVariable final String projectKey, @PathVariable final String taskKey, @PathVariable final String panelId) {
 		return uiStateService.retrieveTaskPanelState(projectKey, taskKey, ControllerHelper.getUsername(), panelId);
 	}
 
@@ -78,7 +78,7 @@ public class UiStateController {
 	@GetMapping(value = "/projects/{projectKey}/tasks/{taskKey}/shared-ui-state/{panelId}")
 	public String retrieveSharedTaskUiPanelState(
 			@PathVariable final String projectKey, @PathVariable final String taskKey,
-			@PathVariable final String panelId) throws IOException {
+			@PathVariable final String panelId) {
 		return uiStateService.retrieveTaskPanelState(projectKey, taskKey, SHARED, panelId);
 	}
 
@@ -107,7 +107,7 @@ public class UiStateController {
 			@ApiResponse(code = 200, message = "OK")
 	})
 	@GetMapping(value = "/ui-state/{panelId}")
-	public String retrieveUiPanelState(@PathVariable final String panelId) throws IOException {
+	public String retrieveUiPanelState(@PathVariable final String panelId) {
 		return uiStateService.retrievePanelState(ControllerHelper.getUsername(), panelId);
 	}
 
