@@ -11,7 +11,11 @@ import org.springframework.stereotype.Service;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.NoSuchFileException;
+
+import static java.lang.String.format;
 
 @Service
 public final class UiStateResourceService extends AbstractResourceService {
@@ -44,7 +48,11 @@ public final class UiStateResourceService extends AbstractResourceService {
 		if (path == null) {
 			throw new PathNotProvidedException("Panel path is null while trying to read the resource stream.");
 		}
-		return IOUtils.toString(resourceManager.readResourceStream(path), StandardCharsets.UTF_8);
+		InputStream inputStream = resourceManager.readResourceStreamOrNullIfNotExists(path);
+		if (inputStream == null) {
+			throw new NoSuchFileException(format("File %s does not exist in S3.", path));
+		}
+		return IOUtils.toString(inputStream, StandardCharsets.UTF_8);
 	}
 
 	@Override
