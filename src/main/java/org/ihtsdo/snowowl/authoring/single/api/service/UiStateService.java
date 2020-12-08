@@ -4,6 +4,7 @@ import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
 import org.ihtsdo.snowowl.authoring.single.api.pojo.TaskTransferRequest;
 import org.ihtsdo.snowowl.authoring.single.api.service.dao.UiStateResourceService;
+import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -17,6 +18,9 @@ public class UiStateService {
 	private UiStateResourceService resourceService;
 
 	public void persistTaskPanelState(final String projectKey, final String taskKey, final String username, final String panelId, final String jsonState) throws IOException {
+		// Check to make sure that the state is valid JSON.
+		new JSONObject(jsonState);
+
 		resourceService.write(getTaskUserPanelPath(projectKey, taskKey, username, panelId), jsonState);
 	}
 
@@ -38,6 +42,9 @@ public class UiStateService {
 	}
 
 	public void persistPanelState(final String username, final String panelId, final String jsonState) throws IOException {
+		// Check to make sure that the state is valid JSON.
+		new JSONObject(jsonState);
+
 		resourceService.write(getUserPanelPath(username, panelId), jsonState);
 	}
 
@@ -58,7 +65,7 @@ public class UiStateService {
 	}
 
 	private String getUserPanelPath(final String username, final String panelId) {
-		return "/user/" + username + "/ui-panel/" + panelId + ".json";
+		return "user/" + username + "/ui-panel/" + panelId + ".json";
 	}
 
 	public void deleteTaskPanelState(final String projectKey, final String taskKey, final String username, final String panelId) throws IOException {
