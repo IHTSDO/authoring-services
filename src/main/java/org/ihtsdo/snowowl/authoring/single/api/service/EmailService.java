@@ -119,7 +119,7 @@ public class EmailService {
 
     private boolean isAllowedEmailNotification(String username) {
         try {
-            String userPreference = uiStateService.retrievePanelState(username, "user-preferences");
+            String userPreference = uiStateService.retrievePanelStateWithoutThrowingResourceNotFoundException(username, "user-preferences");
             if (userPreference != null) {
                 JSONObject jsonObject = new JSONObject(userPreference);
                 return jsonObject.getBoolean("allowedEmailNotification");

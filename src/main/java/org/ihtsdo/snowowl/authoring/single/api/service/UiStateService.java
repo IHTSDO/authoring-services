@@ -64,6 +64,14 @@ public class UiStateService {
 			throw new ResourceNotFoundException("ui-state", panelId);
 		}
 	}
+
+	public String retrievePanelStateWithoutThrowingResourceNotFoundException(final String username, final String panelId) throws IOException {
+		try {
+			return resourceService.read(getUserPanelPath(username, panelId));
+		} catch (NoSuchFileException e) {
+			return null;
+		}
+	}
 	
 	private String getTaskUserPath(final String projectKey, final String taskKey, final String username) {
 		return projectKey + "/" + taskKey + "/user/" + username + "/ui-panel/";
