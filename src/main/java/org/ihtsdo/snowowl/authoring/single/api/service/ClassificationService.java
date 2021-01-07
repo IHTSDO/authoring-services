@@ -50,7 +50,7 @@ public class ClassificationService {
 
 		//Now start an asynchronous thread to wait for the results
 		final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-		(new Thread(new ClassificationPoller(projectKey, taskKey, results, authentication))).start();
+		new Thread(new ClassificationPoller(projectKey, taskKey, results, authentication), "ClassificationPoller-" + callerUsername).start();
 
 		return new Classification(results);
 	}

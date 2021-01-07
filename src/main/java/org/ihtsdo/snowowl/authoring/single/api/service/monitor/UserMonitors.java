@@ -39,61 +39,58 @@ public class UserMonitors {
 		synchronized (this) {
 			started = true;
 		}
-		new Thread(new Runnable() {
-			@Override
-			public void run() {
-				try {
-					logger.info("Starting user monitors for {}", username);
-					while (isStillInUse()) {
-						final List<Class> keys = new ArrayList<>(currentMonitors.keySet());
-						final int size = keys.size();
-						for (int i = 0; i < size; i++) { // Old style for loop to avoid any concurrent modification problem.
-							Monitor monitor = null;
-							synchronized (currentMonitors) {
-								if (currentMonitors.size() > i) {
-									monitor = currentMonitors.get(keys.get(i));
-								}
+		new Thread(() -> {
+			try {
+				logger.info("Starting user monitors for {}", username);
+				while (isStillInUse()) {
+					final List<Class> keys = new ArrayList<>(currentMonitors.keySet());
+					final int size = keys.size();
+					for (int i = 0; i < size; i++) { // Old style for loop to avoid any concurrent modification problem.
+						Monitor monitor = null;
+						synchronized (currentMonitors) {
+							if (currentMonitors.size() > i) {
+								monitor = currentMonitors.get(keys.get(i));
 							}
-							if (monitor != null) {
-								logger.debug("Running monitor {}", monitor);
-								try {
-									final Notification notification = monitor.runOnce();
-									logger.debug("Monitor {}, notification result {}", monitor, notification);
-									if (notification != null) {
-										notificationService.queueNotification(username, notification);
-									}
-								} catch (MonitorException e) {
-									// Log monitor exception only once per monitor
-									synchronized (currentMonitors) {
-										if (currentMonitors.containsValue(monitor)) {
-											if (e instanceof FatalMonitorException) {
-												logger.warn("Fatal monitor run, removing {}.", monitor, e);
-												if (monitor.equals(currentMonitors.get(monitor.getClass()))) {
-													currentMonitors.remove(monitor.getClass());
-												}
+						}
+						if (monitor != null) {
+							logger.debug("Running monitor {}", monitor);
+							try {
+								final Notification notification = monitor.runOnce();
+								logger.debug("Monitor {}, notification result {}", monitor, notification);
+								if (notification != null) {
+									notificationService.queueNotification(username, notification);
+								}
+							} catch (MonitorException e) {
+								// Log monitor exception only once per monitor
+								synchronized (currentMonitors) {
+									if (currentMonitors.containsValue(monitor)) {
+										if (e instanceof FatalMonitorException) {
+											logger.warn("Fatal monitor run, removing {}.", monitor, e);
+											if (monitor.equals(currentMonitors.get(monitor.getClass()))) {
+												currentMonitors.remove(monitor.getClass());
+											}
+										} else {
+											if (!monitorLoggedError.contains(monitor)) {
+												monitorLoggedError.add(monitor);
+												logger.error("Monitor run failed.", e);
 											} else {
-												if (!monitorLoggedError.contains(monitor)) {
-													monitorLoggedError.add(monitor);
-													logger.error("Monitor run failed.", e);
-												} else {
-													logger.info("Monitor run failed again.", e);
-												}
+												logger.info("Monitor run failed again.", e);
 											}
 										}
 									}
 								}
 							}
 						}
-						Thread.sleep(PAUSE_SECONDS * 1000);
 					}
-					logger.info("User monitors for {} no longer in use. Closing down.", username);
-					deathCallback.run();
-				} catch (InterruptedException e) {
-					// This will probably happen when we restart the application.
-					logger.info("User monitor interrupted.", e);
+					Thread.sleep(PAUSE_SECONDS * 1000);
 				}
+				logger.info("User monitors for {} no longer in use. Closing down.", username);
+				deathCallback.run();
+			} catch (InterruptedException e) {
+				// This will probably happen when we restart the application.
+				logger.info("User monitor interrupted.", e);
 			}
-		}).start();
+		}, "UserMonitor-" + username).start();
 	}
 
 	public void updateFocus(String focusProjectId, String focusTaskId) throws BusinessServiceException {
