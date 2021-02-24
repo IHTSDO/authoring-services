@@ -213,6 +213,14 @@ public class ProjectController {
 		return promotionService.getAutomateTaskPromotionStatus(projectKey, taskKey);
 	}
 
+	@ApiOperation(value="Clear status of authoring task auto-promotion.")
+	@ApiResponse(code = 200, message = "OK")
+	@RequestMapping(value="/projects/{projectKey}/tasks/{taskKey}/auto-promote/clear-status", method= RequestMethod.POST)
+	public ResponseEntity<String> clearAutomatedTaskPromotionStatus(@PathVariable final String projectKey, @PathVariable final String taskKey) {
+		promotionService.clearAutomateTaskPromotionStatus(projectKey, taskKey);
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
 	@ApiOperation(
 			value="Manual trigger for scheduled project rebase process.",
 			notes = "This endpoint is asynchronous so will return straight away.")
