@@ -1,10 +1,16 @@
 package org.ihtsdo.snowowl.authoring.single.api.service.dao;
 
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.services.s3.model.ObjectListing;
+import com.amazonaws.services.s3.model.S3ObjectSummary;
 import org.apache.commons.io.IOUtils;
+import org.ihtsdo.otf.dao.s3.S3ClientImpl;
 import org.ihtsdo.snowowl.authoring.single.api.configuration.UiStateStorageConfiguration;
 import org.ihtsdo.snowowl.authoring.single.api.service.exceptions.PathNotProvidedException;
 import org.json.JSONException;
+import org.slf4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
 
@@ -14,6 +20,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.NoSuchFileException;
+
+import org.slf4j.LoggerFactory;
 
 import static java.lang.String.format;
 
@@ -26,6 +34,22 @@ public final class UiStateResourceService extends AbstractResourceService {
 	 * @param cloudResourceLoader Checks to make sure that the S3 path exists and is also
 	 *                            used to get the resource.
 	 */
+
+    @Value("${ui-state.storage.useCloud}")
+    private boolean useCloud;
+
+    @Value("${aws.key}")
+    private String awsKey;
+
+    @Value("${aws.secretKey}")
+    private String secretKey;
+
+    @Value("${ui-state.storage.cloud.bucketName}")
+    private String bucketName;
+
+    @Value("${ui-state.storage.cloud.path}")
+    private String path;
+
 	public UiStateResourceService(@Autowired final UiStateStorageConfiguration uiStateStorageConfiguration,
 								  @Autowired final ResourceLoader cloudResourceLoader) {
 		super(uiStateStorageConfiguration, cloudResourceLoader);
@@ -72,11 +96,21 @@ public final class UiStateResourceService extends AbstractResourceService {
 	}
 
 	@Override
-	public final void move(final String fromPath,
-						   final String toPath) throws IOException {
-		if (fromPath == null || toPath == null) {
-			throw new PathNotProvidedException("Either the from/to path is null, both are required for the move operation to proceed.");
-		}
-		resourceManager.moveResource(fromPath, toPath);
-	}
+    public final void move(final String fromPath,
+                           final String toPath) throws IOException {
+        if (fromPath == null || toPath == null) {
+            throw new PathNotProvidedException("Either the from/to path is null, both are required for the move operation to proceed.");
+        }
+        if (this.useCloud) {
+            S3ClientImpl s3Client = new S3ClientImpl(new BasicAWSCredentials(awsKey, secretKey));
+            String fromPathFull = (path != null ? path : "") + fromPath;
+            ObjectListing objectListing = s3Client.listObjects(bucketName, (path != null ? path : "") + fromPath);
+            for (S3ObjectSummary summary : objectListing.getObjectSummaries()) {
+                String key = summary.getKey().substring(fromPathFull.length());
+                resourceManager.moveResource(fromPath + key, toPath + key);
+            }
+        } else {
+            resourceManager.moveResource(fromPath, toPath);
+        }
+    }
 }
