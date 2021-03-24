@@ -186,7 +186,7 @@
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<version>${project.parent.version}</version>
 				<configuration>
-					<mainClass>org.ihtsdo.authoringservices.api.Application</mainClass>
+					<mainClass>org.ihtsdo.authoringservices.Application</mainClass>
 					<additionalProperties>
 						<encoding.source>UTF-8</encoding.source>
 						<encoding.reporting>UTF-8</encoding.reporting>
