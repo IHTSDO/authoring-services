@@ -113,6 +113,11 @@
 			<version>0.6.3-IHTSDO</version>
 		</dependency>
 		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpclient</artifactId>
+			<version>4.5.2</version>
+		</dependency>
+		<dependency>
 			<!-- For Jira OAuth -->
 			<groupId>com.google.gdata</groupId>
 			<artifactId>core</artifactId>
@@ -175,7 +180,6 @@
 		<dependency>
 			<groupId>com.h2database</groupId>
 			<artifactId>h2</artifactId>
-			<scope>test</scope>
 		</dependency>
 	</dependencies>
 
