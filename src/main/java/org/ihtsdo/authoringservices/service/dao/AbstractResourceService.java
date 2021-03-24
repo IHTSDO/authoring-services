@@ -1,7 +1,10 @@
 package org.ihtsdo.authoringservices.service.dao;
 
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import org.ihtsdo.otf.resourcemanager.ResourceConfiguration;
 import org.ihtsdo.otf.resourcemanager.ResourceManager;
+import org.springframework.cloud.aws.core.io.s3.SimpleStorageResourceLoader;
 import org.springframework.core.io.ResourceLoader;
 
 import java.util.Objects;
@@ -24,11 +27,13 @@ public abstract class AbstractResourceService implements ResourceService {
 	 * @param resourceConfiguration Which contains all the relevant
 	 *                              configuration settings for the
 	 *                              {@link ResourceManager} to use.
-	 * @param resourceLoader        Used to load the resource.
 	 */
-	public AbstractResourceService(final ResourceConfiguration resourceConfiguration,
-								   final ResourceLoader resourceLoader) {
-		this.resourceManager = new ResourceManager(resourceConfiguration, resourceLoader);
+	public AbstractResourceService(final ResourceConfiguration resourceConfiguration) {
+        SimpleStorageResourceLoader cloudResourceLoader = null;
+        if (resourceConfiguration.isUseCloud()) {
+            cloudResourceLoader = new SimpleStorageResourceLoader(AmazonS3ClientBuilder.standard().build());
+        }
+		this.resourceManager = new ResourceManager(resourceConfiguration, cloudResourceLoader);
 	}
 
 	@Override

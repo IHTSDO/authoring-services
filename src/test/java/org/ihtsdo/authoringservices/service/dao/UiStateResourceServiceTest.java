@@ -5,7 +5,6 @@ import org.ihtsdo.authoringservices.service.exceptions.PathNotProvidedException;
 import org.json.JSONException;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
-import org.springframework.core.io.ResourceLoader;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -14,9 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class UiStateResourceServiceTest {
 
-	private static final UiStateResourceService uiStateResourceService =
-			new UiStateResourceService(Mockito.mock(UiStateStorageConfiguration.class),
-									   Mockito.mock(ResourceLoader.class));
+	private static final UiStateResourceService uiStateResourceService = new UiStateResourceService(Mockito.mock(UiStateStorageConfiguration.class));
 
 	@Test
 	public void testWriteThrowsPathNotProvidedExceptionWhenPathIsNull() {

@@ -4,13 +4,12 @@ import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import org.apache.commons.io.IOUtils;
-import org.ihtsdo.otf.dao.s3.S3ClientImpl;
 import org.ihtsdo.authoringservices.configuration.UiStateStorageConfiguration;
 import org.ihtsdo.authoringservices.service.exceptions.PathNotProvidedException;
+import org.ihtsdo.otf.dao.s3.S3ClientImpl;
 import org.json.JSONException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
@@ -42,13 +41,9 @@ public final class UiStateResourceService extends AbstractResourceService {
 
     /**
      * Builds the service to read/write/delete and move files from S3 storage.
-     *
-     * @param cloudResourceLoader Checks to make sure that the S3 path exists and is also
-     *                            used to get the resource.
      */
-    public UiStateResourceService(@Autowired final UiStateStorageConfiguration uiStateStorageConfiguration,
-								  @Autowired final ResourceLoader cloudResourceLoader) {
-		super(uiStateStorageConfiguration, cloudResourceLoader);
+    public UiStateResourceService(@Autowired final UiStateStorageConfiguration uiStateStorageConfiguration) {
+		super(uiStateStorageConfiguration);
 	}
 
 	@Override
