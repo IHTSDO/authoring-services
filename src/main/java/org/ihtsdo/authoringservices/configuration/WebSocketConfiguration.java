@@ -1,7 +1,5 @@
 package org.ihtsdo.authoringservices.configuration;
 
-import java.util.Set;
-
 import org.ihtsdo.authoringservices.service.NotificationService;
 import org.ihtsdo.authoringservices.service.monitor.MonitorService;
 import org.slf4j.Logger;
@@ -12,13 +10,15 @@ import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.messaging.simp.user.SimpUser;
 import org.springframework.messaging.simp.user.SimpUserRegistry;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.web.socket.config.annotation.AbstractWebSocketMessageBrokerConfigurer;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
+import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+
+import java.util.Set;
 
 @Configuration
 @EnableWebSocketMessageBroker
-public class WebSocketConfiguration extends AbstractWebSocketMessageBrokerConfigurer {
+public class WebSocketConfiguration implements WebSocketMessageBrokerConfigurer {
 
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 	
@@ -38,7 +38,7 @@ public class WebSocketConfiguration extends AbstractWebSocketMessageBrokerConfig
 
 	@Override
 	public void registerStompEndpoints(StompEndpointRegistry stompEndpointRegistry) {
-		stompEndpointRegistry.addEndpoint("/authoring-services-websocket").setAllowedOrigins("*").withSockJS();
+		stompEndpointRegistry.addEndpoint("/authoring-services-websocket").withSockJS();
 	}
 
 	@Scheduled(cron = "*/10 * * * * *")
