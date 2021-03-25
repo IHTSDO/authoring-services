@@ -783,7 +783,7 @@ public class TaskService {
 
 						if (taskTransferRequest.getNewUser().equalsIgnoreCase(SecurityUtil.getUsername())) {
 							User user = getUser(taskTransferRequest.getNewUser());
-							String message = String.format("Your task %s has been taken over by %s", taskKey, user.getDisplayName());
+							String message = String.format("Your new task %s has been assigned to %s", taskKey, user.getDisplayName());
 							notificationService.queueNotification(taskTransferRequest.getCurrentUser(), new Notification(projectKey, taskKey, EntityType.AuthorChange, message));
 						} else {
 							User user = getUser(taskTransferRequest.getCurrentUser());
