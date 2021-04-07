@@ -780,14 +780,23 @@ public class TaskService {
 				if (taskTransferRequest != null) {
 					try {
 						uiService.transferTask(projectKey, taskKey, taskTransferRequest);
-
-						if (taskTransferRequest.getNewUser().equalsIgnoreCase(SecurityUtil.getUsername())) {
+						String taskReassignMessage = "Your new task %s has been assigned to %s";
+						String taskTakenMessage = "The task %s has been assigned to you by %s";
+						if (!SecurityUtil.getUsername().equalsIgnoreCase(taskTransferRequest.getCurrentUser()) &&
+								!SecurityUtil.getUsername().equalsIgnoreCase(taskTransferRequest.getNewUser())) {
+							User newUser = getUser(taskTransferRequest.getNewUser());
+							User currentLoggedUser = getUser(SecurityUtil.getUsername());
+							String message = String.format(taskReassignMessage, taskKey, newUser.getDisplayName());
+							notificationService.queueNotification(taskTransferRequest.getCurrentUser(), new Notification(projectKey, taskKey, EntityType.AuthorChange, message));
+							message = String.format(taskTakenMessage, taskKey, currentLoggedUser.getDisplayName());
+							notificationService.queueNotification(taskTransferRequest.getNewUser(), new Notification(projectKey, taskKey, EntityType.AuthorChange, message));
+						} else if (taskTransferRequest.getNewUser().equalsIgnoreCase(SecurityUtil.getUsername())) {
 							User user = getUser(taskTransferRequest.getNewUser());
-							String message = String.format("Your new task %s has been assigned to %s", taskKey, user.getDisplayName());
+							String message = String.format(taskReassignMessage, taskKey, user.getDisplayName());
 							notificationService.queueNotification(taskTransferRequest.getCurrentUser(), new Notification(projectKey, taskKey, EntityType.AuthorChange, message));
 						} else {
 							User user = getUser(taskTransferRequest.getCurrentUser());
-							String message = String.format("The task %s has been assigned to you by %s", taskKey, user.getDisplayName());
+							String message = String.format(taskTakenMessage, taskKey, user.getDisplayName());
 							notificationService.queueNotification(taskTransferRequest.getNewUser(), new Notification(projectKey, taskKey, EntityType.AuthorChange, message));
 						}
 					} catch (BusinessServiceException e) {
