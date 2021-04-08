@@ -780,7 +780,7 @@ public class TaskService {
 				if (taskTransferRequest != null) {
 					try {
 						uiService.transferTask(projectKey, taskKey, taskTransferRequest);
-						String taskReassignMessage = "Your new task %s has been assigned to %s";
+						String taskReassignMessage = "Your task %s has been assigned to %s";
 						String taskTakenMessage = "The task %s has been assigned to you by %s";
 						if (!SecurityUtil.getUsername().equalsIgnoreCase(taskTransferRequest.getCurrentUser()) &&
 								!SecurityUtil.getUsername().equalsIgnoreCase(taskTransferRequest.getNewUser())) {
