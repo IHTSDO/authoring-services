@@ -22,10 +22,12 @@ public class JiraUserService {
 
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 
-	public Object getUsers(String expand) throws JiraException {
+	public Object getUsers(int offset, int limit) throws JiraException {
 		// Jira doesn't allow listing users without admin rights so we are using the authoring-services username here rather than the logged in user.
 		JiraClient adminJiraClient = jiraClientFactory.getAdminInstance();
 
+		int endOffset = offset + limit;
+		final String expand = String.format("users[%s:%s]", offset, endOffset);
 		return JiraHelper.findUsersByGroupName(adminJiraClient, expand, groupName);
 	}
 
