@@ -241,14 +241,17 @@ public class PromotionService {
 			} else {
 				throw new BusinessServiceException(classification.getMessage());
 			}
+			classificationService.evictClassificationStatusCache(taskService.getBranchPathUsingCache(projectKey, taskKey));
 			return classification;
 		} catch (RestClientException | JSONException | InterruptedException e) {
 			notificationService.queueNotification(SecurityUtil.getUsername(), new Notification(projectKey, taskKey, EntityType.Classification, "Failed to start classification"));
+			classificationService.evictClassificationStatusCache(taskService.getBranchPathUsingCache(projectKey, taskKey));
 			throw new BusinessServiceException("Failed to classify", e);
 		} catch (IllegalStateException e) {
 			notificationService.queueNotification(SecurityUtil.getUsername(), new Notification(projectKey, taskKey, EntityType.Classification, "Failed to start classification due to classification already in progress"));
 			status = new ProcessStatus("Classification in progress",e.getMessage());
 			automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
+			classificationService.evictClassificationStatusCache(taskService.getBranchPathUsingCache(projectKey, taskKey));
 			return null;
 		}
 	}

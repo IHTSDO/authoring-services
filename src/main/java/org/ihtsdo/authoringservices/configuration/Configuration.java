@@ -19,6 +19,7 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.autoconfigure.http.HttpMessageConverters;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.http.converter.ByteArrayHttpMessageConverter;
@@ -35,6 +36,7 @@ import static com.google.common.base.Predicates.not;
 import static springfox.documentation.builders.PathSelectors.regex;
 
 @SpringBootApplication
+@EnableCaching
 @EnableConfigurationProperties
 @EnableJpaRepositories(basePackages = "org.ihtsdo.authoringservices.review")
 @EntityScan(basePackages = "org.ihtsdo.authoringservices.review")
