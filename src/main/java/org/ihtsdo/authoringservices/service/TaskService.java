@@ -41,7 +41,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -573,6 +572,10 @@ public class TaskService {
 		// Task branch creation is delayed until the user starts work to prevent
 		// having to rebase straight away.
 		return authoringTask;
+	}
+
+	public void clearClassificationCache(String branchPath) {
+		classificationService.evictClassificationCache(branchPath);
 	}
 
 	public AuthoringTask createTask(String projectKey, AuthoringTaskCreateRequest taskCreateRequest)

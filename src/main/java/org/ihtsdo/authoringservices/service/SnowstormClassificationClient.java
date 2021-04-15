@@ -48,8 +48,8 @@ public class SnowstormClassificationClient {
 	}
 
 	@CacheEvict(value = "classification-status", key = "#branchPath")
-	public void evictClassificationStatusCache(String branchPath) {
-		logger.info(String.format("Cleared Classification status cache for branch %s.", branchPath));
+	public void evictClassificationCache(String branchPath) {
+		logger.info("Cleared Classification cache for branch {}.", branchPath);
 	}
 
 	private Classification callClassification(String projectKey, String taskKey, String branchPath, String callerUsername) throws RestClientException {
@@ -63,7 +63,6 @@ public class SnowstormClassificationClient {
 		final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		new Thread(new ClassificationPoller(projectKey, taskKey, results, authentication), "ClassificationPoller-" + callerUsername).start();
 
-		evictClassificationStatusCache(branchPath);
 		return new Classification(results);
 	}
 
@@ -109,9 +108,9 @@ public class SnowstormClassificationClient {
 				branchPath = taskService.getProjectBranchPathUsingCache(projectKey);
 			}
 			} catch (BusinessServiceException e) {
-				e.printStackTrace();
+				logger.error(e.getMessage(), e);
 			}
-			evictClassificationStatusCache(branchPath);
+			taskService.clearClassificationCache(branchPath);
 			notificationService.queueNotification(SecurityUtil.getUsername(), new Notification(projectKey, taskKey, EntityType.Classification, resultMessage));
 		}
 

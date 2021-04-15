@@ -30,7 +30,9 @@ public class ClassificationController {
 	public Classification startProjectClassification(@PathVariable String projectKey) throws BusinessServiceException {
 		String branchPath = taskService.getProjectBranchPathUsingCache(projectKey);
 		try {
-			return snowstormClassificationClient.startClassification(projectKey, null, branchPath, SecurityUtil.getUsername());
+			Classification classification = snowstormClassificationClient.startClassification(projectKey, null, branchPath, SecurityUtil.getUsername());
+			taskService.clearClassificationCache(branchPath);
+			return classification;
 		} catch (RestClientException | JSONException e) {
 			throw new BusinessServiceException("Failed to start classification.", e);
 		}
@@ -42,7 +44,9 @@ public class ClassificationController {
 	public Classification startTaskClassification(@PathVariable String projectKey, @PathVariable String taskKey) throws BusinessServiceException {
 		String branchPath = taskService.getTaskBranchPathUsingCache(projectKey, taskKey);
 		try {
-			return snowstormClassificationClient.startClassification(projectKey, taskKey, branchPath, SecurityUtil.getUsername());
+			Classification classification = snowstormClassificationClient.startClassification(projectKey, taskKey, branchPath, SecurityUtil.getUsername());
+			taskService.clearClassificationCache(branchPath);
+			return classification;
 		} catch (RestClientException | JSONException e) {
 			throw new BusinessServiceException("Failed to start classification.", e);
 		}
