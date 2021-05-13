@@ -9,7 +9,9 @@ import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.sso.integration.SecurityUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import us.monoid.json.JSONException;
 
@@ -52,4 +54,21 @@ public class ClassificationController {
 		}
 	}
 
+	@ApiOperation(value = "Clear classification status cache for Project")
+	@RequestMapping(value = "/projects/{projectKey}/classifications/status/cache-evict", method = RequestMethod.POST)
+	@ResponseBody
+	public ResponseEntity<String> clearProjectClassificationStatusCache(@PathVariable String projectKey) throws BusinessServiceException {
+		String branchPath = taskService.getProjectBranchPathUsingCache(projectKey);
+		taskService.clearClassificationCache(branchPath);
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@ApiOperation(value = "Clear classification status cache for Task")
+	@RequestMapping(value = "/projects/{projectKey}/tasks/{taskKey}/classifications/status/cache-evict", method = RequestMethod.POST)
+	@ResponseBody
+	public ResponseEntity<String> clearTaskClassificationStatusCache(@PathVariable String projectKey, @PathVariable String taskKey) throws BusinessServiceException {
+		String branchPath = taskService.getTaskBranchPathUsingCache(projectKey, taskKey);
+		taskService.clearClassificationCache(branchPath);
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
 }
