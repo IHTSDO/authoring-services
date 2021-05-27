@@ -538,7 +538,7 @@ public class TaskService {
 		if (null != excludePromoted && excludePromoted.equalsIgnoreCase("TRUE")) {
 			jql += "AND status = \"" + TaskStatus.IN_REVIEW.getLabel() + "\"";
 		} else {
-			jql += " AND (status = \"Promoted\" OR status = \"" + TaskStatus.IN_REVIEW.getLabel() + "\")";
+			jql += "AND ((status = \"Promoted\" AND (Reviewer = currentUser() OR Reviewers = currentUser())) OR status = \"" + TaskStatus.IN_REVIEW.getLabel() + "\")";
 		}
 		List<Issue> issues = searchIssues(jql, LIMIT_UNLIMITED);
 		return buildAuthoringTasks(issues, false);
