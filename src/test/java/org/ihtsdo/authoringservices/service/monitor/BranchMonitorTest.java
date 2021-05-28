@@ -8,7 +8,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class BranchStateMonitorTest {
+public class BranchMonitorTest {
 
 	@Test
 	public void testEquals() {
@@ -18,12 +18,12 @@ public class BranchStateMonitorTest {
 	@Test
 	public void testMapContains() {
 		Map<Class<?>, Monitor> map = new HashMap<>();
-		final BranchStateMonitor monitor = newMon();
+		final BranchMonitor monitor = newMon();
 		map.put(monitor.getClass(), monitor);
         assertTrue(map.containsValue(newMon()));
 	}
 
-	private BranchStateMonitor newMon() {
-		return new BranchStateMonitor("A", "B", "MAIN/A/B", null);
+	private BranchMonitor newMon() {
+		return new BranchMonitor("A", "B", "MAIN/A/B", null);
 	}
 }

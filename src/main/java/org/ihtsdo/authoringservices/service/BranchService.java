@@ -28,9 +28,9 @@ public class BranchService {
 	@Autowired
 	private SnowstormRestClientFactory snowstormRestClientFactory;
 
-	public String getBranchState(String branchPath) throws ServiceException {
+	public Branch getBranch(String branchPath) throws ServiceException {
 		try {
-			return snowstormRestClientFactory.getClient().getBranch(branchPath).getState();
+			return snowstormRestClientFactory.getClient().getBranch(branchPath);
 		} catch (RestClientException e) {
 			throw new ServiceException("Failed to fetch branch state for branch " + branchPath, e);
 		}

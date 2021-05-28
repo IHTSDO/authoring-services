@@ -17,7 +17,7 @@ public class MonitorFactory {
 
 	public Monitor createMonitor(String focusProjectId, String focusTaskId) throws BusinessServiceException {
 		final String branchPath = taskService.getTaskBranchPathUsingCache(focusProjectId, focusTaskId);
-		return new BranchStateMonitor(focusProjectId, focusTaskId, branchPath, branchService);
+		return new BranchMonitor(focusProjectId, focusTaskId, branchPath, branchService);
 	}
 
 }
