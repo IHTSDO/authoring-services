@@ -49,7 +49,7 @@ public class BranchMonitor extends Monitor {
 				logger.info("Branch {} head {}, no change", taskId, newBranchHead);
 			}
 			return null;
-		} catch (ServiceException e) {
+		} catch (Exception e) {
 			throw new MonitorException("Failed to get branch state", e);
 		}
 	}
