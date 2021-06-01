@@ -5,12 +5,15 @@ import org.ihtsdo.authoringservices.domain.Notification;
 import org.ihtsdo.authoringservices.service.NotificationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 
 import java.util.*;
 
 public class UserMonitors {
 
 	private String username;
+	private String token;
 	private Date lastAccessed;
 	private boolean started;
 	private final Runnable deathCallback;
@@ -25,8 +28,9 @@ public class UserMonitors {
 	private static final int PAUSE_SECONDS = 10;
 	private Logger logger = LoggerFactory.getLogger(getClass());
 
-	public UserMonitors(String username, MonitorFactory monitorFactory, NotificationService notificationService, Runnable deathCallback) {
+	public UserMonitors(String username, String token, MonitorFactory monitorFactory, NotificationService notificationService, Runnable deathCallback) {
 		this.username = username;
+		this.token = token;
 		this.monitorFactory = monitorFactory;
 		this.notificationService = notificationService;
 		currentMonitors = new HashMap<>();
@@ -42,6 +46,8 @@ public class UserMonitors {
 		new Thread(() -> {
 			try {
 				logger.info("Starting user monitors for {}", username);
+				PreAuthenticatedAuthenticationToken decoratedAuthentication = new PreAuthenticatedAuthenticationToken(username, token);
+				SecurityContextHolder.getContext().setAuthentication(decoratedAuthentication);
 				while (isStillInUse()) {
 					final List<Class> keys = new ArrayList<>(currentMonitors.keySet());
 					final int size = keys.size();

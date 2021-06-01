@@ -23,9 +23,9 @@ public class MonitorService {
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
-	public void updateUserFocus(String username, String focusProjectId, String focusTaskId) throws BusinessServiceException {
+	public void updateUserFocus(String username, String token, String focusProjectId, String focusTaskId) throws BusinessServiceException {
 		logger.info("Starting: Updating user focus for {} [{}/{}]", username, focusProjectId, focusTaskId);
-		createIfNotExists(username);
+		createIfNotExists(username, token);
 		userMonitorsMap.get(username).updateFocus(focusProjectId, focusTaskId);
 		logger.info("Finished: Updating user focus for {} [{}/{}]", username, focusProjectId, focusTaskId);
 	}
@@ -37,7 +37,7 @@ public class MonitorService {
 		}
 	}
 
-	private void createIfNotExists(final String username) {
+	private void createIfNotExists(final String username, String token) {
 		if (!userMonitorsMap.containsKey(username)) {
 			synchronized(MonitorService.class) {
 				if (!userMonitorsMap.containsKey(username)) {
@@ -46,7 +46,7 @@ public class MonitorService {
                             userMonitorsMap.remove(username);
                         }
                     };
-					final UserMonitors userMonitors = new UserMonitors(username, monitorFactory, notificationService, deathCallback);
+					final UserMonitors userMonitors = new UserMonitors(username, token, monitorFactory, notificationService, deathCallback);
 					this.userMonitorsMap.put(username, userMonitors);
 				}
 			}

@@ -50,7 +50,7 @@ public class MonitorController {
 			"A monitor will expire after " + UserMonitors.KEEP_ALIVE_MINUTES + " minutes if the notifications endpoint is not visited by the user.")
 	@RequestMapping(value="/monitor", method= RequestMethod.POST)
 	public void monitor(@RequestBody UserFocusRequest userFocusRequest) throws BusinessServiceException {
-		monitorService.updateUserFocus(SecurityUtil.getUsername(), userFocusRequest.getProjectId(), userFocusRequest.getTaskId());
+		monitorService.updateUserFocus(SecurityUtil.getUsername(), SecurityUtil.getAuthenticationToken(), userFocusRequest.getProjectId(), userFocusRequest.getTaskId());
 	}
 
 }
