@@ -32,18 +32,7 @@ public class MonitorController {
 	@Autowired
 	private MonitorService monitorService;
 	
-	@ApiOperation(value="Retrieve new notifications", notes="Retrieve one-time user notifications; once retrieved they are lost.")
-	@ApiResponses({
-			@ApiResponse(code = 200, message = "OK")
-	})
-	@RequestMapping(value="/notifications", method= RequestMethod.GET)
-	@Deprecated
-	public List<Notification> retrieveNotifications() throws IOException {
-		final String username = SecurityUtil.getUsername();
-		monitorService.keepMonitorsAlive(username);
-		return notificationService.retrieveNewNotifications(username);
-	}
-	
+
 	@ApiOperation(value="Set user focus for notifications.", notes = "A Task or Project can be monitored for " +
 			"rebase opportunities or stale reports. Notifications will be made available. " +
 			"Each additional POST will replace the previous monitor. " +
