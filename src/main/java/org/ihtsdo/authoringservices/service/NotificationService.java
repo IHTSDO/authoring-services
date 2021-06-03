@@ -89,7 +89,9 @@ public class NotificationService {
 			synchronized (pendingNotifications) {
 				List<Notification> notifications = pendingNotifications.remove(username);
 				if (!CollectionUtils.isEmpty(notifications)) {
-					simpMessagingTemplate.convertAndSend("/topic/user/" + username + "/notifications", notifications.get(notifications.size() - 1));
+					for (Notification notification : notifications) {
+						simpMessagingTemplate.convertAndSend("/topic/user/" + username + "/notifications", notification);
+					}
 				}
 			}
 		}
