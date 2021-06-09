@@ -38,6 +38,7 @@ public class ValidationService {
 	public static final String TASK = "task";
 	public static final String EFFECTIVE_TIME = "effective-time";
 	public static final String STATUS = "status";
+	public static final String REPORT_URL = "reportUrl";
 	public static final String STATUS_SCHEDULED = "SCHEDULED";
 	public static final String STATUS_COMPLETE = "COMPLETED";
 	public static final String STATUS_NOT_TRIGGERED = "NOT_TRIGGERED";
