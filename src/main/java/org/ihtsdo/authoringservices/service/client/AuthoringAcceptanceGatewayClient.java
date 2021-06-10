@@ -20,7 +20,7 @@ public class AuthoringAcceptanceGatewayClient {
 
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 
-	public AuthoringAcceptanceGatewayClient(@Value("{aag.url}") String aagUrl) {
+	public AuthoringAcceptanceGatewayClient(@Value("${aag.url}") String aagUrl) {
 		if (!Strings.isEmpty(aagUrl)) {
 			restTemplate = new RestTemplateBuilder().rootUri(aagUrl).build();
 		}
