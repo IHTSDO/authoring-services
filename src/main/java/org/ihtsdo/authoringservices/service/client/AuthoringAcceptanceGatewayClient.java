@@ -1,7 +1,6 @@
 package org.ihtsdo.authoringservices.service.client;
 
 import org.apache.logging.log4j.util.Strings;
-import org.ihtsdo.sso.integration.SecurityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,7 +25,7 @@ public class AuthoringAcceptanceGatewayClient {
 		}
 	}
 
-	public void validationComplete(String branchPath, String validationStatus, String reportUrl) {
+	public void validationComplete(String branchPath, String validationStatus, String reportUrl, String authToken) {
 		if (restTemplate == null) {
 			logger.debug("AAG url not configured. Not sending notification.");
 			return;
@@ -34,7 +33,8 @@ public class AuthoringAcceptanceGatewayClient {
 		try {
 			final HttpHeaders httpHeaders = new HttpHeaders();
 			httpHeaders.setContentType(MediaType.APPLICATION_JSON);
-			httpHeaders.add(HttpHeaders.COOKIE, SecurityUtil.getAuthenticationToken());
+			httpHeaders.add(HttpHeaders.COOKIE, authToken);
+
 			restTemplate.postForEntity("/integration/validation-complete",
 					new HttpEntity<>(new ValidationCompleteRequest(branchPath, validationStatus, reportUrl), httpHeaders), Void.class);
 		} catch (RestClientException e) {

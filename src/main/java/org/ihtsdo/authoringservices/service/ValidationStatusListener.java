@@ -1,10 +1,9 @@
 package org.ihtsdo.authoringservices.service;
 
-import org.ihtsdo.authoringservices.service.client.AuthoringAcceptanceGatewayClient;
-import org.ihtsdo.otf.jms.MessagingHelper;
 import org.ihtsdo.authoringservices.domain.EntityType;
 import org.ihtsdo.authoringservices.domain.Notification;
-import org.ihtsdo.otf.rest.exception.BusinessServiceException;
+import org.ihtsdo.authoringservices.service.client.AuthoringAcceptanceGatewayClient;
+import org.ihtsdo.otf.jms.MessagingHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +26,8 @@ public class ValidationStatusListener {
 
 	@Autowired
 	private AuthoringAcceptanceGatewayClient aagClient;
+
+	private static final String X_AUTH_TOKEN = "X-AUTH-token";
 
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 
@@ -57,7 +58,8 @@ public class ValidationStatusListener {
 								validationStatus));
 
 				// Notify AAG
-				aagClient.validationComplete(path, validationStatus, reportUrl);
+				final String authToken = message.getStringProperty(X_AUTH_TOKEN);
+				aagClient.validationComplete(path, validationStatus, reportUrl, authToken);
 			} else {
 				logger.error("receiveValidationEvent response with error {}", message);
 			}
