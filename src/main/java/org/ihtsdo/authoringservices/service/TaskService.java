@@ -17,8 +17,8 @@ import org.apache.activemq.command.ActiveMQQueue;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.math.NumberUtils;
 import org.ihtsdo.authoringservices.domain.*;
-import org.ihtsdo.authoringservices.review.service.ReviewService;
-import org.ihtsdo.authoringservices.review.service.TaskMessagesDetail;
+import org.ihtsdo.authoringservices.domain.TaskMessagesDetail;
+import org.ihtsdo.authoringservices.entity.Validation;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.authoringservices.service.jira.ImpersonatingJiraClientFactory;
 import org.ihtsdo.authoringservices.service.jira.JiraHelper;
@@ -327,13 +327,19 @@ public class TaskService {
 		});
 
 		if (!lightweight) {
-			final ImmutableMap<String, String> validationStatuses;
+			final ImmutableMap<String, Validation> validationMap;
 			try {
-				validationStatuses = validationService.getValidationStatuses(branchPaths);
+				validationMap = validationService.getValidations(branchPaths);
 				for (AuthoringProject authoringProject : authoringProjects) {
 					String branchPath = authoringProject.getBranchPath();
-					String validationStatus = validationStatuses.get(branchPath);
-					authoringProject.setValidationStatus(validationStatus);
+					Validation validation = validationMap.get(branchPath);
+					if (ValidationService.STATUS_COMPLETE.equals(validation.getStatus())
+							&& validation.getContentHeadTimestamp() != null
+							&& !authoringProject.getBranchHeadTimestamp().equals(validation.getContentHeadTimestamp())) {
+						authoringProject.setValidationStatus(ValidationService.STATUS_STALE);
+					} else {
+						authoringProject.setValidationStatus(validation.getStatus());
+					}
 				}
 			} catch (ExecutionException e) {
 				logger.warn("Failed to fetch validation statuses for branch paths {}", branchPaths);
@@ -361,11 +367,11 @@ public class TaskService {
 		try {
 			String path = PathHelper.getProjectPath(null, null);
 			Collection<String> paths = Collections.singletonList(path);
-			final ImmutableMap<String, String> statuses = validationService.getValidationStatuses(paths);
+			final ImmutableMap<String, Validation> validationMap = validationService.getValidations(paths);
 			final String branchState = branchService.getBranchStateOrNull(PathHelper.getMainPath());
 			final String latestClassificationJson = classificationService
 					.getLatestClassification(PathHelper.getMainPath());
-			return new AuthoringMain(path, branchState, statuses.get(path), latestClassificationJson);
+			return new AuthoringMain(path, branchState, validationMap.get(path).getStatus(), latestClassificationJson);
 		} catch (ExecutionException | RestClientException | ServiceException e) {
 			throw new BusinessServiceException("Failed to retrieve Main", e);
 		}
@@ -634,14 +640,21 @@ public class TaskService {
 				// Fetch validation statuses in bulk
 				if (!startedTasks.isEmpty()) {
 					Set<String> paths = startedTasks.keySet();
-					final ImmutableMap<String, String> validationStatuses = validationService.getValidationStatuses(paths);
-					timer.checkpoint("Recovered " + (validationStatuses == null ? "null" : validationStatuses.size()) + " ValidationStatuses");
+					final ImmutableMap<String, Validation> validationMap = validationService.getValidations(paths);
+					timer.checkpoint("Recovered " + (validationMap == null ? "null" : validationMap.size()) + " ValidationStatuses");
 
-					if (validationStatuses == null || validationStatuses.isEmpty()) {
+					if (validationMap == null || validationMap.isEmpty()) {
 						logger.warn("Failed to recover validation statuses for {} branches including '{}'.", paths.size(), paths.iterator().next());
 					} else {
 						for (final String path : paths) {
-							startedTasks.get(path).setLatestValidationStatus(validationStatuses.get(path));
+							Validation validation = validationMap.get(path);
+							if (ValidationService.STATUS_COMPLETE.equals(validation.getStatus())
+								&& validation.getContentHeadTimestamp() != null
+								&& !startedTasks.get(path).getBranchHeadTimestamp().equals(validation.getContentHeadTimestamp())) {
+								startedTasks.get(path).setLatestValidationStatus(ValidationService.STATUS_STALE);
+							} else {
+								startedTasks.get(path).setLatestValidationStatus(validation.getStatus());
+							}
 						}
 					}
 				}

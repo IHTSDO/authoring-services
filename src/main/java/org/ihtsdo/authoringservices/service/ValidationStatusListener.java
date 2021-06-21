@@ -1,9 +1,11 @@
 package org.ihtsdo.authoringservices.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.ihtsdo.authoringservices.domain.EntityType;
 import org.ihtsdo.authoringservices.domain.Notification;
 import org.ihtsdo.authoringservices.service.client.AuthoringAcceptanceGatewayClient;
 import org.ihtsdo.otf.jms.MessagingHelper;
+import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,7 +46,11 @@ public class ValidationStatusListener {
 				String path = message.getStringProperty(MessagingHelper.REQUEST_PROPERTY_NAME_PREFIX + PATH);
 				logger.info("Path '{}', status '{}', reportUrl '{}'", path, validationStatus, reportUrl);
 
-				validationService.updateValidationStatusCache(path, validationStatus);
+				try {
+					validationService.updateValidationStatusCache(path, validationStatus, reportUrl);
+				} catch (BusinessServiceException e) {
+					logger.error("Failed to update validation status to Cache.", e);
+				}
 
 				// Notify user
 				final String projectId = message.getStringProperty(MessagingHelper.REQUEST_PROPERTY_NAME_PREFIX + PROJECT);

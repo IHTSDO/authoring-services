@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import net.rcarz.jiraclient.Issue;
 import org.ihtsdo.authoringservices.domain.*;
-import org.ihtsdo.authoringservices.review.pojo.BranchState;
+import org.ihtsdo.authoringservices.domain.BranchState;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;

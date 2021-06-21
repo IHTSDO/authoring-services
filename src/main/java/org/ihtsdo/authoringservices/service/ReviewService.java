@@ -1,18 +1,14 @@
-package org.ihtsdo.authoringservices.review.service;
+package org.ihtsdo.authoringservices.service;
 
+import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.otf.rest.exception.BadRequestException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
-import org.ihtsdo.authoringservices.domain.AuthoringTask;
-import org.ihtsdo.authoringservices.review.domain.Branch;
-import org.ihtsdo.authoringservices.review.domain.ReviewConceptView;
-import org.ihtsdo.authoringservices.review.domain.ReviewMessage;
-import org.ihtsdo.authoringservices.review.pojo.ReviewConcept;
-import org.ihtsdo.authoringservices.review.pojo.ReviewMessageCreateRequest;
-import org.ihtsdo.authoringservices.review.repository.BranchRepository;
-import org.ihtsdo.authoringservices.review.repository.ReviewConceptViewRepository;
-import org.ihtsdo.authoringservices.review.repository.ReviewMessageRepository;
-import org.ihtsdo.authoringservices.service.EmailService;
-import org.ihtsdo.authoringservices.service.TaskService;
+import org.ihtsdo.authoringservices.entity.Branch;
+import org.ihtsdo.authoringservices.entity.ReviewConceptView;
+import org.ihtsdo.authoringservices.entity.ReviewMessage;
+import org.ihtsdo.authoringservices.repository.BranchRepository;
+import org.ihtsdo.authoringservices.repository.ReviewConceptViewRepository;
+import org.ihtsdo.authoringservices.repository.ReviewMessageRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;

@@ -1,6 +1,6 @@
-package org.ihtsdo.authoringservices.review.service;
+package org.ihtsdo.authoringservices.service;
 
-import org.ihtsdo.authoringservices.review.domain.ReviewMessage;
+import org.ihtsdo.authoringservices.entity.ReviewMessage;
 
 /**
  * Receive event notifications by declaring a bean which implements this method.

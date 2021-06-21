@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import net.rcarz.jiraclient.Issue;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
-import org.ihtsdo.authoringservices.review.service.TaskMessagesStatus;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
 
 import java.util.ArrayList;
