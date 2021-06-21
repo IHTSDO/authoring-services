@@ -1,4 +1,4 @@
-package org.ihtsdo.authoringservices.review.domain;
+package org.ihtsdo.authoringservices.entity;
 
 import java.util.Date;
 import java.util.List;

@@ -1,30 +1,39 @@
 package org.ihtsdo.authoringservices.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableMap;
+import org.ihtsdo.authoringservices.domain.ReleaseRequest;
+import org.ihtsdo.authoringservices.domain.Status;
+import org.ihtsdo.authoringservices.entity.Validation;
+import org.ihtsdo.authoringservices.repository.ValidationRepository;
+import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.otf.jms.MessagingHelper;
 import org.ihtsdo.otf.rest.client.orchestration.OrchestrationRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
-import org.ihtsdo.authoringservices.domain.ReleaseRequest;
-import org.ihtsdo.authoringservices.domain.Status;
-import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestTemplate;
 
 import javax.annotation.PostConstruct;
 import javax.jms.JMSException;
+import javax.transaction.Transactional;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class ValidationService {
@@ -41,6 +50,7 @@ public class ValidationService {
 	public static final String REPORT_URL = "reportUrl";
 	public static final String STATUS_SCHEDULED = "SCHEDULED";
 	public static final String STATUS_COMPLETE = "COMPLETED";
+	public static final String STATUS_STALE = "STALE";
 	public static final String STATUS_NOT_TRIGGERED = "NOT_TRIGGERED";
 	public static final String ASSERTION_GROUP_NAMES = "assertionGroupNames";
 	public static final String RVF_DROOLS_ASSERTION_GROUP_NAMES = "rvfDroolsAssertionGroupNames";
@@ -67,44 +77,48 @@ public class ValidationService {
 	@Autowired
 	private BranchService branchService;
 
-	private LoadingCache<String, String> validationStatusLoadingCache;
+	@Autowired
+	private ValidationRepository validationRepository;
+
+	private final RestTemplate rvfRestTemplate;
+
+	private final ObjectMapper objectMapper;
+
+	private LoadingCache<String, Validation> validationLoadingCache;
 
 	private Logger logger = LoggerFactory.getLogger(getClass());
 
+	public ValidationService() {
+		this.rvfRestTemplate = new RestTemplate();
+		this.objectMapper = Jackson2ObjectMapperBuilder.json().failOnUnknownProperties(false).build();
+	}
+
 	@PostConstruct
 	public void init() {
-		validationStatusLoadingCache = CacheBuilder.newBuilder()
+		validationLoadingCache = CacheBuilder.newBuilder()
 				.maximumSize(10000)
 				.build(
-						new CacheLoader<String, String>() {
-							public String load(String path) throws Exception {
-								return getValidationStatusesWithoutCache(Collections.singletonList(path)).iterator().next();
+						new CacheLoader<String, Validation>() {
+							public Validation load(String path) throws Exception {
+								return getValidationStatusesWithoutCache(Collections.singletonList(path)).get(path);
 							}
 
 							@Override
-							public Map<String, String> loadAll(Iterable<? extends String> paths) throws Exception {
-								final ImmutableMap.Builder<String, String> map = ImmutableMap.builder();
+							public Map<String, Validation> loadAll(Iterable<? extends String> paths) throws Exception {
+								final ImmutableMap.Builder<String, Validation> map = ImmutableMap.builder();
 								List<String> pathsToLoad = new ArrayList<>();
 								for (String path : paths) {
-									final String status = validationStatusLoadingCache.getIfPresent(path);
-									if (status != null) {
-										map.put(path, status);
+									final Validation validation = validationLoadingCache.getIfPresent(path);
+									if (validation != null) {
+										map.put(path, validation);
 									} else {
 										pathsToLoad.add(path);
 									}
 								}
 								if (!pathsToLoad.isEmpty()) {
-									final List<String> validationStatuses = getValidationStatusesWithoutCache(pathsToLoad);
-									if (validationStatuses != null && validationStatuses.size() == pathsToLoad.size()) {
-										for (int i = 0; i < pathsToLoad.size(); i++) {
-											String value = validationStatuses.get(i);
-											if (value == null) {
-												value = STATUS_NOT_TRIGGERED;
-											}
-											map.put(pathsToLoad.get(i), value);
-										}
-									} else {
-										logger.error("Unable to load Validation Status, {} requested none returned, see logs", pathsToLoad.size());
+									final Map<String, Validation> validationMap= getValidationStatusesWithoutCache(pathsToLoad);
+									if (validationMap != null) {
+										map.putAll(validationMap);
 									}
 								}
 								return map.build();
@@ -112,11 +126,38 @@ public class ValidationService {
 						});
 	}
 
-	void updateValidationStatusCache(String path, String validationStatus) {
-		logger.info("Cache value before '{}'", validationStatusLoadingCache.getIfPresent(path));
-		validationStatusLoadingCache.put(path, validationStatus);
-		logger.info("Cache value after '{}'", validationStatusLoadingCache.getIfPresent(path));
+	public void updateValidationStatusCache(String path, String validationStatus, String reportUrl) throws BusinessServiceException {
+		Validation validation = validationLoadingCache.getIfPresent(path);
+		if (validation != null) {
+			logger.info("Cache value before '{}'", validation.toString());
+			validation.setStatus(validationStatus);
+			validation.setReportUrl(reportUrl);
+			validation.setContentHeadTimestamp(null);
+			validation.setRunId(null);
+		} else {
+			validation = new Validation(path, validationStatus);
+			validation.setReportUrl(reportUrl);
+		}
 
+		if (STATUS_COMPLETE.equals(validationStatus) && StringUtils.hasLength(reportUrl)) {
+			try {
+				String validationReportString = rvfRestTemplate.getForObject(reportUrl, String.class);
+				validationReportString = validationReportString.replace("\"TestResult\"", "\"testResult\"");
+
+				final ValidationReport validationReport = objectMapper.readValue(validationReportString, ValidationReport.class);
+
+				if (validationReport == null) {
+					throw new BusinessServiceException(String.format("Validation report for %s was fetched as null from %s.", path, reportUrl));
+				}
+				validation.setContentHeadTimestamp(validationReport.getContentHeadTimestamp());
+				validation.setRunId(validationReport.getRunId());
+			} catch (JsonProcessingException e) {
+				logger.error("Failed to read validation report.", e);
+			}
+		}
+		validation = validationRepository.save(validation);
+		validationLoadingCache.put(path, validation);
+		logger.info("Cache value after '{}'", validation.toString());
 	}
 
 	public Status startValidation(String projectKey, String taskKey, String username, String authenticationToken) throws BusinessServiceException {
@@ -155,7 +196,7 @@ public class ValidationService {
 			}
 			String prefix = orchestrationName + ".";
 			messagingHelper.send(prefix + VALIDATION_REQUEST_QUEUE, "", properties, prefix + VALIDATION_RESPONSE_QUEUE);
-			validationStatusLoadingCache.put(path, STATUS_SCHEDULED);
+			updateValidationStatusCache(path, STATUS_SCHEDULED, null);
 			return new Status(STATUS_SCHEDULED);
 		} catch (JsonProcessingException | JMSException e) {
 			throw new BusinessServiceException("Failed to send validation request, please contact support.", e);
@@ -186,11 +227,11 @@ public class ValidationService {
 	private String getValidationJsonIfAvailable(String path) throws BusinessServiceException {
 		try {
 		//Only return the validation json if the validation is complete
-			String validationStatus = getValidationStatus(path);
-			if (STATUS_COMPLETE.equals(validationStatus)) {
+			Validation validation = getValidationStatus(path);
+			if (STATUS_COMPLETE.equals(validation.getStatus())) {
 				return orchestrationRestClient.retrieveValidation(path);
 			} else {
-				logger.warn("Ignoring request for validation json for path {} as status {} ", path, validationStatus);
+				logger.warn("Ignoring request for validation json for path {} as status {} ", path, validation.getStatus());
 				return null;
 			}
 		} catch (Exception e) {
@@ -198,21 +239,23 @@ public class ValidationService {
 		}
 	}
 
-	public ImmutableMap<String, String> getValidationStatuses(Collection<String> paths) throws ExecutionException {
-		return validationStatusLoadingCache.getAll(paths);
+	public ImmutableMap<String, Validation> getValidations(Collection<String> paths) throws ExecutionException {
+		return validationLoadingCache.getAll(paths);
 	}
 	
-	public String getValidationStatus(String path) throws ExecutionException {
-		return validationStatusLoadingCache.get(path);
+	public Validation getValidationStatus(String path) throws ExecutionException {
+		return validationLoadingCache.get(path);
 	}
 
-	private List<String> getValidationStatusesWithoutCache(List<String> paths) {
+	@Transactional
+	private Map<String, Validation> getValidationStatusesWithoutCache(List<String> paths) {
 		List<String> statuses = null;
 		try {
 			statuses = orchestrationRestClient.retrieveValidationStatuses(paths);
 		} catch (Exception e) {
 			logger.error("Failed to retrieve validation status of tasks {}", paths, e);
 		}
+
 		if (statuses == null) {
 			statuses = new ArrayList<>();
 			for (int i = 0; i < paths.size(); i++) {
@@ -224,7 +267,22 @@ public class ValidationService {
 				statuses.set(i, STATUS_NOT_TRIGGERED);
 			}
 		}
-		return statuses;
+
+		List<Validation> validations = validationRepository.findAllByBranchPathIn(paths);
+		Map<String, Validation> branchToValidationMap = validations.stream().collect(Collectors.toMap(Validation::getBranchPath, Function.identity()));
+		for (int i = 0; i < paths.size(); i++) {
+			Validation validation;
+			if (branchToValidationMap.containsKey(paths.get(i))) {
+				validation = branchToValidationMap.get(paths.get(i));
+				validation.setStatus(statuses.get(i));
+			} else {
+				validation = new Validation(paths.get(i), statuses.get(i));
+			}
+			validation = validationRepository.save(validation);
+			branchToValidationMap.put(paths.get(i), validation);
+		}
+
+		return branchToValidationMap;
 	}
 
 	//Start validation for MAIN
@@ -245,6 +303,94 @@ public class ValidationService {
 	}
 
 	public void clearStatusCache() {
-		validationStatusLoadingCache.invalidateAll();
+		validationLoadingCache.invalidateAll();
+	}
+
+	private static final class ValidationReport {
+
+		public static final String COMPLETE = "COMPLETE";
+
+		private String status;
+		private RvfValidationResult rvfValidationResult;
+
+		public boolean isComplete() {
+			return COMPLETE.equals(status);
+		}
+
+		public Long getContentHeadTimestamp() {
+			return rvfValidationResult.getContentHeadTimestamp();
+		}
+
+		public Long getRunId() {
+			return rvfValidationResult.getRunId();
+		}
+
+		public boolean hasNoErrorsOrWarnings() {
+			return rvfValidationResult.hasNoErrorsOrWarnings();
+		}
+
+		public String getStatus() {
+			return status;
+		}
+
+		public RvfValidationResult getRvfValidationResult() {
+			return rvfValidationResult;
+		}
+
+		private static final class RvfValidationResult {
+
+			private ValidationConfig validationConfig;
+			private TestResult testResult;
+
+			public Long getContentHeadTimestamp() {
+				return validationConfig.getContentHeadTimestamp();
+			}
+
+			public Long getRunId() {
+				return validationConfig.getRunId();
+			}
+
+			public boolean hasNoErrorsOrWarnings() {
+				return getTestResult().getTotalFailures() == 0 && getTestResult().getTotalWarnings() == 0;
+			}
+
+			public ValidationConfig getValidationConfig() {
+				return validationConfig;
+			}
+
+			public TestResult getTestResult() {
+				return testResult;
+			}
+
+			private static final class ValidationConfig {
+
+				private String contentHeadTimestamp;
+
+				private String runId;
+
+				public Long getContentHeadTimestamp() {
+					return contentHeadTimestamp != null ? Long.parseLong(contentHeadTimestamp) : null;
+				}
+
+				public Long getRunId() {
+					return runId != null ? Long.parseLong(runId) : null;
+				}
+			}
+
+			private static final class TestResult {
+
+				private Integer totalFailures;
+				private Integer totalWarnings;
+
+				public Integer getTotalFailures() {
+					return totalFailures;
+				}
+
+				public Integer getTotalWarnings() {
+					return totalWarnings;
+				}
+			}
+		}
+
 	}
 }

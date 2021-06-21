@@ -1,4 +1,4 @@
-package org.ihtsdo.authoringservices.review.domain;
+package org.ihtsdo.authoringservices.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 

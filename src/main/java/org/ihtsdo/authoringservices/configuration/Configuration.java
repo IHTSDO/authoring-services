@@ -38,8 +38,8 @@ import static springfox.documentation.builders.PathSelectors.regex;
 @SpringBootApplication
 @EnableCaching
 @EnableConfigurationProperties
-@EnableJpaRepositories(basePackages = "org.ihtsdo.authoringservices.review")
-@EntityScan(basePackages = "org.ihtsdo.authoringservices.review")
+@EnableJpaRepositories(basePackages = "org.ihtsdo.authoringservices.repository")
+@EntityScan(basePackages = "org.ihtsdo.authoringservices.entity")
 public abstract class Configuration {
 
     @Bean

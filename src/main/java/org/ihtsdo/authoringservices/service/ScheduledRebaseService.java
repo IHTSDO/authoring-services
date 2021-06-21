@@ -17,7 +17,7 @@ import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ApiError;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Merge;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.authoringservices.domain.AuthoringProject;
-import org.ihtsdo.authoringservices.review.pojo.BranchState;
+import org.ihtsdo.authoringservices.domain.BranchState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;

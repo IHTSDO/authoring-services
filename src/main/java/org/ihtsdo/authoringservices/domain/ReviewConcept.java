@@ -1,6 +1,6 @@
-package org.ihtsdo.authoringservices.review.pojo;
+package org.ihtsdo.authoringservices.domain;
 
-import org.ihtsdo.authoringservices.review.domain.ReviewMessage;
+import org.ihtsdo.authoringservices.entity.ReviewMessage;
 
 import java.util.Date;
 import java.util.List;

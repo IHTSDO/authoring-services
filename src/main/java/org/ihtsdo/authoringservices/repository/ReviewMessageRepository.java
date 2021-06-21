@@ -1,7 +1,7 @@
-package org.ihtsdo.authoringservices.review.repository;
+package org.ihtsdo.authoringservices.repository;
 
-import org.ihtsdo.authoringservices.review.domain.Branch;
-import org.ihtsdo.authoringservices.review.domain.ReviewMessage;
+import org.ihtsdo.authoringservices.entity.Branch;
+import org.ihtsdo.authoringservices.entity.ReviewMessage;
 import org.springframework.data.repository.CrudRepository;
 
 import java.util.List;
