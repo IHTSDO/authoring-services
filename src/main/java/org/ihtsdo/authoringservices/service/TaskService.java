@@ -335,7 +335,7 @@ public class TaskService {
 					Validation validation = validationMap.get(branchPath);
 					if (ValidationService.STATUS_COMPLETE.equals(validation.getStatus())
 							&& validation.getContentHeadTimestamp() != null
-							&& authoringProject.getBranchHeadTimestamp() !=  validation.getContentHeadTimestamp()) {
+							&& !authoringProject.getBranchHeadTimestamp().equals(validation.getContentHeadTimestamp())) {
 						authoringProject.setValidationStatus(ValidationService.STATUS_STALE);
 					} else {
 						authoringProject.setValidationStatus(validation.getStatus());
@@ -650,7 +650,7 @@ public class TaskService {
 							Validation validation = validationMap.get(path);
 							if (ValidationService.STATUS_COMPLETE.equals(validation.getStatus())
 								&& validation.getContentHeadTimestamp() != null
-								&& startedTasks.get(path).getBranchHeadTimestamp() !=  validation.getContentHeadTimestamp()) {
+								&& !startedTasks.get(path).getBranchHeadTimestamp().equals(validation.getContentHeadTimestamp())) {
 								startedTasks.get(path).setLatestValidationStatus(ValidationService.STATUS_STALE);
 							} else {
 								startedTasks.get(path).setLatestValidationStatus(validation.getStatus());
