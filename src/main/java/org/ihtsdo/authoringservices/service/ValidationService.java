@@ -7,6 +7,8 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableMap;
+import net.sf.json.JSONObject;
+import org.apache.tomcat.util.json.JSONParser;
 import org.ihtsdo.authoringservices.domain.ReleaseRequest;
 import org.ihtsdo.authoringservices.domain.Status;
 import org.ihtsdo.authoringservices.entity.Validation;
@@ -15,6 +17,7 @@ import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.otf.jms.MessagingHelper;
 import org.ihtsdo.otf.rest.client.orchestration.OrchestrationRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -229,7 +232,16 @@ public class ValidationService {
 		//Only return the validation json if the validation is complete
 			Validation validation = getValidationStatus(path);
 			if (STATUS_COMPLETE.equals(validation.getStatus())) {
-				return orchestrationRestClient.retrieveValidation(path);
+				String result = orchestrationRestClient.retrieveValidation(path);
+				if (StringUtils.hasLength(result) && validation.getContentHeadTimestamp() != null) {
+					Branch branch = branchService.getBranch(path);
+					if (!validation.getContentHeadTimestamp().equals(branch.getHeadTimestamp())) {
+						JSONObject jsonObj = JSONObject.fromObject(result);
+						jsonObj.put("executionStatus", STATUS_STALE);
+						result = jsonObj.toString();
+					}
+				}
+				return  result;
 			} else {
 				logger.warn("Ignoring request for validation json for path {} as status {} ", path, validation.getStatus());
 				return null;
