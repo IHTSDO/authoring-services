@@ -24,6 +24,6 @@ public class BranchMonitorTest {
 	}
 
 	private BranchMonitor newMon() {
-		return new BranchMonitor("A", "B", "MAIN/A/B", null);
+		return new BranchMonitor("A", "B", "MAIN/A/B", null, null);
 	}
 }
