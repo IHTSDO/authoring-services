@@ -195,7 +195,9 @@ public class PromotionService {
 
 			// Call classification process
 			Classification classification = this.autoClassificationTask(projectKey, taskKey);
-			if (classification != null && !classification.getResults().isInferredRelationshipChangesFound()) {
+			if (classification != null
+					&& !classification.getResults().isInferredRelationshipChangesFound()
+					&& !classification.getResults().isEquivalentConceptsFound()) {
 
 				// Call promote process
 				Merge merge = this.autoPromoteTask(projectKey, taskKey);
@@ -233,7 +235,11 @@ public class PromotionService {
 			Classification classification =  classificationService.startClassification(projectKey, taskKey, branchPath, SecurityUtil.getUsername());
 			classification.setResults(snowstormRestClientFactory.getClient().waitForClassificationToComplete(classification.getResults()));
 			if (ClassificationStatus.COMPLETED == classification.getResults().getStatus()) {
-				if (classification.getResults().isInferredRelationshipChangesFound()) {
+				if (classification.getResults().isEquivalentConceptsFound()) {
+					status = new ProcessStatus("Classified with equivalencies Found","");
+					status.setCompleteDate(new Date());
+					automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
+				} else if (classification.getResults().isInferredRelationshipChangesFound()) {
 					status = new ProcessStatus("Classified with results","");
 					status.setCompleteDate(new Date());
 					automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
