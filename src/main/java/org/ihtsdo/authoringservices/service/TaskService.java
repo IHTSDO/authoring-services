@@ -306,19 +306,7 @@ public class TaskService {
 					headTimeStamp = branchOrNull.getHeadTimestamp();
 					metadata.putAll(parentBranchOrNull.getMetadata());
 					if (branchOrNull.getMetadata() != null) {
-						metadata.forEach((key, value) -> {
-							if (branchOrNull.getMetadata().containsKey(key)) {
-								// merged the map values
-								if (value instanceof Map) {
-									Map merged = (Map) value;
-									merged.putAll((Map) branchOrNull.getMetadata().get(key));
-									metadata.put(key, merged);
-								} else {
-									// use child branch
-									metadata.put(key, branchOrNull.getMetadata().get(key));
-								}
-							}
-						});
+						metadata.putAll(branchOrNull.getMetadata());
 					}
 				}
 				synchronized (branchPaths) {
