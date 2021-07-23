@@ -539,12 +539,12 @@ public class TaskService {
 	}
 
 	public List<AuthoringTask> listMyOrUnassignedReviewTasks(String excludePromoted) throws JiraException, BusinessServiceException {
-		String jql = "type = \"" + AUTHORING_TASK_TYPE + "\" " + "AND assignee != currentUser() "
-				+ "AND (Reviewer = currentUser() OR Reviewers = currentUser() OR (Reviewer = null AND Reviewers = null)) ";
+		String jql = "type = \"" + AUTHORING_TASK_TYPE + "\" " + "AND assignee != currentUser() AND "
+				+ "(((Reviewer = null AND Reviewers = null) AND status = \"" + TaskStatus.IN_REVIEW.getLabel() + "\") OR ((Reviewer = currentUser() OR Reviewers = currentUser()) AND ";
 		if (null != excludePromoted && excludePromoted.equalsIgnoreCase("TRUE")) {
-			jql += "AND status = \"" + TaskStatus.IN_REVIEW.getLabel() + "\"";
+			jql += "(status = \"" + TaskStatus.IN_REVIEW.getLabel() + "\" OR status = \"" + TaskStatus.REVIEW_COMPLETED.getLabel() + "\")))";
 		} else {
-			jql += "AND ((status = \"Promoted\" AND (Reviewer = currentUser() OR Reviewers = currentUser())) OR status = \"" + TaskStatus.IN_REVIEW.getLabel() + "\")";
+			jql += "(status = \"" + TaskStatus.IN_REVIEW.getLabel() + "\" OR status = \"" + TaskStatus.REVIEW_COMPLETED.getLabel() + "\" OR status = \"" + TaskStatus.PROMOTED.getLabel() + "\")))";
 		}
 		List<Issue> issues = searchIssues(jql, LIMIT_UNLIMITED);
 		return buildAuthoringTasks(issues, false);
