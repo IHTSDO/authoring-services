@@ -163,9 +163,8 @@ public class ValidationService {
 		logger.info("Cache value after '{}'", validation.toString());
 	}
 
-	public Status startValidation(String projectKey, String taskKey, String username, String authenticationToken) throws BusinessServiceException {
-		// MRCM validation is skipped for task validation
-		return doStartValidation(taskService.getTaskBranchPathUsingCache(projectKey, taskKey), username, authenticationToken, projectKey, taskKey, null, false);
+	public Status startValidation(String projectKey, String taskKey, boolean enableMRCMValidation, String username, String authenticationToken) throws BusinessServiceException {
+		return doStartValidation(taskService.getTaskBranchPathUsingCache(projectKey, taskKey), username, authenticationToken, projectKey, taskKey, null, enableMRCMValidation);
 	}
 
 	public Status startValidation(String projectKey, String username, String authenticationToken) throws BusinessServiceException {
