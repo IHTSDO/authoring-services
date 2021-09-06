@@ -333,10 +333,10 @@ public class TaskService {
 				for (AuthoringProject authoringProject : authoringProjects) {
 					String branchPath = authoringProject.getBranchPath();
 					Validation validation = validationMap.get(branchPath);
-					if (ValidationService.STATUS_COMPLETE.equals(validation.getStatus())
+					if (ValidationJobStatus.COMPLETED.name().equals(validation.getStatus())
 							&& validation.getContentHeadTimestamp() != null
 							&& !authoringProject.getBranchHeadTimestamp().equals(validation.getContentHeadTimestamp())) {
-						authoringProject.setValidationStatus(ValidationService.STATUS_STALE);
+						authoringProject.setValidationStatus(ValidationJobStatus.STALE.name());
 					} else {
 						authoringProject.setValidationStatus(validation.getStatus());
 					}
@@ -648,10 +648,10 @@ public class TaskService {
 					} else {
 						for (final String path : paths) {
 							Validation validation = validationMap.get(path);
-							if (ValidationService.STATUS_COMPLETE.equals(validation.getStatus())
+							if (ValidationJobStatus.COMPLETED.name().equals(validation.getStatus())
 								&& validation.getContentHeadTimestamp() != null
 								&& !startedTasks.get(path).getBranchHeadTimestamp().equals(validation.getContentHeadTimestamp())) {
-								startedTasks.get(path).setLatestValidationStatus(ValidationService.STATUS_STALE);
+								startedTasks.get(path).setLatestValidationStatus(ValidationJobStatus.STALE.name());
 							} else {
 								startedTasks.get(path).setLatestValidationStatus(validation.getStatus());
 							}
@@ -672,12 +672,6 @@ public class TaskService {
 		} catch (JiraException e) {
 			throw new ResourceNotFoundException("Project", projectKey);
 		}
-	}
-
-	public boolean taskIsState(String taskKey, TaskStatus state) throws JiraException {
-		Issue issue = getIssue(taskKey);
-		String currentState = issue.getStatus().getName();
-		return currentState.equals(state.getLabel());
 	}
 
 	public void addCommentLogErrors(String projectKey, String commentString) {

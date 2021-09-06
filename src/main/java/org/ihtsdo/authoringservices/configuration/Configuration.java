@@ -10,7 +10,6 @@ import net.rcarz.jiraclient.JiraException;
 import org.ihtsdo.authoringservices.service.TaskService;
 import org.ihtsdo.authoringservices.service.jira.ImpersonatingJiraClientFactory;
 import org.ihtsdo.otf.jms.MessagingHelper;
-import org.ihtsdo.otf.rest.client.orchestration.OrchestrationRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -50,13 +49,6 @@ public abstract class Configuration {
     @Bean
     public SnowstormRestClientFactory snowstormRestClientFactory(@Value("${snowstorm.url}") String snowstormUrl) {
         return new SnowstormRestClientFactory(snowstormUrl, null);
-    }
-
-    @Bean
-    public OrchestrationRestClient orchestrationRestClient(@Value("${orchestration.url}") String orchestrationUrl,
-                @Value("${orchestration.username}") String username, @Value("${orchestration.password}") String password) {
-
-        return new OrchestrationRestClient(orchestrationUrl, username, password);
     }
 
     @Bean

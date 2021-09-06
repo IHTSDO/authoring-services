@@ -25,14 +25,14 @@ public class ValidationController {
 	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
 	@RequestMapping(value = "/main/validation", method = RequestMethod.POST)
 	public Status startValidation( @RequestBody(required=false) final ReleaseRequest releaseRequest) throws BusinessServiceException {
-		return validationService.startValidation(releaseRequest, SecurityUtil.getUsername(), SecurityUtil.getAuthenticationToken());
+		return validationService.startValidation(releaseRequest);
 	}
 
 	@ApiOperation(value = "Initiate validation on a Task")
 	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
 	@RequestMapping(value = "/projects/{projectKey}/tasks/{taskKey}/validation", method = RequestMethod.POST)
 	public Status startValidation(@PathVariable final String projectKey, @PathVariable final String taskKey, @RequestParam(value = "enableMRCMValidation", required = false, defaultValue = "false") boolean enableMRCMValidation) throws BusinessServiceException {
-		return validationService.startValidation(projectKey, taskKey, enableMRCMValidation, SecurityUtil.getUsername(), SecurityUtil.getAuthenticationToken());
+		return validationService.startValidation(projectKey, taskKey, enableMRCMValidation);
 	}
 
 	@ApiOperation(value = "Recover the most recent validation on a Task")
@@ -59,7 +59,7 @@ public class ValidationController {
 	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
 	@RequestMapping(value = "/projects/{projectKey}/validation", method = RequestMethod.POST)
 	public Status startValidation(@PathVariable final String projectKey) throws BusinessServiceException {
-		return validationService.startValidation(projectKey, SecurityUtil.getUsername(), SecurityUtil.getAuthenticationToken());
+		return validationService.startValidation(projectKey, null, true);
 	}
 
 	@ApiOperation(value = "Recover the most recent validation on Project")

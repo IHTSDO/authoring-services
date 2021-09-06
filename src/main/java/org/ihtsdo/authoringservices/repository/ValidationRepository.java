@@ -8,4 +8,6 @@ import java.util.List;
 
 public interface ValidationRepository extends CrudRepository<Validation, Long> {
     List<Validation> findAllByBranchPathIn(Collection<String> branchPaths);
+
+    Validation findByRunId(Long runId);
 }

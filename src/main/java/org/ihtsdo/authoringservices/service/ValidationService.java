@@ -1,24 +1,26 @@
 package org.ihtsdo.authoringservices.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableMap;
 import net.sf.json.JSONObject;
-import org.apache.tomcat.util.json.JSONParser;
 import org.ihtsdo.authoringservices.domain.ReleaseRequest;
 import org.ihtsdo.authoringservices.domain.Status;
+import org.ihtsdo.authoringservices.domain.ValidationConfiguration;
+import org.ihtsdo.authoringservices.domain.ValidationJobStatus;
 import org.ihtsdo.authoringservices.entity.Validation;
 import org.ihtsdo.authoringservices.repository.ValidationRepository;
+import org.ihtsdo.authoringservices.service.dao.SRSFileDAO;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
-import org.ihtsdo.otf.jms.MessagingHelper;
-import org.ihtsdo.otf.rest.client.orchestration.OrchestrationRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
+import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
+import org.ihtsdo.otf.rest.exception.EntityAlreadyExistsException;
+import org.ihtsdo.otf.utils.DateUtils;
+import org.ihtsdo.sso.integration.SecurityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,7 +31,6 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
 
 import javax.annotation.PostConstruct;
-import javax.jms.JMSException;
 import javax.transaction.Transactional;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -41,20 +42,16 @@ import java.util.stream.Collectors;
 @Service
 public class ValidationService {
 
-	private static final String VALIDATION_REQUEST_QUEUE = "orchestration.termserver-release-validation";
-	public static final String VALIDATION_RESPONSE_QUEUE = "sca.termserver-release-validation.response";
-	public static final String PATH = "path";
-	public static final String USERNAME = "username";
-	public static final String X_AUTH_TOKEN = "X-AUTH-token";
-	public static final String PROJECT = "project";
-	public static final String TASK = "task";
-	public static final String EFFECTIVE_TIME = "effective-time";
-	public static final String STATUS = "status";
+	private Logger logger = LoggerFactory.getLogger(getClass());
+
+	public static final String VALIDATION_STATUS = "validationStatus";
 	public static final String REPORT_URL = "reportUrl";
-	public static final String STATUS_SCHEDULED = "SCHEDULED";
-	public static final String STATUS_COMPLETE = "COMPLETED";
-	public static final String STATUS_STALE = "STALE";
-	public static final String STATUS_NOT_TRIGGERED = "NOT_TRIGGERED";
+	public static final String CONTENT_HEAD_TIMESTAMP = "contentHeadTimestamp";
+	public static final String RUN_ID = "runId";
+	public static final String PROJECT_KEY = "projectKey";
+	public static final String TASK_KEY = "taskKey";
+
+	public static final String VALIDATION_RESPONSE_QUEUE = "termserver-release-validation.response";
 	public static final String ASSERTION_GROUP_NAMES = "assertionGroupNames";
 	public static final String RVF_DROOLS_ASSERTION_GROUP_NAMES = "rvfDroolsAssertionGroupNames";
 	public static final String PREVIOUS_RELEASE = "previousRelease";
@@ -63,33 +60,37 @@ public class ValidationService {
 	public static final String PREVIOUS_PACKAGE = "previousPackage";
 	public static final String DEPENDENCY_PACKAGE = "dependencyPackage";
 	public static final String DEFAULT_MODULE_ID = "defaultModuleId";
-	public static final String ENABLE_MRCM_VALIDATION = "enableMRCMValidation";
+	public static final String INTERNATIONAL = "international";
 
-	@Value("${orchestration.name}")
-	private String orchestrationName;
+	@Value("${rvf.url}")
+	private String rvfUrl;
+
+	@Value("${sca.jms.queue.prefix}")
+	private String scaQueuePrefix;
 
 	@Autowired
 	private TaskService taskService;
 
 	@Autowired
-	private MessagingHelper messagingHelper;
-
-	@Autowired
-	private OrchestrationRestClient orchestrationRestClient;
-
-	@Autowired
 	private BranchService branchService;
 
 	@Autowired
+	private NotificationService notificationService;
+
+	@Autowired
 	private ValidationRepository validationRepository;
+
+	@Autowired
+	private SnowstormRestClientFactory snowstormRestClientFactory;
+
+	@Autowired
+	protected SRSFileDAO srsDAO;
 
 	private final RestTemplate rvfRestTemplate;
 
 	private final ObjectMapper objectMapper;
 
 	private LoadingCache<String, Validation> validationLoadingCache;
-
-	private Logger logger = LoggerFactory.getLogger(getClass());
 
 	public ValidationService() {
 		this.rvfRestTemplate = new RestTemplate();
@@ -129,89 +130,103 @@ public class ValidationService {
 						});
 	}
 
-	public void updateValidationStatusCache(String path, String validationStatus, String reportUrl) throws BusinessServiceException {
-		Validation validation = validationLoadingCache.getIfPresent(path);
-		if (validation != null) {
-			logger.info("Cache value before '{}'", validation.toString());
-			validation.setStatus(validationStatus);
-			validation.setReportUrl(reportUrl);
-			validation.setContentHeadTimestamp(null);
-			validation.setRunId(null);
-		} else {
-			validation = new Validation(path, validationStatus);
-			validation.setReportUrl(reportUrl);
+	public void updateValidationCache(final String branchPath, final Map<String, String> newPropertyValues) {
+		Validation validation = validationLoadingCache.getIfPresent(branchPath);
+		if (validation == null) {
+			validation = new Validation(branchPath);
+		}
+		if (newPropertyValues.containsKey(VALIDATION_STATUS)) {
+			validation.setStatus(newPropertyValues.get(VALIDATION_STATUS));
+		}
+		if (newPropertyValues.containsKey(REPORT_URL)) {
+			validation.setReportUrl(newPropertyValues.get(REPORT_URL));
+		}
+		if (newPropertyValues.containsKey(CONTENT_HEAD_TIMESTAMP)) {
+			validation.setContentHeadTimestamp(Long.valueOf(newPropertyValues.get(CONTENT_HEAD_TIMESTAMP)));
+		}
+		if (newPropertyValues.containsKey(RUN_ID)) {
+			validation.setRunId(Long.valueOf(newPropertyValues.get(RUN_ID)));
+		}
+		if (newPropertyValues.containsKey(PROJECT_KEY)) {
+			validation.setProjectKey(newPropertyValues.get(PROJECT_KEY));
+		}
+		if (newPropertyValues.containsKey(TASK_KEY)) {
+			validation.setTaskKey(newPropertyValues.get(TASK_KEY));
 		}
 
-		if (STATUS_COMPLETE.equals(validationStatus) && StringUtils.hasLength(reportUrl)) {
-			try {
-				String validationReportString = rvfRestTemplate.getForObject(reportUrl, String.class);
-				validationReportString = validationReportString.replace("\"TestResult\"", "\"testResult\"");
-
-				final ValidationReport validationReport = objectMapper.readValue(validationReportString, ValidationReport.class);
-
-				if (validationReport == null) {
-					throw new BusinessServiceException(String.format("Validation report for %s was fetched as null from %s.", path, reportUrl));
-				}
-				validation.setContentHeadTimestamp(validationReport.getContentHeadTimestamp());
-				validation.setRunId(validationReport.getRunId());
-			} catch (JsonProcessingException e) {
-				logger.error("Failed to read validation report.", e);
-			}
-		}
 		validation = validationRepository.save(validation);
-		validationLoadingCache.put(path, validation);
-		logger.info("Cache value after '{}'", validation.toString());
+		validationLoadingCache.put(branchPath, validation);
 	}
 
-	public Status startValidation(String projectKey, String taskKey, boolean enableMRCMValidation, String username, String authenticationToken) throws BusinessServiceException {
-		return doStartValidation(taskService.getTaskBranchPathUsingCache(projectKey, taskKey), username, authenticationToken, projectKey, taskKey, null, enableMRCMValidation);
+    //Start validation for MAIN
+    public Status startValidation(ReleaseRequest releaseRequest) throws BusinessServiceException {
+        String effectiveDate = null;
+        if (releaseRequest != null && releaseRequest.getEffectiveDate() != null) {
+            String potentialEffectiveDate = releaseRequest.getEffectiveDate();
+            try {
+
+                new SimpleDateFormat("yyyyDDmm").parse(potentialEffectiveDate);
+                effectiveDate = potentialEffectiveDate;
+            } catch (ParseException e) {
+                logger.error("Unable to set effective date for MAIN validation, unrecognised: " + potentialEffectiveDate, e);
+            }
+        }
+        return doStartValidation(PathHelper.getMainPath(),null,null, effectiveDate,false);
+    }
+
+	public Status startValidation(String projectKey, String taskKey, boolean enableMRCMValidation) throws BusinessServiceException {
+		String branchPath = taskKey != null ? taskService.getTaskBranchPathUsingCache(projectKey, taskKey) : taskService.getProjectBranchPathUsingCache(projectKey);
+	    return doStartValidation(branchPath, projectKey, taskKey, null, enableMRCMValidation);
 	}
 
-	public Status startValidation(String projectKey, String username, String authenticationToken) throws BusinessServiceException {
-		return doStartValidation(taskService.getProjectBranchPathUsingCache(projectKey), username, authenticationToken, projectKey, null, null, true);
-	}
-
-	private Status doStartValidation(String path, String username, String authenticationToken, String projectKey, String taskKey, String effectiveTime, boolean enableMRCMValidation) throws BusinessServiceException {
+	private synchronized Status doStartValidation(String branchPath, String projectKey, String taskKey, String effectiveDate, boolean enableMRCMValidation) throws BusinessServiceException {
 		try {
-			final Map<String, Object> mergedBranchMetadata = branchService.getBranchMetadataIncludeInherited(path);
-			Map<String, Object> properties = new HashMap<>();
-			copyProperty(ASSERTION_GROUP_NAMES, mergedBranchMetadata, properties);
-			copyProperty(RVF_DROOLS_ASSERTION_GROUP_NAMES, mergedBranchMetadata, properties);
-			copyProperty(PREVIOUS_RELEASE, mergedBranchMetadata, properties);
-			copyProperty(DEPENDENCY_RELEASE, mergedBranchMetadata, properties);
-			copyProperty(SHORT_NAME, mergedBranchMetadata, properties);
-			copyProperty(PREVIOUS_PACKAGE, mergedBranchMetadata, properties);
-			copyProperty(DEPENDENCY_PACKAGE, mergedBranchMetadata, properties);
-			copyProperty(DEFAULT_MODULE_ID, mergedBranchMetadata, properties);
-			properties.put(PATH, path);
-			properties.put(USERNAME, username);
-			properties.put(X_AUTH_TOKEN, authenticationToken);
-			properties.put(ENABLE_MRCM_VALIDATION, enableMRCMValidation);
-			if (projectKey != null) {
-				properties.put(PROJECT, projectKey);
+			final String username = SecurityUtil.getUsername();
+		    final String authToken = SecurityUtil.getAuthenticationToken();
+			final Map<String, Object> branchMetadata = branchService.getBranchMetadataIncludeInherited(branchPath);
+			ValidationConfiguration validationConfig = constructValidationConfig(branchPath, branchMetadata, effectiveDate, enableMRCMValidation, projectKey, taskKey);
+			Validation validation = getValidationStatus(branchPath);
+			if (validation.getStatus() != null && !ValidationJobStatus.isAllowedTriggeringState(validation.getStatus())) {
+				throw new EntityAlreadyExistsException("An in-progress validation has been detected for " + branchPath + " at state " + validation.getStatus());
 			}
-			if (taskKey != null) {
-				properties.put(TASK, taskKey);
-			}
-			if (effectiveTime != null) {
-				properties.put(EFFECTIVE_TIME, effectiveTime);
-			}
-			String prefix = orchestrationName + ".";
-			messagingHelper.send(prefix + VALIDATION_REQUEST_QUEUE, "", properties, prefix + VALIDATION_RESPONSE_QUEUE);
-			updateValidationStatusCache(path, STATUS_SCHEDULED, null);
-			return new Status(STATUS_SCHEDULED);
-		} catch (JsonProcessingException | JMSException e) {
-			throw new BusinessServiceException("Failed to send validation request, please contact support.", e);
-		} catch (ServiceException e) {
+			new Thread(new ValidationRunner(validationConfig, snowstormRestClientFactory.getClient(), srsDAO, this, notificationService, rvfUrl, scaQueuePrefix, username, authToken)).start();
+
+			Map newPropertyValues = new HashMap();
+			newPropertyValues.put(VALIDATION_STATUS, ValidationJobStatus.SCHEDULED.name());
+			newPropertyValues.put(PROJECT_KEY, projectKey);
+			newPropertyValues.put(TASK_KEY, taskKey);
+			updateValidationCache( branchPath, newPropertyValues);
+
+			return new Status(ValidationJobStatus.SCHEDULED.name());
+		} catch (ServiceException | ExecutionException e) {
 			throw new BusinessServiceException("Failed to read branch information, validation request not sent.", e);
 		}
 	}
 
-	private void copyProperty(String key, Map<String, Object> metadata, Map<String, Object> properties) {
-		final String value = (String) metadata.get(key);
-		if (!Strings.isNullOrEmpty(value)) {
-			properties.put(key, value);
+	private ValidationConfiguration constructValidationConfig(final String branchPath, final Map <String, Object> branchMetadata, String effectiveDate, boolean enableMRCM, String projectKey, String taskKey) {
+		ValidationConfiguration validationConfig = new ValidationConfiguration();
+        validationConfig.setBranchPath(branchPath);
+		validationConfig.setAssertionGroupNames((String) branchMetadata.get(ASSERTION_GROUP_NAMES));
+		validationConfig.setPreviousPackage((String) branchMetadata.get(PREVIOUS_PACKAGE));
+		validationConfig.setDependencyPackage((String) branchMetadata.get(DEPENDENCY_PACKAGE));
+		validationConfig.setPreviousRelease((String) branchMetadata.get(PREVIOUS_RELEASE));
+		validationConfig.setRvfDroolsAssertionGroupNames((String) branchMetadata.get(RVF_DROOLS_ASSERTION_GROUP_NAMES));
+		validationConfig.setIncludedModuleIds((String) branchMetadata.get(DEFAULT_MODULE_ID));
+		validationConfig.setEnableMRCMValidation(enableMRCM);
+		String dependencyRelease = (String) branchMetadata.get(DEPENDENCY_RELEASE);
+		if (dependencyRelease != null) {
+			validationConfig.setReleaseCenter((String) branchMetadata.get(SHORT_NAME));
+			validationConfig.setDependencyRelease(dependencyRelease);
+		} else {
+			validationConfig.setReleaseCenter(INTERNATIONAL);
 		}
+        validationConfig.setProductName(branchPath.replace("/", "_"));
+        validationConfig.setReleaseDate(effectiveDate != null ? effectiveDate : DateUtils.now(DateUtils.YYYYMMDD));
+		validationConfig.setProjectKey(projectKey);
+		validationConfig.setTaskKey(taskKey);
+
+		logger.info("Validation config created:{}", validationConfig);
+		return validationConfig;
 	}
 
 	public String getValidationJson(String projectKey, String taskKey) throws BusinessServiceException {
@@ -228,19 +243,23 @@ public class ValidationService {
 	
 	private String getValidationJsonIfAvailable(String path) throws BusinessServiceException {
 		try {
-		//Only return the validation json if the validation is complete
+			//Only return the validation json if the validation is complete
 			Validation validation = getValidationStatus(path);
-			if (STATUS_COMPLETE.equals(validation.getStatus())) {
-				String result = orchestrationRestClient.retrieveValidation(path);
-				if (StringUtils.hasLength(result) && validation.getContentHeadTimestamp() != null) {
+			if (ValidationJobStatus.COMPLETED.name().equals(validation.getStatus()) && validation.getReportUrl() != null) {
+				JSONObject jsonObj = new JSONObject();
+				String report = rvfRestTemplate.getForObject(validation.getReportUrl(), String.class);
+				if (StringUtils.hasLength(report) && validation.getContentHeadTimestamp() != null) {
 					Branch branch = branchService.getBranch(path);
 					if (!validation.getContentHeadTimestamp().equals(branch.getHeadTimestamp())) {
-						JSONObject jsonObj = JSONObject.fromObject(result);
-						jsonObj.put("executionStatus", STATUS_STALE);
-						result = jsonObj.toString();
+						jsonObj.put("executionStatus", ValidationJobStatus.STALE.name());
+					} else {
+						jsonObj.put("executionStatus", validation.getStatus());
 					}
+				} else {
+					jsonObj.put("executionStatus", validation.getStatus());
 				}
-				return  result;
+				jsonObj.put("report", report);
+				return  jsonObj.toString();
 			} else {
 				logger.warn("Ignoring request for validation json for path {} as status {} ", path, validation.getStatus());
 				return null;
@@ -260,148 +279,23 @@ public class ValidationService {
 
 	@Transactional
 	private Map<String, Validation> getValidationStatusesWithoutCache(List<String> paths) {
-		List<String> statuses = null;
-		try {
-			statuses = orchestrationRestClient.retrieveValidationStatuses(paths);
-		} catch (Exception e) {
-			logger.error("Failed to retrieve validation status of tasks {}", paths, e);
-		}
-
-		if (statuses == null) {
-			statuses = new ArrayList<>();
-			for (int i = 0; i < paths.size(); i++) {
-				statuses.add(TaskService.FAILED_TO_RETRIEVE);
-			}
-		}
-		for (int i = 0; i < statuses.size(); i++) {
-			if (statuses.get(i) == null) {
-				statuses.set(i, STATUS_NOT_TRIGGERED);
-			}
-		}
-
 		List<Validation> validations = validationRepository.findAllByBranchPathIn(paths);
 		Map<String, Validation> branchToValidationMap = validations.stream().collect(Collectors.toMap(Validation::getBranchPath, Function.identity()));
 		for (int i = 0; i < paths.size(); i++) {
 			Validation validation;
-			if (branchToValidationMap.containsKey(paths.get(i))) {
-				validation = branchToValidationMap.get(paths.get(i));
-				validation.setStatus(statuses.get(i));
-			} else {
-				validation = new Validation(paths.get(i), statuses.get(i));
+			if (!branchToValidationMap.containsKey(paths.get(i))) {
+				validation = new Validation(paths.get(i));
+				validation.setStatus(ValidationJobStatus.NOT_TRIGGERED.name());
+				validation = validationRepository.save(validation);
+				branchToValidationMap.put(paths.get(i), validation);
 			}
-			validation = validationRepository.save(validation);
-			branchToValidationMap.put(paths.get(i), validation);
 		}
 
 		return branchToValidationMap;
-	}
-
-	//Start validation for MAIN
-	public Status startValidation(ReleaseRequest releaseRequest,
-			String username, String authenticationToken) throws BusinessServiceException {
-		String effectiveDate = null;
-		if (releaseRequest != null && releaseRequest.getEffectiveDate() != null) {
-			String potentialEffectiveDate = releaseRequest.getEffectiveDate();
-			try {
-				
-				new SimpleDateFormat("yyyyDDmm").parse(potentialEffectiveDate);
-				effectiveDate = potentialEffectiveDate;
-			} catch (ParseException e) {
-				logger.error("Unable to set effective date for MAIN validation, unrecognised: " + potentialEffectiveDate, e);
-			}
-		}
-		return doStartValidation(PathHelper.getMainPath(), username, authenticationToken, null, null, effectiveDate, false);
 	}
 
 	public void clearStatusCache() {
 		validationLoadingCache.invalidateAll();
 	}
 
-	private static final class ValidationReport {
-
-		public static final String COMPLETE = "COMPLETE";
-
-		private String status;
-		private RvfValidationResult rvfValidationResult;
-
-		public boolean isComplete() {
-			return COMPLETE.equals(status);
-		}
-
-		public Long getContentHeadTimestamp() {
-			return rvfValidationResult.getContentHeadTimestamp();
-		}
-
-		public Long getRunId() {
-			return rvfValidationResult.getRunId();
-		}
-
-		public boolean hasNoErrorsOrWarnings() {
-			return rvfValidationResult.hasNoErrorsOrWarnings();
-		}
-
-		public String getStatus() {
-			return status;
-		}
-
-		public RvfValidationResult getRvfValidationResult() {
-			return rvfValidationResult;
-		}
-
-		private static final class RvfValidationResult {
-
-			private ValidationConfig validationConfig;
-			private TestResult testResult;
-
-			public Long getContentHeadTimestamp() {
-				return validationConfig.getContentHeadTimestamp();
-			}
-
-			public Long getRunId() {
-				return validationConfig.getRunId();
-			}
-
-			public boolean hasNoErrorsOrWarnings() {
-				return getTestResult().getTotalFailures() == 0 && getTestResult().getTotalWarnings() == 0;
-			}
-
-			public ValidationConfig getValidationConfig() {
-				return validationConfig;
-			}
-
-			public TestResult getTestResult() {
-				return testResult;
-			}
-
-			private static final class ValidationConfig {
-
-				private String contentHeadTimestamp;
-
-				private String runId;
-
-				public Long getContentHeadTimestamp() {
-					return contentHeadTimestamp != null ? Long.parseLong(contentHeadTimestamp) : null;
-				}
-
-				public Long getRunId() {
-					return runId != null ? Long.parseLong(runId) : null;
-				}
-			}
-
-			private static final class TestResult {
-
-				private Integer totalFailures;
-				private Integer totalWarnings;
-
-				public Integer getTotalFailures() {
-					return totalFailures;
-				}
-
-				public Integer getTotalWarnings() {
-					return totalWarnings;
-				}
-			}
-		}
-
-	}
 }

@@ -27,12 +27,17 @@ public class Validation {
 	@Column(name = "report_url")
 	private String reportUrl;
 
+	@Column(name = "project_key")
+	private String projectKey;
+
+	@Column(name = "task_key")
+	private String taskKey;
+
 	protected Validation() {
 	}
 
-	public Validation(String branchPath, String status) {
+	public Validation(String branchPath) {
 		this.branchPath = branchPath;
-		this.status = status;
 	}
 
 	public long getId() {
@@ -79,6 +84,22 @@ public class Validation {
 		return reportUrl;
 	}
 
+	public void setProjectKey(String projectKey) {
+		this.projectKey = projectKey;
+	}
+
+	public String getProjectKey() {
+		return projectKey;
+	}
+
+	public void setTaskKey(String taskKey) {
+		this.taskKey = taskKey;
+	}
+
+	public String getTaskKey() {
+		return taskKey;
+	}
+
 	@Override
 	public String toString() {
 		return "Validation{" +
@@ -88,6 +109,8 @@ public class Validation {
 				", status=" + status +
 				", contentHeadTimestamp=" + contentHeadTimestamp +
 				", reportUrl=" + reportUrl +
+				", projectKey=" + projectKey +
+				", taskKey=" + taskKey +
 				'}';
 	}
 }

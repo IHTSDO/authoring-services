@@ -1,8 +1,15 @@
 package org.ihtsdo.authoringservices.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import org.apache.commons.lang.StringUtils;
 import org.ihtsdo.authoringservices.domain.EntityType;
 import org.ihtsdo.authoringservices.domain.Notification;
+import org.ihtsdo.authoringservices.domain.ValidationJobStatus;
+import org.ihtsdo.authoringservices.entity.Validation;
+import org.ihtsdo.authoringservices.repository.ValidationRepository;
 import org.ihtsdo.authoringservices.service.client.AuthoringAcceptanceGatewayClient;
 import org.ihtsdo.otf.jms.MessagingHelper;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
@@ -15,7 +22,8 @@ import org.springframework.stereotype.Component;
 import javax.jms.JMSException;
 import javax.jms.TextMessage;
 
-import static org.ihtsdo.authoringservices.service.ValidationService.*;
+import java.util.HashMap;
+import java.util.Map;
 
 @Component
 public class ValidationStatusListener {
@@ -29,47 +37,58 @@ public class ValidationStatusListener {
 	@Autowired
 	private AuthoringAcceptanceGatewayClient aagClient;
 
-	private static final String X_AUTH_TOKEN = "X-AUTH-token";
+	@Autowired
+	private ValidationRepository validationRepository;
 
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 
 	@SuppressWarnings("unused")
-	@JmsListener(destination = "${orchestration.name}" + "." + ValidationService.VALIDATION_RESPONSE_QUEUE)
-	public void receiveValidationEvent(TextMessage message) {
+	@JmsListener(destination = "${sca.jms.queue.prefix}." + ValidationService.VALIDATION_RESPONSE_QUEUE)
+	public void receiveValidationEvent(TextMessage textMessage) {
 		try {
-			if (!MessagingHelper.isError(message)) {
-				logger.info("receiveValidationEvent {}", message);
-				final String validationStatus = message.getStringProperty(STATUS);
-				final String reportUrl = message.getStringProperty(REPORT_URL);
+			if (!MessagingHelper.isError(textMessage)) {
+				logger.info("receiveValidationEvent {}", textMessage);
+				ObjectMapper objectMapper =  new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT)
+						.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+				final Map <String, Object> message = objectMapper.readValue(textMessage.getText(), Map.class);
 
-				// Update cache
-				String path = message.getStringProperty(MessagingHelper.REQUEST_PROPERTY_NAME_PREFIX + PATH);
-				logger.info("Path '{}', status '{}', reportUrl '{}'", path, validationStatus, reportUrl);
-
-				try {
-					validationService.updateValidationStatusCache(path, validationStatus, reportUrl);
-				} catch (BusinessServiceException e) {
-					logger.error("Failed to update validation status to Cache.", e);
+				final Long runId = (Long) message.get("runId");
+				final String username = (String) message.get("username");
+				final String authenticationToken = (String) message.get("authenticationToken");
+				String state = (String) message.get("state");
+				if (StringUtils.isNotEmpty(state)) {
+					state = "COMPLETE".equalsIgnoreCase(state) ? ValidationJobStatus.COMPLETED.name() : state;
 				}
+				Validation validation = validationRepository.findByRunId(runId);
+				if (validation != null) {
+					if (ValidationJobStatus.COMPLETED.name().equalsIgnoreCase(state) || ValidationJobStatus.FAILED.name().equalsIgnoreCase(state)) {
+						Map newPropertyValues = new HashMap();
+						newPropertyValues.put(ValidationService.VALIDATION_STATUS, state);
+						validationService.updateValidationCache(validation.getBranchPath(), newPropertyValues);
 
-				// Notify user
-				final String projectId = message.getStringProperty(MessagingHelper.REQUEST_PROPERTY_NAME_PREFIX + PROJECT);
-				final String taskId = message.getStringProperty(MessagingHelper.REQUEST_PROPERTY_NAME_PREFIX + TASK);
-				notificationService.queueNotification(
-						message.getStringProperty(MessagingHelper.REQUEST_PROPERTY_NAME_PREFIX + USERNAME),
-						new Notification(
-								projectId,
-								taskId,
-								EntityType.Validation,
-								validationStatus));
+						// Notify user
+						notificationService.queueNotification(
+								username,
+								new Notification(
+										validation.getProjectKey(),
+										validation.getTaskKey(),
+										EntityType.Validation,
+										state));
 
-				// Notify AAG
-				final String authToken = message.getStringProperty(X_AUTH_TOKEN);
-				aagClient.validationComplete(path, validationStatus, reportUrl, authToken);
+						// Notify AAG
+						aagClient.validationComplete(validation.getBranchPath(), state, validation.getReportUrl(), authenticationToken);
+					} else {
+						Map newPropertyValues = new HashMap();
+						newPropertyValues.put(ValidationService.VALIDATION_STATUS, state);
+						validationService.updateValidationCache(validation.getBranchPath(), newPropertyValues);
+					}
+				} else {
+					logger.error("Error while retrieving validation for run Id {}", runId);
+				}
 			} else {
-				logger.error("receiveValidationEvent response with error {}", message);
+				logger.error("receiveValidationEvent response with error {}", textMessage);
 			}
-		} catch (JMSException e) {
+		} catch (JMSException | JsonProcessingException e) {
 			logger.error("Failed to handle validation event message.", e);
 		}
 	}
