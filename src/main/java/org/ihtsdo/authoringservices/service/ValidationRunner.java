@@ -230,14 +230,14 @@ public class ValidationRunner implements Runnable {
 
         Map newPropertyValues = new HashMap();
         newPropertyValues.put(ValidationService.RUN_ID, runId);
-        newPropertyValues.put(ValidationService.CONTENT_HEAD_TIMESTAMP, this.config.getContentHeadTimestamp());
+        newPropertyValues.put(ValidationService.CONTENT_HEAD_TIMESTAMP, String.valueOf(this.config.getContentHeadTimestamp()));
         validationService.updateValidationCache(config.getBranchPath(), newPropertyValues);
 
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.MULTIPART_FORM_DATA);
 
-            HttpEntity<MultiValueMap<String, Object > > entity = new HttpEntity<>(body, headers);
+            HttpEntity<MultiValueMap<String, Object>> entity = new HttpEntity<>(body, headers);
 
             URI location = restTemplate.postForLocation("/run-post", entity);
             logger.info("RVF Report URL: {}", location.toString());
