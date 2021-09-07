@@ -61,11 +61,10 @@ public class ValidationStatusListener {
 				}
 				Validation validation = validationRepository.findByRunId(runId);
 				if (validation != null) {
+					Map newPropertyValues = new HashMap();
+					newPropertyValues.put(ValidationService.VALIDATION_STATUS, state);
+					validationService.updateValidationCache(validation.getBranchPath(), newPropertyValues);
 					if (ValidationJobStatus.COMPLETED.name().equalsIgnoreCase(state) || ValidationJobStatus.FAILED.name().equalsIgnoreCase(state)) {
-						Map newPropertyValues = new HashMap();
-						newPropertyValues.put(ValidationService.VALIDATION_STATUS, state);
-						validationService.updateValidationCache(validation.getBranchPath(), newPropertyValues);
-
 						// Notify user
 						notificationService.queueNotification(
 								username,
@@ -76,11 +75,9 @@ public class ValidationStatusListener {
 										state));
 
 						// Notify AAG
-						aagClient.validationComplete(validation.getBranchPath(), state, validation.getReportUrl(), authenticationToken);
-					} else {
-						Map newPropertyValues = new HashMap();
-						newPropertyValues.put(ValidationService.VALIDATION_STATUS, state);
-						validationService.updateValidationCache(validation.getBranchPath(), newPropertyValues);
+						if (ValidationJobStatus.COMPLETED.name().equalsIgnoreCase(state)) {
+							aagClient.validationComplete(validation.getBranchPath(), state, validation.getReportUrl(), authenticationToken);
+						}
 					}
 				} else {
 					logger.error("Error while retrieving validation for run Id {}", runId);
