@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
+import static org.ihtsdo.authoringservices.rest.ControllerHelper.*;
+
 @Api("Review Messages")
 @RestController
 @RequestMapping(produces={MediaType.APPLICATION_JSON_VALUE})
@@ -26,68 +28,51 @@ public class ReviewMessagesController {
 	private ReviewService reviewService;
 
 	@ApiOperation(value="Retrieve a list of stored details for a task review concept, including last view date for the user and a list of messages.")
-	@ApiResponses({
-			@ApiResponse(code = 200, message = "OK")
-	})
+	@ApiResponse(code = 200, message = "OK")
 	@RequestMapping(value="/projects/{projectKey}/tasks/{taskKey}/review", method= RequestMethod.GET)
-	public List<ReviewConcept> retrieveTaskReview(
-			@PathVariable final String projectKey,
+	public List<ReviewConcept> retrieveTaskReview(@PathVariable final String projectKey, @PathVariable final String taskKey) throws BusinessServiceException {
 
-			@PathVariable final String taskKey) throws BusinessServiceException {
-
-		return reviewService.retrieveTaskReviewConceptDetails(projectKey, taskKey, SecurityUtil.getUsername());
+		return reviewService.retrieveTaskReviewConceptDetails(requiredParam(projectKey, PROJECT_KEY), requiredParam(taskKey, TASK_KEY), SecurityUtil.getUsername());
 	}
 
 	@ApiOperation(value="Retrieve a list of stored details for a project review concept, including last view date for the user and a list of messages.")
-	@ApiResponses({
-			@ApiResponse(code = 200, message = "OK")
-	})
+	@ApiResponse(code = 200, message = "OK")
 	@RequestMapping(value="/projects/{projectKey}/review", method= RequestMethod.GET)
-	public List<ReviewConcept> retrieveProjectReview(
+	public List<ReviewConcept> retrieveProjectReview(@PathVariable final String projectKey) throws BusinessServiceException {
 
-			@PathVariable final String projectKey) throws BusinessServiceException {
-
-		return reviewService.retrieveProjectReviewConceptDetails(projectKey, SecurityUtil.getUsername());
+		return reviewService.retrieveProjectReviewConceptDetails(requiredParam(projectKey, PROJECT_KEY), SecurityUtil.getUsername());
 	}
 
 	@ApiOperation(value="Record a review feedback message on task concepts.")
-	@ApiResponses({
-			@ApiResponse(code = 200, message = "OK")
-	})
+	@ApiResponse(code = 200, message = "OK")
 	@RequestMapping(value="/projects/{projectKey}/tasks/{taskKey}/review/message", method= RequestMethod.POST)
 	public ReviewMessage postTaskReviewMessage(@PathVariable final String projectKey, @PathVariable final String taskKey,
 			@RequestBody ReviewMessageCreateRequest createRequest) throws BusinessServiceException {
-		return reviewService.postReviewMessage(projectKey, taskKey, createRequest, SecurityUtil.getUsername());
+
+		return reviewService.postReviewMessage(requiredParam(projectKey, PROJECT_KEY), requiredParam(taskKey, TASK_KEY), createRequest, SecurityUtil.getUsername());
 	}
 
 	@ApiOperation(value="Record a review feedback message on project concepts.")
-	@ApiResponses({
-			@ApiResponse(code = 200, message = "OK")
-	})
+	@ApiResponse(code = 200, message = "OK")
 	@RequestMapping(value="/projects/{projectKey}/review/message", method= RequestMethod.POST)
 	public ReviewMessage postProjectReviewMessage(@PathVariable final String projectKey,
 			@RequestBody ReviewMessageCreateRequest createRequest) throws BusinessServiceException {
-		return reviewService.postReviewMessage(projectKey, null, createRequest, SecurityUtil.getUsername());
+
+		return reviewService.postReviewMessage(requiredParam(projectKey, PROJECT_KEY), null, createRequest, SecurityUtil.getUsername());
 	}
 
 	@ApiOperation(value="Mark a task review concept as viewed for this user.")
-	@ApiResponses({
-			@ApiResponse(code = 200, message = "OK")
-	})
+	@ApiResponse(code = 200, message = "OK")
 	@RequestMapping(value="/projects/{projectKey}/tasks/{taskKey}/review/concepts/{conceptId}/view", method= RequestMethod.POST)
-	public void markTaskReviewConceptViewed(@PathVariable final String projectKey, @PathVariable final String taskKey,
-			@PathVariable final String conceptId) throws ExecutionException, InterruptedException {
-		reviewService.recordConceptView(projectKey, taskKey, conceptId, SecurityUtil.getUsername());
+	public void markTaskReviewConceptViewed(@PathVariable final String projectKey, @PathVariable final String taskKey, @PathVariable final String conceptId) {
+		reviewService.recordConceptView(requiredParam(projectKey, PROJECT_KEY), requiredParam(taskKey, TASK_KEY), conceptId, SecurityUtil.getUsername());
 	}
 
 	@ApiOperation(value="Mark a project review concept as viewed for this user.")
-	@ApiResponses({
-			@ApiResponse(code = 200, message = "OK")
-	})
+	@ApiResponse(code = 200, message = "OK")
 	@RequestMapping(value="/projects/{projectKey}/review/concepts/{conceptId}/view", method= RequestMethod.POST)
-	public void markProjectReviewConceptViewed(@PathVariable final String projectKey,
-			@PathVariable final String conceptId) throws ExecutionException, InterruptedException {
-		reviewService.recordConceptView(projectKey, null, conceptId, SecurityUtil.getUsername());
+	public void markProjectReviewConceptViewed(@PathVariable final String projectKey, @PathVariable final String conceptId) {
+		reviewService.recordConceptView(requiredParam(projectKey, PROJECT_KEY), null, conceptId, SecurityUtil.getUsername());
 	}
 
 }

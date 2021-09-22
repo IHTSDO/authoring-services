@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 @ControllerAdvice
 public class ControllerConfig {
 
-	private Logger logger = LoggerFactory.getLogger(getClass());
+	private final Logger logger = LoggerFactory.getLogger(getClass());
 
 	@ExceptionHandler(ClientAbortException.class)
 	void clientAbortException(ClientAbortException e) {
@@ -29,7 +29,7 @@ public class ControllerConfig {
 
 	@ExceptionHandler(Exception.class)
 	ResponseEntity<Error> exceptionCatchAll(Exception e) {
-		logger.error("{}", e);
+		logger.error(e.getMessage(), e);
 		return response(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
 	}
 

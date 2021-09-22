@@ -15,6 +15,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import us.monoid.json.JSONException;
 
+import static org.ihtsdo.authoringservices.rest.ControllerHelper.*;
+
 @Api("classification")
 @RestController
 @RequestMapping(produces={MediaType.APPLICATION_JSON_VALUE})
@@ -30,7 +32,7 @@ public class ClassificationController {
 	@RequestMapping(value = "/projects/{projectKey}/classifications", method = RequestMethod.POST)
 	@ResponseBody
 	public Classification startProjectClassification(@PathVariable String projectKey) throws BusinessServiceException {
-		String branchPath = taskService.getProjectBranchPathUsingCache(projectKey);
+		String branchPath = taskService.getProjectBranchPathUsingCache(requiredParam(projectKey, PROJECT_KEY));
 		try {
 			Classification classification = snowstormClassificationClient.startClassification(projectKey, null, branchPath, SecurityUtil.getUsername());
 			taskService.clearClassificationCache(branchPath);
@@ -44,7 +46,7 @@ public class ClassificationController {
 	@RequestMapping(value = "/projects/{projectKey}/tasks/{taskKey}/classifications", method = RequestMethod.POST)
 	@ResponseBody
 	public Classification startTaskClassification(@PathVariable String projectKey, @PathVariable String taskKey) throws BusinessServiceException {
-		String branchPath = taskService.getTaskBranchPathUsingCache(projectKey, taskKey);
+		String branchPath = taskService.getTaskBranchPathUsingCache(requiredParam(projectKey, PROJECT_KEY), requiredParam(taskKey, TASK_KEY));
 		try {
 			Classification classification = snowstormClassificationClient.startClassification(projectKey, taskKey, branchPath, SecurityUtil.getUsername());
 			taskService.clearClassificationCache(branchPath);
@@ -58,7 +60,7 @@ public class ClassificationController {
 	@RequestMapping(value = "/projects/{projectKey}/classifications/status/cache-evict", method = RequestMethod.POST)
 	@ResponseBody
 	public ResponseEntity<String> clearProjectClassificationStatusCache(@PathVariable String projectKey) throws BusinessServiceException {
-		String branchPath = taskService.getProjectBranchPathUsingCache(projectKey);
+		String branchPath = taskService.getProjectBranchPathUsingCache(requiredParam(projectKey, "projectKey"));
 		taskService.clearClassificationCache(branchPath);
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
@@ -67,7 +69,7 @@ public class ClassificationController {
 	@RequestMapping(value = "/projects/{projectKey}/tasks/{taskKey}/classifications/status/cache-evict", method = RequestMethod.POST)
 	@ResponseBody
 	public ResponseEntity<String> clearTaskClassificationStatusCache(@PathVariable String projectKey, @PathVariable String taskKey) throws BusinessServiceException {
-		String branchPath = taskService.getTaskBranchPathUsingCache(projectKey, taskKey);
+		String branchPath = taskService.getTaskBranchPathUsingCache(requiredParam(projectKey, "projectKey"), requiredParam(taskKey, "taskKey"));
 		taskService.clearClassificationCache(branchPath);
 		return new ResponseEntity<>(HttpStatus.OK);
 	}

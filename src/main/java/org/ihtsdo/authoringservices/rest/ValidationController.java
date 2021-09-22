@@ -4,14 +4,15 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
-import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.authoringservices.domain.ReleaseRequest;
 import org.ihtsdo.authoringservices.domain.Status;
 import org.ihtsdo.authoringservices.service.ValidationService;
-import org.ihtsdo.sso.integration.SecurityUtil;
+import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+
+import static org.ihtsdo.authoringservices.rest.ControllerHelper.*;
 
 @Api("validation")
 @RestController
@@ -20,7 +21,7 @@ public class ValidationController {
 
 	@Autowired
 	private ValidationService validationService;
-	
+
 	@ApiOperation(value = "Initiate validation on MAIN")
 	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
 	@RequestMapping(value = "/main/validation", method = RequestMethod.POST)
@@ -32,7 +33,7 @@ public class ValidationController {
 	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
 	@RequestMapping(value = "/projects/{projectKey}/tasks/{taskKey}/validation", method = RequestMethod.POST)
 	public Status startValidation(@PathVariable final String projectKey, @PathVariable final String taskKey, @RequestParam(value = "enableMRCMValidation", required = false, defaultValue = "false") boolean enableMRCMValidation) throws BusinessServiceException {
-		return validationService.startValidation(projectKey, taskKey, enableMRCMValidation);
+		return validationService.startValidation(requiredParam(projectKey, PROJECT_KEY), requiredParam(taskKey, TASK_KEY), enableMRCMValidation);
 	}
 
 	@ApiOperation(value = "Recover the most recent validation on a Task")
@@ -42,9 +43,9 @@ public class ValidationController {
 	@RequestMapping(value = "/projects/{projectKey}/tasks/{taskKey}/validation", method = RequestMethod.GET)
 	@ResponseBody
 	public String getValidation(@PathVariable final String projectKey, @PathVariable final String taskKey) throws BusinessServiceException {
-		return validationService.getValidationJson(projectKey, taskKey);
+		return validationService.getValidationJson(requiredParam(projectKey, PROJECT_KEY), requiredParam(taskKey, TASK_KEY));
 	}
-	
+
 	@ApiOperation(value = "Recover the most recent validation on Main")
 	@ApiResponses({
 			@ApiResponse(code = 200, message = "OK")
@@ -54,12 +55,12 @@ public class ValidationController {
 	public String getValidation() throws BusinessServiceException {
 		return validationService.getValidationJson();
 	}
-	
+
 	@ApiOperation(value = "Initiate validation on a Project")
 	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
 	@RequestMapping(value = "/projects/{projectKey}/validation", method = RequestMethod.POST)
 	public Status startValidation(@PathVariable final String projectKey) throws BusinessServiceException {
-		return validationService.startValidation(projectKey, null, true);
+		return validationService.startValidation(requiredParam(projectKey, PROJECT_KEY), null, true);
 	}
 
 	@ApiOperation(value = "Recover the most recent validation on Project")
@@ -67,7 +68,7 @@ public class ValidationController {
 	@RequestMapping(value = "/projects/{projectKey}/validation", method = RequestMethod.GET)
 	@ResponseBody
 	public String getValidation(@PathVariable final String projectKey) throws BusinessServiceException {
-		return validationService.getValidationJson(projectKey);
+		return validationService.getValidationJson(requiredParam(projectKey, PROJECT_KEY));
 	}
 
 	@ApiOperation(value = "Clear validation status cache (workaround)")
