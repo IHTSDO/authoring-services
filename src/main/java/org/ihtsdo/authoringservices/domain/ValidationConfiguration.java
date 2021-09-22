@@ -15,6 +15,7 @@ public class ValidationConfiguration {
     private String dependencyPackage;
     private String includedModuleIds;
     private boolean enableMRCMValidation;
+    private boolean enableTraceabilityValidation;
     private Long contentHeadTimestamp;
     private String projectKey;
     private String taskKey;
@@ -147,7 +148,15 @@ public class ValidationConfiguration {
         this.enableMRCMValidation = enableMRCMValidation;
     }
 
-    public void setContentHeadTimestamp(Long contentHeadTimestamp) {
+	public boolean isEnableTraceabilityValidation() {
+		return enableTraceabilityValidation;
+	}
+
+	public void setEnableTraceabilityValidation(boolean enableTraceabilityValidation) {
+		this.enableTraceabilityValidation = enableTraceabilityValidation;
+	}
+
+	public void setContentHeadTimestamp(Long contentHeadTimestamp) {
         this.contentHeadTimestamp = contentHeadTimestamp;
     }
 

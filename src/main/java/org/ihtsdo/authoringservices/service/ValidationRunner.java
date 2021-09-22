@@ -8,6 +8,7 @@ import org.ihtsdo.authoringservices.domain.Notification;
 import org.ihtsdo.authoringservices.domain.ValidationConfiguration;
 import org.ihtsdo.authoringservices.domain.ValidationJobStatus;
 import org.ihtsdo.authoringservices.service.dao.SRSFileDAO;
+import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
 import org.ihtsdo.otf.rest.exception.BadRequestException;
 import org.ihtsdo.otf.rest.exception.ProcessWorkflowException;
@@ -44,11 +45,11 @@ public class ValidationRunner implements Runnable {
 
     private static final String RVF_TS = "RVF_TS";
 
-    private SnowstormRestClient snowstormRestClient;
+    private final SnowstormRestClient snowstormRestClient;
 
-    private ValidationService validationService;
+    private final ValidationService validationService;
 
-    private NotificationService notificationService;
+    private final NotificationService notificationService;
 
     protected SRSFileDAO srsDAO;
 
@@ -104,7 +105,7 @@ public class ValidationRunner implements Runnable {
             // send delta export directly for RVF validation
             validateByRvfDirectly(exportArchive);
         } catch (Exception e) {
-            Map newPropertyValues = new HashMap();
+            Map<String, String> newPropertyValues = new HashMap<>();
             newPropertyValues.put(ValidationService.VALIDATION_STATUS, ValidationJobStatus.FAILED.name());
             validationService.updateValidationCache(config.getBranchPath(), newPropertyValues);
             logger.error("Validation of {} failed.", branchPath, e);
@@ -147,7 +148,7 @@ public class ValidationRunner implements Runnable {
         return exportEffectiveDate;
     }
 
-    public void validateByRvfDirectly(File exportArchive) throws Exception {
+    public void validateByRvfDirectly(File exportArchive) throws ServiceException {
         File tempDir = Files.createTempDir();
         File localZipFile = new File(tempDir, config.getProductName() + "_" + config.getReleaseDate() + ".zip");
         try {
@@ -156,13 +157,11 @@ public class ValidationRunner implements Runnable {
 
             // call validation API
             runValidationForRF2DeltaExport(localZipFile, config);
-        } finally {
-            if (localZipFile != null) {
-                localZipFile.deleteOnExit();
-            }
-            if (tempDir != null) {
-                tempDir.deleteOnExit();
-            }
+        } catch (IOException | ProcessWorkflowException e) {
+			throw new ServiceException("Validation failed.", e);
+		} finally {
+			localZipFile.deleteOnExit();
+			tempDir.deleteOnExit();
             if (exportArchive != null) {
                 exportArchive.deleteOnExit();
             }
@@ -181,7 +180,7 @@ public class ValidationRunner implements Runnable {
         }
     }
 
-    public void runValidationForRF2DeltaExport(File zipFile, ValidationConfiguration config) throws IOException {
+    public void runValidationForRF2DeltaExport(File zipFile, ValidationConfiguration config) throws IOException, ServiceException {
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
 
         MultiValueMap<String, String> fileMap = new LinkedMultiValueMap<>();
@@ -221,6 +220,8 @@ public class ValidationRunner implements Runnable {
         String storageLocation = RVF_TS + "/" + config.getProductName() + "/" + runId;
         body.add("storageLocation", storageLocation);
         body.add("enableMRCMValidation", Boolean.toString(config.isEnableMRCMValidation()));
+        body.add("enableTraceabilityValidation", Boolean.toString(config.isEnableTraceabilityValidation()));
+        body.add("branchPath", config.getBranchPath());
         if (config.getContentHeadTimestamp() != null) {
             body.add("contentHeadTimestamp", Long.toString(config.getContentHeadTimestamp()));
         }
@@ -228,7 +229,7 @@ public class ValidationRunner implements Runnable {
         body.add("username", this.username);
         body.add("authenticationToken", this.authenticationToken);
 
-        Map newPropertyValues = new HashMap();
+        Map<String, String> newPropertyValues = new HashMap<>();
         newPropertyValues.put(ValidationService.RUN_ID, runId);
         newPropertyValues.put(ValidationService.CONTENT_HEAD_TIMESTAMP, String.valueOf(this.config.getContentHeadTimestamp()));
         validationService.updateValidationCache(config.getBranchPath(), newPropertyValues);
@@ -240,14 +241,18 @@ public class ValidationRunner implements Runnable {
             HttpEntity<MultiValueMap<String, Object>> entity = new HttpEntity<>(body, headers);
 
             URI location = restTemplate.postForLocation("/run-post", entity);
-            logger.info("RVF Report URL: {}", location.toString());
+			if (location == null) {
+				throw new ServiceException("RVF did not return a location header for new validation.");
+			}
+            logger.info("RVF Report URL: {}", location);
 
-            newPropertyValues = new HashMap();
+            newPropertyValues = new HashMap<>();
             newPropertyValues.put(ValidationService.REPORT_URL, location.toString());
             validationService.updateValidationCache(config.getBranchPath(), newPropertyValues);
         } catch (RestClientException e) {
-            logger.error("Failed to validate for branch:{}", this.config.getBranchPath(), e);
-            throw e;
+			String message = String.format("Failed to validate for branch:%s", this.config.getBranchPath());
+            logger.error(message, e);
+            throw new ServiceException(message, e);
         }
     }
 }
