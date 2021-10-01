@@ -138,11 +138,11 @@ public class ValidationRunner implements Runnable {
             String dateStr = (splits.length == 2) ? splits[1] : splits[0];
             Calendar calendar = new GregorianCalendar();
             SimpleDateFormat formatter = new SimpleDateFormat(DateUtils.YYYYMMDD);
-            if (formatter.parse(config.getReleaseDate()).before(formatter.parse(dateStr))) {
+            if (!formatter.parse(config.getReleaseDate()).after(formatter.parse(dateStr))) {
                 calendar.setTime(formatter.parse(dateStr));
                 calendar.add(Calendar.DAY_OF_YEAR, 1);
                 exportEffectiveDate = formatter.format(calendar.getTime());
-                logger.info("The effective date for termServer exporting is set to {} one day after the most recent release {}", exportEffectiveDate, mostRecentRelease);
+                logger.debug("The effective date for termServer exporting is set to {} one day after the most recent release {}", exportEffectiveDate, mostRecentRelease);
             }
         }
         return exportEffectiveDate;
