@@ -1,5 +1,6 @@
 package org.ihtsdo.authoringservices.rest;
 
+import io.kaicode.rest.util.branchpathrewrite.BranchPathUriUtil;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
@@ -71,11 +72,17 @@ public class ValidationController {
 		return validationService.getValidationJson(requiredParam(projectKey, PROJECT_KEY));
 	}
 
-	@ApiOperation(value = "Clear validation status cache (workaround)")
+	@ApiOperation(value = "Refresh validation status cache (workaround) where the statuses have been modified in database manually")
 	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
-	@RequestMapping(value = "/main/validation/clear-status-cache", method = RequestMethod.POST)
-	public void clearValidationStatusCache() {
-		validationService.clearStatusCache();
+	@RequestMapping(value = "/validation/statuses/refresh", method = RequestMethod.POST)
+	public void refreshValidationStatusCache() {
+		validationService.refreshValidationStatusCache();
 	}
 
+	@ApiOperation(value = "Reset branch validation status to default NOT TRIGGER (workaround) where the RVF gets stuck")
+	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
+	@RequestMapping(value = "/validation/{branchPath}/status/reset", method = RequestMethod.POST)
+	public void resetValidationStatusCacheForBranch(@PathVariable String branchPath) {
+		validationService.resetBranchValidationStatus(BranchPathUriUtil.parseBranchPath(branchPath));
+	}
 }

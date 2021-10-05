@@ -132,7 +132,7 @@ public class ValidationService {
 	}
 
 	public void updateValidationCache(final String branchPath, final Map<String, String> newPropertyValues) {
-		Validation validation = validationLoadingCache.getIfPresent(branchPath);
+		Validation validation = validationRepository.findByBranchPath(branchPath);
 		if (validation == null) {
 			validation = new Validation(branchPath);
 		}
@@ -296,8 +296,14 @@ public class ValidationService {
 		return branchToValidationMap;
 	}
 
-	public void clearStatusCache() {
+	public void refreshValidationStatusCache() {
 		validationLoadingCache.invalidateAll();
+		init();
 	}
 
+	public void resetBranchValidationStatus(String branchPath) {
+		Map newPropertyValues = new HashMap();
+		newPropertyValues.put(VALIDATION_STATUS, ValidationJobStatus.NOT_TRIGGERED.name());
+		updateValidationCache(branchPath, newPropertyValues);
+	}
 }
