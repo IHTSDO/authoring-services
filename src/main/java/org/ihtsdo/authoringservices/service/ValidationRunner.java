@@ -204,12 +204,12 @@ public class ValidationRunner implements Runnable {
         }
         body.add("groups", config.getAssertionGroupNames());
         // If RvfDroolsAssertionGroupNames is not empty, enable Drools validation on RVF
-        if (StringUtils.isNotBlank(config.getRvfDroolsAssertionGroupNames())) {
+        if (config.isEnableDroolsValidation() && StringUtils.isNotEmpty(config.getAssertionGroupNames())) {
             body.add("enableDrools", Boolean.TRUE.toString());
-            body.add("droolsRulesGroups", config.getRvfDroolsAssertionGroupNames());
-            if (StringUtils.isNotBlank(config.getReleaseDate())) {
-                body.add("effectiveTime", config.getReleaseDate());
-            }
+            body.add("droolsRulesGroups", config.getAssertionGroupNames());
+        }
+        if (StringUtils.isNotBlank(config.getReleaseDate())) {
+            body.add("effectiveTime", config.getReleaseDate());
         }
         if (StringUtils.isNotBlank(config.getIncludedModuleIds())) {
             body.add("includedModules", config.getIncludedModuleIds());

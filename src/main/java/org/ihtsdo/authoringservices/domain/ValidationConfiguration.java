@@ -5,7 +5,6 @@ public class ValidationConfiguration {
     private String branchPath;
     private String previousRelease;
     private String assertionGroupNames;
-    private String rvfDroolsAssertionGroupNames;
     private String failureExportMax = "100";
     private String dependencyRelease;
     private String productName;
@@ -15,6 +14,7 @@ public class ValidationConfiguration {
     private String dependencyPackage;
     private String includedModuleIds;
     private boolean enableMRCMValidation;
+    private boolean enableDroolsValidation;
     private boolean enableTraceabilityValidation;
     private Long contentHeadTimestamp;
     private String projectKey;
@@ -124,14 +124,6 @@ public class ValidationConfiguration {
         return this.releaseCenter;
     }
 
-    public String getRvfDroolsAssertionGroupNames() {
-        return rvfDroolsAssertionGroupNames;
-    }
-
-    public void setRvfDroolsAssertionGroupNames(String rvfDroolsAssertionGroupNames) {
-        this.rvfDroolsAssertionGroupNames = rvfDroolsAssertionGroupNames;
-    }
-
     public String getIncludedModuleIds() {
         return includedModuleIds;
     }
@@ -142,6 +134,14 @@ public class ValidationConfiguration {
 
     public boolean isEnableMRCMValidation() {
         return enableMRCMValidation;
+    }
+
+    public boolean isEnableDroolsValidation() {
+        return enableDroolsValidation;
+    }
+
+    public void setEnableDroolsValidation(boolean enableDroolsValidation) {
+        this.enableDroolsValidation = enableDroolsValidation;
     }
 
     public void setEnableMRCMValidation(boolean enableMRCMValidation) {
@@ -185,7 +185,6 @@ public class ValidationConfiguration {
         return "ValidationConfiguration [productName=" + productName
                 + ", releaseDate=" + releaseDate + ", assertionGroupNames="
                 + assertionGroupNames + ", rvfDroolsAssertionGroupNames="
-                + rvfDroolsAssertionGroupNames + ", failureExportMax="
                 + failureExportMax + ", previousRelease="
                 + previousRelease + ", dependencyRelease="
                 + dependencyRelease + ",releaseCenter="

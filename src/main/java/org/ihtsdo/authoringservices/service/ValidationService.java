@@ -53,8 +53,8 @@ public class ValidationService {
 
 	public static final String VALIDATION_RESPONSE_QUEUE = "termserver-release-validation.response";
 	public static final String ASSERTION_GROUP_NAMES = "assertionGroupNames";
-	public static final String RVF_DROOLS_ASSERTION_GROUP_NAMES = "rvfDroolsAssertionGroupNames";
 	public static final String DISABLE_TRACEABILITY_VALIDATION = "disableTraceabilityValidation";
+	public static final String ENABLE_DROOLS_VALIDATION = "enableDroolsInRVF";
 	public static final String PREVIOUS_RELEASE = "previousRelease";
 	public static final String DEPENDENCY_RELEASE = "dependencyRelease";
 	public static final String SHORT_NAME ="shortname";
@@ -211,10 +211,10 @@ public class ValidationService {
 		validationConfig.setPreviousPackage((String) branchMetadata.get(PREVIOUS_PACKAGE));
 		validationConfig.setDependencyPackage((String) branchMetadata.get(DEPENDENCY_PACKAGE));
 		validationConfig.setPreviousRelease((String) branchMetadata.get(PREVIOUS_RELEASE));
-		validationConfig.setRvfDroolsAssertionGroupNames((String) branchMetadata.get(RVF_DROOLS_ASSERTION_GROUP_NAMES));
 		validationConfig.setIncludedModuleIds((String) branchMetadata.get(DEFAULT_MODULE_ID));
 		validationConfig.setEnableMRCMValidation(enableMRCM);
 		validationConfig.setEnableTraceabilityValidation(!"true".equalsIgnoreCase((String) branchMetadata.get(DISABLE_TRACEABILITY_VALIDATION)));
+		validationConfig.setEnableDroolsValidation("true".equalsIgnoreCase((String) branchMetadata.get(ENABLE_DROOLS_VALIDATION)));
 		String dependencyRelease = (String) branchMetadata.get(DEPENDENCY_RELEASE);
 		if (dependencyRelease != null) {
 			validationConfig.setReleaseCenter((String) branchMetadata.get(SHORT_NAME));
