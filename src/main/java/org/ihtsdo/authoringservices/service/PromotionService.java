@@ -46,6 +46,9 @@ public class PromotionService {
 	private BranchService branchService;
 
 	@Autowired
+	private ReleaseNoteService releaseNoteService;
+
+	@Autowired
 	private SnowstormClassificationClient classificationService;
 
 	private final Map<String, ProcessStatus> automateTaskPromotionStatus;
@@ -206,6 +209,7 @@ public class PromotionService {
 					ProcessStatus status = new ProcessStatus("Completed","");
 					automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
 					taskService.stateTransition(projectKey, taskKey, TaskStatus.PROMOTED);
+					releaseNoteService.promoteBranchLineItems(taskService.getTaskBranchPathUsingCache(projectKey, taskKey));
 				} else {
 					ProcessStatus status = new ProcessStatus("Failed",merge.getApiError() == null ? "" : merge.getApiError().getMessage());
 					automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
