@@ -1,36 +1,33 @@
 package org.ihtsdo.authoringservices.service;
 
 import org.ihtsdo.authoringservices.domain.LineItem;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
+import org.ihtsdo.authoringservices.service.client.ReleaseNoteClient;
+import org.ihtsdo.authoringservices.service.client.ReleaseNoteClientFactory;
+import org.ihtsdo.otf.rest.client.RestClientException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 
 @Service
 public class ReleaseNoteService {
 
-    @Value("${release-notes.url}")
-    private String releaseNotesUrl;
+    private final Logger logger = LoggerFactory.getLogger(getClass());
 
-    private final RestTemplate releaseNotesRestTemplate = new RestTemplate();
+    @Autowired
+    private ReleaseNoteClientFactory releaseNoteClientFactory;
 
-    private static final ParameterizedTypeReference<List <LineItem>> LINE_ITEM_LIST_TYPE_REF = new ParameterizedTypeReference<>(){};
-
-    public void promoteBranchLineItems(String taskBranchPathUsingCache) {
-        ResponseEntity <List <LineItem>> response = releaseNotesRestTemplate.exchange(
-                releaseNotesUrl + taskBranchPathUsingCache + "/lineitems",
-                HttpMethod.GET,
-                null,
-                LINE_ITEM_LIST_TYPE_REF);
-        if (response != null && response.hasBody()) {
-            List <LineItem> lineItems = response.getBody();
+    public void promoteBranchLineItems(String branchPath) {
+        ReleaseNoteClient client = releaseNoteClientFactory.getClient();
+        try {
+            List<LineItem> lineItems = client.getLineItems(branchPath);
             for (LineItem lineItem : lineItems) {
-                releaseNotesRestTemplate.postForObject(releaseNotesUrl + taskBranchPathUsingCache + "/lineitems/" + lineItem.getId() + "/promote", null, Void.class);
+                client.promoteLineItem(branchPath, lineItem.getId());
             }
+        } catch (RestClientException e) {
+            logger.error("Failed to promote line items. Error: {}", e);
         }
     }
 }
