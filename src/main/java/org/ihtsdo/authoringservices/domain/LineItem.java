@@ -21,9 +21,9 @@ public class LineItem {
 
     private String promotedBranch;
 
-    private LocalDate start;
+    private String start;
 
-    private LocalDate end;
+    private String end;
 
     private boolean released;
 
@@ -92,19 +92,19 @@ public class LineItem {
         this.promotedBranch = promotedBranch;
     }
 
-    public LocalDate getStart() {
+    public String getStart() {
         return start;
     }
 
-    public void setStart(LocalDate start) {
+    public void setStart(String start) {
         this.start = start;
     }
 
-    public LocalDate getEnd() {
+    public String getEnd() {
         return end;
     }
 
-    public void setEnd(LocalDate end) {
+    public void setEnd(String end) {
         this.end = end;
     }
 
@@ -137,10 +137,6 @@ public class LineItem {
         return Objects.hash(id, subjectId);
     }
 
-    private String formatDate(LocalDate date) {
-        return (date == null) ? "null" : date.format(DateTimeFormatter.ISO_LOCAL_DATE);
-    }
-
     @Override
     public String toString() {
         return "LineItem{" +
@@ -152,8 +148,8 @@ public class LineItem {
                 ", sequence=" + sequence +
                 ", sourceBranch='" + sourceBranch + '\'' +
                 ", promotedBranch='" + promotedBranch + '\'' +
-                ", start=" + formatDate(start) +
-                ", end=" + formatDate(end) +
+                ", start=" + start +
+                ", end=" + end +
                 ", released=" + released +
                 '}';
     }
