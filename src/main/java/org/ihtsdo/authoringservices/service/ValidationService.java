@@ -1,11 +1,15 @@
 package org.ihtsdo.authoringservices.service;
 
+import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
 import net.sf.json.JSONObject;
+import org.apache.commons.io.FileUtils;
 import org.ihtsdo.authoringservices.domain.ReleaseRequest;
 import org.ihtsdo.authoringservices.domain.Status;
 import org.ihtsdo.authoringservices.domain.ValidationConfiguration;
@@ -14,11 +18,13 @@ import org.ihtsdo.authoringservices.entity.Validation;
 import org.ihtsdo.authoringservices.repository.ValidationRepository;
 import org.ihtsdo.authoringservices.service.dao.SRSFileDAO;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
+import org.ihtsdo.otf.dao.s3.S3ClientImpl;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.otf.rest.exception.EntityAlreadyExistsException;
+import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
 import org.ihtsdo.otf.utils.DateUtils;
 import org.ihtsdo.sso.integration.SecurityUtil;
 import org.slf4j.Logger;
@@ -32,6 +38,8 @@ import org.springframework.web.client.RestTemplate;
 
 import javax.annotation.PostConstruct;
 import javax.transaction.Transactional;
+import java.io.*;
+import java.nio.file.Files;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -63,6 +71,21 @@ public class ValidationService {
 	public static final String DEFAULT_MODULE_ID = "defaultModuleId";
 	public static final String INTERNATIONAL = "international";
 
+	@Value("${aws.resources.enabled}")
+	private boolean awsResourceEnabled;
+
+	@Value("${aws.key}")
+	private String accessKey;
+
+	@Value("${aws.secretKey}")
+	private String secretKey;
+
+	@Value("${aws.s3.spell-check.bucket}")
+	private String bucket;
+
+	@Value("${aws.s3.author-issue-items.path}")
+	private String authorIssueItemsPath;
+
 	@Value("${rvf.url}")
 	private String rvfUrl;
 
@@ -92,6 +115,8 @@ public class ValidationService {
 	private final ObjectMapper objectMapper;
 
 	private LoadingCache<String, Validation> validationLoadingCache;
+
+	private Set<String> authorItems;
 
 	public ValidationService() {
 		this.rvfRestTemplate = new RestTemplate();
@@ -129,6 +154,21 @@ public class ValidationService {
 								return map.build();
 							}
 						});
+		this.authorItems = new HashSet<>();
+		if (this.awsResourceEnabled) {
+		 	S3ClientImpl s3Client = new S3ClientImpl(new BasicAWSCredentials(accessKey, secretKey));
+			if (s3Client.doesObjectExist(this.bucket, this.authorIssueItemsPath)) {
+				S3ObjectInputStream objectContent = s3Client.getObject(bucket, authorIssueItemsPath).getObjectContent();
+				try (BufferedReader reader = new BufferedReader(new InputStreamReader(objectContent))) {
+					String line;
+					while ((line = reader.readLine()) != null) {
+						this.authorItems.add(line);
+					}
+				} catch (IOException e) {
+					logger.error("Failed to load author assertion list from S3", e);
+				}
+			}
+		}
 	}
 
 	public void updateValidationCache(final String branchPath, final Map<String, String> newPropertyValues) {
@@ -277,6 +317,43 @@ public class ValidationService {
 	
 	public Validation getValidationStatus(String path) throws ExecutionException {
 		return validationLoadingCache.get(path);
+	}
+
+	public Set<String> getAuthorItems() {
+		return this.authorItems;
+	}
+
+	public void insertAuthorItems(Set<String> newAssertionUUIDs) throws IOException {
+		Set<String> newList = Sets.union(this.authorItems, newAssertionUUIDs);
+		if(!this.authorItems.equals(newList)) {
+			writeAndPutFileToS3(newList);
+			this.authorItems = newList;
+		}
+	}
+
+	public void deleteAuthorItem(String assertionUUID) throws IOException {
+		if(this.authorItems.contains(assertionUUID)) {
+			this.authorItems.remove(assertionUUID);
+			writeAndPutFileToS3(this.authorItems);
+		} else {
+			throw new ResourceNotFoundException("UUID not found: " + assertionUUID);
+		}
+	}
+
+	private void writeAndPutFileToS3(final Set<String> assertionUUIDs) throws IOException {
+		File modifiedList = Files.createTempFile("author-assertions", ".txt").toFile();
+		try (BufferedWriter writer = new BufferedWriter(new FileWriter(modifiedList))) {
+			for (String line: assertionUUIDs) {
+				writer.write(line);
+				writer.newLine();
+			}
+		}
+		try {
+			S3ClientImpl s3Client = new S3ClientImpl(new BasicAWSCredentials(accessKey, secretKey));
+			s3Client.putObject(bucket, authorIssueItemsPath, modifiedList);
+		} finally {
+			FileUtils.forceDelete(modifiedList);
+		}
 	}
 
 	@Transactional

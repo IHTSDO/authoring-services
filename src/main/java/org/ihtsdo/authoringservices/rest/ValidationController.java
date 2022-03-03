@@ -13,6 +13,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
+import java.util.Map;
+import java.util.Set;
+
 import static org.ihtsdo.authoringservices.rest.ControllerHelper.*;
 
 @Api("validation")
@@ -84,5 +88,27 @@ public class ValidationController {
 	@RequestMapping(value = "/validation/{branchPath}/status/reset", method = RequestMethod.POST)
 	public void resetValidationStatusCacheForBranch(@PathVariable String branchPath) {
 		validationService.resetBranchValidationStatus(BranchPathUriUtil.parseBranchPath(branchPath));
+	}
+
+	@ApiOperation(value = "Retrieve all author assertion UUIDs")
+	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
+	@RequestMapping(value = "/author-issue-items", method = RequestMethod.GET)
+	public Set<String> getAuthorIssues() {
+		return validationService.getAuthorItems();
+	}
+
+	@ApiOperation(value = "Insert new author assertion UUIDs")
+	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
+	@RequestMapping(value = "/author-issue-items", method = RequestMethod.POST)
+	public Set<String> addNewAuthorIssues(@RequestBody Map<String, Set <String>> assertionUUIDs) throws IOException {
+		validationService.insertAuthorItems(assertionUUIDs.get(assertionUUIDs.keySet().iterator().next()));
+		return validationService.getAuthorItems();
+	}
+
+	@ApiOperation(value = "Remove an author assertion UUID")
+	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
+	@RequestMapping(value = "/author-issue-items/{uuid}", method = RequestMethod.DELETE)
+	public void removeAuthorIssue(@PathVariable String uuid) throws IOException {
+		validationService.deleteAuthorItem(uuid);
 	}
 }

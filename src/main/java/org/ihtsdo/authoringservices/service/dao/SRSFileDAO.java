@@ -26,12 +26,6 @@ import java.util.zip.ZipInputStream;
 public class SRSFileDAO {
 	private final Logger logger = LoggerFactory.getLogger(SRSFileDAO.class);
 
-	@Value("${aws.key}")
-	private String awsKey;
-
-	@Value("${aws.secretKey}")
-	private String secretKey;
-
 	private static final String DELTA = "Delta";
 	private static final String INTERNATIONAL = "international";
 	private static final String TXT = ".txt";
