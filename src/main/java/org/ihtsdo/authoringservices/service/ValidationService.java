@@ -7,7 +7,6 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Sets;
 import net.sf.json.JSONObject;
 import org.apache.commons.io.FileUtils;
 import org.ihtsdo.authoringservices.domain.ReleaseRequest;
@@ -46,6 +45,7 @@ import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class ValidationService {
@@ -324,10 +324,12 @@ public class ValidationService {
 	}
 
 	public void insertAuthorItems(Set<String> newAssertionUUIDs) throws IOException {
-		Set<String> newList = Sets.union(this.authorItems, newAssertionUUIDs);
-		if(!this.authorItems.equals(newList)) {
-			writeAndPutFileToS3(newList);
-			this.authorItems = newList;
+		Set<String> combined = Stream.of(this.authorItems, newAssertionUUIDs)
+				.flatMap(Collection::stream)
+				.collect(Collectors.toSet());
+		if(!this.authorItems.equals(combined)) {
+			writeAndPutFileToS3(combined);
+			this.authorItems = combined;
 		}
 	}
 
