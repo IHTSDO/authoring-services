@@ -1,5 +1,6 @@
 package org.ihtsdo.authoringservices.rest;
 
+import com.google.common.collect.Sets;
 import io.kaicode.rest.util.branchpathrewrite.BranchPathUriUtil;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -115,8 +116,8 @@ public class ValidationController {
 	@ApiOperation(value = "Insert new semantic tags into S3 file")
 	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
 	@RequestMapping(value = "/semantic-tags", method = RequestMethod.POST)
-	public void addNewSemanticTags(@RequestBody Map<String, Set <String>> semanticTags) throws IOException {
-		validationService.insertSemanticTags(semanticTags.get(semanticTags.keySet().iterator().next()));
+	public void addNewSemanticTags(@RequestBody String[] semanticTags) throws IOException {
+		validationService.insertSemanticTags(Sets.newHashSet(semanticTags));
 	}
 
 	@ApiOperation(value = "Remove a semantic tag from S3 file")
