@@ -111,4 +111,18 @@ public class ValidationController {
 	public void removeAuthorIssue(@PathVariable String uuid) throws IOException {
 		validationService.deleteAuthorItem(uuid);
 	}
+
+	@ApiOperation(value = "Insert new semantic tags into S3 file")
+	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
+	@RequestMapping(value = "/semantic-tags", method = RequestMethod.POST)
+	public void addNewSemanticTags(@RequestBody Map<String, Set <String>> semanticTags) throws IOException {
+		validationService.insertSemanticTags(semanticTags.get(semanticTags.keySet().iterator().next()));
+	}
+
+	@ApiOperation(value = "Remove a semantic tag from S3 file")
+	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
+	@RequestMapping(value = "/semantic-tags", method = RequestMethod.DELETE)
+	public void removeSemanticTag(@RequestParam String semanticTag) throws IOException {
+		validationService.deleteSemanticTag(semanticTag);
+	}
 }

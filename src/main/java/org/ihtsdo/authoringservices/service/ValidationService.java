@@ -86,6 +86,9 @@ public class ValidationService {
 	@Value("${aws.s3.author-issue-items.path}")
 	private String authorIssueItemsPath;
 
+	@Value("${aws.s3.semantic-tag-items.path}")
+	private String semanticTagItemsPath;
+
 	@Value("${rvf.url}")
 	private String rvfUrl;
 
@@ -328,7 +331,7 @@ public class ValidationService {
 				.flatMap(Collection::stream)
 				.collect(Collectors.toSet());
 		if(!this.authorItems.equals(combined)) {
-			writeAndPutFileToS3(combined);
+			writeAndPutFileToS3(combined, authorIssueItemsPath);
 			this.authorItems = combined;
 		}
 	}
@@ -336,26 +339,64 @@ public class ValidationService {
 	public void deleteAuthorItem(String assertionUUID) throws IOException {
 		if(this.authorItems.contains(assertionUUID)) {
 			this.authorItems.remove(assertionUUID);
-			writeAndPutFileToS3(this.authorItems);
+			writeAndPutFileToS3(this.authorItems, authorIssueItemsPath);
 		} else {
 			throw new ResourceNotFoundException("UUID not found: " + assertionUUID);
 		}
 	}
 
-	private void writeAndPutFileToS3(final Set<String> assertionUUIDs) throws IOException {
-		File modifiedList = Files.createTempFile("author-assertions", ".txt").toFile();
+	public void insertSemanticTags(Set<String> semanticTags) throws IOException {
+		Set<String> existingSemanticTags = loadSemanticTags();
+		Set<String> combined = Stream.of(existingSemanticTags, semanticTags)
+				.flatMap(Collection::stream)
+				.collect(Collectors.toSet());
+		if(!existingSemanticTags.equals(combined)) {
+			writeAndPutFileToS3(combined, semanticTagItemsPath);
+			this.authorItems = combined;
+		}
+	}
+
+	public void deleteSemanticTag(String semanticTag) throws IOException {
+		Set<String> existingSemanticTags = loadSemanticTags();
+		if(existingSemanticTags.contains(semanticTag)) {
+			existingSemanticTags.remove(semanticTag);
+			writeAndPutFileToS3(existingSemanticTags, semanticTagItemsPath);
+		} else {
+			throw new ResourceNotFoundException("Semantic tag not found: " + semanticTag);
+		}
+	}
+
+	private void writeAndPutFileToS3(final Set<String> lines, final String path) throws IOException {
+		File modifiedList = Files.createTempFile("temp", ".txt").toFile();
 		try (BufferedWriter writer = new BufferedWriter(new FileWriter(modifiedList))) {
-			for (String line: assertionUUIDs) {
+			for (String line: lines) {
 				writer.write(line);
 				writer.newLine();
 			}
 		}
 		try {
 			S3ClientImpl s3Client = new S3ClientImpl(new BasicAWSCredentials(accessKey, secretKey));
-			s3Client.putObject(bucket, authorIssueItemsPath, modifiedList);
+			s3Client.putObject(bucket, path, modifiedList);
 		} finally {
 			FileUtils.forceDelete(modifiedList);
 		}
+	}
+
+	private Set<String> loadSemanticTags(){
+		Set<String> semanticTags = new HashSet<>();
+		S3ClientImpl s3Client = new S3ClientImpl(new BasicAWSCredentials(accessKey, secretKey));
+		if (s3Client.doesObjectExist(this.bucket, this.semanticTagItemsPath)) {
+			S3ObjectInputStream objectContent = s3Client.getObject(bucket, semanticTagItemsPath).getObjectContent();
+			try (BufferedReader reader = new BufferedReader(new InputStreamReader(objectContent))) {
+				String line;
+				while ((line = reader.readLine()) != null) {
+					semanticTags.add(line);
+				}
+			} catch (IOException e) {
+				logger.error("Failed to load semantic tags from S3", e);
+			}
+		}
+		return semanticTags;
 	}
 
 	@Transactional
