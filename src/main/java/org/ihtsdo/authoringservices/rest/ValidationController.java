@@ -15,7 +15,6 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
-import java.util.Map;
 import java.util.Set;
 
 import static org.ihtsdo.authoringservices.rest.ControllerHelper.*;
@@ -101,8 +100,8 @@ public class ValidationController {
 	@ApiOperation(value = "Insert new author assertion UUIDs")
 	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
 	@RequestMapping(value = "/author-issue-items", method = RequestMethod.POST)
-	public Set<String> addNewAuthorIssues(@RequestBody Map<String, Set <String>> assertionUUIDs) throws IOException {
-		validationService.insertAuthorItems(assertionUUIDs.get(assertionUUIDs.keySet().iterator().next()));
+	public Set<String> addNewAuthorIssues(@RequestBody String[] assertionUUIDs) throws IOException {
+		validationService.insertAuthorItems(Sets.newHashSet(assertionUUIDs));
 		return validationService.getAuthorItems();
 	}
 
