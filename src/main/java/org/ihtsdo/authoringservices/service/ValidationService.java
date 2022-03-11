@@ -1,7 +1,7 @@
 package org.ihtsdo.authoringservices.service;
 
 import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.services.s3.model.S3ObjectInputStream;
+import com.amazonaws.services.s3.model.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -9,6 +9,7 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableMap;
 import net.sf.json.JSONObject;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.ihtsdo.authoringservices.domain.ReleaseRequest;
 import org.ihtsdo.authoringservices.domain.Status;
 import org.ihtsdo.authoringservices.domain.ValidationConfiguration;
@@ -376,7 +377,11 @@ public class ValidationService {
 		}
 		try {
 			S3ClientImpl s3Client = new S3ClientImpl(new BasicAWSCredentials(accessKey, secretKey));
-			s3Client.putObject(bucket, path, modifiedList);
+			InputStream inputStream = new FileInputStream(modifiedList);
+			ObjectMetadata objectMetadata = new ObjectMetadata();
+			objectMetadata.setContentLength(IOUtils.toByteArray(inputStream).length);
+			s3Client.putObject(new PutObjectRequest(bucket, path, inputStream, objectMetadata)
+					.withCannedAcl(CannedAccessControlList.PublicRead));
 		} finally {
 			FileUtils.forceDelete(modifiedList);
 		}
