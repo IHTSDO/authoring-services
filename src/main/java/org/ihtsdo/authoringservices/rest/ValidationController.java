@@ -90,26 +90,26 @@ public class ValidationController {
 		validationService.resetBranchValidationStatus(BranchPathUriUtil.parseBranchPath(branchPath));
 	}
 
-	@ApiOperation(value = "Retrieve all author assertion UUIDs")
+	@ApiOperation(value = "Retrieve all technical assertion UUIDs")
 	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
-	@RequestMapping(value = "/author-issue-items", method = RequestMethod.GET)
-	public Set<String> getAuthorIssues() {
-		return validationService.getAuthorItems();
+	@RequestMapping(value = "/technical-issue-items", method = RequestMethod.GET)
+	public Set<String> getTechnicalIssues() {
+		return validationService.getTechnicalItems();
 	}
 
-	@ApiOperation(value = "Insert new author assertion UUIDs")
+	@ApiOperation(value = "Insert new technical assertion UUIDs")
 	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
-	@RequestMapping(value = "/author-issue-items", method = RequestMethod.POST)
-	public Set<String> addNewAuthorIssues(@RequestBody String[] assertionUUIDs) throws IOException {
-		validationService.insertAuthorItems(Sets.newHashSet(assertionUUIDs));
-		return validationService.getAuthorItems();
+	@RequestMapping(value = "/technical-issue-items", method = RequestMethod.POST)
+	public Set<String> addNewTechnicalIssues(@RequestBody String[] assertionUUIDs) throws IOException {
+		validationService.insertTechnicalItems(Sets.newHashSet(assertionUUIDs));
+		return validationService.getTechnicalItems();
 	}
 
-	@ApiOperation(value = "Remove an author assertion UUID")
+	@ApiOperation(value = "Remove a technical assertion UUID")
 	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
-	@RequestMapping(value = "/author-issue-items/{uuid}", method = RequestMethod.DELETE)
-	public void removeAuthorIssue(@PathVariable String uuid) throws IOException {
-		validationService.deleteAuthorItem(uuid);
+	@RequestMapping(value = "/technical-issue-items/{uuid}", method = RequestMethod.DELETE)
+	public void removeTechnicalIssue(@PathVariable String uuid) throws IOException {
+		validationService.deleteTechnicalItem(uuid);
 	}
 
 	@ApiOperation(value = "Insert new semantic tags into S3 file")

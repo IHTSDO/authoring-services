@@ -85,7 +85,7 @@ public class ValidationService {
 	private String bucket;
 
 	@Value("${aws.s3.author-issue-items.path}")
-	private String authorIssueItemsPath;
+	private String techinicalIssueItemsPath;
 
 	@Value("${aws.s3.semantic-tag-items.path}")
 	private String semanticTagItemsPath;
@@ -120,7 +120,7 @@ public class ValidationService {
 
 	private LoadingCache<String, Validation> validationLoadingCache;
 
-	private Set<String> authorItems;
+	private Set<String> technicalItems;
 
 	public ValidationService() {
 		this.rvfRestTemplate = new RestTemplate();
@@ -158,18 +158,18 @@ public class ValidationService {
 								return map.build();
 							}
 						});
-		this.authorItems = new HashSet<>();
+		this.technicalItems = new HashSet<>();
 		if (this.awsResourceEnabled) {
 		 	S3ClientImpl s3Client = new S3ClientImpl(new BasicAWSCredentials(accessKey, secretKey));
-			if (s3Client.doesObjectExist(this.bucket, this.authorIssueItemsPath)) {
-				S3ObjectInputStream objectContent = s3Client.getObject(bucket, authorIssueItemsPath).getObjectContent();
+			if (s3Client.doesObjectExist(this.bucket, this.techinicalIssueItemsPath)) {
+				S3ObjectInputStream objectContent = s3Client.getObject(bucket, techinicalIssueItemsPath).getObjectContent();
 				try (BufferedReader reader = new BufferedReader(new InputStreamReader(objectContent))) {
 					String line;
 					while ((line = reader.readLine()) != null) {
-						this.authorItems.add(line);
+						this.technicalItems.add(line);
 					}
 				} catch (IOException e) {
-					logger.error("Failed to load author assertion list from S3", e);
+					logger.error("Failed to load technical assertion list from S3", e);
 				}
 			}
 		}
@@ -323,24 +323,24 @@ public class ValidationService {
 		return validationLoadingCache.get(path);
 	}
 
-	public Set<String> getAuthorItems() {
-		return this.authorItems;
+	public Set<String> getTechnicalItems() {
+		return this.technicalItems;
 	}
 
-	public void insertAuthorItems(Set<String> newAssertionUUIDs) throws IOException {
-		Set<String> combined = Stream.of(this.authorItems, newAssertionUUIDs)
+	public void insertTechnicalItems(Set<String> newAssertionUUIDs) throws IOException {
+		Set<String> combined = Stream.of(this.technicalItems, newAssertionUUIDs)
 				.flatMap(Collection::stream)
 				.collect(Collectors.toSet());
-		if(!this.authorItems.equals(combined)) {
-			writeAndPutFileToS3(combined, authorIssueItemsPath);
-			this.authorItems = combined;
+		if(!this.technicalItems.equals(combined)) {
+			writeAndPutFileToS3(combined, techinicalIssueItemsPath);
+			this.technicalItems = combined;
 		}
 	}
 
-	public void deleteAuthorItem(String assertionUUID) throws IOException {
-		if(this.authorItems.contains(assertionUUID)) {
-			this.authorItems.remove(assertionUUID);
-			writeAndPutFileToS3(this.authorItems, authorIssueItemsPath);
+	public void deleteTechnicalItem(String assertionUUID) throws IOException {
+		if(this.technicalItems.contains(assertionUUID)) {
+			this.technicalItems.remove(assertionUUID);
+			writeAndPutFileToS3(this.technicalItems, techinicalIssueItemsPath);
 		} else {
 			throw new ResourceNotFoundException("UUID not found: " + assertionUUID);
 		}
@@ -353,7 +353,7 @@ public class ValidationService {
 				.collect(Collectors.toSet());
 		if(!existingSemanticTags.equals(combined)) {
 			writeAndPutFileToS3(combined, semanticTagItemsPath);
-			this.authorItems = combined;
+			this.technicalItems = combined;
 		}
 	}
 
