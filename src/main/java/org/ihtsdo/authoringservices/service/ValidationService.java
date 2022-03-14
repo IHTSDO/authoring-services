@@ -377,10 +377,7 @@ public class ValidationService {
 		}
 		try {
 			S3ClientImpl s3Client = new S3ClientImpl(new BasicAWSCredentials(accessKey, secretKey));
-			InputStream inputStream = new FileInputStream(modifiedList);
-			ObjectMetadata objectMetadata = new ObjectMetadata();
-			objectMetadata.setContentLength(IOUtils.toByteArray(inputStream).length);
-			s3Client.putObject(new PutObjectRequest(bucket, path, inputStream, objectMetadata)
+			s3Client.putObject(new PutObjectRequest(bucket, path, modifiedList)
 					.withCannedAcl(CannedAccessControlList.PublicRead));
 		} finally {
 			FileUtils.forceDelete(modifiedList);
