@@ -84,7 +84,7 @@ public class ValidationService {
 	@Value("${aws.s3.spell-check.bucket}")
 	private String bucket;
 
-	@Value("${aws.s3.author-issue-items.path}")
+	@Value("${aws.s3.technical-issue-items.path}")
 	private String techinicalIssueItemsPath;
 
 	@Value("${aws.s3.semantic-tag-items.path}")
