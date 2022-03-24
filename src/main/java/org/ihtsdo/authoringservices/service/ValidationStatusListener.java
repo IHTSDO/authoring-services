@@ -66,13 +66,15 @@ public class ValidationStatusListener {
 					validationService.updateValidationCache(validation.getBranchPath(), newPropertyValues);
 					if (ValidationJobStatus.COMPLETED.name().equalsIgnoreCase(state) || ValidationJobStatus.FAILED.name().equalsIgnoreCase(state)) {
 						// Notify user
+						Notification notification = new Notification(
+								validation.getProjectKey(),
+								validation.getTaskKey(),
+								EntityType.Validation,
+								state);
+						notification.setBranchPath(validation.getBranchPath());
 						notificationService.queueNotification(
 								username,
-								new Notification(
-										validation.getProjectKey(),
-										validation.getTaskKey(),
-										EntityType.Validation,
-										state));
+								notification);
 
 						// Notify AAG
 						if (ValidationJobStatus.COMPLETED.name().equalsIgnoreCase(state)) {
