@@ -105,7 +105,9 @@ public class SnowstormClassificationClient {
 				taskService.addCommentLogErrors(projectKey, resultMessage);
 			}
 			taskService.clearClassificationCache(branchPath);
-			notificationService.queueNotification(SecurityUtil.getUsername(), new Notification(projectKey, taskKey, EntityType.Classification, resultMessage));
+			Notification notification = new Notification(projectKey, taskKey, EntityType.Classification, resultMessage);
+			notification.setBranchPath(branchPath);
+			notificationService.queueNotification(SecurityUtil.getUsername(), notification);
 		}
 	}
 }
