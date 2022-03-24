@@ -41,6 +41,23 @@ public class ValidationController {
 		return validationService.startValidation(requiredParam(projectKey, PROJECT_KEY), requiredParam(taskKey, TASK_KEY), enableMRCMValidation);
 	}
 
+	@ApiOperation(value = "Initiate validation for a given branch")
+	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
+	@RequestMapping(value = "/branches/{branch}/validation", method = RequestMethod.POST)
+	public Status startValidation(@PathVariable String branch, @RequestParam(value = "enableMRCMValidation", required = false, defaultValue = "false") boolean enableMRCMValidation) throws BusinessServiceException {
+		return validationService.startValidation(BranchPathUriUtil.parseBranchPath(branch), enableMRCMValidation);
+	}
+
+	@ApiOperation(value = "Recover the most recent validation for a branch")
+	@ApiResponses({
+			@ApiResponse(code = 200, message = "OK")
+	})
+	@RequestMapping(value = "/branches/{branch}/validation", method = RequestMethod.GET)
+	@ResponseBody
+	public String getValidationForBranch(@PathVariable String branch) throws BusinessServiceException {
+		return validationService.getValidationJsonForBranch(BranchPathUriUtil.parseBranchPath(branch));
+	}
+
 	@ApiOperation(value = "Recover the most recent validation on a Task")
 	@ApiResponses({
 			@ApiResponse(code = 200, message = "OK")

@@ -219,6 +219,10 @@ public class ValidationService {
         return doStartValidation(PathHelper.getMainPath(),null,null, effectiveDate,false);
     }
 
+	public Status startValidation(String branch, boolean enableMRCMValidation) throws BusinessServiceException {
+		return doStartValidation(branch, null, null, null, enableMRCMValidation);
+	}
+
 	public Status startValidation(String projectKey, String taskKey, boolean enableMRCMValidation) throws BusinessServiceException {
 		String branchPath = taskKey != null ? taskService.getTaskBranchPathUsingCache(projectKey, taskKey) : taskService.getProjectBranchPathUsingCache(projectKey);
 	    return doStartValidation(branchPath, projectKey, taskKey, null, enableMRCMValidation);
@@ -273,6 +277,10 @@ public class ValidationService {
 
 		logger.info("Validation config created:{}", validationConfig);
 		return validationConfig;
+	}
+
+	public String getValidationJsonForBranch(String branchPath) throws BusinessServiceException {
+		return getValidationJsonIfAvailable(branchPath);
 	}
 
 	public String getValidationJson(String projectKey, String taskKey) throws BusinessServiceException {

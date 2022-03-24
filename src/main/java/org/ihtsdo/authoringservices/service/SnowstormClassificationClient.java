@@ -61,7 +61,7 @@ public class SnowstormClassificationClient {
 
 		//Now start an asynchronous thread to wait for the results
 		final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-		new Thread(new ClassificationPoller(projectKey, taskKey, results, authentication), "ClassificationPoller-" + callerUsername).start();
+		new Thread(new ClassificationPoller(projectKey, taskKey, branchPath, results, authentication), "ClassificationPoller-" + callerUsername).start();
 
 		return new Classification(results);
 	}
@@ -71,20 +71,21 @@ public class SnowstormClassificationClient {
 		private ClassificationResults results;
 		private String projectKey;
 		private String taskKey;
+		private String branchPath;
 		private final Authentication authentication;
 
-		ClassificationPoller(String projectKey, String taskKey, ClassificationResults results, Authentication authentication) {
+		ClassificationPoller(String projectKey, String taskKey, String branchPath, ClassificationResults results, Authentication authentication) {
 			this.results = results;
 			this.projectKey = projectKey;
 			this.taskKey = taskKey;
+			this.branchPath = branchPath;
 			this.authentication = authentication;
 		}
 
 		@Override
 		public void run() {
 			SecurityContextHolder.getContext().setAuthentication(authentication);
-			String resultMessage = null;
-			String branchPath = null;
+			String resultMessage;
 			SnowstormRestClient terminologyServerClient = snowstormRestClientFactory.getClient();
 			try {
 				// Function sleeps here
@@ -96,24 +97,15 @@ public class SnowstormClassificationClient {
 				logger.error(resultMessage, e);
 			}
 
-			try {
 			if (taskKey != null) {
 				//In every case we'll report what we know to the jira ticket
 				taskService.addCommentLogErrors(projectKey, taskKey, resultMessage);
-				branchPath = taskService.getBranchPathUsingCache(projectKey, taskKey);
-
-			} else {
+			} else if (projectKey != null) {
 				// Comment on project magic ticket
 				taskService.addCommentLogErrors(projectKey, resultMessage);
-				branchPath = taskService.getProjectBranchPathUsingCache(projectKey);
-			}
-			} catch (BusinessServiceException e) {
-				logger.error(e.getMessage(), e);
 			}
 			taskService.clearClassificationCache(branchPath);
 			notificationService.queueNotification(SecurityUtil.getUsername(), new Notification(projectKey, taskKey, EntityType.Classification, resultMessage));
 		}
-
 	}
-
 }

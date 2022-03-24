@@ -1,5 +1,6 @@
 package org.ihtsdo.authoringservices.rest;
 
+import io.kaicode.rest.util.branchpathrewrite.BranchPathUriUtil;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.ihtsdo.authoringservices.domain.Classification;
@@ -35,6 +36,20 @@ public class ClassificationController {
 		String branchPath = taskService.getProjectBranchPathUsingCache(requiredParam(projectKey, PROJECT_KEY));
 		try {
 			Classification classification = snowstormClassificationClient.startClassification(projectKey, null, branchPath, SecurityUtil.getUsername());
+			taskService.clearClassificationCache(branchPath);
+			return classification;
+		} catch (RestClientException | JSONException e) {
+			throw new BusinessServiceException("Failed to start classification.", e);
+		}
+	}
+
+	@ApiOperation(value = "Start classification for a branch")
+	@RequestMapping(value = "/branches/{branch}/classifications", method = RequestMethod.POST)
+	@ResponseBody
+	public Classification startBranchClassification(@PathVariable String branch) throws BusinessServiceException {
+		String branchPath = BranchPathUriUtil.parseBranchPath(branch);
+		try {
+			Classification classification = snowstormClassificationClient.startClassification(null, null, branchPath, SecurityUtil.getUsername());
 			taskService.clearClassificationCache(branchPath);
 			return classification;
 		} catch (RestClientException | JSONException e) {
