@@ -87,7 +87,9 @@ public abstract class Configuration {
         // Encode branch paths in uri to allow request mapping to work
         return new FilterRegistrationBean(new BranchPathUriRewriteFilter(
                 "/loinc-export/(.*)",
-                "/validation/(.*)/status/reset"
+                "/validation/(.*)/status/reset",
+                "/branches/(.*)/validation",
+                "/branches/(.*)/classifications"
         ));
     }
 
