@@ -9,7 +9,6 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableMap;
 import net.sf.json.JSONObject;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
 import org.ihtsdo.authoringservices.domain.ReleaseRequest;
 import org.ihtsdo.authoringservices.domain.Status;
 import org.ihtsdo.authoringservices.domain.ValidationConfiguration;
@@ -234,7 +233,7 @@ public class ValidationService {
 		    final String authToken = SecurityUtil.getAuthenticationToken();
 			final Map<String, Object> branchMetadata = branchService.getBranchMetadataIncludeInherited(branchPath);
 			ValidationConfiguration validationConfig = constructValidationConfig(branchPath, branchMetadata, effectiveDate, enableMRCMValidation, projectKey, taskKey);
-			Validation validation = getValidationStatus(branchPath);
+			Validation validation = getValidation(branchPath);
 			if (validation.getStatus() != null && !ValidationJobStatus.isAllowedTriggeringState(validation.getStatus())) {
 				throw new EntityAlreadyExistsException("An in-progress validation has been detected for " + branchPath + " at state " + validation.getStatus());
 			}
@@ -298,7 +297,7 @@ public class ValidationService {
 	private String getValidationJsonIfAvailable(String path) throws BusinessServiceException {
 		try {
 			//Only return the validation json if the validation is complete
-			Validation validation = getValidationStatus(path);
+			Validation validation = getValidation(path);
 			if (ValidationJobStatus.COMPLETED.name().equals(validation.getStatus()) && validation.getReportUrl() != null) {
 				JSONObject jsonObj = new JSONObject();
 				String report = rvfRestTemplate.getForObject(validation.getReportUrl(), String.class);
@@ -314,6 +313,10 @@ public class ValidationService {
 				}
 				jsonObj.put("report", report);
 				return  jsonObj.toString();
+			} else if (validation.getStatus() != null) {
+				JSONObject jsonObj = new JSONObject();
+				jsonObj.put("executionStatus", validation.getStatus());
+				return  jsonObj.toString();
 			} else {
 				logger.warn("Ignoring request for validation json for path {} as status {} ", path, validation.getStatus());
 				return null;
@@ -327,7 +330,7 @@ public class ValidationService {
 		return validationLoadingCache.getAll(paths);
 	}
 	
-	public Validation getValidationStatus(String path) throws ExecutionException {
+	public Validation getValidation(String path) throws ExecutionException {
 		return validationLoadingCache.get(path);
 	}
 
