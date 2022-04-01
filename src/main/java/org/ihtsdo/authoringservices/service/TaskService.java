@@ -331,14 +331,19 @@ public class TaskService {
 			try {
 				validationMap = validationService.getValidations(branchPaths);
 				for (AuthoringProject authoringProject : authoringProjects) {
-					String branchPath = authoringProject.getBranchPath();
-					Validation validation = validationMap.get(branchPath);
-					if (ValidationJobStatus.COMPLETED.name().equals(validation.getStatus())
-							&& validation.getContentHeadTimestamp() != null
-							&& !authoringProject.getBranchHeadTimestamp().equals(validation.getContentHeadTimestamp())) {
-						authoringProject.setValidationStatus(ValidationJobStatus.STALE.name());
-					} else {
-						authoringProject.setValidationStatus(validation.getStatus());
+					try {
+						String branchPath = authoringProject.getBranchPath();
+						Validation validation = validationMap.get(branchPath);
+						if (ValidationJobStatus.COMPLETED.name().equals(validation.getStatus())
+								&& validation.getContentHeadTimestamp() != null
+								&& authoringProject.getBranchHeadTimestamp() != null
+								&& !authoringProject.getBranchHeadTimestamp().equals(validation.getContentHeadTimestamp())) {
+							authoringProject.setValidationStatus(ValidationJobStatus.STALE.name());
+						} else {
+							authoringProject.setValidationStatus(validation.getStatus());
+						}
+					} catch (Exception e) {
+						logger.error("Failed to recover/set validation status for " + authoringProject.getKey(), e);
 					}
 				}
 			} catch (ExecutionException e) {
