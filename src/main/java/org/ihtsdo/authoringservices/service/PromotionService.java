@@ -3,15 +3,17 @@ package org.ihtsdo.authoringservices.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import net.rcarz.jiraclient.Issue;
+import net.sf.json.JSONObject;
 import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.domain.BranchState;
+import org.ihtsdo.authoringservices.domain.Classification;
+import org.ihtsdo.authoringservices.service.client.ContentRequestServiceClient;
+import org.ihtsdo.authoringservices.service.client.ContentRequestServiceClientFactory;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
-import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ApiError;
-import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ClassificationStatus;
-import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Merge;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.*;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
 import org.ihtsdo.sso.integration.SecurityUtil;
@@ -29,9 +31,14 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 public class PromotionService {
+
+    public static final Pattern TAG_PATTERN = Pattern.compile("^.*\\((.*)\\)$");
+    public static final String IS_A = "116680003";
 
 	@Autowired
 	private TaskService taskService;
@@ -41,6 +48,9 @@ public class PromotionService {
 
 	@Autowired
 	private SnowstormRestClientFactory snowstormRestClientFactory;
+
+	@Autowired
+	private ContentRequestServiceClientFactory contentRequestServiceClientFactory;
 
 	@Autowired
 	private BranchService branchService;
@@ -68,6 +78,19 @@ public class PromotionService {
 		taskPromotionStatus = new HashMap<>();
 		projectPromotionStatus = new HashMap<>();
 		executorService = Executors.newCachedThreadPool();
+	}
+
+	public String requestConceptPromotion(String conceptId, boolean includeDependencies, String branchPath, CodeSystem codeSystem) throws BusinessServiceException {
+		ContentRequestServiceClient contentRequestServiceClient = contentRequestServiceClientFactory.getClient();
+		JSONObject request = constructCRSRequestBody(conceptId, branchPath, codeSystem);
+		try {
+			String requestId = contentRequestServiceClient.createRequest(request);
+            contentRequestServiceClient.submitRequest(requestId);
+			return requestId;
+		} catch (RestClientException e) {
+			String error = String.format("Failed to request for a concept promotion. Error: $", e.getMessage());
+			throw new BusinessServiceException(error, e);
+		}
 	}
 
 	@Scheduled(initialDelay = 60_000, fixedDelay = 5_000)
@@ -324,6 +347,107 @@ public class PromotionService {
 	private String parseKey(String projectKey, String taskKey) {
 		return projectKey + "|" + taskKey;
 	}
+
+    private JSONObject constructCRSRequestBody(String conceptId, String branchPath, CodeSystem codeSystem) throws BusinessServiceException {
+        ConceptPojo concept;
+        String fsn;
+        try {
+            SnowstormRestClient snowstormRestClient = snowstormRestClientFactory.getClient();
+            concept = snowstormRestClient.getConcept(branchPath, conceptId);
+			fsn = getFsn(concept.getDescriptions());
+        } catch (RestClientException e) {
+            throw new BusinessServiceException(String.format("Concept with id %s not found against branch %s", conceptId, branchPath));
+        }
+
+        String summary = "Content promotion of " + conceptId;
+        JSONObject request = new JSONObject();
+        request.put("inputMode", "SIMPLE");
+        request.put("requestType", "NEW_CONCEPT");
+        request.put("requestorInternalId", conceptId);
+        request.put("organization", codeSystem.getShortName());
+        request.put("fsn", fsn);
+
+        JSONObject additionalFields = new JSONObject();
+        additionalFields.put("topic", "Content Promotion");
+        additionalFields.put("summary", summary);
+        additionalFields.put("reference", "-");
+        additionalFields.put("reasonForChange", "Content Promotion");
+        request.put("additionalFields", additionalFields);
+
+        JSONObject requestItem = new JSONObject();
+        requestItem.put("requestType", "NEW_CONCEPT");
+        requestItem.put("topic", "Content Promotion");
+        requestItem.put("summary", summary);
+        requestItem.put("reasonForChange", "Content Promotion");
+        requestItem.put("reference", "-");
+        requestItem.put("proposedFSN", fsn);
+        requestItem.put("conceptPT", getPreferredTerm(concept.getDescriptions()));
+        requestItem.put("semanticTag", getSemanticTag(fsn));
+
+        JSONObject proposedParent = new JSONObject();
+        RelationshipPojo parentConcept =  getFirstParent(concept);
+
+        if (parentConcept != null) {
+            proposedParent.put("conceptId", parentConcept.getTarget().getConceptId());
+            proposedParent.put("fsn", parentConcept.getTarget().getFsn().getTerm());
+			proposedParent.put("refType", "EXISTING");
+			proposedParent.put("sourceTerminology", "SNOMEDCT");
+        } else {
+        	logger.error("Parent concept not found");
+		}
+        requestItem.put("proposedParents", Collections.singleton(proposedParent));
+
+        request.put("requestItems", Collections.singleton(requestItem));
+
+        return request;
+    }
+
+    private RelationshipPojo getFirstParent(ConceptPojo concept) {
+        if (concept != null) {
+            for (AxiomPojo axiom : concept.getClassAxioms()) {
+                if (axiom.isActive()) {
+                    for (RelationshipPojo relationship : axiom.getRelationships()) {
+                        if (IS_A.equals(relationship.getType().getConceptId())) return relationship;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+	private String getFsn(Set<DescriptionPojo> descriptions) {
+		if (descriptions != null) {
+			for (DescriptionPojo description : descriptions) {
+				if (DescriptionPojo.Type.FSN.equals(description.getType()) && description.isActive() && DescriptionPojo.Acceptability.PREFERRED.equals(description.getAcceptabilityMap().get(SnowstormRestClient.US_EN_LANG_REFSET))) {
+					return description.getTerm();
+				}
+			}
+		}
+		return null;
+	}
+
+    private String getPreferredTerm(Set<DescriptionPojo> descriptions) {
+        if (descriptions != null) {
+            for (DescriptionPojo description : descriptions) {
+                if (DescriptionPojo.Type.SYNONYM.equals(description.getType()) && description.isActive() && DescriptionPojo.Acceptability.PREFERRED.equals(description.getAcceptabilityMap().get(SnowstormRestClient.US_EN_LANG_REFSET))) {
+                    return description.getTerm();
+                }
+            }
+        }
+        return null;
+    }
+
+    private String getSemanticTag(String term) {
+        final Matcher matcher = TAG_PATTERN.matcher(term);
+        if (matcher.matches()) {
+            String result = matcher.group(1);
+            if(result != null && (result.contains("(") || result.contains(")"))) {
+                return null;
+            }
+            return result;
+        }
+        return null;
+    }
 
 	public ProcessStatus getTaskPromotionStatus(String projectKey, String taskKey) {
 		return taskPromotionStatus.get(parseKey(projectKey, taskKey));

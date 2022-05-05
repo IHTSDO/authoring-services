@@ -1,6 +1,17 @@
 package org.ihtsdo.authoringservices.rest;
 
 import com.google.common.base.Strings;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.util.Assert;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+
+import javax.servlet.http.HttpServletRequest;
+import java.net.URI;
 
 class ControllerHelper {
 
@@ -18,5 +29,49 @@ class ControllerHelper {
 			throw new IllegalArgumentException(String.format("Parameter %s is required.", paramName));
 		}
 		return value;
+	}
+
+	public static ResponseEntity <Void> getCreatedResponse(String id) {
+		return getCreatedResponse(id, null);
+	}
+
+	static ResponseEntity<Void> getCreatedResponse(String id, String removePathPart) {
+		HttpHeaders httpHeaders = getCreatedLocationHeaders(id, removePathPart);
+		return new ResponseEntity<>(httpHeaders, HttpStatus.CREATED);
+	}
+
+	static HttpHeaders getCreatedLocationHeaders(String id) {
+		return getCreatedLocationHeaders(id, null);
+	}
+
+	static HttpHeaders getCreatedLocationHeaders(String id, String removePathPart) {
+		RequestAttributes attrs = RequestContextHolder.getRequestAttributes();
+		Assert.state(attrs instanceof ServletRequestAttributes, "No current ServletRequestAttributes");
+		HttpServletRequest request = ((ServletRequestAttributes) attrs).getRequest();
+
+		String requestUrl = request.getRequestURL().toString();
+		// Decode branch path
+		requestUrl = requestUrl.replace("%7C", "/");
+		if (!Strings.isNullOrEmpty(removePathPart)) {
+			requestUrl = requestUrl.replace(removePathPart, "");
+		}
+
+		HttpHeaders httpHeaders = new HttpHeaders();
+		httpHeaders.setLocation(ServletUriComponentsBuilder.fromHttpUrl(requestUrl).path("/{id}").buildAndExpand(id).toUri());
+		return httpHeaders;
+	}
+
+	static HttpHeaders getCreatedLocationHeaders(String requestUrl,  String id, String removePathPart) {
+		RequestAttributes attrs = RequestContextHolder.getRequestAttributes();
+		Assert.state(attrs instanceof ServletRequestAttributes, "No current ServletRequestAttributes");
+		HttpServletRequest request = ((ServletRequestAttributes) attrs).getRequest();
+
+		if (!Strings.isNullOrEmpty(removePathPart)) {
+			requestUrl = requestUrl.replace(removePathPart, "");
+		}
+
+		HttpHeaders httpHeaders = new HttpHeaders();
+		httpHeaders.setLocation(ServletUriComponentsBuilder.fromHttpUrl(requestUrl).path("/{id}").buildAndExpand(id).toUri());
+		return httpHeaders;
 	}
 }
