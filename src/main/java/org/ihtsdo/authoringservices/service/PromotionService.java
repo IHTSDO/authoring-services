@@ -84,11 +84,9 @@ public class PromotionService {
 		ContentRequestServiceClient contentRequestServiceClient = contentRequestServiceClientFactory.getClient();
 		JSONObject request = constructCRSRequestBody(conceptId, branchPath, codeSystem);
 		try {
-			String requestId = contentRequestServiceClient.createRequest(request);
-            contentRequestServiceClient.submitRequest(requestId);
-			return requestId;
+            return contentRequestServiceClient.createRequest(request);
 		} catch (RestClientException e) {
-			String error = String.format("Failed to request for a concept promotion. Error: $", e.getMessage());
+			String error = String.format("Failed to request for a concept promotion. Error: %s", e.getMessage());
 			throw new BusinessServiceException(error, e);
 		}
 	}

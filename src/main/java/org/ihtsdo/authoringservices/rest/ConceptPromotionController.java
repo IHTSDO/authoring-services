@@ -46,7 +46,7 @@ public class ConceptPromotionController {
     @RequestMapping(value = "/request-concept-promotion", method = RequestMethod.POST)
     public ResponseEntity <Void> requestConceptPromotion(@RequestBody ConceptPromotionRequest request) throws BusinessServiceException {
         if (!StringUtils.hasLength(request.getBranchPath()) && !StringUtils.hasLength(request.getProjectKey())) {
-            throw new IllegalArgumentException(String.format("Project Key or branch path is required."));
+            throw new IllegalArgumentException("Project Key or branch path is required.");
         }
 
         SnowstormRestClient snowstormRestClient = snowstormRestClientFactory.getClient();

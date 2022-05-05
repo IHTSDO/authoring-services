@@ -59,15 +59,6 @@ public class ContentRequestServiceClient {
         return requestId;
     }
 
-    public void submitRequest(String requestId) throws RestClientException {
-        try {
-            restTemplate.postForObject(this.contentRequestServiceUrl + "request/" + requestId + "/submit", null, Void.class);
-        } catch (HttpClientErrorException | HttpServerErrorException e) {
-            String errorMessage = String.format("Failed to submit for CRS request ID %s. Error message: %s", requestId, e.getMessage());
-            logger.error(errorMessage);
-            throw new RestClientException(errorMessage);
-        }
-    }
 
     private class ContentRequestDto {
         private Long id;
