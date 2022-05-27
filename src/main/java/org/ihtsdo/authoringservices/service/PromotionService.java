@@ -24,6 +24,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import us.monoid.json.JSONException;
 
 import javax.annotation.PreDestroy;
@@ -33,6 +34,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Service
 public class PromotionService {
@@ -82,7 +84,7 @@ public class PromotionService {
 
 	public String requestConceptPromotion(String conceptId, boolean includeDependencies, String branchPath, CodeSystem codeSystem) throws BusinessServiceException {
 		ContentRequestServiceClient contentRequestServiceClient = contentRequestServiceClientFactory.getClient();
-		JSONObject request = constructCRSRequestBody(conceptId, branchPath, codeSystem);
+		JSONObject request = constructCRSRequestBody(conceptId, branchPath, codeSystem, includeDependencies);
 		try {
             return contentRequestServiceClient.createRequest(request);
 		} catch (RestClientException e) {
@@ -346,18 +348,26 @@ public class PromotionService {
 		return projectKey + "|" + taskKey;
 	}
 
-    private JSONObject constructCRSRequestBody(String conceptId, String branchPath, CodeSystem codeSystem) throws BusinessServiceException {
+    private JSONObject constructCRSRequestBody(String conceptId, String branchPath, CodeSystem codeSystem, boolean includeDependencies) throws BusinessServiceException {
         ConceptPojo concept;
         String fsn;
+		String dependencies = "";
         try {
             SnowstormRestClient snowstormRestClient = snowstormRestClientFactory.getClient();
             concept = snowstormRestClient.getConcept(branchPath, conceptId);
 			fsn = getFsn(concept.getDescriptions());
+
+			if (includeDependencies) {
+				dependencies = getDependenciesAsString(snowstormRestClient, branchPath, concept);
+			}
         } catch (RestClientException e) {
             throw new BusinessServiceException(String.format("Concept with id %s not found against branch %s", conceptId, branchPath));
         }
 
         String summary = "Content promotion of " + conceptId;
+        if (includeDependencies && StringUtils.hasLength(dependencies)) {
+			summary += " and " + dependencies + " dependecies";
+		}
         JSONObject request = new JSONObject();
         request.put("inputMode", "SIMPLE");
         request.put("requestType", "NEW_CONCEPT");
@@ -370,11 +380,13 @@ public class PromotionService {
         additionalFields.put("summary", summary);
         additionalFields.put("reference", "-");
         additionalFields.put("reasonForChange", "Content Promotion");
+		additionalFields.put("notes", dependencies);
         request.put("additionalFields", additionalFields);
 
         JSONObject requestItem = new JSONObject();
         requestItem.put("requestType", "NEW_CONCEPT");
         requestItem.put("topic", "Content Promotion");
+		requestItem.put("notes", dependencies);
         requestItem.put("summary", summary);
         requestItem.put("reasonForChange", "Content Promotion");
         requestItem.put("reference", "-");
@@ -400,7 +412,47 @@ public class PromotionService {
         return request;
     }
 
-    private RelationshipPojo getFirstParent(ConceptPojo concept) {
+	private String getDependenciesAsString(SnowstormRestClient snowstormRestClient, String branchPath, ConceptPojo concept) throws RestClientException {
+		Set<String> attributeTargets = new HashSet<>();
+		for (AxiomPojo axiom : concept.getClassAxioms()) {
+			if (axiom.isActive()) {
+				for (RelationshipPojo rel : axiom.getRelationships()) {
+					attributeTargets.add(rel.getTarget().getConceptId());
+				}
+			}
+		}
+		for (AxiomPojo axiom : concept.getGciAxioms()) {
+			if (axiom.isActive()) {
+				for (RelationshipPojo rel : axiom.getRelationships()) {
+					attributeTargets.add(rel.getTarget().getConceptId());
+				}
+			}
+		}
+		// get all ancestors of all attribute targets
+		String ecl = "";
+		for(String conceptId : attributeTargets) {
+			ecl += (StringUtils.hasLength(ecl) ? " OR >> " + conceptId : ">> " + conceptId);
+		}
+		Set<String> ancestors = snowstormRestClient.eclQuery(branchPath, ecl, 100, true);
+
+		// check against MAIN to detect the dependent concepts
+		Set<SimpleConceptPojo> foundConcepts = snowstormRestClient.getConcepts("MAIN", null, null, new ArrayList<>(ancestors), 100, true);
+		ancestors.removeAll(foundConcepts.stream().map(SimpleConceptPojo::getId).collect(Collectors.toList()));
+		if (ancestors.size() != 0) {
+			StringBuilder result = new StringBuilder();
+			Set<SimpleConceptPojo> concepts = snowstormRestClient.getConcepts(branchPath, null, null, new ArrayList<>(ancestors), 100, true);
+			for (SimpleConceptPojo c : concepts) {
+				if (result.length() != 0) {
+					result.append(", ");
+				}
+				result.append(c.getId() + " |" + c.getFsn().getTerm() + "|");
+			}
+			return result.toString();
+		}
+		return "";
+	}
+
+	private RelationshipPojo getFirstParent(ConceptPojo concept) {
         if (concept != null) {
             for (AxiomPojo axiom : concept.getClassAxioms()) {
                 if (axiom.isActive()) {
