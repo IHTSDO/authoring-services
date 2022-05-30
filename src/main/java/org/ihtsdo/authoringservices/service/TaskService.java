@@ -109,6 +109,7 @@ public class TaskService {
 	private final String jiraProjectScheduledRebaseField;
 	private final String jiraProjectMrcmField;
 	private final String jiraCrsIdField;
+	private final String jiraOrganizationField;
 	private final String jiraProjectTemplatesField;
 	private final String jiraProjectSpellCheckField;
 	private final Set<String> projectJiraFetchFields;
@@ -139,6 +140,7 @@ public class TaskService {
 			jiraProjectScheduledRebaseField = JiraHelper.fieldIdLookup("SCA Project Scheduled Rebase", jiraClientForFieldLookup, projectJiraFetchFields);
 			jiraProjectMrcmField = JiraHelper.fieldIdLookup("SCA Project MRCM", jiraClientForFieldLookup, projectJiraFetchFields);
 			jiraCrsIdField = JiraHelper.fieldIdLookup("CRS-ID", jiraClientForFieldLookup, projectJiraFetchFields);
+			jiraOrganizationField = JiraHelper.fieldIdLookup("Organization", jiraClientForFieldLookup, projectJiraFetchFields);
 			jiraProjectTemplatesField = JiraHelper.fieldIdLookup("SCA Project Templates", jiraClientForFieldLookup, projectJiraFetchFields);
 			jiraProjectSpellCheckField = JiraHelper.fieldIdLookup("SCA Project Spell Check", jiraClientForFieldLookup, projectJiraFetchFields);
 			logger.info("Jira custom field names fetched. (e.g. {}).", jiraExtensionBaseField);
@@ -154,6 +156,7 @@ public class TaskService {
 			jiraProjectScheduledRebaseField = null;
 			jiraProjectMrcmField = null;
 			jiraCrsIdField = null;
+			jiraOrganizationField = null;
 			jiraProjectTemplatesField = null;
 			jiraProjectSpellCheckField = null;
 		}
@@ -1050,7 +1053,7 @@ public class TaskService {
 				// need to forcibly retrieve the issue in order to get
 				// attachments
 				Issue issue1 = this.getIssue(linkedIssue.getKey(), true);
-
+				Object organization = issue1.getField(jiraOrganizationField);
 				String crsId = issue1.getField(jiraCrsIdField).toString();
 				if (crsId == null) {
 					crsId = "Unknown";
@@ -1069,7 +1072,7 @@ public class TaskService {
 							final JSON attachmentJson = restClient
 									.get(contentUrl.substring(contentUrl.indexOf("secure")));
 
-							TaskAttachment taskAttachment = new TaskAttachment(issue1.getKey(), crsId, attachmentJson.toString());
+							TaskAttachment taskAttachment = new TaskAttachment(issue1.getKey(), crsId, attachmentJson.toString(), organization != null ? organization.toString() : null);
 
 							attachments.add(taskAttachment);
 							
@@ -1084,7 +1087,7 @@ public class TaskService {
 				
 				// if no attachments, create a blank one to link CRS ticket id
  				if (!attachmentFound) {
- 					TaskAttachment taskAttachment = new TaskAttachment(issue.getKey(), crsId, null);
+ 					TaskAttachment taskAttachment = new TaskAttachment(issue.getKey(), crsId, null, organization != null ? organization.toString() : null);
  					attachments.add(taskAttachment);
  				}	
 				

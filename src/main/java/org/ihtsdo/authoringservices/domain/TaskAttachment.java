@@ -12,13 +12,17 @@ public class TaskAttachment {
 	// linked ticket key (if exists)
 	public String issueKey;
 
+	// linked Organization (if exists)
+	public String organization;
+
 	public TaskAttachment() {
 	}
 
-	public TaskAttachment(String ticketKey, String issueKey, String content) {
+	public TaskAttachment(String ticketKey, String issueKey, String content, String organization) {
 		this.ticketKey = ticketKey;
 		this.issueKey = issueKey;
 		this.content = content;
+		this.organization = organization;
 	}
 
 	public String getContent() {
@@ -45,4 +49,11 @@ public class TaskAttachment {
 		this.issueKey = issueKey;
 	}
 
+	public void setOrganization(String organization) {
+		this.organization = organization;
+	}
+
+	public String getOrganization() {
+		return organization;
+	}
 }
