@@ -352,6 +352,7 @@ public class PromotionService {
         ConceptPojo concept;
         String fsn;
 		String dependencies = "";
+		String note = "";
         try {
             SnowstormRestClient snowstormRestClient = snowstormRestClientFactory.getClient();
             concept = snowstormRestClient.getConcept(branchPath, conceptId);
@@ -359,6 +360,7 @@ public class PromotionService {
 
 			if (includeDependencies) {
 				dependencies = getDependenciesAsString(snowstormRestClient, branchPath, concept);
+				note = StringUtils.hasLength(dependencies) ? "Dependencies: " + dependencies : "";
 			}
         } catch (RestClientException e) {
             throw new BusinessServiceException(String.format("Concept with id %s not found against branch %s", conceptId, branchPath));
@@ -366,7 +368,7 @@ public class PromotionService {
 
         String summary = "Content promotion of " + conceptId;
         if (includeDependencies && StringUtils.hasLength(dependencies)) {
-			summary += " and " + dependencies + " dependecies";
+			summary += " and dependency: " + dependencies;
 		}
         JSONObject request = new JSONObject();
         request.put("inputMode", "SIMPLE");
@@ -380,13 +382,13 @@ public class PromotionService {
         additionalFields.put("summary", summary);
         additionalFields.put("reference", "-");
         additionalFields.put("reasonForChange", "Content Promotion");
-		additionalFields.put("notes", dependencies);
+		additionalFields.put("notes", note);
         request.put("additionalFields", additionalFields);
 
         JSONObject requestItem = new JSONObject();
         requestItem.put("requestType", "NEW_CONCEPT");
         requestItem.put("topic", "Content Promotion");
-		requestItem.put("notes", dependencies);
+		requestItem.put("notes", note);
         requestItem.put("summary", summary);
         requestItem.put("reasonForChange", "Content Promotion");
         requestItem.put("reference", "-");
