@@ -380,7 +380,6 @@ public class PromotionService {
         JSONObject additionalFields = new JSONObject();
         additionalFields.put("topic", "Content Promotion");
         additionalFields.put("summary", summary);
-        additionalFields.put("reference", "-");
         additionalFields.put("reasonForChange", "Content Promotion");
 		additionalFields.put("notes", note);
         request.put("additionalFields", additionalFields);
@@ -391,7 +390,6 @@ public class PromotionService {
 		requestItem.put("notes", note);
         requestItem.put("summary", summary);
         requestItem.put("reasonForChange", "Content Promotion");
-        requestItem.put("reference", "-");
         requestItem.put("proposedFSN", fsn);
         requestItem.put("conceptPT", getPreferredTerm(concept.getDescriptions()));
         requestItem.put("semanticTag", getSemanticTag(fsn));
