@@ -366,7 +366,7 @@ public class PromotionService {
             throw new BusinessServiceException(String.format("Concept with id %s not found against branch %s", conceptId, branchPath));
         }
 
-        String summary = "Content promotion of " + conceptId;
+        String summary = "Content promotion of " + conceptId + " |" + fsn + "|";
         if (includeDependencies && StringUtils.hasLength(dependencies)) {
 			summary += " and dependency: " + dependencies;
 		}
