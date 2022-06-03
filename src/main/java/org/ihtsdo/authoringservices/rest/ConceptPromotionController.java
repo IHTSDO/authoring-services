@@ -65,7 +65,7 @@ public class ConceptPromotionController {
             }
         }
         if (codeSystem == null) {
-            throw new IllegalArgumentException(String.format("Code system not found for branch %s", branchPath));
+            throw new IllegalArgumentException(String.format("Extension code system not found for branch %s", branchPath));
         }
 
         String requestId = promotionService.requestConceptPromotion(request.getConceptId(), request.isIncludeDependencies(), branchPath, codeSystem);

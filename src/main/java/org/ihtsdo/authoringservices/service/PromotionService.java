@@ -434,18 +434,16 @@ public class PromotionService {
 			ecl += (StringUtils.hasLength(ecl) ? " OR >> " + conceptId : ">> " + conceptId);
 		}
 		Set<String> ancestors = snowstormRestClient.eclQuery(branchPath, ecl, 100, true);
-
-		// check against MAIN to detect the dependent concepts
-		Set<SimpleConceptPojo> foundConcepts = snowstormRestClient.getConcepts("MAIN", null, null, new ArrayList<>(ancestors), 100, true);
-		ancestors.removeAll(foundConcepts.stream().map(SimpleConceptPojo::getId).collect(Collectors.toList()));
-		if (ancestors.size() != 0) {
+		Set<SimpleConceptPojo> foundConceptMinis = snowstormRestClient.getConcepts(branchPath, null, null, new ArrayList<>(ancestors), 100, true);
+		if (foundConceptMinis.size() != 0) {
 			StringBuilder result = new StringBuilder();
-			Set<SimpleConceptPojo> concepts = snowstormRestClient.getConcepts(branchPath, null, null, new ArrayList<>(ancestors), 100, true);
-			for (SimpleConceptPojo c : concepts) {
-				if (result.length() != 0) {
-					result.append(", ");
+			for (SimpleConceptPojo c : foundConceptMinis) {
+				if (c.isActive() && c.getModuleId().equals(concept.getModuleId())) {
+					if (result.length() != 0) {
+						result.append(", ");
+					}
+					result.append(c.getId() + " |" + c.getFsn().getTerm() + "|");
 				}
-				result.append(c.getId() + " |" + c.getFsn().getTerm() + "|");
 			}
 			return result.toString();
 		}
