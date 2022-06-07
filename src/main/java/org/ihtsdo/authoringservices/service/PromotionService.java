@@ -394,23 +394,43 @@ public class PromotionService {
         requestItem.put("conceptPT", getPreferredTerm(concept.getDescriptions()));
         requestItem.put("semanticTag", getSemanticTag(fsn));
 
-        JSONObject proposedParent = new JSONObject();
-        RelationshipPojo parentConcept =  getFirstParent(concept);
 
-        if (parentConcept != null) {
-            proposedParent.put("conceptId", parentConcept.getTarget().getConceptId());
-            proposedParent.put("fsn", parentConcept.getTarget().getFsn().getTerm());
-			proposedParent.put("refType", "EXISTING");
-			proposedParent.put("sourceTerminology", "SNOMEDCT");
+		Set<RelationshipPojo> parentConcepts =  getParents(concept);
+        Set<JSONObject> proposedParents = new HashSet<>();
+        if (parentConcepts.size() != 0) {
+        	for (RelationshipPojo parentConcept : parentConcepts) {
+				JSONObject proposedParent = new JSONObject();
+				proposedParent.put("conceptId", parentConcept.getTarget().getConceptId());
+				proposedParent.put("fsn", parentConcept.getTarget().getFsn().getTerm());
+				proposedParent.put("refType", "EXISTING");
+				proposedParent.put("sourceTerminology", "SNOMEDCT");
+				proposedParents.add(proposedParent);
+			}
         } else {
         	logger.error("Parent concept not found");
 		}
-        requestItem.put("proposedParents", Collections.singleton(proposedParent));
+        requestItem.put("proposedParents", proposedParents);
 
+		Set<String> proposedSynonyms = getProposedSynonyms(concept.getDescriptions());
+        if (proposedSynonyms.size() != 0) {
+			requestItem.put("proposedSynonyms", proposedSynonyms);
+		}
         request.put("requestItems", Collections.singleton(requestItem));
 
         return request;
     }
+
+	private Set<String> getProposedSynonyms(Set<DescriptionPojo> descriptions) {
+		Set<String> synonyms = new HashSet<>();
+		if (descriptions != null) {
+			for (DescriptionPojo description : descriptions) {
+				if (DescriptionPojo.Type.SYNONYM.equals(description.getType()) && description.isActive() && DescriptionPojo.Acceptability.ACCEPTABLE.equals(description.getAcceptabilityMap().get(SnowstormRestClient.US_EN_LANG_REFSET))) {
+					synonyms.add(description.getTerm());
+				}
+			}
+		}
+		return synonyms;
+	}
 
 	private String getDependenciesAsString(SnowstormRestClient snowstormRestClient, String branchPath, ConceptPojo concept) throws RestClientException {
 		Set<String> attributeTargets = new HashSet<>();
@@ -450,17 +470,20 @@ public class PromotionService {
 		return "";
 	}
 
-	private RelationshipPojo getFirstParent(ConceptPojo concept) {
+	private Set<RelationshipPojo> getParents(ConceptPojo concept) {
+	    Set<RelationshipPojo> parents = new HashSet<>();
         if (concept != null) {
             for (AxiomPojo axiom : concept.getClassAxioms()) {
                 if (axiom.isActive()) {
                     for (RelationshipPojo relationship : axiom.getRelationships()) {
-                        if (IS_A.equals(relationship.getType().getConceptId())) return relationship;
+                        if (IS_A.equals(relationship.getType().getConceptId())) {
+                            parents.add(relationship);
+                        }
                     }
                 }
             }
         }
-        return null;
+        return parents;
     }
 
 	private String getFsn(Set<DescriptionPojo> descriptions) {
