@@ -1,6 +1,6 @@
 package org.ihtsdo.authoringservices.configuration;
 
-import org.ihtsdo.authoringservices.rest.security.RequestHeaderAuthenticationDecorator;
+import org.ihtsdo.authoringservices.rest.security.RequestHeaderAuthenticationDecoratorWithOverride;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -24,34 +24,33 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 	@Value("${authentication.override.token}")
 	private String overrideToken;
 
+	private final String[] excludedUrlPatterns = {
+			"/",
+			"/version",
+			"/ui-configuration",
+			"/authoring-services-websocket/**/*",
+			// Swagger API Docs:
+			"/swagger-ui.html",
+			"/swagger-resources/**",
+			"/v2/api-docs",
+			"/webjars/springfox-swagger-ui/**"
+	};
+
 	@Override
 	protected void configure(HttpSecurity http) throws Exception {
-		http
-				.csrf().disable();
+		http.csrf().disable();
+		http.addFilterBefore(new RequestHeaderAuthenticationDecoratorWithOverride(overrideUsername, overrideRoles, overrideToken), FilterSecurityInterceptor.class);
 
-		http.addFilterBefore(new RequestHeaderAuthenticationDecorator(overrideUsername, overrideRoles, overrideToken), FilterSecurityInterceptor.class);
-
-		if (requiredRole != null && !requiredRole.isEmpty()) {
-			if (requiredRole.startsWith("ROLE_")) {
-				requiredRole = requiredRole.replace("ROLE_", "");
-			}
-			http
-					.authorizeRequests()
-					.antMatchers(
-							"/",
-							"/version",
-							"/ui-configuration",
-
-							// Swagger API Docs:
-							"/swagger-ui.html",
-							"/v2/api-docs",
-							"/authoring-services-websocket/**/*",
-							"/swagger-resources",
-							"/swagger-resources/**/*",
-							"/webjars/springfox-swagger-ui/**/*").permitAll()
-
-					.anyRequest().hasRole(requiredRole);// automatically adds "ROLE_" prefix
+		if (requiredRole == null || requiredRole.isEmpty()) {
+			http.authorizeRequests()
+					.antMatchers(excludedUrlPatterns).permitAll()
+					.anyRequest().authenticated()
+					.and().httpBasic();
+		} else {
+			http.authorizeRequests()
+					.antMatchers(excludedUrlPatterns).permitAll()
+					.anyRequest().hasAuthority(requiredRole)
+					.and().httpBasic();
 		}
 	}
-
 }

@@ -41,66 +41,66 @@ import static springfox.documentation.builders.PathSelectors.regex;
 @EntityScan(basePackages = "org.ihtsdo.authoringservices.entity")
 public abstract class Configuration {
 
-    @Bean
-    public TaskService taskService(@Autowired ImpersonatingJiraClientFactory jiraClientFactory, @Value("${jira.username}") String jiraUsername) throws JiraException {
+	@Bean
+	public TaskService taskService(@Autowired ImpersonatingJiraClientFactory jiraClientFactory, @Value("${jira.username}") String jiraUsername) throws JiraException {
         return new TaskService(jiraClientFactory, jiraUsername);
-    }
+	}
 
-    @Bean
-    public SnowstormRestClientFactory snowstormRestClientFactory(@Value("${snowstorm.url}") String snowstormUrl) {
-        return new SnowstormRestClientFactory(snowstormUrl, null);
-    }
+	@Bean
+	public SnowstormRestClientFactory snowstormRestClientFactory(@Value("${snowstorm.url}") String snowstormUrl) {
+		return new SnowstormRestClientFactory(snowstormUrl, null);
+	}
 
-    @Bean
-    public ObjectMapper objectMapper() {
-        final ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
-        final ISO8601DateFormat df = new ISO8601DateFormat();
-        df.setTimeZone(TimeZone.getTimeZone("UTC"));
-        objectMapper.setDateFormat(df);
-        objectMapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
-        return objectMapper;
-    }
+	@Bean
+	public ObjectMapper objectMapper() {
+		final ObjectMapper objectMapper = new ObjectMapper();
+		objectMapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
+		final ISO8601DateFormat df = new ISO8601DateFormat();
+		df.setTimeZone(TimeZone.getTimeZone("UTC"));
+		objectMapper.setDateFormat(df);
+		objectMapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
+		return objectMapper;
+	}
 
-    @Bean
-    public MessagingHelper messagingHelper() {
-        return new MessagingHelper();
-    }
+	@Bean
+	public MessagingHelper messagingHelper() {
+		return new MessagingHelper();
+	}
 
-    @Bean
-    public HttpMessageConverters customConverters() {
-        final StringHttpMessageConverter stringConverter = new StringHttpMessageConverter(Charsets.UTF_8);
-        stringConverter.setWriteAcceptCharset(false);
+	@Bean
+	public HttpMessageConverters customConverters() {
+		final StringHttpMessageConverter stringConverter = new StringHttpMessageConverter(Charsets.UTF_8);
+		stringConverter.setWriteAcceptCharset(false);
 
-        final MappingJackson2HttpMessageConverter jacksonConverter = new MappingJackson2HttpMessageConverter();
-        jacksonConverter.setObjectMapper(objectMapper());
+		final MappingJackson2HttpMessageConverter jacksonConverter = new MappingJackson2HttpMessageConverter();
+		jacksonConverter.setObjectMapper(objectMapper());
 
-        return new HttpMessageConverters(
-                stringConverter,
-                new ByteArrayHttpMessageConverter(),
-                new ResourceHttpMessageConverter(),
-                jacksonConverter);
-    }
+		return new HttpMessageConverters(
+				stringConverter,
+				new ByteArrayHttpMessageConverter(),
+				new ResourceHttpMessageConverter(),
+				jacksonConverter);
+	}
 
-    @Bean
-    public FilterRegistrationBean getUrlRewriteFilter() {
-        // Encode branch paths in uri to allow request mapping to work
-        return new FilterRegistrationBean(new BranchPathUriRewriteFilter(
-                "/loinc-export/(.*)",
-                "/validation/(.*)/status/reset",
-                "/branches/(.*)/validation",
-                "/branches/(.*)/classifications"
-        ));
-    }
+	@Bean
+	public FilterRegistrationBean getUrlRewriteFilter() {
+		// Encode branch paths in uri to allow request mapping to work
+		return new FilterRegistrationBean(new BranchPathUriRewriteFilter(
+				"/loinc-export/(.*)",
+				"/validation/(.*)/status/reset",
+				"/branches/(.*)/validation",
+				"/branches/(.*)/classifications"
+		));
+	}
 
-    // Swagger Config
-    @Bean
-    public Docket api() {
-        return new Docket(DocumentationType.SWAGGER_2)
-                .select()
-                .apis(RequestHandlerSelectors.any())
-                .paths(not(regex("/error")))
-                .build();
-    }
+	// Swagger Config
+	@Bean
+	public Docket api() {
+		return new Docket(DocumentationType.SWAGGER_2)
+				.select()
+				.apis(RequestHandlerSelectors.any())
+				.paths(not(regex("/error")))
+				.build();
+	}
 
 }
