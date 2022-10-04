@@ -41,15 +41,15 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 		http.csrf().disable();
 		http.addFilterBefore(new RequestHeaderAuthenticationDecoratorWithOverride(overrideUsername, overrideRoles, overrideToken), FilterSecurityInterceptor.class);
 
-		if (requiredRole == null || requiredRole.isEmpty()) {
+		if (requiredRole != null && !requiredRole.isEmpty()) {
 			http.authorizeRequests()
 					.antMatchers(excludedUrlPatterns).permitAll()
-					.anyRequest().authenticated()
+					.anyRequest().hasAuthority(requiredRole)
 					.and().httpBasic();
 		} else {
 			http.authorizeRequests()
 					.antMatchers(excludedUrlPatterns).permitAll()
-					.anyRequest().hasAuthority(requiredRole)
+					.anyRequest().authenticated()
 					.and().httpBasic();
 		}
 	}
