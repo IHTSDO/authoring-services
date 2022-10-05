@@ -84,7 +84,7 @@
 		<dependency>
 			<groupId>org.ihtsdo.otf</groupId>
 			<artifactId>ihtsdo-spring-sso</artifactId>
-			<version>3.1.2-SNAPSHOT</version>
+			<version>3.1.2</version>
 		</dependency>
 		<dependency>
 			<groupId>org.ihtsdo.otf</groupId>
