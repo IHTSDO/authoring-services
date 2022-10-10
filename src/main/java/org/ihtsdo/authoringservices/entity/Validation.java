@@ -27,6 +27,9 @@ public class Validation {
 	@Column(name = "report_url")
 	private String reportUrl;
 
+	@Column(name = "daily_build_report_url")
+	private String dailyBuildReportUrl;
+
 	@Column(name = "project_key")
 	private String projectKey;
 
@@ -82,6 +85,14 @@ public class Validation {
 
 	public String getReportUrl() {
 		return reportUrl;
+	}
+
+	public void setDailyBuildReportUrl(String dailyBuildReportUrl) {
+		this.dailyBuildReportUrl = dailyBuildReportUrl;
+	}
+
+	public String getDailyBuildReportUrl() {
+		return dailyBuildReportUrl;
 	}
 
 	public void setProjectKey(String projectKey) {

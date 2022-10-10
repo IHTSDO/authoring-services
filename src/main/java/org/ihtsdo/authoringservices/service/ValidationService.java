@@ -54,6 +54,7 @@ public class ValidationService {
 
 	public static final String VALIDATION_STATUS = "validationStatus";
 	public static final String REPORT_URL = "reportUrl";
+	public static final String DAILY_BUILD_REPORT_URL = "dailyBuildReportUrl";
 	public static final String CONTENT_HEAD_TIMESTAMP = "contentHeadTimestamp";
 	public static final String RUN_ID = "runId";
 	public static final String PROJECT_KEY = "projectKey";
@@ -185,6 +186,9 @@ public class ValidationService {
 		if (newPropertyValues.containsKey(REPORT_URL)) {
 			validation.setReportUrl(newPropertyValues.get(REPORT_URL));
 		}
+		if (newPropertyValues.containsKey(DAILY_BUILD_REPORT_URL)) {
+			validation.setDailyBuildReportUrl(newPropertyValues.get(DAILY_BUILD_REPORT_URL));
+		}
 		if (newPropertyValues.containsKey(CONTENT_HEAD_TIMESTAMP)) {
 			validation.setContentHeadTimestamp(Long.valueOf(newPropertyValues.get(CONTENT_HEAD_TIMESTAMP)));
 		}
@@ -298,8 +302,9 @@ public class ValidationService {
 		try {
 			//Only return the validation json if the validation is complete
 			Validation validation = getValidation(path);
+			JSONObject jsonObj = new JSONObject();
+			jsonObj.put("dailyBuildRvfUrl", validation != null && validation.getDailyBuildReportUrl() != null ? validation.getDailyBuildReportUrl() : "");
 			if (ValidationJobStatus.COMPLETED.name().equals(validation.getStatus()) && validation.getReportUrl() != null) {
-				JSONObject jsonObj = new JSONObject();
 				String report = rvfRestTemplate.getForObject(validation.getReportUrl(), String.class);
 				if (StringUtils.hasLength(report) && validation.getContentHeadTimestamp() != null) {
 					Branch branch = branchService.getBranch(path);
@@ -314,7 +319,7 @@ public class ValidationService {
 				jsonObj.put("report", report);
 				return  jsonObj.toString();
 			} else if (validation.getStatus() != null) {
-				JSONObject jsonObj = new JSONObject();
+
 				jsonObj.put("executionStatus", validation.getStatus());
 				return  jsonObj.toString();
 			} else {
