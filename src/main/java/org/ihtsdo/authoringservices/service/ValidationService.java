@@ -305,6 +305,8 @@ public class ValidationService {
 			JSONObject jsonObj = new JSONObject();
 			jsonObj.put("dailyBuildRvfUrl", validation != null && validation.getDailyBuildReportUrl() != null ? validation.getDailyBuildReportUrl() : "");
 			if (ValidationJobStatus.COMPLETED.name().equals(validation.getStatus()) && validation.getReportUrl() != null) {
+				jsonObj.put("rvfUrl", validation.getReportUrl());
+				
 				String report = rvfRestTemplate.getForObject(validation.getReportUrl(), String.class);
 				if (StringUtils.hasLength(report) && validation.getContentHeadTimestamp() != null) {
 					Branch branch = branchService.getBranch(path);
