@@ -303,10 +303,17 @@ public class ValidationService {
 			//Only return the validation json if the validation is complete
 			Validation validation = getValidation(path);
 			JSONObject jsonObj = new JSONObject();
-			jsonObj.put("dailyBuildRvfUrl", validation != null && validation.getDailyBuildReportUrl() != null ? validation.getDailyBuildReportUrl() : "");
+			if (validation != null && validation.getDailyBuildReportUrl() != null) {
+				jsonObj.put("dailyBuildRvfUrl", validation.getDailyBuildReportUrl());
+				jsonObj.put("dailyBuildReport", rvfRestTemplate.getForObject(validation.getDailyBuildReportUrl(), String.class));
+			} else {
+				jsonObj.put("dailyBuildRvfUrl", null);
+				jsonObj.put("dailyBuildReport", null);
+			}
+
 			if (ValidationJobStatus.COMPLETED.name().equals(validation.getStatus()) && validation.getReportUrl() != null) {
 				jsonObj.put("rvfUrl", validation.getReportUrl());
-				
+
 				String report = rvfRestTemplate.getForObject(validation.getReportUrl(), String.class);
 				if (StringUtils.hasLength(report) && validation.getContentHeadTimestamp() != null) {
 					Branch branch = branchService.getBranch(path);
@@ -321,7 +328,6 @@ public class ValidationService {
 				jsonObj.put("report", report);
 				return  jsonObj.toString();
 			} else if (validation.getStatus() != null) {
-
 				jsonObj.put("executionStatus", validation.getStatus());
 				return  jsonObj.toString();
 			} else {
