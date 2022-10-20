@@ -170,8 +170,8 @@ public class RVFFailureJiraAssociationService {
 			if (branch == null) {
 				throw new BusinessServiceException("Branch " + branchPath + " not found");
 			}
-			Map<String, Object> metadata = branch.getMetadata();
-			if (!metadata.containsKey(ENABLE_RVF_TICKET_GENERATION) || !"true".equalsIgnoreCase((String) metadata.get(ENABLE_RVF_TICKET_GENERATION))) {
+			final Map<String, Object> branchMetadata = branchService.getBranchMetadataIncludeInherited(branchPath);
+			if (!branchMetadata.containsKey(ENABLE_RVF_TICKET_GENERATION) || !"true".equalsIgnoreCase((String) branchMetadata.get(ENABLE_RVF_TICKET_GENERATION))) {
 				throw new BusinessServiceException("It's not allow to raise tickets on branch " + branchPath + ". Please check branch metadata");
 			}
 
