@@ -183,20 +183,22 @@ public class RVFFailureJiraAssociationService {
 	private String getProductName(List<CodeSystem> codeSystems, Validation validation , String branchPath) throws BusinessServiceException {
 		for (CodeSystem cs : codeSystems) {
 			if (cs.getBranchPath().equals(branchPath)) {
-				return cs.getName();
+				return cs.getShortName();
 			}
 		}
 
 		if (validation != null && validation.getProjectKey() != null) {
-			AuthoringProject project = taskService.retrieveProject(validation.getProjectKey(), true);
-			return project.getTitle();
+			if (validation.getTaskKey() != null) {
+				return validation.getTaskKey();
+			}
+			return validation.getProjectKey();
 		}
 
-		return "";
+		return branchPath;
 	}
 
 	private String generateSummary(ValidationReport.RvfValidationResult.TestResult.TestRunItem testRunItem, String productName) {
-		return StringUtils.hasLength(productName) ? productName  + ", " : "" + testRunItem.getAssertionText().replaceAll("\\.+$", "") + ", " + testRunItem.getTestType().replace("DROOL_RULES", "DROOLS") + ", " + testRunItem.getAssertionUuid();
+		return productName  + ", " + testRunItem.getAssertionText().replaceAll("\\.+$", "") + ", " + testRunItem.getTestType().replace("DROOL_RULES", "DROOLS") + ", " + testRunItem.getAssertionUuid();
 	}
 
 	private String generateDescription(ValidationReport.RvfValidationResult.TestResult.TestRunItem testRunItem, String reportUrl) {
