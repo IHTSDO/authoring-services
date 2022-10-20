@@ -6,12 +6,16 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import net.rcarz.jiraclient.JiraException;
 import org.ihtsdo.authoringservices.domain.ReleaseRequest;
 import org.ihtsdo.authoringservices.domain.Status;
+import org.ihtsdo.authoringservices.service.RVFFailureJiraAssociationService;
 import org.ihtsdo.authoringservices.service.ValidationService;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
@@ -26,6 +30,9 @@ public class ValidationController {
 
 	@Autowired
 	private ValidationService validationService;
+
+	@Autowired
+	private RVFFailureJiraAssociationService rvfFailureJiraAssociationService;
 
 	@ApiOperation(value = "Initiate validation on MAIN")
 	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
@@ -141,5 +148,20 @@ public class ValidationController {
 	@RequestMapping(value = "/semantic-tags", method = RequestMethod.DELETE)
 	public void removeSemanticTag(@RequestParam String semanticTag) throws IOException {
 		validationService.deleteSemanticTag(semanticTag);
+	}
+
+	@ApiOperation(value = "Raise JIRA tickets")
+	@ApiResponses({ @ApiResponse(code = 201, message = "CREATED") })
+	@RequestMapping(value = "/branches/{branchPath}/validation-reports/{reportRunId}/failure-jira-associations", method = RequestMethod.POST)
+	public ResponseEntity raiseJiraTickets(@PathVariable final String branchPath, @PathVariable final Long reportRunId,
+										   @RequestBody String[] assertionIds) throws IOException, BusinessServiceException, JiraException {
+		return new ResponseEntity<>(rvfFailureJiraAssociationService.createFailureJiraAssociations(BranchPathUriUtil.parseBranchPath(branchPath), reportRunId, assertionIds), HttpStatus.CREATED);
+	}
+
+	@ApiOperation(value = "Retrieve JIRA tickets for a given report")
+	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
+	@RequestMapping(value = "/validation-reports/{reportRunId}/failure-jira-associations", method = RequestMethod.GET)
+	public ResponseEntity getJiraTickets(@PathVariable final Long reportRunId) {
+		return new ResponseEntity<>(rvfFailureJiraAssociationService.findByReportRunId(reportRunId), HttpStatus.OK);
 	}
 }

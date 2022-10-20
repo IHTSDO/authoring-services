@@ -12,6 +12,7 @@ import org.ihtsdo.authoringservices.service.jira.ImpersonatingJiraClientFactory;
 import org.ihtsdo.otf.jms.MessagingHelper;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
@@ -42,7 +43,7 @@ import static springfox.documentation.builders.PathSelectors.regex;
 public abstract class Configuration {
 
 	@Bean
-	public TaskService taskService(@Autowired ImpersonatingJiraClientFactory jiraClientFactory, @Value("${jira.username}") String jiraUsername) throws JiraException {
+	public TaskService taskService(@Autowired @Qualifier("authoringTaskOAuthJiraClient") ImpersonatingJiraClientFactory jiraClientFactory, @Value("${jira.username}") String jiraUsername) throws JiraException {
         return new TaskService(jiraClientFactory, jiraUsername);
 	}
 
@@ -89,7 +90,8 @@ public abstract class Configuration {
 				"/loinc-export/(.*)",
 				"/validation/(.*)/status/reset",
 				"/branches/(.*)/validation",
-				"/branches/(.*)/classifications"
+				"/branches/(.*)/classifications",
+				"/branches/(.*)/validation-reports/(.*)"
 		));
 	}
 

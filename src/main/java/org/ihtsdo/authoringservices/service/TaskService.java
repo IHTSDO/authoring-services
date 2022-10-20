@@ -38,6 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -121,7 +122,7 @@ public class TaskService {
 
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 
-	public TaskService(@Autowired ImpersonatingJiraClientFactory jiraClientFactory, @Value("${jira.username}") String jiraUsername) throws JiraException {
+	public TaskService(@Autowired @Qualifier("authoringTaskOAuthJiraClient") ImpersonatingJiraClientFactory jiraClientFactory, @Value("${jira.username}") String jiraUsername) throws JiraException {
 		this.jiraClientFactory = jiraClientFactory;
 		executorService = Executors.newCachedThreadPool();
 
@@ -228,6 +229,15 @@ public class TaskService {
 	public AuthoringProject retrieveProject(String projectKey) throws BusinessServiceException {
 		List<Issue> issues = Collections.singletonList(getProjectTicketOrThrow(projectKey));
 		List<AuthoringProject> projects = buildAuthoringProjects(issues, false);
+		if (projects.size() == 0) {
+			throw new BusinessServiceException ("Failed to recover project: " + projectKey +". See earlier logs for reason");
+		}
+		return projects.get(0);
+	}
+
+	public AuthoringProject retrieveProject(String projectKey, boolean lightweight) throws BusinessServiceException {
+		List<Issue> issues = Collections.singletonList(getProjectTicketOrThrow(projectKey));
+		List<AuthoringProject> projects = buildAuthoringProjects(issues, lightweight);
 		if (projects.size() == 0) {
 			throw new BusinessServiceException ("Failed to recover project: " + projectKey +". See earlier logs for reason");
 		}
