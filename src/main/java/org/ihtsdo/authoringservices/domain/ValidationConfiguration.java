@@ -17,6 +17,8 @@ public class ValidationConfiguration {
     private boolean enableDroolsValidation;
     private boolean enableTraceabilityValidation;
     private Long contentHeadTimestamp;
+
+    private Long contentBaseTimestamp;
     private String projectKey;
     private String taskKey;
 
@@ -178,6 +180,14 @@ public class ValidationConfiguration {
 
     public String getTaskKey() {
         return taskKey;
+    }
+
+    public Long getContentBaseTimestamp() {
+        return contentBaseTimestamp;
+    }
+
+    public void setContentBaseTimestamp(Long contentBaseTimestamp) {
+        this.contentBaseTimestamp = contentBaseTimestamp;
     }
 
     @Override

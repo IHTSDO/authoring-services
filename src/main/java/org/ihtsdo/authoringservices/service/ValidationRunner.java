@@ -10,6 +10,7 @@ import org.ihtsdo.authoringservices.domain.ValidationJobStatus;
 import org.ihtsdo.authoringservices.service.dao.SRSFileDAO;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch;
 import org.ihtsdo.otf.rest.exception.BadRequestException;
 import org.ihtsdo.otf.rest.exception.ProcessWorkflowException;
 import org.ihtsdo.otf.utils.DateUtils;
@@ -98,9 +99,10 @@ public class ValidationRunner implements Runnable {
             String exportEffectiveTime = resolveExportEffectiveTime(config);
 
             // Export RF2 delta
-            final long branchHeadTimestamp = snowstormRestClient.getBranch(branchPath).getHeadTimestamp();
+            final Branch branch = snowstormRestClient.getBranch(branchPath);
             exportArchive = snowstormRestClient.export(branchPath, exportEffectiveTime, null, UNPUBLISHED, DELTA);
-            config.setContentHeadTimestamp(branchHeadTimestamp);
+            config.setContentHeadTimestamp(branch.getHeadTimestamp());
+            config.setContentBaseTimestamp(branch.getBaseTimestamp());
 
             // send delta export directly for RVF validation
             validateByRvfDirectly(exportArchive);
@@ -224,6 +226,9 @@ public class ValidationRunner implements Runnable {
         body.add("branchPath", config.getBranchPath());
         if (config.getContentHeadTimestamp() != null) {
             body.add("contentHeadTimestamp", Long.toString(config.getContentHeadTimestamp()));
+        }
+        if (config.getContentBaseTimestamp() != null) {
+            body.add("contentBaseTimestamp", Long.toString(config.getContentBaseTimestamp()));
         }
         body.add("responseQueue", scaQueuePrefix + "." + ValidationService.VALIDATION_RESPONSE_QUEUE);
         body.add("username", this.username);
