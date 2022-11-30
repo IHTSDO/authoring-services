@@ -3,7 +3,7 @@ package org.ihtsdo.authoringservices.service.dao;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import org.ihtsdo.otf.resourcemanager.ResourceConfiguration;
 import org.ihtsdo.otf.resourcemanager.ResourceManager;
-import org.springframework.cloud.aws.core.io.s3.SimpleStorageResourceLoader;
+import org.snomed.otf.script.dao.SimpleStorageResourceLoader;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
 
 import java.util.Objects;
