@@ -34,9 +34,14 @@ public class CodeSystemUpgradeService {
 
 	private static final String DEFAULT_INFRA_PROJECT = "INFRA";
 	private static final String DEFAULT_ISSUE_TYPE = "Service Request";
+	private static final String SHARED = "SHARED";
+	private static final String UPGRADE_JOB_PANEL_ID = "code-system-upgrade-job";
 
 	@Autowired
 	private SnowstormRestClientFactory snowstormRestClientFactory;
+
+	@Autowired
+	private UiStateService uiStateService;
 
 	@Autowired
 	@Qualifier("validationTicketOAuthJiraClient")
@@ -77,6 +82,11 @@ public class CodeSystemUpgradeService {
 					String newDependantVersionRF2Format = codeSystemUpgradeJob.getNewDependantVersion().toString();
 					String newDependantVersionISOFormat = newDependantVersionRF2Format.substring(0, 4) + "-" + newDependantVersionRF2Format.substring(4, 6) + "-" + newDependantVersionRF2Format.substring(6, 8);
 					createJiraIssue(codeSystem.getName(), newDependantVersionISOFormat, generateDescription(codeSystem, codeSystemUpgradeJob, newDependantVersionISOFormat));
+				}
+				try {
+					uiStateService.deleteTaskPanelState(codeSystemUpgradeJob.getCodeSystemShortname(), codeSystemUpgradeJob.getCodeSystemShortname(), SHARED, UPGRADE_JOB_PANEL_ID);
+				} catch (Exception e) {
+					logger.error("Failed to delete the UI panel with id " + UPGRADE_JOB_PANEL_ID, e);
 				}
 			}
 		} catch (InterruptedException | RestClientException e) {
