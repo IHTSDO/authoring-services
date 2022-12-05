@@ -4,6 +4,8 @@ import net.rcarz.jiraclient.Field;
 import net.rcarz.jiraclient.Issue;
 import net.rcarz.jiraclient.JiraClient;
 import net.rcarz.jiraclient.JiraException;
+import org.ihtsdo.authoringservices.domain.AuthoringTask;
+import org.ihtsdo.authoringservices.domain.AuthoringTaskCreateRequest;
 import org.ihtsdo.authoringservices.service.jira.ImpersonatingJiraClientFactory;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
@@ -44,6 +46,12 @@ public class CodeSystemUpgradeService {
 	private UiStateService uiStateService;
 
 	@Autowired
+	private TaskService taskService;
+
+	@Autowired
+	private  BranchService branchService;
+
+	@Autowired
 	@Qualifier("validationTicketOAuthJiraClient")
 	private ImpersonatingJiraClientFactory jiraClientFactory;
 
@@ -57,7 +65,7 @@ public class CodeSystemUpgradeService {
 	}
 
 	@Async
-	public void waitForCodeSystemUpgradeToComplete(String jobId, SecurityContext securityContext) throws BusinessServiceException {
+	public void waitForCodeSystemUpgradeToComplete(String jobId, Boolean generateEn_GbLanguageRefsetDelta, String projectKey, SecurityContext securityContext) throws BusinessServiceException {
 		SecurityContextHolder.setContext(securityContext);
 		SnowstormRestClient client = snowstormRestClientFactory.getClient();
 		CodeSystemUpgradeJob codeSystemUpgradeJob;
@@ -78,13 +86,28 @@ public class CodeSystemUpgradeService {
 				List <CodeSystem> codeSystems = client.getCodeSystems();
 				final String codeSystemShortname = codeSystemUpgradeJob.getCodeSystemShortname();
 				CodeSystem codeSystem = codeSystems.stream().filter(c -> c.getShortName().equals(codeSystemShortname)).findFirst().orElse(null);
+
+				// Generate additional EN_GB language refset
+				if (COMPLETED.equals(codeSystemUpgradeJob.getStatus()) && Boolean.TRUE.equals(generateEn_GbLanguageRefsetDelta)) {
+					AuthoringTaskCreateRequest taskCreateRequest = new AuthoringTask();
+					taskCreateRequest.setSummary("en-GB Import");
+
+					AuthoringTask task = taskService.createTask(projectKey, taskCreateRequest);
+					if (client.getBranch(task.getBranchPath()) == null) {
+						client.createBranch(task.getBranchPath());
+					}
+					client.generateAdditionalLanguageRefsetDelta(codeSystemShortname, task.getBranchPath(), "900000000000508004", false);
+				}
+
+				// Raise INFRA ticket
 				if (codeSystem != null) {
 					String newDependantVersionRF2Format = codeSystemUpgradeJob.getNewDependantVersion().toString();
 					String newDependantVersionISOFormat = newDependantVersionRF2Format.substring(0, 4) + "-" + newDependantVersionRF2Format.substring(4, 6) + "-" + newDependantVersionRF2Format.substring(6, 8);
 					createJiraIssue(codeSystem.getName(), newDependantVersionISOFormat, generateDescription(codeSystem, codeSystemUpgradeJob, newDependantVersionISOFormat));
 				}
+
 				try {
-					uiStateService.deleteTaskPanelState(codeSystemUpgradeJob.getCodeSystemShortname(), codeSystemUpgradeJob.getCodeSystemShortname(), SHARED, UPGRADE_JOB_PANEL_ID);
+					uiStateService.deleteTaskPanelState(codeSystemShortname, codeSystemShortname, SHARED, UPGRADE_JOB_PANEL_ID);
 				} catch (Exception e) {
 					logger.error("Failed to delete the UI panel with id " + UPGRADE_JOB_PANEL_ID, e);
 				}

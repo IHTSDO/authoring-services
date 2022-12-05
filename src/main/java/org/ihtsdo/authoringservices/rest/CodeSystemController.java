@@ -33,13 +33,15 @@ public class CodeSystemController {
 	@ApiResponse(code = 201, message = "CREATED")
 	@RequestMapping(value="/{shortName}/upgrade/{newDependantVersion}", method= RequestMethod.POST)
 	public ResponseEntity<Void> upgradeCodeSystem(@ApiParam(value="Extension code system shortname") @PathVariable final String shortName,
-												  @ApiParam(value="New dependant version with the same format as the effectiveTime RF2 field, for example '20190731'") @PathVariable final Integer newDependantVersion) throws BusinessServiceException {
+												  @ApiParam(value="New dependant version with the same format as the effectiveTime RF2 field, for example '20190731'") @PathVariable final Integer newDependantVersion,
+												  @ApiParam(value="Flag to generate additional english language refset") @RequestParam(required = false) final Boolean generateEn_GbLanguageRefsetDelta,
+												  @ApiParam(value="Master Project Key which is required by generating the additional english language refset process") @RequestParam(required = false) final String projectKey) throws BusinessServiceException {
 		RequestAttributes attrs = RequestContextHolder.getRequestAttributes();
 		Assert.state(attrs instanceof ServletRequestAttributes, "No current ServletRequestAttributes");
 		HttpServletRequest request = ((ServletRequestAttributes) attrs).getRequest();
 
 		String jobId = codeSystemUpgradeService.upgrade(shortName, newDependantVersion);
-		codeSystemUpgradeService.waitForCodeSystemUpgradeToComplete(jobId, SecurityContextHolder.getContext());
+		codeSystemUpgradeService.waitForCodeSystemUpgradeToComplete(jobId, generateEn_GbLanguageRefsetDelta, projectKey, SecurityContextHolder.getContext());
 
 		String requestUrl = request.getRequestURL().toString();
 		requestUrl = requestUrl.replace("/" + shortName, "").replace("/" + newDependantVersion, "");
