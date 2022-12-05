@@ -96,7 +96,11 @@ public class CodeSystemUpgradeService {
 					if (client.getBranch(task.getBranchPath()) == null) {
 						client.createBranch(task.getBranchPath());
 					}
-					client.generateAdditionalLanguageRefsetDelta(codeSystemShortname, task.getBranchPath(), "900000000000508004", false);
+					try {
+						client.generateAdditionalLanguageRefsetDelta(codeSystemShortname, task.getBranchPath(), "900000000000508004", false);
+					} catch (Exception e) {
+						logger.error("Failed to generate additional language refset delta", e);
+					}
 				}
 
 				// Raise INFRA ticket
