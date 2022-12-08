@@ -10,9 +10,7 @@ import org.ihtsdo.authoringservices.service.jira.ImpersonatingJiraClientFactory;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
-import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
-import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystemUpgradeJob;
-import org.ihtsdo.otf.rest.client.terminologyserver.pojo.IntegrityIssueReport;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.*;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.sso.integration.SecurityUtil;
 import org.slf4j.Logger;
@@ -88,18 +86,26 @@ public class CodeSystemUpgradeService {
 				CodeSystem codeSystem = codeSystems.stream().filter(c -> c.getShortName().equals(codeSystemShortname)).findFirst().orElse(null);
 
 				// Generate additional EN_GB language refset
-				if (COMPLETED.equals(codeSystemUpgradeJob.getStatus()) && Boolean.TRUE.equals(generateEn_GbLanguageRefsetDelta)) {
-					AuthoringTaskCreateRequest taskCreateRequest = new AuthoringTask();
-					taskCreateRequest.setSummary("en-GB Import");
+				if (codeSystem != null && COMPLETED.equals(codeSystemUpgradeJob.getStatus()) && Boolean.TRUE.equals(generateEn_GbLanguageRefsetDelta)) {
+					String projectBranchPath = taskService.getProjectBranchPathUsingCache(projectKey);
+					Merge merge = branchService.mergeBranchSync(codeSystem.getBranchPath(), projectBranchPath, null);
+					if (merge.getStatus() == Merge.Status.COMPLETED) {
+						AuthoringTaskCreateRequest taskCreateRequest = new AuthoringTask();
+						taskCreateRequest.setSummary("en-GB Import");
 
-					AuthoringTask task = taskService.createTask(projectKey, taskCreateRequest);
-					if (client.getBranch(task.getBranchPath()) == null) {
-						client.createBranch(task.getBranchPath());
-					}
-					try {
-						client.generateAdditionalLanguageRefsetDelta(codeSystemShortname, task.getBranchPath(), "900000000000508004", false);
-					} catch (Exception e) {
-						logger.error("Failed to generate additional language refset delta", e);
+						AuthoringTask task = taskService.createTask(projectKey, taskCreateRequest);
+						if (client.getBranch(task.getBranchPath()) == null) {
+							client.createBranch(task.getBranchPath());
+						}
+						try {
+							client.generateAdditionalLanguageRefsetDelta(codeSystemShortname, task.getBranchPath(), "900000000000508004", false);
+						} catch (Exception e) {
+							logger.error("Failed to generate additional language refset delta", e);
+						}
+					} else {
+						ApiError apiError = merge.getApiError();
+						String message = apiError != null ? apiError.getMessage() : null;
+						logger.error("Failed to rebase. Error: " + message);
 					}
 				}
 
