@@ -67,17 +67,14 @@ public class CodeSystemUpgradeService {
 		SecurityContextHolder.setContext(securityContext);
 		SnowstormRestClient client = snowstormRestClientFactory.getClient();
 		CodeSystemUpgradeJob codeSystemUpgradeJob;
-		int sleepSeconds = 4;
+		int sleepSeconds = 5;
 		int totalWait = 0;
-		int maxTotalWait = 60 * 60;
+		int maxTotalWait = 2 * 60 * 60;
 		try {
 			do {
 				Thread.sleep(1000 * sleepSeconds);
 				totalWait += sleepSeconds;
 				codeSystemUpgradeJob = client.getCodeSystemUpgradeJob(jobId);
-				if (sleepSeconds < 10) {
-					sleepSeconds += 2;
-				}
 			} while (totalWait < maxTotalWait && RUNNING.equals(codeSystemUpgradeJob.getStatus()));
 
 			if (codeSystemUpgradeJob != null && (COMPLETED.equals(codeSystemUpgradeJob.getStatus()) || FAILED.equals(codeSystemUpgradeJob.getStatus()))) {
@@ -85,34 +82,33 @@ public class CodeSystemUpgradeService {
 				final String codeSystemShortname = codeSystemUpgradeJob.getCodeSystemShortname();
 				CodeSystem codeSystem = codeSystems.stream().filter(c -> c.getShortName().equals(codeSystemShortname)).findFirst().orElse(null);
 
-				// Generate additional EN_GB language refset
-				if (codeSystem != null && COMPLETED.equals(codeSystemUpgradeJob.getStatus()) && Boolean.TRUE.equals(generateEn_GbLanguageRefsetDelta)) {
-					String projectBranchPath = taskService.getProjectBranchPathUsingCache(projectKey);
-					Merge merge = branchService.mergeBranchSync(codeSystem.getBranchPath(), projectBranchPath, null);
-					if (merge.getStatus() == Merge.Status.COMPLETED) {
-						AuthoringTaskCreateRequest taskCreateRequest = new AuthoringTask();
-						taskCreateRequest.setSummary("en-GB Import");
-
-						AuthoringTask task = taskService.createTask(projectKey, taskCreateRequest);
-						if (client.getBranch(task.getBranchPath()) == null) {
-							client.createBranch(task.getBranchPath());
-						}
-						try {
-							client.generateAdditionalLanguageRefsetDelta(codeSystemShortname, task.getBranchPath(), "900000000000508004", false);
-						} catch (Exception e) {
-							logger.error("Failed to generate additional language refset delta", e);
-						}
-					} else {
-						ApiError apiError = merge.getApiError();
-						String message = apiError != null ? apiError.getMessage() : null;
-						logger.error("Failed to rebase. Error: " + message);
-					}
-				}
-
-				// Raise INFRA ticket
 				if (codeSystem != null) {
 					String newDependantVersionRF2Format = codeSystemUpgradeJob.getNewDependantVersion().toString();
 					String newDependantVersionISOFormat = newDependantVersionRF2Format.substring(0, 4) + "-" + newDependantVersionRF2Format.substring(4, 6) + "-" + newDependantVersionRF2Format.substring(6, 8);
+
+					// Generate additional EN_GB language refset
+					if (COMPLETED.equals(codeSystemUpgradeJob.getStatus()) && Boolean.TRUE.equals(generateEn_GbLanguageRefsetDelta)) {
+						String projectBranchPath = taskService.getProjectBranchPathUsingCache(projectKey);
+						Merge merge = branchService.mergeBranchSync(codeSystem.getBranchPath(), projectBranchPath, null);
+						if (merge.getStatus() == Merge.Status.COMPLETED) {
+							AuthoringTaskCreateRequest taskCreateRequest = new AuthoringTask();
+							taskCreateRequest.setSummary("en-GB Import " + newDependantVersionISOFormat);
+
+							AuthoringTask task = taskService.createTask(projectKey, taskCreateRequest);
+							if (client.getBranch(task.getBranchPath()) == null) {
+								client.createBranch(task.getBranchPath());
+							}
+							try {
+								client.generateAdditionalLanguageRefsetDelta(codeSystemShortname, task.getBranchPath(), "900000000000508004", false);
+							} catch (Exception e) {
+								logger.error("Failed to generate additional language refset delta", e);
+							}
+						} else {
+							ApiError apiError = merge.getApiError();
+							String message = apiError != null ? apiError.getMessage() : null;
+							logger.error("Failed to rebase the project " + projectKey + ". Error: " + message);
+						}
+					}
 					createJiraIssue(codeSystem.getName(), newDependantVersionISOFormat, generateDescription(codeSystem, codeSystemUpgradeJob, newDependantVersionISOFormat));
 				}
 
