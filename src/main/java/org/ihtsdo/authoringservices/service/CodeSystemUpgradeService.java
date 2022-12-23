@@ -89,27 +89,37 @@ public class CodeSystemUpgradeService {
 					// Generate additional EN_GB language refset
 					if (COMPLETED.equals(codeSystemUpgradeJob.getStatus()) && Boolean.TRUE.equals(generateEn_GbLanguageRefsetDelta)) {
 						String projectBranchPath = taskService.getProjectBranchPathUsingCache(projectKey);
-						Merge merge = branchService.mergeBranchSync(codeSystem.getBranchPath(), projectBranchPath, null);
-						if (merge.getStatus() == Merge.Status.COMPLETED) {
-							AuthoringTaskCreateRequest taskCreateRequest = new AuthoringTask();
-							taskCreateRequest.setSummary("en-GB Import " + newDependantVersionISOFormat);
-
-							AuthoringTask task = taskService.createTask(projectKey, taskCreateRequest);
-							if (client.getBranch(task.getBranchPath()) == null) {
-								client.createBranch(task.getBranchPath());
-							}
-							try {
-								client.generateAdditionalLanguageRefsetDelta(codeSystemShortname, task.getBranchPath(), "900000000000508004", false);
-							} catch (Exception e) {
-								logger.error("Failed to generate additional language refset delta", e);
-							}
-						} else {
-							ApiError apiError = merge.getApiError();
-							String message = apiError != null ? apiError.getMessage() : null;
-							logger.error("Failed to rebase the project " + projectKey + ". Error: " + message);
+						Merge merge = null;
+						try {
+							merge = branchService.mergeBranchSync(codeSystem.getBranchPath(), projectBranchPath, null);
+						} catch (Exception e) {
+							logger.error("Failed to rebase the project " + projectKey + ". Error: " + e.getMessage());
 						}
+						if (merge != null) {
+							if (merge.getStatus() == Merge.Status.COMPLETED) {
+								AuthoringTaskCreateRequest taskCreateRequest = new AuthoringTask();
+								taskCreateRequest.setSummary("en-GB Import " + newDependantVersionISOFormat);
+
+								AuthoringTask task = taskService.createTask(projectKey, taskCreateRequest);
+								if (client.getBranch(task.getBranchPath()) == null) {
+									client.createBranch(task.getBranchPath());
+								}
+								try {
+									client.generateAdditionalLanguageRefsetDelta(codeSystemShortname, task.getBranchPath(), "900000000000508004", false);
+								} catch (Exception e) {
+									logger.error("Failed to generate additional language refset delta", e);
+								}
+							} else {
+								ApiError apiError = merge.getApiError();
+								String message = apiError != null ? apiError.getMessage() : null;
+								logger.error("Failed to rebase the project " + projectKey + ". Error: " + message);
+							}
+						}
+
 					}
-					createJiraIssue(codeSystem.getName(), newDependantVersionISOFormat, generateDescription(codeSystem, codeSystemUpgradeJob, newDependantVersionISOFormat));
+
+					// Raise an INFRA ticket for SI to update the daily build
+					createJiraIssue(codeSystem.getName().replace("Edition","Extension"), newDependantVersionISOFormat, generateDescription(codeSystem, codeSystemUpgradeJob, newDependantVersionISOFormat));
 				}
 
 				try {
@@ -128,7 +138,7 @@ public class CodeSystemUpgradeService {
 
 		try {
 			jiraIssue = getJiraClient().createIssue(DEFAULT_INFRA_PROJECT, DEFAULT_ISSUE_TYPE)
-					.field(Field.SUMMARY, "Upgrading " + codeSystemName + " to the new " + newDependantVersion + " International Edition")
+					.field(Field.SUMMARY, "Upgraded " + codeSystemName + " to the new " + newDependantVersion + " International Edition")
 					.field(Field.DESCRIPTION, description)
 					.execute();
 
@@ -146,13 +156,17 @@ public class CodeSystemUpgradeService {
 
 	private String generateDescription(CodeSystem codeSystem, CodeSystemUpgradeJob codeSystemUpgradeJob, String newDependantVersion) {
 		StringBuilder result = new StringBuilder();
+		result.append("This ticket has been automatically generated as the NRC has upgraded their extension to a new release.").append("\n").append("\n");
 		result.append("Author: ").append(getUsername()).append("\n")
-				.append("New version: ").append(newDependantVersion).append("\n");
+				.append("New version: ").append(newDependantVersion).append("\n")
+				.append("Branch Path: ").append(codeSystem.getBranchPath()).append("\n");
 
 		if (COMPLETED.equals(codeSystemUpgradeJob.getStatus())) {
 			result.append("Status: ").append(codeSystemUpgradeJob.getStatus());
 			if (!isIntegrityCheckEmpty(codeSystem.getBranchPath())) {
 				result.append(" with integrity failures");
+			} else {
+				result.append(" with no integrity failures");
 			}
 			result.append("\n");
 		} else {
@@ -162,6 +176,13 @@ public class CodeSystemUpgradeService {
 		if (FAILED.equals(codeSystemUpgradeJob.getStatus()) && StringUtils.hasLength(codeSystemUpgradeJob.getErrorMessage())) {
 			result.append("Failure message: ").append(codeSystemUpgradeJob.getErrorMessage());
 		}
+
+		result.append("\n");
+		result.append("Please follow the steps below:").append("\n");
+		result.append("1. Check the Status above is 'COMPLETED' and action any integrity failures accordingly.").append("\n");
+		result.append("Only proceed If there are no integrity failures/any failures have been resolved - Disable the Daily Build until the integrity failures are resolved by the NRC.").append("\n");
+		result.append("2. Reconfigure the extension daily build.").append("\n");
+		result.append("3. Run the Multiple Modules Axioms Report on the Extension flagging any results within the report to the NRC to be fixed.");
 
 		return result.toString();
 	}
