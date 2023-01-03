@@ -1,24 +1,31 @@
 package org.ihtsdo.authoringservices.service;
 
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.activemq.command.ActiveMQTextMessage;
+import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.otf.rest.client.RestClientException;
-import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ClassificationResults;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ClassificationStatus;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
-import org.ihtsdo.authoringservices.domain.Classification;
-import org.ihtsdo.authoringservices.domain.EntityType;
-import org.ihtsdo.authoringservices.domain.Notification;
 import org.ihtsdo.sso.integration.SecurityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.security.core.Authentication;
+import org.springframework.jms.annotation.JmsListener;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import us.monoid.json.JSONException;
+
+import javax.jms.JMSException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 public class SnowstormClassificationClient {
@@ -33,6 +40,9 @@ public class SnowstormClassificationClient {
 	private NotificationService notificationService;
 
 	private final Logger logger = LoggerFactory.getLogger(getClass());
+
+	private final ObjectMapper objectMapper = new ObjectMapper();
+	private final Map <String, ClassificationRequest> classificationRequests = Collections.synchronizedMap(new HashMap <>());
 
 	public synchronized Classification startClassification(String projectKey, String taskKey, String branchPath, String username) throws RestClientException, JSONException, BusinessServiceException {
 		if (!snowstormRestClientFactory.getClient().isClassificationInProgressOnBranch(branchPath)) {
@@ -52,61 +62,72 @@ public class SnowstormClassificationClient {
 		logger.info("Cleared Classification cache for branch {}.", branchPath);
 	}
 
+	@JmsListener(destination = "${classification-service.message.status.destination}")
+	void messageConsumer(ActiveMQTextMessage activeMQTextMessage) throws JMSException, JsonProcessingException {
+		try {
+			ClassificationStatusResponse response = objectMapper.readValue(activeMQTextMessage.getText(), ClassificationStatusResponse.class);
+			if (classificationRequests.containsKey(response.getId())) {
+				if (!ClassificationStatus.RUNNING.equals(response.getStatus())
+					&& !ClassificationStatus.SCHEDULED.equals(response.getStatus())
+					&& !ClassificationStatus.SAVING_IN_PROGRESS.equals(response.getStatus())) {
+					ClassificationRequest request = classificationRequests.remove(response.getId());
+					new Thread(new ClassificationRunner(request, response.getStatus())).start();
+				}
+			}
+		} catch (JsonParseException | JsonMappingException e) {
+			logger.error("Failed to parse message. Message: {}.", activeMQTextMessage.getText());
+		}
+	}
+
+
 	private Classification callClassification(String projectKey, String taskKey, String branchPath, String callerUsername) throws RestClientException {
 		logger.info("Requesting classification of path {} for user {}", branchPath, callerUsername);
+
 		ClassificationResults results = snowstormRestClientFactory.getClient().startClassification(branchPath);
 		//If we started the classification without an exception then it's state will be RUNNING (or queued)
 		results.setStatus(ClassificationStatus.RUNNING);
 
-
-		//Now start an asynchronous thread to wait for the results
-		final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-		new Thread(new ClassificationPoller(projectKey, taskKey, branchPath, results, authentication), "ClassificationPoller-" + callerUsername).start();
+		ClassificationRequest request = new ClassificationRequest();
+		request.setClassificationId(results.getClassificationId());
+		request.setTaskKey(taskKey);
+		request.setProjectKey(projectKey);
+		request.setBranchPath(branchPath);
+		request.setAuthentication(SecurityContextHolder.getContext().getAuthentication());
+		classificationRequests.put(results.getClassificationId(), request);
 
 		return new Classification(results);
 	}
 
-	private class ClassificationPoller implements Runnable {
+	private class ClassificationRunner implements Runnable {
 
-		private ClassificationResults results;
-		private String projectKey;
-		private String taskKey;
-		private String branchPath;
-		private final Authentication authentication;
+		private ClassificationRequest request;
+		private ClassificationStatus status;
 
-		ClassificationPoller(String projectKey, String taskKey, String branchPath, ClassificationResults results, Authentication authentication) {
-			this.results = results;
-			this.projectKey = projectKey;
-			this.taskKey = taskKey;
-			this.branchPath = branchPath;
-			this.authentication = authentication;
+		ClassificationRunner(ClassificationRequest request, ClassificationStatus status) {
+			this.request = request;
+			this.status = status;
 		}
 
 		@Override
 		public void run() {
-			SecurityContextHolder.getContext().setAuthentication(authentication);
+			SecurityContextHolder.getContext().setAuthentication(request.getAuthentication());
 			String resultMessage;
-			SnowstormRestClient terminologyServerClient = snowstormRestClientFactory.getClient();
-			try {
-				// Function sleeps here
-				// - Throws RestClientException if classification failed
-				terminologyServerClient.waitForClassificationToComplete(results);
+			if (ClassificationStatus.COMPLETED.equals(status)) {
 				resultMessage = "Classification completed successfully";
-			} catch (RestClientException | InterruptedException e) {
+			} else {
 				resultMessage = "Classification failed to complete due to an internal error. Please try again.";
-				logger.error(resultMessage, e);
 			}
 
-			if (taskKey != null) {
+			if (request.getTaskKey() != null) {
 				//In every case we'll report what we know to the jira ticket
-				taskService.addCommentLogErrors(projectKey, taskKey, resultMessage);
-			} else if (projectKey != null) {
+				taskService.addCommentLogErrors(request.getProjectKey(), request.getTaskKey(), resultMessage);
+			} else if (request.getProjectKey() != null) {
 				// Comment on project magic ticket
-				taskService.addCommentLogErrors(projectKey, resultMessage);
+				taskService.addCommentLogErrors(request.getProjectKey(), resultMessage);
 			}
-			taskService.clearClassificationCache(branchPath);
-			Notification notification = new Notification(projectKey, taskKey, EntityType.Classification, resultMessage);
-			notification.setBranchPath(branchPath);
+			taskService.clearClassificationCache(request.getBranchPath());
+			Notification notification = new Notification(request.getProjectKey(), request.getTaskKey(), EntityType.Classification, resultMessage);
+			notification.setBranchPath(request.getBranchPath());
 			notificationService.queueNotification(SecurityUtil.getUsername(), notification);
 		}
 	}
