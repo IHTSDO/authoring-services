@@ -26,10 +26,12 @@ import org.springframework.http.converter.ByteArrayHttpMessageConverter;
 import org.springframework.http.converter.ResourceHttpMessageConverter;
 import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.jms.config.DefaultJmsListenerContainerFactory;
 import springfox.documentation.builders.RequestHandlerSelectors;
 import springfox.documentation.spi.DocumentationType;
 import springfox.documentation.spring.web.plugins.Docket;
 
+import javax.jms.ConnectionFactory;
 import java.util.TimeZone;
 
 import static com.google.common.base.Predicates.not;
@@ -41,6 +43,9 @@ import static springfox.documentation.builders.PathSelectors.regex;
 @EnableJpaRepositories(basePackages = "org.ihtsdo.authoringservices.repository")
 @EntityScan(basePackages = "org.ihtsdo.authoringservices.entity")
 public abstract class Configuration {
+
+	@Autowired
+	private ConnectionFactory connectionFactory;
 
 	@Bean
 	public TaskService taskService(@Autowired @Qualifier("authoringTaskOAuthJiraClient") ImpersonatingJiraClientFactory jiraClientFactory, @Value("${jira.username}") String jiraUsername) throws JiraException {
@@ -66,6 +71,15 @@ public abstract class Configuration {
 	@Bean
 	public MessagingHelper messagingHelper() {
 		return new MessagingHelper();
+	}
+
+	@Bean(name = "topicJmsListenerContainerFactory")
+	public DefaultJmsListenerContainerFactory getTopicFactory() {
+		DefaultJmsListenerContainerFactory factory = new  DefaultJmsListenerContainerFactory();
+		factory.setConnectionFactory(connectionFactory);
+		factory.setSessionTransacted(true);
+		factory.setPubSubDomain(true);
+		return factory;
 	}
 
 	@Bean

@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.activemq.command.ActiveMQTextMessage;
 import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
@@ -62,10 +61,10 @@ public class SnowstormClassificationClient {
 		logger.info("Cleared Classification cache for branch {}.", branchPath);
 	}
 
-	@JmsListener(destination = "${classification-service.message.status.destination}")
-	void messageConsumer(ActiveMQTextMessage activeMQTextMessage) throws JMSException, JsonProcessingException {
+	@JmsListener(destination = "${classification-service.message.status.destination}", containerFactory = "topicJmsListenerContainerFactory")
+	void messageConsumer(String content) throws JMSException, JsonProcessingException {
 		try {
-			ClassificationStatusResponse response = objectMapper.readValue(activeMQTextMessage.getText(), ClassificationStatusResponse.class);
+			ClassificationStatusResponse response = objectMapper.readValue(content, ClassificationStatusResponse.class);
 			if (classificationRequests.containsKey(response.getId())) {
 				if (!ClassificationStatus.RUNNING.equals(response.getStatus())
 					&& !ClassificationStatus.SCHEDULED.equals(response.getStatus())
@@ -75,7 +74,7 @@ public class SnowstormClassificationClient {
 				}
 			}
 		} catch (JsonParseException | JsonMappingException e) {
-			logger.error("Failed to parse message. Message: {}.", activeMQTextMessage.getText());
+			logger.error("Failed to parse message. Message: {}.", content);
 		}
 	}
 
