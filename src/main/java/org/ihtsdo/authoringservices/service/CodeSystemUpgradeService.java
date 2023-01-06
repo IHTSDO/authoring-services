@@ -87,7 +87,7 @@ public class CodeSystemUpgradeService {
 					String newDependantVersionISOFormat = newDependantVersionRF2Format.substring(0, 4) + "-" + newDependantVersionRF2Format.substring(4, 6) + "-" + newDependantVersionRF2Format.substring(6, 8);
 
 					// Generate additional EN_GB language refset
-					if (COMPLETED.equals(codeSystemUpgradeJob.getStatus()) && Boolean.TRUE.equals(generateEn_GbLanguageRefsetDelta)) {
+					if (COMPLETED.equals(codeSystemUpgradeJob.getStatus()) && Boolean.TRUE.equals(generateEn_GbLanguageRefsetDelta) && isIntegrityCheckEmpty(codeSystem.getBranchPath())) {
 						String projectBranchPath = taskService.getProjectBranchPathUsingCache(projectKey);
 						Merge merge = null;
 						try {
@@ -115,7 +115,6 @@ public class CodeSystemUpgradeService {
 								logger.error("Failed to rebase the project " + projectKey + ". Error: " + message);
 							}
 						}
-
 					}
 
 					// Raise an INFRA ticket for SI to update the daily build
