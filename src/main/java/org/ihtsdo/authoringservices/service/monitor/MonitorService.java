@@ -46,10 +46,14 @@ public class MonitorService {
                             userMonitorsMap.remove(username);
                         }
                     };
-					final UserMonitors userMonitors = new UserMonitors(username, token, monitorFactory, notificationService, deathCallback);
+					final UserMonitors userMonitors = new UserMonitors(username, monitorFactory, notificationService, deathCallback);
+					userMonitors.setToken(token);
 					this.userMonitorsMap.put(username, userMonitors);
 				}
 			}
+		} else {
+			final UserMonitors userMonitors = this.userMonitorsMap.get(username);
+			userMonitors.setToken(token);
 		}
 	}
 

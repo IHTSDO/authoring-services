@@ -1,5 +1,6 @@
 package org.ihtsdo.authoringservices.service.monitor;
 
+import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.authoringservices.domain.Notification;
 import org.ihtsdo.authoringservices.service.NotificationService;
@@ -28,15 +29,18 @@ public class UserMonitors {
 	private static final int PAUSE_SECONDS = 10;
 	private Logger logger = LoggerFactory.getLogger(getClass());
 
-	public UserMonitors(String username, String token, MonitorFactory monitorFactory, NotificationService notificationService, Runnable deathCallback) {
+	public UserMonitors(String username, MonitorFactory monitorFactory, NotificationService notificationService, Runnable deathCallback) {
 		this.username = username;
-		this.token = token;
 		this.monitorFactory = monitorFactory;
 		this.notificationService = notificationService;
 		currentMonitors = new HashMap<>();
 		monitorLoggedError = new HashSet<>();
 		this.deathCallback = deathCallback;
 		accessed();
+	}
+
+	public void setToken(String token) {
+		this.token = token;
 	}
 
 	public void start() {
@@ -46,9 +50,10 @@ public class UserMonitors {
 		new Thread(() -> {
 			try {
 				logger.info("Starting user monitors for {}", username);
-				PreAuthenticatedAuthenticationToken decoratedAuthentication = new PreAuthenticatedAuthenticationToken(username, token);
-				SecurityContextHolder.getContext().setAuthentication(decoratedAuthentication);
 				while (isStillInUse()) {
+					PreAuthenticatedAuthenticationToken decoratedAuthentication = new PreAuthenticatedAuthenticationToken(username, token);
+					SecurityContextHolder.getContext().setAuthentication(decoratedAuthentication);
+
 					final List<Class> keys = new ArrayList<>(currentMonitors.keySet());
 					final int size = keys.size();
 					for (int i = 0; i < size; i++) { // Old style for loop to avoid any concurrent modification problem.
@@ -76,6 +81,14 @@ public class UserMonitors {
 												currentMonitors.remove(monitor.getClass());
 											}
 										} else {
+											if (e.getCause() != null && e.getCause() != null && e.getCause().getCause() != null) {
+												RestClientException restClientException = (RestClientException) e.getCause().getCause();
+												if (restClientException.getMessage().startsWith("Failed to retrieve Branch, status code: 403")) {
+													currentMonitors.remove(monitor.getClass());
+													logger.error("Monitor run failed.", e);
+													break;
+												}
+											}
 											if (!monitorLoggedError.contains(monitor)) {
 												monitorLoggedError.add(monitor);
 												logger.error("Monitor run failed.", e);

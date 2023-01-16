@@ -99,6 +99,8 @@ public class SnowstormClassificationClient {
 
 	private class ClassificationRunner implements Runnable {
 
+		private static final int PAUSE_SECONDS = 10;
+
 		private ClassificationRequest request;
 		private ClassificationStatus status;
 
@@ -124,7 +126,17 @@ public class SnowstormClassificationClient {
 				// Comment on project magic ticket
 				taskService.addCommentLogErrors(request.getProjectKey(), resultMessage);
 			}
-			taskService.clearClassificationCache(request.getBranchPath());
+
+			// Pause few seconds to make sure that the Snowstorm updates the classification results before clearing the cache
+			try {
+				Thread.sleep(PAUSE_SECONDS * 1000);
+				taskService.clearClassificationCache(request.getBranchPath());
+			}
+			catch (InterruptedException e) {
+				// This will probably happen when we restart the application.
+				logger.info("Classification interrupted.", e);
+			}
+
 			Notification notification = new Notification(request.getProjectKey(), request.getTaskKey(), EntityType.Classification, resultMessage);
 			notification.setBranchPath(request.getBranchPath());
 			notificationService.queueNotification(SecurityUtil.getUsername(), notification);
