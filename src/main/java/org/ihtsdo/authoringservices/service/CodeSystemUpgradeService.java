@@ -32,7 +32,7 @@ public class CodeSystemUpgradeService {
 
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 
-	private static final String DEFAULT_INFRA_PROJECT = "INFRA";
+	private static final String DEFAULT_JIRA_PROJECT = "MSSP";
 	private static final String DEFAULT_ISSUE_TYPE = "Service Request";
 	private static final String SHARED = "SHARED";
 	private static final String UPGRADE_JOB_PANEL_ID = "code-system-upgrade-job";
@@ -117,7 +117,7 @@ public class CodeSystemUpgradeService {
 						}
 					}
 
-					// Raise an INFRA ticket for SI to update the daily build
+					// Raise an JIRA ticket for SI to update the daily build
 					createJiraIssue(codeSystem.getName().replace("Edition","Extension"), newDependantVersionISOFormat, generateDescription(codeSystem, codeSystemUpgradeJob, newDependantVersionISOFormat));
 				}
 
@@ -136,7 +136,7 @@ public class CodeSystemUpgradeService {
 		Issue jiraIssue;
 
 		try {
-			jiraIssue = getJiraClient().createIssue(DEFAULT_INFRA_PROJECT, DEFAULT_ISSUE_TYPE)
+			jiraIssue = getJiraClient().createIssue(DEFAULT_JIRA_PROJECT, DEFAULT_ISSUE_TYPE)
 					.field(Field.SUMMARY, "Upgraded " + codeSystemName + " to the new " + newDependantVersion + " International Edition")
 					.field(Field.DESCRIPTION, description)
 					.execute();
