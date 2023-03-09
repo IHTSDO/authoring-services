@@ -1,7 +1,8 @@
 package org.ihtsdo.authoringservices.rest;
 
 import io.swagger.annotations.*;
-import org.ihtsdo.authoringservices.service.CodeSystemUpgradeService;
+import org.ihtsdo.authoringservices.domain.AuthoringCodeSystem;
+import org.ihtsdo.authoringservices.service.CodeSystemService;
 import org.ihtsdo.authoringservices.service.DailyBuildService;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystemUpgradeJob;
@@ -22,6 +23,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
 
 @Api("Code Systems")
 @RestController
@@ -29,10 +31,16 @@ import java.io.InputStream;
 public class CodeSystemController {
 
 	@Autowired
-	private CodeSystemUpgradeService codeSystemUpgradeService;
+	private CodeSystemService codeSystemService;
 
 	@Autowired
 	private DailyBuildService dailyBuildService;
+
+	@ApiOperation(value = "List code systems")
+	@GetMapping
+	public List <AuthoringCodeSystem> listCodeSystems() throws BusinessServiceException {
+		return codeSystemService.findAll();
+	}
 
 	@ApiOperation(value="Upgrade code system to a different dependant version asynchronously")
 	@ApiResponse(code = 201, message = "CREATED")
@@ -45,8 +53,8 @@ public class CodeSystemController {
 		Assert.state(attrs instanceof ServletRequestAttributes, "No current ServletRequestAttributes");
 		HttpServletRequest request = ((ServletRequestAttributes) attrs).getRequest();
 
-		String jobId = codeSystemUpgradeService.upgrade(shortName, newDependantVersion);
-		codeSystemUpgradeService.waitForCodeSystemUpgradeToComplete(jobId, generateEn_GbLanguageRefsetDelta, projectKey, SecurityContextHolder.getContext());
+		String jobId = codeSystemService.upgrade(shortName, newDependantVersion);
+		codeSystemService.waitForCodeSystemUpgradeToComplete(jobId, generateEn_GbLanguageRefsetDelta, projectKey, SecurityContextHolder.getContext());
 
 		String requestUrl = request.getRequestURL().toString();
 		requestUrl = requestUrl.replace("/" + shortName, "").replace("/" + newDependantVersion, "");
@@ -58,7 +66,7 @@ public class CodeSystemController {
 			notes = "Retrieves the state of an upgrade job. Used to view the upgrade configuration and check its status.")
 	@GetMapping(value = "/upgrade/{jobId}")
 	public CodeSystemUpgradeJob getUpgradeJob(@PathVariable String jobId) throws RestClientException {
-		return codeSystemUpgradeService.getUpgradeJob(jobId);
+		return codeSystemService.getUpgradeJob(jobId);
 	}
 
 	@ApiOperation(value = "Download daily build package for a given code system")

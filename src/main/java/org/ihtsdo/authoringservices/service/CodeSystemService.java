@@ -4,8 +4,12 @@ import net.rcarz.jiraclient.Field;
 import net.rcarz.jiraclient.Issue;
 import net.rcarz.jiraclient.JiraClient;
 import net.rcarz.jiraclient.JiraException;
+import org.ihtsdo.authoringservices.domain.AuthoringCodeSystem;
 import org.ihtsdo.authoringservices.domain.AuthoringTask;
 import org.ihtsdo.authoringservices.domain.AuthoringTaskCreateRequest;
+import org.ihtsdo.authoringservices.domain.ValidationJobStatus;
+import org.ihtsdo.authoringservices.entity.Validation;
+import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.authoringservices.service.jira.ImpersonatingJiraClientFactory;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
@@ -23,12 +27,14 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 import static org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystemUpgradeJob.UpgradeStatus.*;
 
 @Service
-public class CodeSystemUpgradeService {
+public class CodeSystemService {
 
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 
@@ -50,8 +56,19 @@ public class CodeSystemUpgradeService {
 	private  BranchService branchService;
 
 	@Autowired
+	private SnowstormClassificationClient classificationService;
+
+	@Autowired
+	private ValidationService validationService;
+
+	@Autowired
 	@Qualifier("validationTicketOAuthJiraClient")
 	private ImpersonatingJiraClientFactory jiraClientFactory;
+
+	public List<AuthoringCodeSystem> findAll() throws BusinessServiceException {
+		List<CodeSystem> codeSystems = snowstormRestClientFactory.getClient().getCodeSystems();
+		return buildAuthoringCodeSystems(codeSystems);
+	}
 
 	public String upgrade(String shortName, Integer newDependantVersion) throws BusinessServiceException {
 		String location = snowstormRestClientFactory.getClient().upgradeCodeSystem(shortName, newDependantVersion, false);
@@ -198,5 +215,33 @@ public class CodeSystemUpgradeService {
 
 	private String getUsername() {
 		return SecurityUtil.getUsername();
+	}
+
+	private List<AuthoringCodeSystem> buildAuthoringCodeSystems(List<CodeSystem> codeSystems) throws BusinessServiceException {
+		List<AuthoringCodeSystem> allCodeSystems = new ArrayList <>();
+		try {
+			for (CodeSystem codeSystem : codeSystems) {
+				AuthoringCodeSystem authoringCodeSystem = new AuthoringCodeSystem(codeSystem);
+				authoringCodeSystem.setLatestClassificationJson(classificationService.getLatestClassification(codeSystem.getBranchPath()));
+
+				Branch branch = branchService.getBranchOrNull(codeSystem.getBranchPath());
+				Validation validation = validationService.getValidation(codeSystem.getBranchPath());
+
+				if (validation != null) {
+					if (ValidationJobStatus.COMPLETED.name().equals(validation.getStatus())
+						&& validation.getContentHeadTimestamp() != null
+						&& branch.getHeadTimestamp() != validation.getContentHeadTimestamp().longValue()) {
+						authoringCodeSystem.setLatestValidationStatus(ValidationJobStatus.STALE.name());
+					} else {
+						authoringCodeSystem.setLatestValidationStatus(validation.getStatus());
+					}
+				}
+
+				allCodeSystems.add(authoringCodeSystem);
+			}
+		} catch (ExecutionException | RestClientException | ServiceException e) {
+			throw new BusinessServiceException("Failed to build code system list.", e);
+		}
+		return allCodeSystems;
 	}
 }
