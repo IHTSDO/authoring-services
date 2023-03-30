@@ -1,7 +1,9 @@
 package org.ihtsdo.authoringservices.service;
 
 import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.services.s3.model.*;
+import com.amazonaws.services.s3.model.CannedAccessControlList;
+import com.amazonaws.services.s3.model.PutObjectRequest;
+import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -70,6 +72,7 @@ public class ValidationService {
 	public static final String PREVIOUS_PACKAGE = "previousPackage";
 	public static final String DEPENDENCY_PACKAGE = "dependencyPackage";
 	public static final String DEFAULT_MODULE_ID = "defaultModuleId";
+	public static final String EXPECTED_EXTENSION_MODULES = "expectedExtensionModules";
 	public static final String INTERNATIONAL = "international";
 
 	@Value("${aws.resources.enabled}")
@@ -262,7 +265,18 @@ public class ValidationService {
 		validationConfig.setPreviousPackage((String) branchMetadata.get(PREVIOUS_PACKAGE));
 		validationConfig.setDependencyPackage((String) branchMetadata.get(DEPENDENCY_PACKAGE));
 		validationConfig.setPreviousRelease((String) branchMetadata.get(PREVIOUS_RELEASE));
-		validationConfig.setIncludedModuleIds((String) branchMetadata.get(DEFAULT_MODULE_ID));
+
+		Set<String> moduleIds = new HashSet<>();
+		if (branchMetadata.containsKey(DEFAULT_MODULE_ID)) {
+			moduleIds.add((String) branchMetadata.get(DEFAULT_MODULE_ID));
+		}
+		if (branchMetadata.containsKey(EXPECTED_EXTENSION_MODULES)) {
+			moduleIds.addAll((ArrayList<String>) branchMetadata.get(EXPECTED_EXTENSION_MODULES));
+		}
+		if (!moduleIds.isEmpty()) {
+			validationConfig.setIncludedModuleIds(String.join(",", moduleIds));
+		}
+
 		validationConfig.setEnableMRCMValidation(enableMRCM);
 		validationConfig.setEnableTraceabilityValidation(!"true".equalsIgnoreCase((String) branchMetadata.get(DISABLE_TRACEABILITY_VALIDATION)));
 		validationConfig.setEnableDroolsValidation("true".equalsIgnoreCase((String) branchMetadata.get(ENABLE_DROOLS_VALIDATION)));
