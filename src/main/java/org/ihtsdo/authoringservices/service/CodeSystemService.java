@@ -4,10 +4,7 @@ import net.rcarz.jiraclient.Field;
 import net.rcarz.jiraclient.Issue;
 import net.rcarz.jiraclient.JiraClient;
 import net.rcarz.jiraclient.JiraException;
-import org.ihtsdo.authoringservices.domain.AuthoringCodeSystem;
-import org.ihtsdo.authoringservices.domain.AuthoringTask;
-import org.ihtsdo.authoringservices.domain.AuthoringTaskCreateRequest;
-import org.ihtsdo.authoringservices.domain.ValidationJobStatus;
+import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.entity.Validation;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.authoringservices.service.jira.ImpersonatingJiraClientFactory;
@@ -30,6 +27,7 @@ import org.springframework.util.StringUtils;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import static org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystemUpgradeJob.UpgradeStatus.*;
 
@@ -77,6 +75,50 @@ public class CodeSystemService {
 
 	public CodeSystemUpgradeJob getUpgradeJob(String jobId) throws RestClientException {
 		return snowstormRestClientFactory.getClient().getCodeSystemUpgradeJob(jobId);
+	}
+
+	public void lockProjects(String codeSystemShortame) throws BusinessServiceException, JiraException {
+		List<CodeSystem> codeSystems = snowstormRestClientFactory.getClient().getCodeSystems();
+		CodeSystem cs = codeSystems.stream().filter(item -> item.getShortName().equals(codeSystemShortame)).findAny().orElse(null);
+		if (cs == null) {
+			throw new BusinessServiceException("Code system with shortname " + codeSystemShortame + " not found");
+		}
+		List<AuthoringProject> projects = taskService.listProjects(true);
+		projects = projects.stream().filter(project -> project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/")).equals(cs.getBranchPath())).collect(Collectors.toList());
+		List<String> failedToLockProjects = new ArrayList<>();
+		for (AuthoringProject project : projects) {
+			try {
+				taskService.lockProject(project.getKey());
+			} catch (Exception e) {
+				logger.error("Failed to lock the project " + project.getKey(), e);
+				failedToLockProjects.add(project.getKey());
+			}
+		}
+		if (failedToLockProjects.size() != 0) {
+			throw new BusinessServiceException(String.format("The following projects %s failed to lock. Please contact technical support to get help", failedToLockProjects.toString()));
+		}
+	}
+
+	public void unlockProjects(String codeSystemShortame) throws BusinessServiceException, JiraException {
+		List<CodeSystem> codeSystems = snowstormRestClientFactory.getClient().getCodeSystems();
+		CodeSystem cs = codeSystems.stream().filter(item -> item.getShortName().equals(codeSystemShortame)).findAny().orElse(null);
+		if (cs == null) {
+			throw new BusinessServiceException("Code system with shortname " + codeSystemShortame + " not found");
+		}
+		List<AuthoringProject> projects = taskService.listProjects(true);
+		projects = projects.stream().filter(project -> project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/")).equals(cs.getBranchPath())).collect(Collectors.toList());
+		List<String> failedToUnlockProjects = new ArrayList<>();
+		for (AuthoringProject project : projects) {
+			try {
+				taskService.unlockProject(project.getKey());
+			} catch (Exception e) {
+				logger.error("Failed to unlock the project " + project.getKey(), e);
+				failedToUnlockProjects.add(project.getKey());
+			}
+		}
+		if (failedToUnlockProjects.size() != 0) {
+			throw new BusinessServiceException(String.format("The following projects %s failed to unlock. Please contact technical support to get help.", failedToUnlockProjects.toString()));
+		}
 	}
 
 	@Async

@@ -202,7 +202,7 @@ public class TaskService {
 		logger.info("{} task state notification queues configured {}", taskStateChangeNotificationQueues.size(), taskStateChangeNotificationQueues);
 	}
 
-	public List<AuthoringProject> listProjects(Boolean lightweight) throws JiraException, BusinessServiceException {
+	public List<AuthoringProject> listProjects(Boolean lightweight) throws JiraException {
 		final TimerUtil timer = new TimerUtil("ProjectsList");
 		List<Issue> projectTickets = new ArrayList<>();
 		// Search for authoring project tickets this user has visibility of
@@ -256,7 +256,47 @@ public class TaskService {
 		}
 	}
 
-	private List<AuthoringProject> buildAuthoringProjects(List<Issue> projectTickets, boolean lightweight) throws BusinessServiceException {
+	public void lockProject(String projectKey) throws BusinessServiceException {
+		Issue issue;
+		try {
+			issue = jiraClientFactory.getAdminInstance().getIssue(projectKey);
+		} catch (JiraException e) {
+			throw new BusinessServiceException("Failed to retrieve JIRA issue with key " + projectKey, e);
+		}
+		if (issue != null) {
+			try {
+				final Issue.FluentUpdate updateRequest = issue.update();
+				updateRequest.field(jiraProjectPromotionField, "true");
+				updateRequest.field(jiraProjectRebaseField, "true");
+
+				updateRequest.execute();
+			} catch (JiraException e) {
+				throw new BusinessServiceException("Failed to update issue with key " + projectKey);
+			}
+		}
+	}
+
+	public void unlockProject(String projectKey) throws BusinessServiceException {
+		Issue issue;
+		try {
+			issue = jiraClientFactory.getAdminInstance().getIssue(projectKey);
+		} catch (JiraException e) {
+			throw new BusinessServiceException("Failed to retrieve JIRA issue with key " + projectKey, e);
+		}
+		if (issue != null) {
+			try {
+				final Issue.FluentUpdate updateRequest = issue.update();
+				updateRequest.field(jiraProjectPromotionField, "false");
+				updateRequest.field(jiraProjectRebaseField, "false");
+
+				updateRequest.execute();
+			} catch (JiraException e) {
+				throw new BusinessServiceException("Failed to update issue with key " + projectKey, e);
+			}
+		}
+	}
+
+	private List<AuthoringProject> buildAuthoringProjects(List<Issue> projectTickets, boolean lightweight) {
 		if (projectTickets.isEmpty()) {
 			return new ArrayList<>();
 		}

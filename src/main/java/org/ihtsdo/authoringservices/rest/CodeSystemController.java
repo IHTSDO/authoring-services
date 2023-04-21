@@ -1,6 +1,7 @@
 package org.ihtsdo.authoringservices.rest;
 
 import io.swagger.annotations.*;
+import net.rcarz.jiraclient.JiraException;
 import org.ihtsdo.authoringservices.domain.AuthoringCodeSystem;
 import org.ihtsdo.authoringservices.service.CodeSystemService;
 import org.ihtsdo.authoringservices.service.DailyBuildService;
@@ -87,5 +88,19 @@ public class CodeSystemController {
 		} else {
 			response.setStatus(HttpServletResponse.SC_NOT_FOUND);
 		}
+	}
+
+	@ApiOperation(value = "Lock all projects for a given code system")
+	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
+	@PostMapping(value = "/{shortName}/projects/lock")
+	public void lockProjects(@PathVariable final String shortName, final HttpServletResponse response) throws BusinessServiceException, JiraException {
+		codeSystemService.lockProjects(shortName);
+	}
+
+	@ApiOperation(value = "Unlock all projects for a given code system")
+	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
+	@PostMapping(value = "/{shortName}/projects/unlock")
+	public void unlockProjects(@PathVariable final String shortName, final HttpServletResponse response) throws BusinessServiceException, JiraException {
+		codeSystemService.unlockProjects(shortName);
 	}
 }
