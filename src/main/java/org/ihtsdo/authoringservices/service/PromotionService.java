@@ -162,7 +162,11 @@ public class PromotionService {
 		});
 	}
 
-	public void doProjectPromotion(String projectKey, MergeRequest mergeRequest) {
+	public void doProjectPromotion(String projectKey, MergeRequest mergeRequest) throws BusinessServiceException {
+		AuthoringProject project = taskService.retrieveProject(projectKey, true);
+		if (project.isProjectPromotionDisabled() || project.isProjectLocked()) {
+			throw new BusinessServiceException("Project promotion is disabled");
+		}
 		final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		ProcessStatus projectProcessStatus = new ProcessStatus();
 		executorService.submit(() -> {
