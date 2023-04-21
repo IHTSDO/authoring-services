@@ -19,6 +19,7 @@ public class AuthoringProject {
 	private Long branchHeadTimestamp;
 	private Long branchBaseTimestamp;
 	private boolean projectPromotionDisabled;
+	private boolean projectLocked;
 	private boolean projectRebaseDisabled;
 	private boolean projectMrcmDisabled;
 	private boolean projectTemplatesDisabled;
@@ -35,7 +36,8 @@ public class AuthoringProject {
 							String latestClassificationJson, boolean projectPromotionDisabled,
 							boolean projectMrcmDisabled, boolean projectTemplatesDisabled, boolean projectSpellCheckDisabled, boolean projectRebaseDisabled,
 							boolean projectScheduledRebaseDisabled,
-							boolean taskPromotionDisabled) {
+							boolean taskPromotionDisabled,
+							boolean projectLocked) {
 		this.key = key;
 		this.title = title;
 		this.projectLead = leadUser;
@@ -51,6 +53,7 @@ public class AuthoringProject {
 		this.projectRebaseDisabled = projectRebaseDisabled;
 		this.projectScheduledRebaseDisabled = projectScheduledRebaseDisabled;
 		this.taskPromotionDisabled = taskPromotionDisabled;
+		this.projectLocked = projectLocked;
 	}
 
 	public String getKey() {
@@ -165,6 +168,10 @@ public class AuthoringProject {
 
 	public void setTaskPromotionDisabled(boolean taskPromotionDisabled) {
 		this.taskPromotionDisabled = taskPromotionDisabled;
+	}
+
+	public boolean isProjectLocked() {
+		return projectLocked;
 	}
 
 	public void setCodeSystem(CodeSystem codeSystem) {

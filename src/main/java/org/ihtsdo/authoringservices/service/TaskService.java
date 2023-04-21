@@ -56,6 +56,7 @@ import java.util.stream.Collectors;
 
 public class TaskService {
 
+	public static final String JIRA_PROJECT_SUFFIX = "-1";
 	private static final String ENABLED_TEXT = "Enabled";
 
 	private static final String DISABLED_TEXT = "Disabled";
@@ -105,6 +106,7 @@ public class TaskService {
 	private final String jiraExtensionBaseField;
 	private final String jiraProductCodeField;
 	private final String jiraProjectPromotionField;
+	private final String jiraProjectLockedField;
 	private final String jiraTaskPromotionField;
 	private final String jiraProjectRebaseField;
 	private final String jiraProjectScheduledRebaseField;
@@ -136,6 +138,7 @@ public class TaskService {
 			jiraExtensionBaseField = JiraHelper.fieldIdLookup("Extension Base", jiraClientForFieldLookup, projectJiraFetchFields);
 			jiraProductCodeField = JiraHelper.fieldIdLookup("Product Code", jiraClientForFieldLookup, projectJiraFetchFields);
 			jiraProjectPromotionField = JiraHelper.fieldIdLookup("SCA Project Promotion", jiraClientForFieldLookup, projectJiraFetchFields);
+			jiraProjectLockedField = JiraHelper.fieldIdLookup("SCA Project Locked", jiraClientForFieldLookup, projectJiraFetchFields);
 			jiraTaskPromotionField = JiraHelper.fieldIdLookup("SCA Task Promotion", jiraClientForFieldLookup, projectJiraFetchFields);
 			jiraProjectRebaseField = JiraHelper.fieldIdLookup("SCA Project Rebase", jiraClientForFieldLookup, projectJiraFetchFields);
 			jiraProjectScheduledRebaseField = JiraHelper.fieldIdLookup("SCA Project Scheduled Rebase", jiraClientForFieldLookup, projectJiraFetchFields);
@@ -152,6 +155,7 @@ public class TaskService {
 			jiraExtensionBaseField = null;
 			jiraProductCodeField = null;
 			jiraProjectPromotionField = null;
+			jiraProjectLockedField = null;
 			jiraTaskPromotionField = null;
 			jiraProjectRebaseField = null;
 			jiraProjectScheduledRebaseField = null;
@@ -259,19 +263,22 @@ public class TaskService {
 	public void lockProject(String projectKey) throws BusinessServiceException {
 		Issue issue;
 		try {
-			issue = jiraClientFactory.getAdminInstance().getIssue(projectKey);
+			issue = jiraClientFactory.getAdminInstance().getIssue(projectKey + JIRA_PROJECT_SUFFIX);
 		} catch (JiraException e) {
 			throw new BusinessServiceException("Failed to retrieve JIRA issue with key " + projectKey, e);
 		}
 		if (issue != null) {
 			try {
+				JSONObject updateObj = new JSONObject();
+				updateObj.put("value", ENABLED_TEXT);
+
 				final Issue.FluentUpdate updateRequest = issue.update();
-				updateRequest.field(jiraProjectPromotionField, "true");
-				updateRequest.field(jiraProjectRebaseField, "true");
+				updateRequest.field(jiraProjectLockedField, updateObj);
 
 				updateRequest.execute();
 			} catch (JiraException e) {
-				throw new BusinessServiceException("Failed to update issue with key " + projectKey);
+				logger.error("Failed to update issue with key " + (projectKey + JIRA_PROJECT_SUFFIX), e);
+				throw new BusinessServiceException("Failed to update issue with key " + (projectKey + JIRA_PROJECT_SUFFIX));
 			}
 		}
 	}
@@ -279,19 +286,22 @@ public class TaskService {
 	public void unlockProject(String projectKey) throws BusinessServiceException {
 		Issue issue;
 		try {
-			issue = jiraClientFactory.getAdminInstance().getIssue(projectKey);
+			issue = jiraClientFactory.getAdminInstance().getIssue(projectKey + JIRA_PROJECT_SUFFIX);
 		} catch (JiraException e) {
 			throw new BusinessServiceException("Failed to retrieve JIRA issue with key " + projectKey, e);
 		}
 		if (issue != null) {
 			try {
+				JSONObject updateObj = new JSONObject();
+				updateObj.put("value", DISABLED_TEXT);
+
 				final Issue.FluentUpdate updateRequest = issue.update();
-				updateRequest.field(jiraProjectPromotionField, "false");
-				updateRequest.field(jiraProjectRebaseField, "false");
+				updateRequest.field(jiraProjectLockedField, updateObj);
 
 				updateRequest.execute();
 			} catch (JiraException e) {
-				throw new BusinessServiceException("Failed to update issue with key " + projectKey, e);
+				logger.error("Failed to update issue with key " + (projectKey + JIRA_PROJECT_SUFFIX), e);
+				throw new BusinessServiceException("Failed to update issue with key " + (projectKey + JIRA_PROJECT_SUFFIX), e);
 			}
 		}
 	}
@@ -324,6 +334,7 @@ public class TaskService {
 				}
 				
 				final boolean promotionDisabled = DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectPromotionField)));
+				final boolean projectLocked = !DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectLockedField)));
 				final boolean taskPromotionDisabled = DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraTaskPromotionField)));
 				final boolean rebaseDisabled = DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectRebaseField)));
 				final boolean scheduledRebaseDisabled = DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectScheduledRebaseField)));
@@ -368,7 +379,7 @@ public class TaskService {
 				Map<String, JiraProject> projectMap = unfilteredProjects.get();
 				JiraProject project = projectMap.get(projectKey);
 				final AuthoringProject authoringProject = new AuthoringProject(projectKey, project.getName(),
-						project.getLead(), branchPath, branchState, baseTimeStamp, headTimeStamp, latestClassificationJson, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled, rebaseDisabled, scheduledRebaseDisabled, taskPromotionDisabled);
+						project.getLead(), branchPath, branchState, baseTimeStamp, headTimeStamp, latestClassificationJson, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled, rebaseDisabled, scheduledRebaseDisabled, taskPromotionDisabled, projectLocked);
 				authoringProject.setMetadata(metadata);
 				authoringProject.setCodeSystem(codeSystem);
 				synchronized (authoringProjects) {
