@@ -237,4 +237,18 @@ public class ProjectController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
+	@ApiOperation(value = "Lock project")
+	@ApiResponse(code = 200, message = "OK")
+	@PostMapping(value = "/projects/{projectKey}/lock")
+	public void lockProjects(@PathVariable final String projectKey) throws BusinessServiceException {
+		taskService.lockProject(projectKey);
+	}
+
+	@ApiOperation(value = "Unlock project")
+	@ApiResponse(code = 200, message = "OK")
+	@PostMapping(value = "/projects/{projectKey}/unlock")
+	public void unlockProjects(@PathVariable final String projectKey) throws BusinessServiceException {
+		taskService.unlockProject(projectKey);
+	}
+
 }
