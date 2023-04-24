@@ -263,7 +263,7 @@ public class TaskService {
 	public void lockProject(String projectKey) throws BusinessServiceException {
 		Issue issue;
 		try {
-			issue = jiraClientFactory.getAdminInstance().getIssue(projectKey + JIRA_PROJECT_SUFFIX);
+			issue = getJiraClient().getIssue(projectKey + JIRA_PROJECT_SUFFIX);
 		} catch (JiraException e) {
 			throw new BusinessServiceException("Failed to retrieve JIRA issue with key " + projectKey, e);
 		}
@@ -286,7 +286,7 @@ public class TaskService {
 	public void unlockProject(String projectKey) throws BusinessServiceException {
 		Issue issue;
 		try {
-			issue = jiraClientFactory.getAdminInstance().getIssue(projectKey + JIRA_PROJECT_SUFFIX);
+			issue = getJiraClient().getIssue(projectKey + JIRA_PROJECT_SUFFIX);
 		} catch (JiraException e) {
 			throw new BusinessServiceException("Failed to retrieve JIRA issue with key " + projectKey, e);
 		}
