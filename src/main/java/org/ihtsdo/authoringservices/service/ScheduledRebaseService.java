@@ -69,7 +69,9 @@ public class ScheduledRebaseService {
 			loginToIMSAndSetSecurityContext();
 			logger.info("Starting scheduled rebase for all configured projects.");
 			List<AuthoringProject> projects = taskService.listProjects(false);
-			projects = projects.stream().filter(project -> !Boolean.TRUE.equals(project.isProjectScheduledRebaseDisabled())).collect(Collectors.toList());
+			projects = projects.stream().filter(project -> !Boolean.TRUE.equals(project.isProjectScheduledRebaseDisabled())
+														&& !Boolean.TRUE.equals(project.isProjectRebaseDisabled()))
+										.collect(Collectors.toList());
 			for (AuthoringProject project : projects) {
 				logger.info("Performing scheduled rebase of project " + project.getKey() + ".");
 				if (project.getBranchState() == null || BranchState.UP_TO_DATE.name().equals(project.getBranchState())

@@ -118,6 +118,11 @@ public class PromotionService {
 	}
 
 	public void doTaskPromotion(String projectKey, String taskKey, MergeRequest mergeRequest) throws BusinessServiceException {
+		AuthoringProject project = taskService.retrieveProject(projectKey, true);
+		if (Boolean.TRUE.equals(project.isTaskPromotionDisabled())) {
+			throw new BusinessServiceException("Task promotion is disabled");
+		}
+
 		String taskBranchPath = taskService.getTaskBranchPathUsingCache(projectKey, taskKey);
 		final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		ProcessStatus taskProcessStatus = new ProcessStatus();
@@ -216,6 +221,13 @@ public class PromotionService {
 	private synchronized void doAutomateTaskPromotion(String projectKey, String taskKey, Authentication authentication){
 		SecurityContextHolder.getContext().setAuthentication(authentication);
 		try {
+			AuthoringProject project = taskService.retrieveProject(projectKey, true);
+			if (Boolean.TRUE.equals(project.isTaskPromotionDisabled())) {
+				ProcessStatus status = new ProcessStatus("Failed", "Task promotion is disabled");
+				automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
+				logger.error("Task promotion is disabled");
+				return;
+			}
 
 			// Call rebase process
 			String rebaseStatus = this.autoRebaseTask(projectKey, taskKey);
