@@ -86,7 +86,7 @@ public class RebaseService {
 	
 	public void doProjectRebase(String projectKey) throws BusinessServiceException {
 		AuthoringProject project = taskService.retrieveProject(projectKey, true);
-		if (project.isProjectRebaseDisabled() || project.isProjectLocked()) {
+		if (Boolean.TRUE.equals(project.isProjectRebaseDisabled())|| Boolean.TRUE.equals(project.isProjectLocked())) {
 			throw new BusinessServiceException("Project rebase is disabled");
 		}
 

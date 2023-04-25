@@ -164,7 +164,7 @@ public class PromotionService {
 
 	public void doProjectPromotion(String projectKey, MergeRequest mergeRequest) throws BusinessServiceException {
 		AuthoringProject project = taskService.retrieveProject(projectKey, true);
-		if (project.isProjectPromotionDisabled() || project.isProjectLocked()) {
+		if (Boolean.TRUE.equals(project.isProjectPromotionDisabled()) || Boolean.TRUE.equals(project.isProjectLocked())) {
 			throw new BusinessServiceException("Project promotion is disabled");
 		}
 		final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

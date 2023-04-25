@@ -894,58 +894,59 @@ public class TaskService {
 	}
 
 	public AuthoringProject updateProject(String projectKey, AuthoringProject updatedProject) throws BusinessServiceException {
-		try {
-			List<Issue> issues = Collections.singletonList(getProjectTicketOrThrow(projectKey));
-			if (issues.size() == 0) {
-				throw new BusinessServiceException ("Failed to recover project: " + projectKey);
-			}
-			Issue project = issues.get(0);
-			
-			
-			// For some reason, it's not possible to update some custom fields in type of 
-			// - Radio button
-			// - Checkbox
-			// - Select List
-			// by using Jira Client. So we have to use REST api to update those fields manually.
-			final Boolean projectScheduledRebaseDisabled = updatedProject.isProjectScheduledRebaseDisabled();
-			if (projectScheduledRebaseDisabled != null) {
-				JSONObject obj = (JSONObject) project.getField(jiraProjectScheduledRebaseField);
-				String oldVal = obj.getString("value");
-				boolean changed = (oldVal.equals(ENABLED_TEXT) && projectScheduledRebaseDisabled) || (oldVal.equals(DISABLED_TEXT) && !projectScheduledRebaseDisabled);
-				if (changed) {
-					/*if(!project.getReporter().getName().equals(getUsername())) {
-						throw new BusinessServiceException ("No permisson to turn on/off automatic rebase.");
-					}*/
-					
-					JSONObject updateObj = new JSONObject();
-					updateObj.put("value", projectScheduledRebaseDisabled ? DISABLED_TEXT : ENABLED_TEXT);
-					
-					JSONObject fieldmap = new JSONObject();
-					fieldmap.put(jiraProjectScheduledRebaseField, updateObj);
-					
-					JSONObject req = new JSONObject();
-					req.put("fields", fieldmap);
-					try {
-						RestClient restclient = getJiraClient().getRestClient();
-						URI uri = new URI(project.getSelf());
-						restclient.put(uri, req);
-					} catch (RestException | IOException | URISyntaxException e) {
-						throw new BusinessServiceException("Failed to update SCA Project Scheduled Rebase.", e);
-					}
-				}
-			}
-			
-			// TO DO
-			// Remove the follow-ng block of code if there is further implementation
-			final Issue.FluentUpdate updateRequest = project.update();
-			boolean fieldUpdates = false;
-			if (fieldUpdates) {
-				updateRequest.execute();
-			}
-		} catch (JiraException e) {
-			throw new BusinessServiceException("Failed to update project.", e);
+		List<Issue> issues = Collections.singletonList(getProjectTicketOrThrow(projectKey));
+		if (issues.size() == 0) {
+			throw new BusinessServiceException ("Failed to recover project: " + projectKey);
 		}
-		
+		Issue project = issues.get(0);
+
+
+		// For some reason, it's not possible to update some custom fields in type of
+		// - Radio button
+		// - Checkbox
+		// - Select List
+		// by using Jira Client. So we have to use REST api to update those fields manually.
+
+		boolean changed = false;
+		JSONObject fieldmap = new JSONObject();
+		final Boolean projectScheduledRebaseDisabled = updatedProject.isProjectScheduledRebaseDisabled();
+		if (projectScheduledRebaseDisabled != null) {
+			String projectScheduledRebaseFieldOldVal =  JiraHelper.toStringOrNull(project.getField(jiraProjectScheduledRebaseField));
+			if ((projectScheduledRebaseFieldOldVal == null && projectScheduledRebaseDisabled != null)
+				|| (projectScheduledRebaseFieldOldVal.equals(ENABLED_TEXT) && projectScheduledRebaseDisabled)
+				|| (projectScheduledRebaseFieldOldVal.equals(DISABLED_TEXT) && !projectScheduledRebaseDisabled)) {
+				JSONObject updateObj = new JSONObject();
+				updateObj.put("value", Boolean.TRUE.equals(projectScheduledRebaseDisabled) ? DISABLED_TEXT : ENABLED_TEXT);
+				fieldmap.put(jiraProjectScheduledRebaseField, updateObj);
+				changed = true;
+			}
+
+		}
+
+		final Boolean taskPromotionDisabled = updatedProject.isTaskPromotionDisabled();
+		if (taskPromotionDisabled != null) {
+			String taskPromotionFieldOldVal = JiraHelper.toStringOrNull(project.getField(jiraTaskPromotionField));
+			if ((taskPromotionFieldOldVal == null && taskPromotionDisabled != null)
+				|| (taskPromotionFieldOldVal.equals(ENABLED_TEXT) && taskPromotionDisabled)
+				|| (taskPromotionFieldOldVal.equals(DISABLED_TEXT) && !taskPromotionDisabled)) {
+				JSONObject updateObj = new JSONObject();
+				updateObj.put("value", Boolean.TRUE.equals(taskPromotionDisabled) ? DISABLED_TEXT : ENABLED_TEXT);
+				fieldmap.put(jiraTaskPromotionField, updateObj);
+				changed = true;
+			}
+		}
+		if (changed) {
+			JSONObject req = new JSONObject();
+			req.put("fields", fieldmap);
+			try {
+				RestClient restclient = getJiraClient().getRestClient();
+				URI uri = new URI(project.getSelf());
+				restclient.put(uri, req);
+			} catch (RestException | IOException | URISyntaxException e) {
+				throw new BusinessServiceException("Failed to update SCA Project Scheduled Rebase.", e);
+			}
+		}
+
 		return retrieveProject(projectKey);
 	}
 
