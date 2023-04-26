@@ -70,7 +70,8 @@ public class ScheduledRebaseService {
 			logger.info("Starting scheduled rebase for all configured projects.");
 			List<AuthoringProject> projects = taskService.listProjects(false);
 			projects = projects.stream().filter(project -> !Boolean.TRUE.equals(project.isProjectScheduledRebaseDisabled())
-														&& !Boolean.TRUE.equals(project.isProjectRebaseDisabled()))
+														&& !Boolean.TRUE.equals(project.isProjectRebaseDisabled())
+														&& !Boolean.TRUE.equals(project.isProjectLocked()))
 										.collect(Collectors.toList());
 			for (AuthoringProject project : projects) {
 				logger.info("Performing scheduled rebase of project " + project.getKey() + ".");
@@ -101,14 +102,14 @@ public class ScheduledRebaseService {
 							logger.info(mergeReviewResult.size() + " conflicts found for project " + project.getKey() + " , skipping rebase.");
 						}
 
-					} catch (BusinessServiceException e) {
-						logger.info("Rebase of project " + project.getKey() + " failed. Error message: " + e.getMessage());
+					} catch (Exception e) {
+						logger.error("Rebase of project " + project.getKey() + " failed. Error message: " + e.getMessage(), e);
 					}
 				}
 			}
 
 			logger.info("Scheduled rebase complete.");
-		} catch (IOException | URISyntaxException | RestClientException | InterruptedException | JiraException e) {
+		} catch (IOException | URISyntaxException | RestClientException | JiraException e) {
 			throw new BusinessServiceException("Error while rebasing projects", e);
 		} finally {
 			cronJobRunning = false;
