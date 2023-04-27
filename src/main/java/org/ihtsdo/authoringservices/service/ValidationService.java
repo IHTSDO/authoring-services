@@ -279,7 +279,7 @@ public class ValidationService {
 
 		validationConfig.setEnableMRCMValidation(enableMRCM);
 		validationConfig.setEnableTraceabilityValidation(!"true".equalsIgnoreCase((String) branchMetadata.get(DISABLE_TRACEABILITY_VALIDATION)));
-		validationConfig.setEnableDroolsValidation("true".equalsIgnoreCase((String) branchMetadata.get(ENABLE_DROOLS_VALIDATION)));
+		validationConfig.setEnableDroolsValidation(branchMetadata.get(ENABLE_DROOLS_VALIDATION) == null || "true".equalsIgnoreCase((String) branchMetadata.get(ENABLE_DROOLS_VALIDATION)));
 		String dependencyRelease = (String) branchMetadata.get(DEPENDENCY_RELEASE);
 		if (dependencyRelease != null) {
 			validationConfig.setReleaseCenter((String) branchMetadata.get(SHORT_NAME));
