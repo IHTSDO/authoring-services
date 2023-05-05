@@ -18,12 +18,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -40,6 +43,9 @@ public class CodeSystemService {
 	private static final String DEFAULT_ISSUE_TYPE = "Service Request";
 	private static final String SHARED = "SHARED";
 	private static final String UPGRADE_JOB_PANEL_ID = "code-system-upgrade-job";
+
+	@Value("${email.link.platform.url}")
+	private String platformUrl;
 
 	@Autowired
 	private SnowstormRestClientFactory snowstormRestClientFactory;
@@ -217,6 +223,7 @@ public class CodeSystemService {
 		result.append("This ticket has been automatically generated as the NRC has upgraded their extension to a new release.").append("\n").append("\n");
 		result.append("Author: ").append(getUsername()).append("\n")
 				.append("New version: ").append(newDependantVersion).append("\n")
+				.append("Environment: ").append(getEnvironment()).append("\n")
 				.append("Branch Path: ").append(codeSystem.getBranchPath()).append("\n");
 
 		if (COMPLETED.equals(codeSystemUpgradeJob.getStatus())) {
@@ -257,6 +264,19 @@ public class CodeSystemService {
 
 	private String getUsername() {
 		return SecurityUtil.getUsername();
+	}
+
+	private String getEnvironment() {
+		URI uri;
+		try {
+			uri = new URI(platformUrl);
+		} catch (URISyntaxException e) {
+			logger.error("Failed to detect environment", e);
+			return null;
+		}
+		String domain = uri.getHost();
+		domain = domain.startsWith("www.") ? domain.substring(4) : domain;
+		return (domain.contains("-") ? domain.substring(0, domain.lastIndexOf("-")) : domain.substring(0, domain.indexOf("."))).toUpperCase();
 	}
 
 	private List<AuthoringCodeSystem> buildAuthoringCodeSystems(List<CodeSystem> codeSystems) throws BusinessServiceException {
