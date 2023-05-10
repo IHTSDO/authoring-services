@@ -4,8 +4,9 @@ import net.rcarz.jiraclient.Field;
 import net.rcarz.jiraclient.Issue;
 import net.rcarz.jiraclient.JiraClient;
 import net.rcarz.jiraclient.JiraException;
-import org.ihtsdo.authoringservices.domain.AuthoringTask;
-import org.ihtsdo.authoringservices.domain.AuthoringTaskCreateRequest;
+import org.ihtsdo.authoringservices.domain.*;
+import org.ihtsdo.authoringservices.entity.Validation;
+import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.authoringservices.service.jira.ImpersonatingJiraClientFactory;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
@@ -17,18 +18,24 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import static org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystemUpgradeJob.UpgradeStatus.*;
 
 @Service
-public class CodeSystemUpgradeService {
+public class CodeSystemService {
 
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 
@@ -36,6 +43,9 @@ public class CodeSystemUpgradeService {
 	private static final String DEFAULT_ISSUE_TYPE = "Service Request";
 	private static final String SHARED = "SHARED";
 	private static final String UPGRADE_JOB_PANEL_ID = "code-system-upgrade-job";
+
+	@Value("${email.link.platform.url}")
+	private String platformUrl;
 
 	@Autowired
 	private SnowstormRestClientFactory snowstormRestClientFactory;
@@ -50,8 +60,19 @@ public class CodeSystemUpgradeService {
 	private  BranchService branchService;
 
 	@Autowired
+	private SnowstormClassificationClient classificationService;
+
+	@Autowired
+	private ValidationService validationService;
+
+	@Autowired
 	@Qualifier("validationTicketOAuthJiraClient")
 	private ImpersonatingJiraClientFactory jiraClientFactory;
+
+	public List<AuthoringCodeSystem> findAll() throws BusinessServiceException {
+		List<CodeSystem> codeSystems = snowstormRestClientFactory.getClient().getCodeSystems();
+		return buildAuthoringCodeSystems(codeSystems);
+	}
 
 	public String upgrade(String shortName, Integer newDependantVersion) throws BusinessServiceException {
 		String location = snowstormRestClientFactory.getClient().upgradeCodeSystem(shortName, newDependantVersion, false);
@@ -60,6 +81,50 @@ public class CodeSystemUpgradeService {
 
 	public CodeSystemUpgradeJob getUpgradeJob(String jobId) throws RestClientException {
 		return snowstormRestClientFactory.getClient().getCodeSystemUpgradeJob(jobId);
+	}
+
+	public void lockProjects(String codeSystemShortame) throws BusinessServiceException, JiraException {
+		List<CodeSystem> codeSystems = snowstormRestClientFactory.getClient().getCodeSystems();
+		CodeSystem cs = codeSystems.stream().filter(item -> item.getShortName().equals(codeSystemShortame)).findAny().orElse(null);
+		if (cs == null) {
+			throw new BusinessServiceException("Code system with shortname " + codeSystemShortame + " not found");
+		}
+		List<AuthoringProject> projects = taskService.listProjects(true);
+		projects = projects.stream().filter(project -> project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/")).equals(cs.getBranchPath())).collect(Collectors.toList());
+		List<String> failedToLockProjects = new ArrayList<>();
+		for (AuthoringProject project : projects) {
+			try {
+				taskService.lockProject(project.getKey());
+			} catch (Exception e) {
+				logger.error("Failed to lock the project " + project.getKey(), e);
+				failedToLockProjects.add(project.getKey());
+			}
+		}
+		if (failedToLockProjects.size() != 0) {
+			throw new BusinessServiceException(String.format("The following projects %s failed to lock. Please contact technical support to get help", failedToLockProjects.toString()));
+		}
+	}
+
+	public void unlockProjects(String codeSystemShortame) throws BusinessServiceException, JiraException {
+		List<CodeSystem> codeSystems = snowstormRestClientFactory.getClient().getCodeSystems();
+		CodeSystem cs = codeSystems.stream().filter(item -> item.getShortName().equals(codeSystemShortame)).findAny().orElse(null);
+		if (cs == null) {
+			throw new BusinessServiceException("Code system with shortname " + codeSystemShortame + " not found");
+		}
+		List<AuthoringProject> projects = taskService.listProjects(true);
+		projects = projects.stream().filter(project -> project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/")).equals(cs.getBranchPath())).collect(Collectors.toList());
+		List<String> failedToUnlockProjects = new ArrayList<>();
+		for (AuthoringProject project : projects) {
+			try {
+				taskService.unlockProject(project.getKey());
+			} catch (Exception e) {
+				logger.error("Failed to unlock the project " + project.getKey(), e);
+				failedToUnlockProjects.add(project.getKey());
+			}
+		}
+		if (failedToUnlockProjects.size() != 0) {
+			throw new BusinessServiceException(String.format("The following projects %s failed to unlock. Please contact technical support to get help.", failedToUnlockProjects.toString()));
+		}
 	}
 
 	@Async
@@ -158,6 +223,7 @@ public class CodeSystemUpgradeService {
 		result.append("This ticket has been automatically generated as the NRC has upgraded their extension to a new release.").append("\n").append("\n");
 		result.append("Author: ").append(getUsername()).append("\n")
 				.append("New version: ").append(newDependantVersion).append("\n")
+				.append("Environment: ").append(getEnvironment()).append("\n")
 				.append("Branch Path: ").append(codeSystem.getBranchPath()).append("\n");
 
 		if (COMPLETED.equals(codeSystemUpgradeJob.getStatus())) {
@@ -198,5 +264,46 @@ public class CodeSystemUpgradeService {
 
 	private String getUsername() {
 		return SecurityUtil.getUsername();
+	}
+
+	private String getEnvironment() {
+		URI uri;
+		try {
+			uri = new URI(platformUrl);
+		} catch (URISyntaxException e) {
+			logger.error("Failed to detect environment", e);
+			return null;
+		}
+		String domain = uri.getHost();
+		domain = domain.startsWith("www.") ? domain.substring(4) : domain;
+		return (domain.contains("-") ? domain.substring(0, domain.lastIndexOf("-")) : domain.substring(0, domain.indexOf("."))).toUpperCase();
+	}
+
+	private List<AuthoringCodeSystem> buildAuthoringCodeSystems(List<CodeSystem> codeSystems) throws BusinessServiceException {
+		List<AuthoringCodeSystem> allCodeSystems = new ArrayList <>();
+		try {
+			for (CodeSystem codeSystem : codeSystems) {
+				AuthoringCodeSystem authoringCodeSystem = new AuthoringCodeSystem(codeSystem);
+				authoringCodeSystem.setLatestClassificationJson(classificationService.getLatestClassification(codeSystem.getBranchPath()));
+
+				Branch branch = branchService.getBranchOrNull(codeSystem.getBranchPath());
+				Validation validation = validationService.getValidation(codeSystem.getBranchPath());
+
+				if (validation != null) {
+					if (ValidationJobStatus.COMPLETED.name().equals(validation.getStatus())
+						&& validation.getContentHeadTimestamp() != null
+						&& branch.getHeadTimestamp() != validation.getContentHeadTimestamp().longValue()) {
+						authoringCodeSystem.setLatestValidationStatus(ValidationJobStatus.STALE.name());
+					} else {
+						authoringCodeSystem.setLatestValidationStatus(validation.getStatus());
+					}
+				}
+
+				allCodeSystems.add(authoringCodeSystem);
+			}
+		} catch (ExecutionException | RestClientException | ServiceException e) {
+			throw new BusinessServiceException("Failed to build code system list.", e);
+		}
+		return allCodeSystems;
 	}
 }

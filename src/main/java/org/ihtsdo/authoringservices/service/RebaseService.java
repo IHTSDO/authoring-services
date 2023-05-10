@@ -7,6 +7,7 @@ import java.util.concurrent.Executors;
 
 import javax.annotation.PreDestroy;
 
+import org.ihtsdo.authoringservices.domain.AuthoringProject;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ApiError;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Merge;
@@ -83,7 +84,12 @@ public class RebaseService {
 		});
 	}
 	
-	public void doProjectRebase(String projectKey) {
+	public void doProjectRebase(String projectKey) throws BusinessServiceException {
+		AuthoringProject project = taskService.retrieveProject(projectKey, true);
+		if (Boolean.TRUE.equals(project.isProjectRebaseDisabled())|| Boolean.TRUE.equals(project.isProjectLocked())) {
+			throw new BusinessServiceException("Project rebase is disabled");
+		}
+
 		final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		ProcessStatus projectProcessStatus = new ProcessStatus();
 		executorService.submit(() -> {

@@ -18,13 +18,14 @@ public class AuthoringProject {
 	private String validationStatus;
 	private Long branchHeadTimestamp;
 	private Long branchBaseTimestamp;
-	private boolean projectPromotionDisabled;
-	private boolean projectRebaseDisabled;
-	private boolean projectMrcmDisabled;
-	private boolean projectTemplatesDisabled;
-	private boolean projectSpellCheckDisabled;
-	private boolean projectScheduledRebaseDisabled;
-	private boolean taskPromotionDisabled;
+	private Boolean projectPromotionDisabled;
+	private Boolean projectLocked;
+	private Boolean projectRebaseDisabled;
+	private Boolean projectMrcmDisabled;
+	private Boolean projectTemplatesDisabled;
+	private Boolean projectSpellCheckDisabled;
+	private Boolean projectScheduledRebaseDisabled;
+	private Boolean taskPromotionDisabled;
 	private Map<String, Object> metadata;
 	private CodeSystem codeSystem;
 
@@ -35,7 +36,8 @@ public class AuthoringProject {
 							String latestClassificationJson, boolean projectPromotionDisabled,
 							boolean projectMrcmDisabled, boolean projectTemplatesDisabled, boolean projectSpellCheckDisabled, boolean projectRebaseDisabled,
 							boolean projectScheduledRebaseDisabled,
-							boolean taskPromotionDisabled) {
+							boolean taskPromotionDisabled,
+							boolean projectLocked) {
 		this.key = key;
 		this.title = title;
 		this.projectLead = leadUser;
@@ -51,6 +53,7 @@ public class AuthoringProject {
 		this.projectRebaseDisabled = projectRebaseDisabled;
 		this.projectScheduledRebaseDisabled = projectScheduledRebaseDisabled;
 		this.taskPromotionDisabled = taskPromotionDisabled;
+		this.projectLocked = projectLocked;
 	}
 
 	public String getKey() {
@@ -102,27 +105,27 @@ public class AuthoringProject {
 		return branchState;
 	}
 
-	public boolean isProjectPromotionDisabled() {
+	public Boolean isProjectPromotionDisabled() {
 		return projectPromotionDisabled;
 	}
 
-	public void setProjectPromotionDisabled(boolean projectPromotionDisabled) {
+	public void setProjectPromotionDisabled(Boolean projectPromotionDisabled) {
 		this.projectPromotionDisabled = projectPromotionDisabled;
 	}
 	
-	public boolean isProjectRebaseDisabled() {
+	public Boolean isProjectRebaseDisabled() {
 		return projectRebaseDisabled;
 	}
 
-	public void setProjectRebaseDisabled(boolean projectRebaseDisabled) {
+	public void setProjectRebaseDisabled(Boolean projectRebaseDisabled) {
 		this.projectRebaseDisabled = projectRebaseDisabled;
 	}
 
-	public boolean isProjectMrcmDisabled() {
+	public Boolean isProjectMrcmDisabled() {
 		return projectMrcmDisabled;
 	}
 
-	public void setProjectMrcmDisabled(boolean projectMrcmDisabled) {
+	public void setProjectMrcmDisabled(Boolean projectMrcmDisabled) {
 		this.projectMrcmDisabled = projectMrcmDisabled;
 	}
 
@@ -130,27 +133,27 @@ public class AuthoringProject {
 		return metadata;
 	}
 
-	public boolean isProjectTemplatesDisabled() {
+	public Boolean isProjectTemplatesDisabled() {
 		return projectTemplatesDisabled;
 	}
 
-	public void setProjectTemplatesDisabled(boolean projectTemplatesDisabled) {
+	public void setProjectTemplatesDisabled(Boolean projectTemplatesDisabled) {
 		this.projectTemplatesDisabled = projectTemplatesDisabled;
 	}
 
-	public boolean isProjectSpellCheckDisabled() {
+	public Boolean isProjectSpellCheckDisabled() {
 		return projectSpellCheckDisabled;
 	}
 
-	public boolean isProjectScheduledRebaseDisabled() {
+	public Boolean isProjectScheduledRebaseDisabled() {
 		return projectScheduledRebaseDisabled;
 	}
 
-	public void setProjectScheduledRebaseDisabled(boolean projectScheduledRebaseDisabled) {
+	public void setProjectScheduledRebaseDisabled(Boolean projectScheduledRebaseDisabled) {
 		this.projectScheduledRebaseDisabled = projectScheduledRebaseDisabled;
 	}
 
-	public void setProjectSpellCheckDisabled(boolean projectSpellCheckDisabled) {
+	public void setProjectSpellCheckDisabled(Boolean projectSpellCheckDisabled) {
 		this.projectSpellCheckDisabled = projectSpellCheckDisabled;
 	}
 
@@ -159,12 +162,16 @@ public class AuthoringProject {
 	}
 
 
-	public boolean isTaskPromotionDisabled() {
+	public Boolean isTaskPromotionDisabled() {
 		return taskPromotionDisabled;
 	}
 
-	public void setTaskPromotionDisabled(boolean taskPromotionDisabled) {
+	public void setTaskPromotionDisabled(Boolean taskPromotionDisabled) {
 		this.taskPromotionDisabled = taskPromotionDisabled;
+	}
+
+	public Boolean isProjectLocked() {
+		return projectLocked;
 	}
 
 	public void setCodeSystem(CodeSystem codeSystem) {

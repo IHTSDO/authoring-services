@@ -55,7 +55,7 @@ public class ProjectController {
 	@ApiOperation(value="Rebase an authoring Project")
 	@ApiResponse(code = 200, message = "OK")
 	@RequestMapping(value="/projects/{projectKey}/rebase", method= RequestMethod.POST)
-	public ResponseEntity<String> rebaseProject(@PathVariable final String projectKey) {
+	public ResponseEntity<String> rebaseProject(@PathVariable final String projectKey) throws BusinessServiceException {
 		ProcessStatus processStatus = rebaseService.getProjectRebaseStatus(requiredParam(projectKey, PROJECT_KEY));
 		if (processStatus == null || !processStatus.getStatus().equals("Rebasing")) {
 			rebaseService.doProjectRebase(projectKey);
@@ -73,7 +73,7 @@ public class ProjectController {
 	@ApiOperation(value="Promote an authoring Project")
 	@ApiResponse(code = 200, message = "OK")
 	@RequestMapping(value="/projects/{projectKey}/promote", method= RequestMethod.POST)
-	public ResponseEntity<String> promoteProject(@PathVariable final String projectKey, @RequestBody MergeRequest mergeRequest) {
+	public ResponseEntity<String> promoteProject(@PathVariable final String projectKey, @RequestBody MergeRequest mergeRequest) throws BusinessServiceException {
 		ProcessStatus  processStatus = promotionService.getProjectPromotionStatus(requiredParam(projectKey, PROJECT_KEY));
 		if (processStatus == null || !processStatus.getStatus().equals("Rebasing")) {
 			promotionService.doProjectPromotion(projectKey, mergeRequest);
@@ -235,6 +235,20 @@ public class ProjectController {
 	public ResponseEntity<String> autoRebaseProjects() throws BusinessServiceException {
 		scheduledRebaseService.rebaseProjectsManualTrigger();
 		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	@ApiOperation(value = "Lock project")
+	@ApiResponse(code = 200, message = "OK")
+	@PostMapping(value = "/projects/{projectKey}/lock")
+	public void lockProjects(@PathVariable final String projectKey) throws BusinessServiceException {
+		taskService.lockProject(projectKey);
+	}
+
+	@ApiOperation(value = "Unlock project")
+	@ApiResponse(code = 200, message = "OK")
+	@PostMapping(value = "/projects/{projectKey}/unlock")
+	public void unlockProjects(@PathVariable final String projectKey) throws BusinessServiceException {
+		taskService.unlockProject(projectKey);
 	}
 
 }
