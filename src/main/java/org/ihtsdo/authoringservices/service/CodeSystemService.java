@@ -75,7 +75,7 @@ public class CodeSystemService {
 	}
 
 	public String upgrade(String shortName, Integer newDependantVersion) throws BusinessServiceException {
-		String location = snowstormRestClientFactory.getClient().upgradeCodeSystem(shortName, newDependantVersion, false);
+		String location = snowstormRestClientFactory.getClient().upgradeCodeSystem(shortName, newDependantVersion, true);
 		return location.substring(location.lastIndexOf("/") + 1);
 	}
 
