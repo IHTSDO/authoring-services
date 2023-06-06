@@ -245,9 +245,10 @@ public class CodeSystemService {
 		result.append("\n");
 		result.append("Please follow the steps below:").append("\n");
 		result.append("1. Check the Status above is 'COMPLETED' and action any integrity failures accordingly.").append("\n");
-		result.append("Only proceed If there are no integrity failures/any failures have been resolved - Disable the Daily Build until the integrity failures are resolved by the NRC.").append("\n");
-		result.append("2. Reconfigure the extension daily build.").append("\n");
-		result.append("3. Run the Multiple Modules Axioms Report on the Extension flagging any results within the report to the NRC to be fixed.");
+		result.append("Only proceed with the steps below if there are no integrity failures/any failures have been resolved - Disable the Daily Build until the integrity failures are resolved.").append("\n");
+		result.append("2. Check if this extension requires the en_GB import, if so, the en_GB import needs to be run manually. The NRC need to review and promote this en_GB import task before continuing. If the import is not required, continue to the next step.").append("\n");
+		result.append("3. Reconfigure the extension Daily Build.").append("\n");
+		result.append("4. Run the Multiple Modules Axioms Report on the Extension flagging any results within the report to the NRC to be fixed.");
 
 		return result.toString();
 	}
