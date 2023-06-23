@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import us.monoid.json.JSONException;
 
 import javax.jms.JMSException;
+import javax.jms.TextMessage;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -61,10 +62,10 @@ public class SnowstormClassificationClient {
 		logger.info("Cleared Classification cache for branch {}.", branchPath);
 	}
 
-	@JmsListener(destination = "${classification-service.message.status.destination}", containerFactory = "topicJmsListenerContainerFactory")
-	void messageConsumer(String content) throws JMSException, JsonProcessingException {
+	@JmsListener(destination = "${classification.status.queue}")
+	void messageConsumer(TextMessage statusResponseMessage) throws JMSException, JsonProcessingException {
 		try {
-			ClassificationStatusResponse response = objectMapper.readValue(content, ClassificationStatusResponse.class);
+			ClassificationStatusResponse response = objectMapper.readValue(statusResponseMessage.getText(), ClassificationStatusResponse.class);
 			if (classificationRequests.containsKey(response.getId())) {
 				if (!ClassificationStatus.RUNNING.equals(response.getStatus())
 					&& !ClassificationStatus.SCHEDULED.equals(response.getStatus())
@@ -74,7 +75,7 @@ public class SnowstormClassificationClient {
 				}
 			}
 		} catch (JsonParseException | JsonMappingException e) {
-			logger.error("Failed to parse message. Message: {}.", content);
+			logger.error("Failed to parse message. Message: {}.", statusResponseMessage.getText());
 		}
 	}
 
