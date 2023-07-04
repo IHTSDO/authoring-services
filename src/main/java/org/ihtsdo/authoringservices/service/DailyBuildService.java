@@ -20,6 +20,7 @@ public class DailyBuildService {
 
 	public static final String SEPARATOR = "/";
 	public static final String ZIP_FILE_EXTENSION = ".zip";
+	private static final String SNAPSHOTS_FOLDER = "SNAPSHOTS";
 
 	private FileHelper fileHelper;
 
@@ -36,7 +37,7 @@ public class DailyBuildService {
 	}
 
 	public String getLatestDailyBuildFileName(final String codeSystemShortName) {
-		String directoryPath = (dailyBuildStoragePath.endsWith(SEPARATOR) ? dailyBuildStoragePath : dailyBuildStoragePath + SEPARATOR)  + codeSystemShortName + SEPARATOR;
+		String directoryPath = (dailyBuildStoragePath.endsWith(SEPARATOR) ? dailyBuildStoragePath : dailyBuildStoragePath + SEPARATOR) + SNAPSHOTS_FOLDER + SEPARATOR + codeSystemShortName + SEPARATOR;
 		List<String> paths = this.fileHelper.listFiles(directoryPath);
 		List<String> fileNames = new ArrayList<>();
 		for (String path : paths) {
@@ -59,7 +60,7 @@ public class DailyBuildService {
 	}
 
 	public InputStream downloadDailyBuildPackage(final String codeSystemShortName, final String filename) {
-		String directoryPath = (dailyBuildStoragePath.endsWith(SEPARATOR) ? dailyBuildStoragePath : dailyBuildStoragePath + SEPARATOR)  + codeSystemShortName + SEPARATOR;
+		String directoryPath = (dailyBuildStoragePath.endsWith(SEPARATOR) ? dailyBuildStoragePath : dailyBuildStoragePath + SEPARATOR) + SNAPSHOTS_FOLDER + SEPARATOR + codeSystemShortName + SEPARATOR;
 		return this.fileHelper.getFileStream(directoryPath + filename);
 	}
 }
