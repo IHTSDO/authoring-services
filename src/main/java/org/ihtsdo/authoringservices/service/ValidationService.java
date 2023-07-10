@@ -74,6 +74,7 @@ public class ValidationService {
 	public static final String DEFAULT_MODULE_ID = "defaultModuleId";
 	public static final String EXPECTED_EXTENSION_MODULES = "expectedExtensionModules";
 	public static final String INTERNATIONAL = "international";
+	public static final String MAX_FAILURE_EXPORT = "failureExportMax";
 
 	@Value("${aws.resources.enabled}")
 	private boolean awsResourceEnabled;
@@ -275,6 +276,9 @@ public class ValidationService {
 		}
 		if (!moduleIds.isEmpty()) {
 			validationConfig.setIncludedModuleIds(String.join(",", moduleIds));
+		}
+		if (branchMetadata.containsKey(MAX_FAILURE_EXPORT)) {
+			validationConfig.setFailureExportMax((String) branchMetadata.get(MAX_FAILURE_EXPORT));
 		}
 
 		validationConfig.setEnableMRCMValidation(enableMRCM);
