@@ -213,6 +213,9 @@ public class ValidationRunner implements Runnable {
         if (StringUtils.isNotBlank(config.getReleaseDate())) {
             body.add("effectiveTime", config.getReleaseDate());
         }
+        if (StringUtils.isNotBlank(config.getDefaultModuleId())) {
+            body.add("defaultModuleId", config.getDefaultModuleId());
+        }
         if (StringUtils.isNotBlank(config.getIncludedModuleIds())) {
             body.add("includedModules", config.getIncludedModuleIds());
         }

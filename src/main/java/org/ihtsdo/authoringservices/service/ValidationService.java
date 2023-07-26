@@ -269,7 +269,9 @@ public class ValidationService {
 
 		Set<String> moduleIds = new HashSet<>();
 		if (branchMetadata.containsKey(DEFAULT_MODULE_ID)) {
-			moduleIds.add((String) branchMetadata.get(DEFAULT_MODULE_ID));
+			String defaultModuleId = (String) branchMetadata.get(DEFAULT_MODULE_ID);
+			moduleIds.add(defaultModuleId);
+			validationConfig.setDefaultModuleId(defaultModuleId);
 		}
 		if (branchMetadata.containsKey(EXPECTED_EXTENSION_MODULES)) {
 			moduleIds.addAll((ArrayList<String>) branchMetadata.get(EXPECTED_EXTENSION_MODULES));

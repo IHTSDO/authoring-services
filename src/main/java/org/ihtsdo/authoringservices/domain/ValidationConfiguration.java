@@ -12,6 +12,7 @@ public class ValidationConfiguration {
     private String releaseCenter;
     private String previousPackage;
     private String dependencyPackage;
+    private String defaultModuleId;
     private String includedModuleIds;
     private boolean enableMRCMValidation;
     private boolean enableDroolsValidation;
@@ -124,6 +125,14 @@ public class ValidationConfiguration {
 
     public String getReleaseCenter() {
         return this.releaseCenter;
+    }
+
+    public String getDefaultModuleId() {
+        return defaultModuleId;
+    }
+
+    public void setDefaultModuleId(String defaultModuleId) {
+        this.defaultModuleId = defaultModuleId;
     }
 
     public String getIncludedModuleIds() {
