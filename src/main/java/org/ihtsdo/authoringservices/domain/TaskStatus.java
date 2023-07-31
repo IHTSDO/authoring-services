@@ -11,6 +11,10 @@ public enum TaskStatus {
 	PROMOTED("Promoted"),
 	COMPLETED("Completed"),
 	DELETED("Deleted"),
+	AUTOMATED_PROMOTION_QUEUED("Automated Promotion Queued"),
+	AUTOMATED_PROMOTION_REBASING("Automated Promotion Rebasing"),
+	AUTOMATED_PROMOTION_CLASSIFYING("Automated Promotion Classifying"),
+	AUTOMATED_PROMOTION_PROMOTING("Automated Promotion Promoting"),
 	UNKNOWN("Unknown");
 
 	private final String label;

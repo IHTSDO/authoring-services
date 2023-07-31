@@ -99,6 +99,9 @@ public class TaskService {
 	@Autowired
 	private NotificationService notificationService;
 
+	@Autowired
+	private PromotionService promotionService;
+
 	@Value("${task-state-change.notification-queues}")
 	private Set<String> taskStateChangeNotificationQueues;
 
@@ -677,6 +680,24 @@ public class TaskService {
 				final ProjectDetails projectDetails = projectKeyToBranchBaseMap.get(issue.getProject().getKey());
 				if (instanceConfiguration.isJiraProjectVisible(projectDetails.getProductCode())) {
 					AuthoringTask task = new AuthoringTask(issue, projectDetails.getBaseBranchPath());
+
+					ProcessStatus autoPromotionStatus = promotionService.getAutomateTaskPromotionStatus(task.getProjectKey(), task.getKey());
+					if (autoPromotionStatus != null) {
+						switch (autoPromotionStatus.getStatus()) {
+							case "Queued":
+								task.setStatus(TaskStatus.AUTOMATED_PROMOTION_QUEUED);
+								break;
+							case "Rebasing":
+								task.setStatus(TaskStatus.AUTOMATED_PROMOTION_REBASING);
+								break;
+							case "Classifying":
+								task.setStatus(TaskStatus.AUTOMATED_PROMOTION_CLASSIFYING);
+								break;
+							case "Promoting":
+								task.setStatus(TaskStatus.AUTOMATED_PROMOTION_PROMOTING);
+								break;
+						}
+					}
 
 					allTasks.add(task);
 					// Fetch the extra statuses for tasks that are not new and have a branch
