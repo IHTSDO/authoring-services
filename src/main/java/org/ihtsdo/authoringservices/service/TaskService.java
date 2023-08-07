@@ -685,16 +685,16 @@ public class TaskService {
 					if (autoPromotionStatus != null) {
 						switch (autoPromotionStatus.getStatus()) {
 							case "Queued":
-								task.setStatus(TaskStatus.AUTOMATED_PROMOTION_QUEUED);
+								task.setStatus(TaskStatus.AUTO_QUEUED);
 								break;
 							case "Rebasing":
-								task.setStatus(TaskStatus.AUTOMATED_PROMOTION_REBASING);
+								task.setStatus(TaskStatus.AUTO_REBASING);
 								break;
 							case "Classifying":
-								task.setStatus(TaskStatus.AUTOMATED_PROMOTION_CLASSIFYING);
+								task.setStatus(TaskStatus.AUTO_CLASSIFYING);
 								break;
 							case "Promoting":
-								task.setStatus(TaskStatus.AUTOMATED_PROMOTION_PROMOTING);
+								task.setStatus(TaskStatus.AUTO_PROMOTING);
 								break;
 						}
 					}
