@@ -15,6 +15,7 @@ public enum TaskStatus {
 	AUTO_REBASING("Auto Rebasing"),
 	AUTO_CLASSIFYING("Auto Classifying"),
 	AUTO_PROMOTING("Auto Promoting"),
+	AUTO_CONFLICT("Auto Conflict"),
 	UNKNOWN("Unknown");
 
 	private final String label;

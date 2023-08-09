@@ -696,6 +696,10 @@ public class TaskService {
 							case "Promoting":
 								task.setStatus(TaskStatus.AUTO_PROMOTING);
 								break;
+							case "Rebased with conflicts":
+							case "Classified with results":
+								task.setStatus(TaskStatus.AUTO_CONFLICT);
+								break;
 						}
 					}
 

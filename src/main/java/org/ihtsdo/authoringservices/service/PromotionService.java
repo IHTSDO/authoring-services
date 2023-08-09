@@ -141,6 +141,9 @@ public class PromotionService {
 					taskProcessStatus.setStatus("Promotion Complete");
 					taskProcessStatus.setMessage("Task successfully promoted");
 					taskPromotionStatus.put(parseKey(projectKey, taskKey), taskProcessStatus);
+
+					// clear Auto Promotion status if the task has been triggered the Automated Promotion
+					automateTaskPromotionStatus.remove(parseKey(projectKey, taskKey));
 				} else if (merge.getStatus().equals(Merge.Status.CONFLICTS)) {
 					try {
 						ObjectMapper mapper = new ObjectMapper();
