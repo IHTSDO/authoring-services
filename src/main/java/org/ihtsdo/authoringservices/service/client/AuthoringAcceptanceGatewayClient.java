@@ -42,28 +42,8 @@ public class AuthoringAcceptanceGatewayClient {
 		}
 	}
 
-	private static final class ValidationCompleteRequest {
+	private record ValidationCompleteRequest(String branchPath, String validationStatus, String reportUrl) {
 
-		private final String branchPath;
-		private final String validationStatus;
-		private final String reportUrl;
 
-		public ValidationCompleteRequest(String branchPath, String validationStatus, String reportUrl) {
-			this.branchPath = branchPath;
-			this.validationStatus = validationStatus;
-			this.reportUrl = reportUrl;
-		}
-
-		public String getBranchPath() {
-			return branchPath;
-		}
-
-		public String getValidationStatus() {
-			return validationStatus;
-		}
-
-		public String getReportUrl() {
-			return reportUrl;
-		}
 	}
 }

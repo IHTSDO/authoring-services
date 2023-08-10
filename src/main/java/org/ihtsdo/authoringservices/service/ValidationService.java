@@ -136,32 +136,32 @@ public class ValidationService {
 		validationLoadingCache = CacheBuilder.newBuilder()
 				.maximumSize(10000)
 				.build(
-						new CacheLoader<String, Validation>() {
-							public Validation load(String path) throws Exception {
-								return getValidationStatusesWithoutCache(Collections.singletonList(path)).get(path);
-							}
+                        new CacheLoader<>() {
+                            public Validation load(String path) throws Exception {
+                                return getValidationStatusesWithoutCache(Collections.singletonList(path)).get(path);
+                            }
 
-							@Override
-							public Map<String, Validation> loadAll(Iterable<? extends String> paths) throws Exception {
-								final ImmutableMap.Builder<String, Validation> map = ImmutableMap.builder();
-								List<String> pathsToLoad = new ArrayList<>();
-								for (String path : paths) {
-									final Validation validation = validationLoadingCache.getIfPresent(path);
-									if (validation != null) {
-										map.put(path, validation);
-									} else {
-										pathsToLoad.add(path);
-									}
-								}
-								if (!pathsToLoad.isEmpty()) {
-									final Map<String, Validation> validationMap= getValidationStatusesWithoutCache(pathsToLoad);
-									if (validationMap != null) {
-										map.putAll(validationMap);
-									}
-								}
-								return map.build();
-							}
-						});
+                            @Override
+                            public Map<String, Validation> loadAll(Iterable<? extends String> paths) throws Exception {
+                                final ImmutableMap.Builder<String, Validation> map = ImmutableMap.builder();
+                                List<String> pathsToLoad = new ArrayList<>();
+                                for (String path : paths) {
+                                    final Validation validation = validationLoadingCache.getIfPresent(path);
+                                    if (validation != null) {
+                                        map.put(path, validation);
+                                    } else {
+                                        pathsToLoad.add(path);
+                                    }
+                                }
+                                if (!pathsToLoad.isEmpty()) {
+                                    final Map<String, Validation> validationMap = getValidationStatusesWithoutCache(pathsToLoad);
+                                    if (validationMap != null) {
+                                        map.putAll(validationMap);
+                                    }
+                                }
+                                return map.build();
+                            }
+                        });
 		this.technicalItems = new HashSet<>();
 		if (this.awsResourceEnabled) {
 		 	S3ClientImpl s3Client = new S3ClientImpl(new BasicAWSCredentials(accessKey, secretKey));
@@ -449,15 +449,15 @@ public class ValidationService {
 	private Map<String, Validation> getValidationStatusesWithoutCache(List<String> paths) {
 		List<Validation> validations = validationRepository.findAllByBranchPathIn(paths);
 		Map<String, Validation> branchToValidationMap = validations.stream().collect(Collectors.toMap(Validation::getBranchPath, Function.identity()));
-		for (int i = 0; i < paths.size(); i++) {
-			Validation validation;
-			if (!branchToValidationMap.containsKey(paths.get(i))) {
-				validation = new Validation(paths.get(i));
-				validation.setStatus(ValidationJobStatus.NOT_TRIGGERED.name());
-				validation = validationRepository.save(validation);
-				branchToValidationMap.put(paths.get(i), validation);
-			}
-		}
+        for (String path : paths) {
+            Validation validation;
+            if (!branchToValidationMap.containsKey(path)) {
+                validation = new Validation(path);
+                validation.setStatus(ValidationJobStatus.NOT_TRIGGERED.name());
+                validation = validationRepository.save(validation);
+                branchToValidationMap.put(path, validation);
+            }
+        }
 
 		return branchToValidationMap;
 	}
@@ -468,7 +468,7 @@ public class ValidationService {
 	}
 
 	public void resetBranchValidationStatus(String branchPath) {
-		Map newPropertyValues = new HashMap();
+		Map<String, String> newPropertyValues = new HashMap();
 		newPropertyValues.put(VALIDATION_STATUS, ValidationJobStatus.NOT_TRIGGERED.name());
 		updateValidationCache(branchPath, newPropertyValues);
 	}

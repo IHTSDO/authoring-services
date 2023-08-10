@@ -37,24 +37,28 @@ public class LOINCReferenceSetExportServiceTest {
 
 		RelationshipPojo procedureSite = new RelationshipPojo(0, "405813007", "73903008", LOINCReferenceSetExportService.STATED_RELATIONSHIP);
 		axiomPojo.add(procedureSite);
-		assertEquals("71388002 + 138875005 :\n" +
-				"\t260686004 = 129264002,\n" +
-				"\t405813007 = 73903008", loincReferenceSetExportService.generateCompositionalGrammar(concept));
+		assertEquals("""
+                71388002 + 138875005 :
+                \t260686004 = 129264002,
+                \t405813007 = 73903008""", loincReferenceSetExportService.generateCompositionalGrammar(concept));
 
 		procedureSite.setGroupId(1);
-		assertEquals("71388002 + 138875005 :\n" +
-				"\t260686004 = 129264002\n" +
-				"{\t405813007 = 73903008 }", loincReferenceSetExportService.generateCompositionalGrammar(concept));
+		assertEquals("""
+                71388002 + 138875005 :
+                \t260686004 = 129264002
+                {\t405813007 = 73903008 }""", loincReferenceSetExportService.generateCompositionalGrammar(concept));
 
 		method.setGroupId(1);
-		assertEquals("71388002 + 138875005 :\n" +
-				"{\t260686004 = 129264002,\n" +
-				"\t405813007 = 73903008 }", loincReferenceSetExportService.generateCompositionalGrammar(concept));
+		assertEquals("""
+                71388002 + 138875005 :
+                {\t260686004 = 129264002,
+                \t405813007 = 73903008 }""", loincReferenceSetExportService.generateCompositionalGrammar(concept));
 
 		procedureSite.setGroupId(2);
-		assertEquals("71388002 + 138875005 :\n" +
-				"{\t260686004 = 129264002 }\n" +
-				"{\t405813007 = 73903008 }", loincReferenceSetExportService.generateCompositionalGrammar(concept));
+		assertEquals("""
+                71388002 + 138875005 :
+                {\t260686004 = 129264002 }
+                {\t405813007 = 73903008 }""", loincReferenceSetExportService.generateCompositionalGrammar(concept));
 
 	}
 

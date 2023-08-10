@@ -61,7 +61,7 @@ public class ReviewService {
 			for (String conceptId : conceptIds) {
 				final List<ReviewMessage> messages = conceptMessagesMap.get(conceptId);
 				reviewConcepts
-						.add(new ReviewConcept(conceptId, messages != null ? messages : new ArrayList<ReviewMessage>(),
+						.add(new ReviewConcept(conceptId, messages != null ? messages : new ArrayList<>(),
 								conceptViewDatesMap.get(conceptId)));
 			}
 		}
@@ -90,7 +90,7 @@ public class ReviewService {
 		for (ReviewMessage reviewMessage : reviewMessages) {
 			for (String conceptId : reviewMessage.getSubjectConceptIds()) {
 				if (!conceptMessagesMap.containsKey(conceptId)) {
-					conceptMessagesMap.put(conceptId, new ArrayList<ReviewMessage>());
+					conceptMessagesMap.put(conceptId, new ArrayList<>());
 				}
 				conceptMessagesMap.get(conceptId).add(reviewMessage);
 			}

@@ -68,16 +68,15 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
 		}
 		
 		// set the reviewer object
-		reviewers = new ArrayList<User>();
+		reviewers = new ArrayList<>();
 		Object reviewerObj = issue.getField(jiraReviewerField);
 		if (reviewerObj != null && reviewerObj instanceof JSONObject) {
 			reviewers.add(new User((JSONObject)reviewerObj));
 		}
 		
 		Object reviewersObj = issue.getField(jiraReviewersField);
-		if (reviewersObj != null && reviewersObj instanceof JSONArray) {
-			JSONArray array = (JSONArray) reviewersObj;
-			if (array.size() > 0) {
+		if (reviewersObj != null && reviewersObj instanceof JSONArray array) {
+			if (!array.isEmpty()) {
 				array.forEach(item -> reviewers.add(new User((JSONObject) item)));
 			}
 		}

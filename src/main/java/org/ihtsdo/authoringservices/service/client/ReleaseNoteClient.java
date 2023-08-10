@@ -42,12 +42,9 @@ public class ReleaseNoteClient {
                 .build();
 
         //Add a ClientHttpRequestInterceptor to the RestTemplate to add cookies as required
-        restTemplate.getInterceptors().add(new ClientHttpRequestInterceptor(){
-            @Override
-            public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
-                request.getHeaders().addAll(headers);
-                return execution.execute(request, body);
-            }
+        restTemplate.getInterceptors().add((request, body, execution) -> {
+            request.getHeaders().addAll(headers);
+            return execution.execute(request, body);
         });
     }
 

@@ -1,6 +1,5 @@
 package org.ihtsdo.authoringservices.service.dao;
 
-import com.google.common.io.Files;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.CharEncoding;
@@ -8,12 +7,12 @@ import org.apache.commons.lang.StringUtils;
 import org.ihtsdo.otf.rest.exception.ProcessWorkflowException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.Assert;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
@@ -85,7 +84,7 @@ public class SRSFileDAO {
 
 	public File extractAndConvertExportWithRF2FileNameFormat(File archive, String releaseCenter, String releaseDate) throws ProcessWorkflowException, IOException {
 		// We're going to create release files in a temp directory
-		File extractDir = Files.createTempDir();
+		File extractDir = Files.createTempDirectory("extract-temp").toFile();
 		unzipFlat(archive, extractDir);
 		logger.debug("Unzipped files to {}", extractDir.getAbsolutePath());
 		
@@ -134,16 +133,12 @@ public class SRSFileDAO {
 	
 	private String getCountryOrNamespace(File extractDir) {
 		
-		String[] rf2Filenames = extractDir.list(new FilenameFilter() {
-			
-			@Override
-			public boolean accept(File dir, String name) {
-				if (name.startsWith("sct2_Concept_") && name.endsWith(TXT)) {
-					return true;
-				}
-				return false;
-			}
-		});
+		String[] rf2Filenames = extractDir.list((dir, name) -> {
+            if (name.startsWith("sct2_Concept_") && name.endsWith(TXT)) {
+                return true;
+            }
+            return false;
+        });
 		
 		if (rf2Filenames.length == 1) {
 			String[] splits = rf2Filenames[0].split("_");
@@ -173,16 +168,12 @@ public class SRSFileDAO {
 		
 		List<String> filesToBeRemoved = new ArrayList<>();
 		for (final String fileName : filenamesToBeExcluded) {
-			String[] filesFound = extractDir.list(new FilenameFilter() {
-				
-				@Override
-				public boolean accept(File dir, String name) {
-					if (name.startsWith(fileName)) {
-						return true;
-					}
-					return false;
-				}
-			});
+			String[] filesFound = extractDir.list((dir, name) -> {
+                if (name.startsWith(fileName)) {
+                    return true;
+                }
+                return false;
+            });
 			filesToBeRemoved.addAll(Arrays.asList(filesFound));
 		}
 		for (String fileName : filesToBeRemoved) {
@@ -271,7 +262,7 @@ public class SRSFileDAO {
 		for (File thisFile : targetDirectory.listFiles()) {
 			if (thisFile.exists() && !thisFile.isDirectory()) {
 				List<String> oldLines = FileUtils.readLines(thisFile, StandardCharsets.UTF_8);
-				List<String> newLines = new ArrayList<String>();
+				List<String> newLines = new ArrayList<>();
 				for (String thisLine : oldLines) {
 					String[] columns = thisLine.split("\t");
 					if (columns.length > columnNum && columns[columnNum].equals(find)) {
@@ -354,7 +345,7 @@ public class SRSFileDAO {
 					File extractedFile = new File(targetDir, extractedFileName);
 					try (OutputStream out = new FileOutputStream(extractedFile)) {
 						IOUtils.copy(zis, out);
-						IOUtils.closeQuietly(out);
+						IOUtils.close(out);
 					}
 				}
 				ze = zis.getNextEntry();

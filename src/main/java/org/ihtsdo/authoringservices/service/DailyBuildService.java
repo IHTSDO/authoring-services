@@ -52,7 +52,7 @@ public class DailyBuildService {
 
 		if (!CollectionUtils.isEmpty(fileNames)) {
 			Comparator<String> reverseComparator = Comparator.reverseOrder();
-			Collections.sort(fileNames, reverseComparator);
+			fileNames.sort(reverseComparator);
 			return fileNames.get(0);
 		}
 

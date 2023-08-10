@@ -40,24 +40,15 @@ public class TimerUtil {
 	}
 
 	private void log(String s, Object... o) {
-		switch (loggingLevel.toString()) {
-			case "TRACE":
-				logger.trace(s, o);
-				break;
-			case "DEBUG":
-				logger.debug(s, o);
-				break;
-			case "WARN":
-				logger.warn(s, o);
-				break;
-			case "ERROR":
-				logger.error(s, o);
-				break;
-			case "OFF":
-				break;
-			default:
-				logger.info(s, o);
-		}
+        switch (loggingLevel.toString()) {
+            case "TRACE" -> logger.trace(s, o);
+            case "DEBUG" -> logger.debug(s, o);
+            case "WARN" -> logger.warn(s, o);
+            case "ERROR" -> logger.error(s, o);
+            case "OFF" -> {
+            }
+            default -> logger.info(s, o);
+        }
 	}
 
 	public static void main(String[] args) throws InterruptedException {

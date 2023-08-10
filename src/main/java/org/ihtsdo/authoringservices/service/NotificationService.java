@@ -71,12 +71,7 @@ public class NotificationService {
 			String username =  simpUser.getName();
 			monitorService.keepMonitorsAlive(username);
 
-			SimpSubscriptionMatcher simpSubscriptionMatcher = new SimpSubscriptionMatcher() {
-				@Override
-				public boolean match(SimpSubscription subscription) {
-					return subscription.getDestination().equals("/topic/user/" + username + "/notifications");
-				}
-			};
+			SimpSubscriptionMatcher simpSubscriptionMatcher = subscription -> subscription.getDestination().equals("/topic/user/" + username + "/notifications");
 			Set<SimpSubscription> simpSubscriptions = simpUserRegistry.findSubscriptions(simpSubscriptionMatcher);
 			if (!simpSubscriptions.isEmpty()) {
 				sendNotification(username);

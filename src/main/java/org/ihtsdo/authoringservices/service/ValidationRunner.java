@@ -1,6 +1,5 @@
 package org.ihtsdo.authoringservices.service;
 
-import com.google.common.io.Files;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.ihtsdo.authoringservices.domain.EntityType;
@@ -30,6 +29,7 @@ import org.springframework.web.client.RestTemplate;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
+import java.nio.file.Files;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -151,9 +151,11 @@ public class ValidationRunner implements Runnable {
     }
 
     public void validateByRvfDirectly(File exportArchive) throws ServiceException {
-        File tempDir = Files.createTempDir();
-        File localZipFile = new File(tempDir, config.getProductName() + "_" + config.getReleaseDate() + ".zip");
+        File tempDir = null;
+        File localZipFile = null;
         try {
+            tempDir = Files.createTempDirectory("rvf-temp").toFile();
+            localZipFile = new File(tempDir, config.getProductName() + "_" + config.getReleaseDate() + ".zip");
             // prepare files for validation
             prepareExportFilesForValidation(exportArchive, config, localZipFile);
 
@@ -162,10 +164,12 @@ public class ValidationRunner implements Runnable {
         } catch (IOException | ProcessWorkflowException e) {
 			throw new ServiceException("Validation failed.", e);
 		} finally {
-			localZipFile.deleteOnExit();
-			tempDir.deleteOnExit();
-            if (exportArchive != null) {
-                exportArchive.deleteOnExit();
+            if (localZipFile != null) {
+                FileUtils.deleteQuietly(localZipFile);
+            }
+            if (tempDir != null) {
+                // Better to delete temp files after use rather than deleteOnExit()
+                FileUtils.deleteQuietly(tempDir);
             }
         }
     }
@@ -177,7 +181,8 @@ public class ValidationRunner implements Runnable {
             ZipFileUtils.zip(extractDir.getAbsolutePath(), localZipFile.getAbsolutePath());
         } finally {
             if (extractDir != null) {
-                extractDir.deleteOnExit();
+                // Better to delete temp files after use rather than deleteOnExit()
+                FileUtils.deleteDirectory(extractDir);
             }
         }
     }

@@ -3,7 +3,7 @@ package org.ihtsdo.authoringservices.configuration;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.util.ISO8601DateFormat;
+import com.fasterxml.jackson.databind.util.StdDateFormat;
 import com.google.common.base.Charsets;
 import io.kaicode.rest.util.branchpathrewrite.BranchPathUriRewriteFilter;
 import net.rcarz.jiraclient.JiraException;
@@ -61,9 +61,9 @@ public abstract class Configuration {
 	public ObjectMapper objectMapper() {
 		final ObjectMapper objectMapper = new ObjectMapper();
 		objectMapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
-		final ISO8601DateFormat df = new ISO8601DateFormat();
-		df.setTimeZone(TimeZone.getTimeZone("UTC"));
-		objectMapper.setDateFormat(df);
+		final StdDateFormat stdDateFormat = new StdDateFormat();
+		stdDateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+		objectMapper.setDateFormat(stdDateFormat);
 		objectMapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
 		return objectMapper;
 	}

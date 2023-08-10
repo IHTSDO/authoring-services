@@ -19,8 +19,8 @@ public class UserMonitors {
 	private boolean started;
 	private final Runnable deathCallback;
 
-	private final Map<Class, Monitor> currentMonitors;
-	private Set<Monitor> monitorLoggedError;
+	private final Map<Class<?>, Monitor> currentMonitors;
+	private final Set<Monitor> monitorLoggedError;
 
 	private final MonitorFactory monitorFactory;
 	private final NotificationService notificationService;
@@ -54,7 +54,7 @@ public class UserMonitors {
 					PreAuthenticatedAuthenticationToken decoratedAuthentication = new PreAuthenticatedAuthenticationToken(username, token);
 					SecurityContextHolder.getContext().setAuthentication(decoratedAuthentication);
 
-					final List<Class> keys = new ArrayList<>(currentMonitors.keySet());
+					final List<Class<?>> keys = new ArrayList<>(currentMonitors.keySet());
 					final int size = keys.size();
 					for (int i = 0; i < size; i++) { // Old style for loop to avoid any concurrent modification problem.
 						Monitor monitor = null;

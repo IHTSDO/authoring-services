@@ -1,20 +1,6 @@
 package org.ihtsdo.authoringservices.domain;
 
-public class ProjectDetails {
+public record ProjectDetails(String baseBranchPath, String productCode) {
 
-	private final String baseBranchPath;
-	private final String productCode;
 
-	public ProjectDetails(String baseBranchPath, String productCode) {
-		this.baseBranchPath = baseBranchPath;
-		this.productCode = productCode;
-	}
-
-	public String getBaseBranchPath() {
-		return baseBranchPath;
-	}
-
-	public String getProductCode() {
-		return productCode;
-	}
 }

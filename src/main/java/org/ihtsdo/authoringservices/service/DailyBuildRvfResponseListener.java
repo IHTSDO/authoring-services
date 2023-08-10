@@ -36,7 +36,7 @@ public class DailyBuildRvfResponseListener {
 
 				final String branchPath = (String) message.get("branchPath");
 				final String rvfURL = (String) message.get("rvfURL");
-				Map newPropertyValues = new HashMap();
+				Map<String, String> newPropertyValues = new HashMap<>();
 				newPropertyValues.put(ValidationService.DAILY_BUILD_REPORT_URL, rvfURL);
 				validationService.updateValidationCache(branchPath, newPropertyValues);
 			} else {

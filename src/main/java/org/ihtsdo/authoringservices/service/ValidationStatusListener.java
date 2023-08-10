@@ -61,7 +61,7 @@ public class ValidationStatusListener {
 				}
 				Validation validation = validationRepository.findByRunId(runId);
 				if (validation != null) {
-					Map newPropertyValues = new HashMap();
+					Map<String, String> newPropertyValues = new HashMap<>();
 					newPropertyValues.put(ValidationService.VALIDATION_STATUS, state);
 					validationService.updateValidationCache(validation.getBranchPath(), newPropertyValues);
 					if (ValidationJobStatus.COMPLETED.name().equalsIgnoreCase(state) || ValidationJobStatus.FAILED.name().equalsIgnoreCase(state)) {

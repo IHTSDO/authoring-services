@@ -293,7 +293,7 @@ public class CodeSystemService {
 				if (validation != null) {
 					if (ValidationJobStatus.COMPLETED.name().equals(validation.getStatus())
 						&& validation.getContentHeadTimestamp() != null
-						&& branch.getHeadTimestamp() != validation.getContentHeadTimestamp().longValue()) {
+						&& branch.getHeadTimestamp() != validation.getContentHeadTimestamp()) {
 						authoringCodeSystem.setLatestValidationStatus(ValidationJobStatus.STALE.name());
 					} else {
 						authoringCodeSystem.setLatestValidationStatus(validation.getStatus());

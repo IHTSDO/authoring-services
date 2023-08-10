@@ -217,7 +217,7 @@ public class TaskService {
 
 		timer.checkpoint("First jira search");
 		for (Issue projectMagicTicket : issues) {
-			final String productCode = getProjectDetailsPopulatingCache(projectMagicTicket).getProductCode();
+			final String productCode = getProjectDetailsPopulatingCache(projectMagicTicket).productCode();
 			if (instanceConfiguration.isJiraProjectVisible(productCode)) {
 				projectTickets.add(projectMagicTicket);
 			}
@@ -257,7 +257,7 @@ public class TaskService {
 
 	public String getProjectBaseUsingCache(String projectKey) throws BusinessServiceException {
 		try {
-			return projectDetailsCache.get(projectKey).getBaseBranchPath();
+			return projectDetailsCache.get(projectKey).baseBranchPath();
 		} catch (ExecutionException e) {
 			throw new BusinessServiceException("Failed to retrieve project path.", e);
 		}
@@ -322,13 +322,13 @@ public class TaskService {
 		SecurityContext securityContext = SecurityContextHolder.getContext();
 
 		JiraClient jiraClient = getJiraClient();
-		Future<Map<String, JiraProject>> unfilteredProjects = executorService.submit(() -> getProjects(jiraClient.getRestClient()).stream().collect(Collectors.toMap(JiraProject::getKey, Function.identity())));
+		Future<Map<String, JiraProject>> unfilteredProjects = executorService.submit(() -> getProjects(jiraClient.getRestClient()).stream().collect(Collectors.toMap(JiraProject::key, Function.identity())));
 
 		projectTickets.parallelStream().forEach(projectTicket -> {
 			SecurityContextHolder.setContext(securityContext);
 			try {
 				final String projectKey = projectTicket.getProject().getKey();
-				final String extensionBase = getProjectDetailsPopulatingCache(projectTicket).getBaseBranchPath();
+				final String extensionBase = getProjectDetailsPopulatingCache(projectTicket).baseBranchPath();
 				final String branchPath = PathHelper.getProjectPath(extensionBase, projectKey);
 				
 				String latestClassificationJson = null;
@@ -381,8 +381,8 @@ public class TaskService {
 				}
 				Map<String, JiraProject> projectMap = unfilteredProjects.get();
 				JiraProject project = projectMap.get(projectKey);
-				final AuthoringProject authoringProject = new AuthoringProject(projectKey, project.getName(),
-						project.getLead(), branchPath, branchState, baseTimeStamp, headTimeStamp, latestClassificationJson, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled, rebaseDisabled, scheduledRebaseDisabled, taskPromotionDisabled, projectLocked);
+				final AuthoringProject authoringProject = new AuthoringProject(projectKey, project.name(),
+						project.lead(), branchPath, branchState, baseTimeStamp, headTimeStamp, latestClassificationJson, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled, rebaseDisabled, scheduledRebaseDisabled, taskPromotionDisabled, projectLocked);
 				authoringProject.setMetadata(metadata);
 				authoringProject.setCodeSystem(codeSystem);
 				synchronized (authoringProjects) {
@@ -678,8 +678,8 @@ public class TaskService {
 			final Map<String, ProjectDetails> projectKeyToBranchBaseMap = projectDetailsCache.getAll(projectKeys);
 			for (Issue issue : tasks) {
 				final ProjectDetails projectDetails = projectKeyToBranchBaseMap.get(issue.getProject().getKey());
-				if (instanceConfiguration.isJiraProjectVisible(projectDetails.getProductCode())) {
-					AuthoringTask task = new AuthoringTask(issue, projectDetails.getBaseBranchPath());
+				if (instanceConfiguration.isJiraProjectVisible(projectDetails.productCode())) {
+					AuthoringTask task = new AuthoringTask(issue, projectDetails.baseBranchPath());
 
 					ProcessStatus autoPromotionStatus = promotionService.getAutomateTaskPromotionStatus(task.getProjectKey(), task.getKey());
 					if (autoPromotionStatus != null) {
@@ -1023,7 +1023,7 @@ public class TaskService {
 			if (changeLog != null) {
 				// Sort changeLog entries descending to get most recent change
 				// first
-				Collections.sort(changeLog.getEntries(), CHANGELOG_ID_COMPARATOR_DESC);
+				changeLog.getEntries().sort(CHANGELOG_ID_COMPARATOR_DESC);
 				for (ChangeLogEntry entry : changeLog.getEntries()) {
 					Date thisChangeDate = entry.getCreated();
 					for (ChangeLogItem changeItem : entry.getItems()) {
