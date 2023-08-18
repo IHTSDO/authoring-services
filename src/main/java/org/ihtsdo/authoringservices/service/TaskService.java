@@ -999,7 +999,7 @@ public class TaskService {
 		return leadUser;
 	}
 
-	private User getUser(String username) throws BusinessServiceException {
+	public User getUser(String username) throws BusinessServiceException {
 		try {
 			return User.get(getJiraClient().getRestClient(), username);
 		} catch (JiraException je) {

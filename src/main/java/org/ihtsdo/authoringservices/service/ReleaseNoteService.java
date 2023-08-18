@@ -1,5 +1,6 @@
 package org.ihtsdo.authoringservices.service;
 
+import net.rcarz.jiraclient.User;
 import org.ihtsdo.authoringservices.domain.LineItem;
 import org.ihtsdo.authoringservices.service.client.ReleaseNoteClient;
 import org.ihtsdo.authoringservices.service.client.ReleaseNoteClientFactory;
@@ -19,13 +20,24 @@ public class ReleaseNoteService {
     @Autowired
     private ReleaseNoteClientFactory releaseNoteClientFactory;
 
-    public void promoteBranchLineItems(String branchPath) {
+    public void promoteTaskLineItems(String branchPath, User user) {
         ReleaseNoteClient client = releaseNoteClientFactory.getClient();
         try {
             List<LineItem> lineItems = client.getLineItems(branchPath);
             for (LineItem lineItem : lineItems) {
+                lineItem.setContent(branchPath + " - " + user.getDisplayName() + "\n\n" + lineItem.getContent());
+                client.updateLineItem(branchPath, lineItem);
                 client.promoteLineItem(branchPath, lineItem.getId());
             }
+        } catch (RestClientException e) {
+            logger.error("Failed to promote task line items. Error: {}", e);
+        }
+    }
+
+    public void promoteProjectLineItems(String branchPath) {
+        ReleaseNoteClient client = releaseNoteClientFactory.getClient();
+        try {
+            client.promoteAllLineItems(branchPath);
         } catch (RestClientException e) {
             logger.error("Failed to promote line items. Error: {}", e);
         }

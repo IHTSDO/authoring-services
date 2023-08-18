@@ -72,5 +72,25 @@ public class ReleaseNoteClient {
             throw new RestClientException(errorMessage);
         }
     }
+
+    public void promoteAllLineItems(String branchPath)  throws RestClientException {
+        try {
+            restTemplate.postForObject(this.releaseNoteServiceUrl + branchPath + "/lineitems/promote", null, Void.class);
+        } catch (HttpClientErrorException | HttpServerErrorException e) {
+            String errorMessage = String.format("Failed to promote all line items for branch %s. Error message: %s", branchPath, e.getMessage());
+            logger.error(errorMessage);
+            throw new RestClientException(errorMessage);
+        }
+    }
+
+    public void updateLineItem(String branchPath, LineItem lineItem) throws RestClientException {
+        try {
+            restTemplate.put(this.releaseNoteServiceUrl + branchPath + "/lineitems/" + lineItem.getId(), lineItem, Void.class);
+        } catch (HttpClientErrorException | HttpServerErrorException e) {
+            String errorMessage = String.format("Failed to update line item id= %s for branch %s. Error message: %s", lineItem.getId(), branchPath, e.getMessage());
+            logger.error(errorMessage);
+            throw new RestClientException(errorMessage);
+        }
+    }
 }
 
