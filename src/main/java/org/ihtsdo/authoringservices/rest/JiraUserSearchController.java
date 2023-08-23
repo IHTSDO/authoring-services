@@ -1,11 +1,19 @@
 package org.ihtsdo.authoringservices.rest;
 
+import com.google.gson.Gson;
 import io.swagger.annotations.*;
 import net.rcarz.jiraclient.JiraException;
+import org.ihtsdo.authoringservices.domain.JiraUser;
+import org.ihtsdo.authoringservices.domain.JiraUserGroup;
 import org.ihtsdo.authoringservices.service.JiraUserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 @Api("User Search")
 @RestController
@@ -18,17 +26,17 @@ public class JiraUserSearchController {
 	@RequestMapping(value = "/users", method = RequestMethod.GET)
 	@ApiOperation( value = "Returns authoring users from Jira")
 	@ResponseBody
-	public Object getUsers(
+	public JiraUserGroup getUsers(
 			@RequestParam(required = false, defaultValue = "0") int offset,
 			@RequestParam(required = false, defaultValue = "50") int limit) throws JiraException {
-
-		return configurationService.getUsers(offset, limit);
+		Gson gson = new Gson();
+		return gson.fromJson(configurationService.getUsers(offset, limit).toString(), JiraUserGroup.class);
 	}
 	
 	@RequestMapping(value = "users/search", method = RequestMethod.GET)
 	@ApiOperation( value = "Returns authoring users from Jira by search conditions")
 	@ResponseBody
-	public Object findUsersByNameAndGroupName(@ApiParam(value="A part of user name that to be searched")
+	public List<JiraUser> findUsersByNameAndGroupName(@ApiParam(value="A part of user name that to be searched")
 											   @RequestParam("username") String username,
 											   @ApiParam(value="Project key. Example: TESTINT2,...")
 											   @RequestParam("projectKeys") String projectKeys,
@@ -36,7 +44,9 @@ public class JiraUserSearchController {
 											   @RequestParam("issueKey") String issueKey,
 											   int maxResults, 
 											   int startAt) throws JiraException {
-		return configurationService.searchUsers(username, projectKeys, issueKey, maxResults, startAt);
+		Gson gson = new Gson();
+		JiraUser[] userArray = gson.fromJson(configurationService.searchUsers(username, projectKeys, issueKey, maxResults, startAt).toString(), JiraUser[].class);
+		return Arrays.asList(userArray);
 	}
 	
 	@ApiOperation(value="Delete a related link", notes="This endpoint may be used to delete a related link which came from CRS.")
