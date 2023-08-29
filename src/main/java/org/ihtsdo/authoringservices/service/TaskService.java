@@ -69,6 +69,8 @@ public class TaskService {
 	private static final String AUTHORING_TASK_TYPE = "SCA Authoring Task";
 	private static final int LIMIT_UNLIMITED = -1;
 
+	private static final String SHARED = "SHARED";
+
 	@Autowired
 	private BranchService branchService;
 
@@ -1092,7 +1094,7 @@ public class TaskService {
 
 				if (TaskStatus.COMPLETED.equals(newState)) {
 					try {
-						String conceptsStr = uiService.retrieveTaskPanelStateWithoutThrowingResourceNotFoundException(projectKey, issue.getKey(), issue.getAssignee().getName(), "crs-concepts");
+						String conceptsStr = uiService.retrieveTaskPanelStateWithoutThrowingResourceNotFoundException(projectKey, issue.getKey(), SHARED, "crs-concepts");
 						if (StringUtils.isNotEmpty(conceptsStr)) {
 							properties.put("concepts", conceptsStr);
 						}
