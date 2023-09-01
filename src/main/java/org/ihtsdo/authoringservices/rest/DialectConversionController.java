@@ -1,8 +1,9 @@
 package org.ihtsdo.authoringservices.rest;
 
 import com.amazonaws.services.s3.model.S3Object;
-import io.swagger.annotations.ApiOperation;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.ihtsdo.authoringservices.domain.DialectVariations;
 import org.ihtsdo.authoringservices.service.DialectConversionService;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
@@ -18,14 +19,15 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
 
+@Tag(name = "Dialect Conversion")
 @RestController
 public class DialectConversionController {
 
 	@Autowired
 	private DialectConversionService dialectConversionService;
 
-	@ApiOperation(value = "Convert words from the EN-US to EN-GB dialect.",
-			notes = "Submit an array of words. The response is a map of any words found in " +
+	@Operation(summary = "Convert words from the EN-US to EN-GB dialect",
+			description = "Submit an array of words. The response is a map of any words found in " +
 					"the US dialect with an equivalent word in the GB dialect.")
 	@ResponseBody
 	@RequestMapping(value = "/dialect/en-us/map/en-gb", method = RequestMethod.GET, produces = "application/json")
@@ -33,8 +35,8 @@ public class DialectConversionController {
 		return dialectConversionService.getAvailableEnUsToEnGbConversions(words);
 	}
 	
-	@ApiOperation(value = "Service API for getting acceptable synonym variations (EN-US/EN-GB dialect).",
-			notes = "This endpoint should allow looking up many words at once and should allow multiple GB synonyms " +
+	@Operation(summary = "Service API for getting acceptable synonym variations (EN-US/EN-GB dialect)",
+			description = "This endpoint should allow looking up many words at once and should allow multiple GB synonyms " +
 					"to be returned for each US term looked up. The GB Terms column should allow more than one term " +
 					"to be specified by using a pipe '|' character to separate terms.")
 	@ResponseBody
@@ -43,31 +45,31 @@ public class DialectConversionController {
 		return dialectConversionService.getAvailableSynonymsEnUsToEnGbConversions(words);
 	}
 	
-	@ApiOperation(value = "Service to combine mapping terms and acceptable synonym variations (EN-US/EN-GB dialect).")
+	@Operation(summary = "Service to combine mapping terms and acceptable synonym variations (EN-US/EN-GB dialect)")
 	@ResponseBody
 	@RequestMapping(value = "/dialect/en-us/suggestions/en-gb", method = RequestMethod.GET, produces = "application/json")
 	public DialectVariations suggestionsEnUsToEnGb(@RequestParam Set<String> words) {
 		return dialectConversionService.getAcceptableTermsAndAvailableSynonymsEnUsToEnGbConversions(words);
 	}
 
-	@ApiOperation(value = "Add a pair of words to the EN-US to EN-GB dialect map.",
-			notes = "The word pair is inserted in the list maintaining alphabetical order. " +
+	@Operation(summary = "Add a pair of words to the EN-US to EN-GB dialect map",
+			description = "The word pair is inserted in the list maintaining alphabetical order. " +
 					"The dialect map is reloaded automatically after the list is updated.")
 	@RequestMapping(value = "/dialect/en-us/map/en-gb", method = RequestMethod.PUT)
 	public void addEnUSToEnGbMapEntry(@RequestParam String enUsWord, @RequestParam String enGbWord) throws IOException, ServiceException {
 		dialectConversionService.addWordPair(enUsWord, enGbWord);
 	}
 	
-	@ApiOperation(value = "Add a pair of words to the EN-US to EN-GB dialect synonyms mapping file.",
-			notes = "The word pair is inserted in the list maintaining alphabetical order. " +
+	@Operation(summary = "Add a pair of words to the EN-US to EN-GB dialect synonyms mapping file",
+			description = "The word pair is inserted in the list maintaining alphabetical order. " +
 					"The dialect synonyms mapping is reloaded automatically after the list is updated.")
 	@RequestMapping(value = "/dialect/en-us/synonyms/en-gb", method = RequestMethod.PUT)
 	public void addEnUSToEnGbSynonymsEntry(@RequestParam String enUsWord, @RequestParam String enGbWord) throws IOException, ServiceException {
 		dialectConversionService.addSynonymsWordPair(enUsWord, enGbWord);
 	}
 
-	@ApiOperation(value = "Remove a pair of words from the EN-US to EN-GB dialect map.",
-			notes = "Only the EN-US word is required to find and remove the map entry. " +
+	@Operation(summary = "Remove a pair of words from the EN-US to EN-GB dialect map",
+			description = "Only the EN-US word is required to find and remove the map entry. " +
 					"This function uses a case insensitive search. " +
 					"If the word is not found in the list the response will be 404. " +
 					"The dialect map is reloaded automatically if the word is found after the map is updated.")
@@ -79,8 +81,8 @@ public class DialectConversionController {
 		return ResponseEntity.notFound().build();
 	}
 	
-	@ApiOperation(value = "Remove a pair of words from the EN-US to EN-GB dialect synonyms mapping.",
-			notes = "Only the EN-US word is required to find and remove the map entry. " +
+	@Operation(summary = "Remove a pair of words from the EN-US to EN-GB dialect synonyms mapping",
+			description = "Only the EN-US word is required to find and remove the map entry. " +
 					"This function uses a case insensitive search. " +
 					"If the word is not found in the list the response will be 404. " +
 					"The dialect map is reloaded automatically if the word is found after the map is updated.")
@@ -92,8 +94,8 @@ public class DialectConversionController {
 		return ResponseEntity.notFound().build();
 	}
 
-	@ApiOperation(value = "Download the whole EN-US to EN-GB dialect map.",
-			notes = "Visit this endpoint URL directly in your browser, loading through Swagger may not work.")
+	@Operation(summary = "Download the whole EN-US to EN-GB dialect map",
+			description = "Visit this endpoint URL directly in your browser, loading through Swagger may not work.")
 	@ResponseBody
 	@RequestMapping(value = "/dialect/en-us/map/en-gb/file", method = RequestMethod.GET, produces = "application/octet-stream")
 	public ResponseEntity<InputStreamResource> downloadEnUSToEnGbMap() {
@@ -105,8 +107,8 @@ public class DialectConversionController {
 				.body(new InputStreamResource(listObject.getObjectContent()));
 	}
 	
-	@ApiOperation(value = "Download the whole EN-US to EN-GB dialect synonyms mapping.",
-			notes = "Visit this endpoint URL directly in your browser, loading through Swagger may not work.")
+	@Operation(summary = "Download the whole EN-US to EN-GB dialect synonyms mapping",
+			description = "Visit this endpoint URL directly in your browser, loading through Swagger may not work.")
 	@ResponseBody
 	@RequestMapping(value = "/dialect/en-us/synonyms/en-gb/file", method = RequestMethod.GET, produces = "application/octet-stream")
 	public ResponseEntity<InputStreamResource> downloadEnUSToEnGbSynonyms() {
@@ -118,16 +120,16 @@ public class DialectConversionController {
 				.body(new InputStreamResource(listObject.getObjectContent()));
 	}
 
-	@ApiOperation(value = "Replace the whole EN-US to EN-GB dialect map.",
-			notes = "The dialect map is reloaded automatically once the map is updated.")
+	@Operation(summary = "Replace the whole EN-US to EN-GB dialect map",
+			description = "The dialect map is reloaded automatically once the map is updated.")
 	@ResponseBody
 	@RequestMapping(value = "/dialect/en-us/map/en-gb/file", method = RequestMethod.POST, produces = "application/json")
 	public void replaceEnUSToEnGbMap(@RequestParam("file") MultipartFile file) throws IOException, ServiceException {
 		dialectConversionService.replaceMap(file);
 	}
 	
-	@ApiOperation(value = "Replace the whole EN-US to EN-GB dialect synonyms mapping.",
-			notes = "The dialect synonyms mapping is reloaded automatically once the map is updated.")
+	@Operation(summary = "Replace the whole EN-US to EN-GB dialect synonyms mapping",
+			description = "The dialect synonyms mapping is reloaded automatically once the map is updated.")
 	@ResponseBody
 	@RequestMapping(value = "/dialect/en-us/synonyms/en-gb/file", method = RequestMethod.POST, produces = "application/json")
 	public void replaceEnUSToEnGbSynonyms(@RequestParam("file") MultipartFile file) throws IOException, ServiceException {

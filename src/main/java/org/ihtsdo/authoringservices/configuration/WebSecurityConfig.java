@@ -30,10 +30,8 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 			"/ui-configuration",
 			"/authoring-services-websocket/**/*",
 			// Swagger API Docs:
-			"/swagger-ui.html",
-			"/swagger-resources/**",
-			"/v2/api-docs",
-			"/webjars/springfox-swagger-ui/**"
+			"/swagger-ui/**",
+			"/v3/api-docs/**"
 	};
 
 	@Override

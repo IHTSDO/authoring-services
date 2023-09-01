@@ -1,7 +1,11 @@
 package org.ihtsdo.authoringservices.rest;
 
 import com.google.gson.Gson;
-import io.swagger.annotations.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import net.rcarz.jiraclient.JiraException;
 import org.ihtsdo.authoringservices.domain.JiraUser;
 import org.ihtsdo.authoringservices.domain.JiraUserGroup;
@@ -10,12 +14,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
-@Api("User Search")
+@Tag(name = "User Search")
 @RestController
 @RequestMapping(produces = {MediaType.APPLICATION_JSON_VALUE })
 public class JiraUserSearchController {
@@ -24,7 +26,7 @@ public class JiraUserSearchController {
 	private JiraUserService configurationService;
 	
 	@RequestMapping(value = "/users", method = RequestMethod.GET)
-	@ApiOperation( value = "Returns authoring users from Jira")
+	@Operation(summary = "Returns authoring users from Jira")
 	@ResponseBody
 	public JiraUserGroup getUsers(
 			@RequestParam(required = false, defaultValue = "0") int offset,
@@ -34,31 +36,27 @@ public class JiraUserSearchController {
 	}
 	
 	@RequestMapping(value = "users/search", method = RequestMethod.GET)
-	@ApiOperation( value = "Returns authoring users from Jira by search conditions")
+	@Operation(summary = "Returns authoring users from Jira by search conditions")
 	@ResponseBody
-	public List<JiraUser> findUsersByNameAndGroupName(@ApiParam(value="A part of user name that to be searched")
-											   @RequestParam("username") String username,
-											   @ApiParam(value="Project key. Example: TESTINT2,...")
-											   @RequestParam("projectKeys") String projectKeys,
-											   @ApiParam(value="Task key. Exameple: TESTINT2-XXX")
-											   @RequestParam("issueKey") String issueKey,
-											   int maxResults, 
-											   int startAt) throws JiraException {
+	public List<JiraUser> findUsersByNameAndGroupName(
+			@Parameter(name = "A part of user name that to be searched") @RequestParam("username") String username,
+			@Parameter(name = "Project key. Example: TESTINT2") @RequestParam("projectKeys") String projectKeys,
+			@Parameter(name = "Task key. Example: TESTINT2-XXX") @RequestParam("issueKey") String issueKey,
+			int maxResults,
+			int startAt) throws JiraException {
 		Gson gson = new Gson();
 		JiraUser[] userArray = gson.fromJson(configurationService.searchUsers(username, projectKeys, issueKey, maxResults, startAt).toString(), JiraUser[].class);
 		return Arrays.asList(userArray);
 	}
 	
-	@ApiOperation(value="Delete a related link", notes="This endpoint may be used to delete a related link which came from CRS.")
+	@Operation(summary = "Delete a related link", description = "This endpoint may be used to delete a related link which came from CRS.")
 	@ApiResponses({
-		@ApiResponse(code = 200, message = "OK")
+		@ApiResponse(responseCode = "200", description = "OK")
 	})
 	@RequestMapping(value = "/issue-key/{issueKey}/issue-link/{linkId}", method = RequestMethod.DELETE)
-	public void deleteIssueLink(@ApiParam(value="Task key. Ex: TESTINT2-XXX")
-								 @PathVariable final String issueKey,
-								 @ApiParam(value="Issue ID. Ex: CRT-XXX") 
-								 @PathVariable final String linkId) throws JiraException {
+	public void deleteIssueLink(
+			@Parameter(name = "Task key. Example: TESTINT2-XXX") @PathVariable final String issueKey,
+			@Parameter(name = "Issue ID. Example: CRT-XXX") @PathVariable final String linkId) throws JiraException {
 		configurationService.deleteIssueLink(issueKey, linkId);
-		
 	}
 }

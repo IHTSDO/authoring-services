@@ -1,6 +1,10 @@
 package org.ihtsdo.authoringservices.rest;
 
-import io.swagger.annotations.*;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import net.rcarz.jiraclient.JiraException;
 import org.ihtsdo.authoringservices.domain.AuthoringCodeSystem;
 import org.ihtsdo.authoringservices.service.CodeSystemService;
@@ -26,7 +30,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 
-@Api("Code Systems")
+@Tag(name = "Code Systems")
 @RestController
 @RequestMapping(value = "/codesystems", produces = {MediaType.APPLICATION_JSON_VALUE})
 public class CodeSystemController {
@@ -37,19 +41,20 @@ public class CodeSystemController {
 	@Autowired
 	private DailyBuildService dailyBuildService;
 
-	@ApiOperation(value = "List code systems")
+	@Operation(summary = "List code systems")
 	@GetMapping
 	public List <AuthoringCodeSystem> listCodeSystems() throws BusinessServiceException {
 		return codeSystemService.findAll();
 	}
 
-	@ApiOperation(value="Upgrade code system to a different dependant version asynchronously")
-	@ApiResponse(code = 201, message = "CREATED")
+	@Operation(summary = "Upgrade code system to a different dependant version asynchronously")
+	@ApiResponse(responseCode = "201", description = "CREATED")
 	@RequestMapping(value="/{shortName}/upgrade/{newDependantVersion}", method= RequestMethod.POST)
-	public ResponseEntity<Void> upgradeCodeSystem(@ApiParam(value="Extension code system shortname") @PathVariable final String shortName,
-												  @ApiParam(value="New dependant version with the same format as the effectiveTime RF2 field, for example '20190731'") @PathVariable final Integer newDependantVersion,
-												  @ApiParam(value="Flag to generate additional english language refset") @RequestParam(required = false) final Boolean generateEn_GbLanguageRefsetDelta,
-												  @ApiParam(value="Master Project Key which is required by generating the additional english language refset process") @RequestParam(required = false) final String projectKey) throws BusinessServiceException {
+	public ResponseEntity<Void> upgradeCodeSystem(
+			@Parameter(name = "Extension code system shortname") @PathVariable final String shortName,
+			@Parameter(name = "New dependant version with the same format as the effectiveTime RF2 field, for example '20190731'") @PathVariable final Integer newDependantVersion,
+			@Parameter(name = "Flag to generate additional english language refset") @RequestParam(required = false) final Boolean generateEn_GbLanguageRefsetDelta,
+			@Parameter(name = "Master Project Key which is required by generating the additional english language refset process") @RequestParam(required = false) final String projectKey) throws BusinessServiceException {
 		RequestAttributes attrs = RequestContextHolder.getRequestAttributes();
 		Assert.state(attrs instanceof ServletRequestAttributes, "No current ServletRequestAttributes");
 		HttpServletRequest request = ((ServletRequestAttributes) attrs).getRequest();
@@ -63,15 +68,14 @@ public class CodeSystemController {
 	}
 
 
-	@ApiOperation(value = "Retrieve an upgrade job.",
-			notes = "Retrieves the state of an upgrade job. Used to view the upgrade configuration and check its status.")
+	@Operation(summary = "Retrieve an upgrade job", description = "Retrieves the state of an upgrade job. Used to view the upgrade configuration and check its status.")
 	@GetMapping(value = "/upgrade/{jobId}")
 	public CodeSystemUpgradeJob getUpgradeJob(@PathVariable String jobId) throws RestClientException {
 		return codeSystemService.getUpgradeJob(jobId);
 	}
 
-	@ApiOperation(value = "Download daily build package for a given code system")
-	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
+	@Operation(summary = "Download daily build package for a given code system")
+	@ApiResponses({ @ApiResponse(responseCode = "200", description = "OK") })
 	@GetMapping(value = "/{shortName}/daily-build-package/download")
 	public void downloadDailyBuildPackageFile(@PathVariable final String shortName, final HttpServletResponse response) throws IOException {
 		String latestDailyBuildFileName = dailyBuildService.getLatestDailyBuildFileName(shortName);
@@ -90,15 +94,15 @@ public class CodeSystemController {
 		}
 	}
 
-	@ApiOperation(value = "Lock all projects for a given code system")
-	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
+	@Operation(summary = "Lock all projects for a given code system")
+	@ApiResponses({ @ApiResponse(responseCode = "200", description = "OK") })
 	@PostMapping(value = "/{shortName}/projects/lock")
 	public void lockProjects(@PathVariable final String shortName, final HttpServletResponse response) throws BusinessServiceException, JiraException {
 		codeSystemService.lockProjects(shortName);
 	}
 
-	@ApiOperation(value = "Unlock all projects for a given code system")
-	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
+	@Operation(summary = "Unlock all projects for a given code system")
+	@ApiResponses({ @ApiResponse(responseCode = "200", description = "OK") })
 	@PostMapping(value = "/{shortName}/projects/unlock")
 	public void unlockProjects(@PathVariable final String shortName, final HttpServletResponse response) throws BusinessServiceException, JiraException {
 		codeSystemService.unlockProjects(shortName);

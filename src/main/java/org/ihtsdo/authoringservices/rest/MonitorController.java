@@ -1,11 +1,8 @@
 package org.ihtsdo.authoringservices.rest;
 
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
-import org.ihtsdo.authoringservices.domain.Notification;
 import org.ihtsdo.authoringservices.domain.UserFocusRequest;
 import org.ihtsdo.authoringservices.service.NotificationService;
 import org.ihtsdo.authoringservices.service.monitor.MonitorService;
@@ -18,12 +15,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.io.IOException;
-import java.util.List;
-
 import static org.ihtsdo.authoringservices.rest.ControllerHelper.requiredParam;
 
-@Api("Monitor")
+@Tag(name = "Monitor")
 @RestController
 @RequestMapping(produces={MediaType.APPLICATION_JSON_VALUE})
 public class MonitorController {
@@ -35,7 +29,8 @@ public class MonitorController {
 	private MonitorService monitorService;
 	
 
-	@ApiOperation(value="Set user focus for notifications.", notes = "A Task or Project can be monitored for " +
+	@Operation(summary = "Set user focus for notifications",
+			description = "A Task or Project can be monitored for " +
 			"rebase opportunities or stale reports. Notifications will be made available. " +
 			"Each additional POST will replace the previous monitor. " +
 			"A monitor will expire after " + UserMonitors.KEEP_ALIVE_MINUTES + " minutes if the notifications endpoint is not visited by the user.")

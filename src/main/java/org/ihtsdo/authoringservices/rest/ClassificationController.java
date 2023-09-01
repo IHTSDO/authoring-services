@@ -1,8 +1,8 @@
 package org.ihtsdo.authoringservices.rest;
 
 import io.kaicode.rest.util.branchpathrewrite.BranchPathUriUtil;
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.ihtsdo.authoringservices.domain.Classification;
 import org.ihtsdo.authoringservices.service.SnowstormClassificationClient;
 import org.ihtsdo.authoringservices.service.TaskService;
@@ -18,7 +18,7 @@ import us.monoid.json.JSONException;
 
 import static org.ihtsdo.authoringservices.rest.ControllerHelper.*;
 
-@Api("classification")
+@Tag(name = "Classification")
 @RestController
 @RequestMapping(produces={MediaType.APPLICATION_JSON_VALUE})
 public class ClassificationController {
@@ -29,7 +29,7 @@ public class ClassificationController {
 	@Autowired
 	private SnowstormClassificationClient snowstormClassificationClient;
 
-	@ApiOperation(value = "Start classification on a Project")
+	@Operation(summary = "Start classification on a project")
 	@RequestMapping(value = "/projects/{projectKey}/classifications", method = RequestMethod.POST)
 	@ResponseBody
 	public Classification startProjectClassification(@PathVariable String projectKey) throws BusinessServiceException {
@@ -43,7 +43,7 @@ public class ClassificationController {
 		}
 	}
 
-	@ApiOperation(value = "Start classification for a branch")
+	@Operation(summary = "Start classification for a branch")
 	@RequestMapping(value = "/branches/{branch}/classifications", method = RequestMethod.POST)
 	@ResponseBody
 	public Classification startBranchClassification(@PathVariable String branch) throws BusinessServiceException {
@@ -57,7 +57,7 @@ public class ClassificationController {
 		}
 	}
 
-	@ApiOperation(value = "Start classification on a Task")
+	@Operation(summary = "Start classification on a task")
 	@RequestMapping(value = "/projects/{projectKey}/tasks/{taskKey}/classifications", method = RequestMethod.POST)
 	@ResponseBody
 	public Classification startTaskClassification(@PathVariable String projectKey, @PathVariable String taskKey) throws BusinessServiceException {
@@ -71,7 +71,7 @@ public class ClassificationController {
 		}
 	}
 
-	@ApiOperation(value = "Clear classification status cache for Project")
+	@Operation(summary = "Clear classification status cache for project")
 	@RequestMapping(value = "/projects/{projectKey}/classifications/status/cache-evict", method = RequestMethod.POST)
 	@ResponseBody
 	public ResponseEntity<String> clearProjectClassificationStatusCache(@PathVariable String projectKey) throws BusinessServiceException {
@@ -80,7 +80,7 @@ public class ClassificationController {
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
-	@ApiOperation(value = "Clear classification status cache for Task")
+	@Operation(summary = "Clear classification status cache for task")
 	@RequestMapping(value = "/projects/{projectKey}/tasks/{taskKey}/classifications/status/cache-evict", method = RequestMethod.POST)
 	@ResponseBody
 	public ResponseEntity<String> clearTaskClassificationStatusCache(@PathVariable String projectKey, @PathVariable String taskKey) throws BusinessServiceException {

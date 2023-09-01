@@ -5,9 +5,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.jms.annotation.EnableJms;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
-import springfox.documentation.swagger2.annotations.EnableSwagger2;
 
-@EnableSwagger2
 @EnableScheduling
 @EnableJms
 @EnableAsync

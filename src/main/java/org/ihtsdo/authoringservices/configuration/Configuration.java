@@ -6,11 +6,17 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.util.StdDateFormat;
 import com.google.common.base.Charsets;
 import io.kaicode.rest.util.branchpathrewrite.BranchPathUriRewriteFilter;
+import io.swagger.v3.oas.models.ExternalDocumentation;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Contact;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.info.License;
 import net.rcarz.jiraclient.JiraException;
 import org.ihtsdo.authoringservices.service.TaskService;
 import org.ihtsdo.authoringservices.service.jira.ImpersonatingJiraClientFactory;
 import org.ihtsdo.otf.jms.MessagingHelper;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
+import org.springdoc.core.GroupedOpenApi;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,6 +24,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.autoconfigure.http.HttpMessageConverters;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.info.BuildProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
@@ -27,15 +34,9 @@ import org.springframework.http.converter.ResourceHttpMessageConverter;
 import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.jms.config.DefaultJmsListenerContainerFactory;
-import springfox.documentation.builders.RequestHandlerSelectors;
-import springfox.documentation.spi.DocumentationType;
-import springfox.documentation.spring.web.plugins.Docket;
 
 import javax.jms.ConnectionFactory;
 import java.util.TimeZone;
-
-import static com.google.common.base.Predicates.not;
-import static springfox.documentation.builders.PathSelectors.regex;
 
 @SpringBootApplication
 @EnableCaching
@@ -43,6 +44,8 @@ import static springfox.documentation.builders.PathSelectors.regex;
 @EnableJpaRepositories(basePackages = "org.ihtsdo.authoringservices.repository")
 @EntityScan(basePackages = "org.ihtsdo.authoringservices.entity")
 public abstract class Configuration {
+	@Autowired(required = false)
+	private BuildProperties buildProperties;
 
 	@Autowired
 	private ConnectionFactory connectionFactory;
@@ -109,14 +112,38 @@ public abstract class Configuration {
 		));
 	}
 
-	// Swagger Config
 	@Bean
-	public Docket api() {
-		return new Docket(DocumentationType.SWAGGER_2)
-				.select()
-				.apis(RequestHandlerSelectors.any())
-				.paths(regex("/error").negate())
+	public GroupedOpenApi apiDocs() {
+		return GroupedOpenApi.builder()
+				.group("authoring-services")
+				.packagesToScan("org.ihtsdo.authoringservices.rest")
+				// Don't show the error or root endpoints in Swagger
+				.pathsToExclude("/error", "/")
 				.build();
+	}
+
+	@Bean
+	public GroupedOpenApi springActuatorApi() {
+		return GroupedOpenApi.builder()
+				.group("actuator")
+				.packagesToScan("org.springframework.boot.actuate")
+				.pathsToMatch("/actuator/**")
+				.build();
+	}
+
+	@Bean
+	public OpenAPI apiInfo() {
+		final String version = buildProperties != null ? buildProperties.getVersion() : "DEV";
+		return new OpenAPI()
+				.info(new Info()
+						.title("SNOMED CT Authoring Services")
+						.description("Authoring Services is a component of the SNOMED CT Authoring Platform")
+						.version(version)
+						.contact(new Contact().name("SNOMED International").url("https://www.snomed.org"))
+						.license(new License().name("Apache 2.0").url("http://www.apache.org/licenses/LICENSE-2.0")))
+				.externalDocs(new ExternalDocumentation()
+						.description("See more about Authoring Services in GitHub")
+						.url("https://github.com/IHTSDO/authoring-services"));
 	}
 
 }

@@ -1,11 +1,9 @@
 package org.ihtsdo.authoringservices.rest;
 
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.ihtsdo.authoringservices.domain.ConceptPromotionRequest;
-import org.ihtsdo.authoringservices.service.BranchService;
 import org.ihtsdo.authoringservices.service.PromotionService;
-import org.ihtsdo.authoringservices.service.SnowstormClassificationClient;
 import org.ihtsdo.authoringservices.service.TaskService;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
@@ -22,10 +20,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.net.URI;
 import java.util.List;
 
-@Api("Concept Promotion")
+@Tag(name = "Concept Promotion")
 @RestController
 @RequestMapping(produces = {MediaType.APPLICATION_JSON_VALUE})
 public class ConceptPromotionController {
@@ -42,7 +39,7 @@ public class ConceptPromotionController {
     @Autowired
     private SnowstormRestClientFactory snowstormRestClientFactory;
 
-    @ApiOperation(value = "Request a new CRS ticket for concept promotion.", notes = "This API can support for either project key + task key or only branch path")
+    @Operation(summary = "Request a new CRS ticket for concept promotion", description = "This API can support for either project key + task key or only branch path")
     @RequestMapping(value = "/request-concept-promotion", method = RequestMethod.POST)
     public ResponseEntity <Void> requestConceptPromotion(@RequestBody ConceptPromotionRequest request) throws BusinessServiceException {
         if (!StringUtils.hasLength(request.getBranchPath()) && !StringUtils.hasLength(request.getProjectKey())) {
