@@ -235,7 +235,7 @@ public class LOINCReferenceSetExportService {
 					public void newRelationshipState(String id, String effectiveTime, String active, String moduleId, String sourceId, String destinationId, String relationshipGroup, String typeId, String characteristicTypeId, String modifierId) {
 						conceptsWithLogicalChanges.add(sourceId);
 					}
-				});
+				}, false);
 			}
 			deltaExportZip.delete();
 		} catch (IOException | ReleaseImportException e) {

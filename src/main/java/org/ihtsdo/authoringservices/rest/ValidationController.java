@@ -55,7 +55,7 @@ public class ValidationController {
 	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
 	@RequestMapping(value = "/branches/{branch}/validation", method = RequestMethod.POST)
 	public Status startValidation(@PathVariable String branch, @RequestParam(value = "enableMRCMValidation", required = false, defaultValue = "false") boolean enableMRCMValidation) throws BusinessServiceException {
-		return validationService.startValidation(BranchPathUriUtil.parseBranchPath(branch), enableMRCMValidation);
+		return validationService.startValidation(BranchPathUriUtil.decodePath(branch), enableMRCMValidation);
 	}
 
 	@ApiOperation(value = "Recover the most recent validation for a branch")
@@ -65,7 +65,7 @@ public class ValidationController {
 	@RequestMapping(value = "/branches/{branch}/validation", method = RequestMethod.GET)
 	@ResponseBody
 	public String getValidationForBranch(@PathVariable String branch) throws BusinessServiceException {
-		return validationService.getValidationJsonForBranch(BranchPathUriUtil.parseBranchPath(branch));
+		return validationService.getValidationJsonForBranch(BranchPathUriUtil.decodePath(branch));
 	}
 
 	@ApiOperation(value = "Recover the most recent validation on a Task")
@@ -114,7 +114,7 @@ public class ValidationController {
 	@ApiResponses({ @ApiResponse(code = 200, message = "OK") })
 	@RequestMapping(value = "/validation/{branchPath}/status/reset", method = RequestMethod.POST)
 	public void resetValidationStatusCacheForBranch(@PathVariable String branchPath) {
-		validationService.resetBranchValidationStatus(BranchPathUriUtil.parseBranchPath(branchPath));
+		validationService.resetBranchValidationStatus(BranchPathUriUtil.decodePath(branchPath));
 	}
 
 	@ApiOperation(value = "Retrieve all technical assertion UUIDs")
@@ -158,7 +158,7 @@ public class ValidationController {
 	@RequestMapping(value = "/branches/{branchPath}/validation-reports/{reportRunId}/failure-jira-associations", method = RequestMethod.POST)
 	public ResponseEntity<Map<String, Object>> raiseJiraTickets(@PathVariable final String branchPath, @PathVariable final Long reportRunId,
 																@RequestBody String[] assertionIds) throws IOException, BusinessServiceException, JiraException {
-		return new ResponseEntity<>(rvfFailureJiraAssociationService.createFailureJiraAssociations(BranchPathUriUtil.parseBranchPath(branchPath), reportRunId, assertionIds), HttpStatus.CREATED);
+		return new ResponseEntity<>(rvfFailureJiraAssociationService.createFailureJiraAssociations(BranchPathUriUtil.decodePath(branchPath), reportRunId, assertionIds), HttpStatus.CREATED);
 	}
 
 	@ApiOperation(value = "Retrieve JIRA tickets for a given report")

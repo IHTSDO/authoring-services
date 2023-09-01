@@ -36,7 +36,7 @@ public class LOINCExportController {
 	public void exportLOINCReferenceSetWithoutUuids(@PathVariable String branchPath, HttpServletResponse response) throws BusinessServiceException, IOException {
 		response.setContentType(TSV_CONTENT_TYPE.toString());
 		setResponseFilename(response);
-		exportService.exportDelta(BranchPathUriUtil.parseBranchPath(branchPath), null, response.getOutputStream());
+		exportService.exportDelta(BranchPathUriUtil.decodePath(branchPath), null, response.getOutputStream());
 	}
 
 	@ApiOperation(value="Export LOINC Reference Set RF2 Delta with UUIDs")
@@ -49,7 +49,7 @@ public class LOINCExportController {
 												 HttpServletResponse response) throws BusinessServiceException, IOException {
 		response.setContentType(TSV_CONTENT_TYPE.toString());
 		setResponseFilename(response);
-		exportService.exportDelta(BranchPathUriUtil.parseBranchPath(branchPath), previousLoincRF2SnapshotFile.getInputStream(), response.getOutputStream());
+		exportService.exportDelta(BranchPathUriUtil.decodePath(branchPath), previousLoincRF2SnapshotFile.getInputStream(), response.getOutputStream());
 	}
 
 	private void setResponseFilename(HttpServletResponse response) {

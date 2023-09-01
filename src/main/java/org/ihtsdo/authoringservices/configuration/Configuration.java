@@ -115,7 +115,7 @@ public abstract class Configuration {
 		return new Docket(DocumentationType.SWAGGER_2)
 				.select()
 				.apis(RequestHandlerSelectors.any())
-				.paths(not(regex("/error")))
+				.paths(regex("/error").negate())
 				.build();
 	}
 

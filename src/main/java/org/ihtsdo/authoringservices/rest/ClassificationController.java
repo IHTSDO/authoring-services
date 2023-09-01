@@ -47,7 +47,7 @@ public class ClassificationController {
 	@RequestMapping(value = "/branches/{branch}/classifications", method = RequestMethod.POST)
 	@ResponseBody
 	public Classification startBranchClassification(@PathVariable String branch) throws BusinessServiceException {
-		String branchPath = BranchPathUriUtil.parseBranchPath(branch);
+		String branchPath = BranchPathUriUtil.decodePath(branch);
 		try {
 			Classification classification = snowstormClassificationClient.startClassification(null, null, branchPath, SecurityUtil.getUsername());
 			taskService.clearClassificationCache(branchPath);
