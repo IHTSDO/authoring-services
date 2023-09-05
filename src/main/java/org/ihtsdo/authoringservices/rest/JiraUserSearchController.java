@@ -39,9 +39,9 @@ public class JiraUserSearchController {
 	@Operation(summary = "Returns authoring users from Jira by search conditions")
 	@ResponseBody
 	public List<JiraUser> findUsersByNameAndGroupName(
-			@Parameter(name = "A part of user name that to be searched") @RequestParam("username") String username,
-			@Parameter(name = "Project key. Example: TESTINT2") @RequestParam("projectKeys") String projectKeys,
-			@Parameter(name = "Task key. Example: TESTINT2-XXX") @RequestParam("issueKey") String issueKey,
+			@Parameter(description = "A part of user name that to be searched") @RequestParam("username") String username,
+			@Parameter(description = "Project key. Example: TESTINT2,...") @RequestParam("projectKeys") String projectKeys,
+			@Parameter(description = "Task key. Example: TESTINT2-XXX") @RequestParam("issueKey") String issueKey,
 			int maxResults,
 			int startAt) throws JiraException {
 		Gson gson = new Gson();
@@ -55,8 +55,8 @@ public class JiraUserSearchController {
 	})
 	@RequestMapping(value = "/issue-key/{issueKey}/issue-link/{linkId}", method = RequestMethod.DELETE)
 	public void deleteIssueLink(
-			@Parameter(name = "Task key. Example: TESTINT2-XXX") @PathVariable final String issueKey,
-			@Parameter(name = "Issue ID. Example: CRT-XXX") @PathVariable final String linkId) throws JiraException {
+			@Parameter(description = "Task key. Example: TESTINT2-XXX") @PathVariable final String issueKey,
+			@Parameter(description = "Issue ID. Example: CRT-XXX") @PathVariable final String linkId) throws JiraException {
 		configurationService.deleteIssueLink(issueKey, linkId);
 	}
 }

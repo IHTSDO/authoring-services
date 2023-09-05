@@ -123,7 +123,7 @@ public class DialectConversionController {
 	@Operation(summary = "Replace the whole EN-US to EN-GB dialect map",
 			description = "The dialect map is reloaded automatically once the map is updated.")
 	@ResponseBody
-	@RequestMapping(value = "/dialect/en-us/map/en-gb/file", method = RequestMethod.POST, produces = "application/json")
+	@RequestMapping(value = "/dialect/en-us/map/en-gb/file", method = RequestMethod.POST, consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public void replaceEnUSToEnGbMap(@RequestParam("file") MultipartFile file) throws IOException, ServiceException {
 		dialectConversionService.replaceMap(file);
 	}
@@ -131,7 +131,7 @@ public class DialectConversionController {
 	@Operation(summary = "Replace the whole EN-US to EN-GB dialect synonyms mapping",
 			description = "The dialect synonyms mapping is reloaded automatically once the map is updated.")
 	@ResponseBody
-	@RequestMapping(value = "/dialect/en-us/synonyms/en-gb/file", method = RequestMethod.POST, produces = "application/json")
+	@RequestMapping(value = "/dialect/en-us/synonyms/en-gb/file", method = RequestMethod.POST, consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public void replaceEnUSToEnGbSynonyms(@RequestParam("file") MultipartFile file) throws IOException, ServiceException {
 		dialectConversionService.replaceSynonymsMap(file);
 	}

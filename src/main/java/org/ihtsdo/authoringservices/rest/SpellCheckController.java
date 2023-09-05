@@ -68,7 +68,7 @@ public class SpellCheckController {
 
 	@Operation(summary = "Replace the whole spelling list")
 	@ResponseBody
-	@RequestMapping(value = "/spelling/words/list", method = RequestMethod.POST, produces = "application/json")
+	@RequestMapping(value = "/spelling/words/list", method = RequestMethod.POST, consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public void replaceWordList(@RequestParam("file") MultipartFile file) throws IOException, ServiceException {
 		spellingListsService.replaceList(file);
 	}

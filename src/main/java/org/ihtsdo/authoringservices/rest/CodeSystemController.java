@@ -51,10 +51,10 @@ public class CodeSystemController {
 	@ApiResponse(responseCode = "201", description = "CREATED")
 	@RequestMapping(value="/{shortName}/upgrade/{newDependantVersion}", method= RequestMethod.POST)
 	public ResponseEntity<Void> upgradeCodeSystem(
-			@Parameter(name = "Extension code system shortname") @PathVariable final String shortName,
-			@Parameter(name = "New dependant version with the same format as the effectiveTime RF2 field, for example '20190731'") @PathVariable final Integer newDependantVersion,
-			@Parameter(name = "Flag to generate additional english language refset") @RequestParam(required = false) final Boolean generateEn_GbLanguageRefsetDelta,
-			@Parameter(name = "Master Project Key which is required by generating the additional english language refset process") @RequestParam(required = false) final String projectKey) throws BusinessServiceException {
+			@Parameter(description = "Extension code system shortname") @PathVariable final String shortName,
+			@Parameter(description = "New dependant version with the same format as the effectiveTime RF2 field, for example '20190731'") @PathVariable final Integer newDependantVersion,
+			@Parameter(description = "Flag to generate additional english language refset") @RequestParam(required = false) final Boolean generateEn_GbLanguageRefsetDelta,
+			@Parameter(description = "Master Project Key which is required by generating the additional english language refset process") @RequestParam(required = false) final String projectKey) throws BusinessServiceException {
 		RequestAttributes attrs = RequestContextHolder.getRequestAttributes();
 		Assert.state(attrs instanceof ServletRequestAttributes, "No current ServletRequestAttributes");
 		HttpServletRequest request = ((ServletRequestAttributes) attrs).getRequest();
