@@ -28,6 +28,7 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
 	private String branchState;
 	private Long branchHeadTimestamp;
 	private Long branchBaseTimestamp;
+	private Long latestCodeSystemVersionTimestamp;
 	private String description;
 	private User assignee;
 	private List<User> reviewers;
@@ -214,6 +215,14 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
 
 	public void setBranchBaseTimestamp(Long branchBaseTimestamp) {
 		this.branchBaseTimestamp = branchBaseTimestamp;
+	}
+
+	public Long getLatestCodeSystemVersionTimestamp() {
+		return latestCodeSystemVersionTimestamp;
+	}
+
+	public void setLatestCodeSystemVersionTimestamp(Long latestCodeSystemVersionTimestamp) {
+		this.latestCodeSystemVersionTimestamp = latestCodeSystemVersionTimestamp;
 	}
 
 	public static void setJiraReviewerField(String jiraReviewerField) {

@@ -668,6 +668,9 @@ public class TaskService {
 		final TimerUtil timer = new TimerUtil("BuildTaskList", Level.DEBUG);
 		final String username = getUsername();
 		List<AuthoringTask> allTasks = new ArrayList<>();
+		final SnowstormRestClient snowstormRestClient = snowstormRestClientFactory.getClient();
+		List<CodeSystem> codeSystems = snowstormRestClient.getCodeSystems();
+		Map<String, Long> codeSystemBaseTimestampMap = new HashMap<>();
 		try {
 			// Map of task paths to tasks
 			Map<String, AuthoringTask> startedTasks = new HashMap<>();
@@ -706,6 +709,22 @@ public class TaskService {
 					}
 
 					allTasks.add(task);
+
+					// Fetch latest code system version timestamp
+					if (lightweight == null || !lightweight) {
+						final String projectPath = PathHelper.getProjectPath(projectDetails.baseBranchPath(), issue.getProject().getKey());
+						String projectParentPath = PathHelper.getParentPath(projectPath);
+						CodeSystem codeSystem = codeSystems.stream().filter(c -> projectParentPath.equals(c.getBranchPath())).findFirst().orElse(null);
+						if (codeSystem == null && projectParentPath.contains("/")) {
+							// Attempt match using branch grandfather
+							String grandfatherPath = PathHelper.getParentPath(projectParentPath);
+							codeSystem = codeSystems.stream().filter(c -> grandfatherPath.equals(c.getBranchPath())).findFirst().orElse(null);
+						}
+						if (codeSystem != null && codeSystem.getLatestVersion() != null) {
+							task.setLatestCodeSystemVersionTimestamp(codeSystem.getLatestVersion().getImportDate().getTime());
+						}
+					}
+
 					// Fetch the extra statuses for tasks that are not new and have a branch
 					if (task.getStatus() != TaskStatus.NEW) {
 						Branch branch = branchService.getBranchOrNull(task.getBranchPath());
