@@ -61,6 +61,8 @@ public class ValidationService {
 	public static final String RUN_ID = "runId";
 	public static final String PROJECT_KEY = "projectKey";
 	public static final String TASK_KEY = "taskKey";
+	public static final String VALIDATION_START_TIMESTAMP = "startTimestamp";
+	public static final String VALIDATION_END_TIMESTAMP = "endTimestamp";
 
 	public static final String VALIDATION_RESPONSE_QUEUE = "termserver-release-validation.response";
 	public static final String ASSERTION_GROUP_NAMES = "assertionGroupNames";
@@ -205,6 +207,12 @@ public class ValidationService {
 		if (newPropertyValues.containsKey(TASK_KEY)) {
 			validation.setTaskKey(newPropertyValues.get(TASK_KEY));
 		}
+		if (newPropertyValues.containsKey(VALIDATION_START_TIMESTAMP)) {
+			validation.setStartTimestamp(newPropertyValues.get(VALIDATION_START_TIMESTAMP) != null ? Long.valueOf(newPropertyValues.get(VALIDATION_START_TIMESTAMP)) : null);
+		}
+		if (newPropertyValues.containsKey(VALIDATION_END_TIMESTAMP)) {
+			validation.setEndTimestamp(newPropertyValues.get(VALIDATION_END_TIMESTAMP) != null ? Long.valueOf(newPropertyValues.get(VALIDATION_END_TIMESTAMP)) : null);
+		}
 
 		validation = validationRepository.save(validation);
 		validationLoadingCache.put(branchPath, validation);
@@ -251,6 +259,9 @@ public class ValidationService {
 			newPropertyValues.put(VALIDATION_STATUS, ValidationJobStatus.SCHEDULED.name());
 			newPropertyValues.put(PROJECT_KEY, projectKey);
 			newPropertyValues.put(TASK_KEY, taskKey);
+			newPropertyValues.put(VALIDATION_START_TIMESTAMP, String.valueOf((new Date()).getTime()));
+			newPropertyValues.put(VALIDATION_END_TIMESTAMP, null);
+
 			updateValidationCache(branchPath, newPropertyValues);
 
 			return new Status(ValidationJobStatus.SCHEDULED.name());
@@ -323,6 +334,14 @@ public class ValidationService {
 			//Only return the validation json if the validation is complete
 			Validation validation = getValidation(path);
 			JSONObject jsonObj = new JSONObject();
+			if (validation != null) {
+				if (validation.getStartTimestamp() != null) {
+					jsonObj.put("startTimestamp", validation.getStartTimestamp());
+				}
+				if (validation.getEndTimestamp() != null) {
+					jsonObj.put("endTimestamp", validation.getEndTimestamp());
+				}
+			}
 			if (validation != null && validation.getDailyBuildReportUrl() != null) {
 				jsonObj.put("dailyBuildRvfUrl", validation.getDailyBuildReportUrl());
 				jsonObj.put("dailyBuildReport", rvfRestTemplate.getForObject(validation.getDailyBuildReportUrl(), String.class));

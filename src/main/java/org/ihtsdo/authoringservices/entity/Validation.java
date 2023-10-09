@@ -36,6 +36,12 @@ public class Validation {
 	@Column(name = "task_key")
 	private String taskKey;
 
+	@Column(name = "start_timestamp")
+	private Long startTimestamp;
+
+	@Column(name = "end_timestamp")
+	private Long endTimestamp;
+
 	protected Validation() {
 	}
 
@@ -111,17 +117,36 @@ public class Validation {
 		return taskKey;
 	}
 
+	public Long getStartTimestamp() {
+		return startTimestamp;
+	}
+
+	public void setStartTimestamp(Long startTimestamp) {
+		this.startTimestamp = startTimestamp;
+	}
+
+	public Long getEndTimestamp() {
+		return endTimestamp;
+	}
+
+	public void setEndTimestamp(Long endTimestamp) {
+		this.endTimestamp = endTimestamp;
+	}
+
 	@Override
 	public String toString() {
 		return "Validation{" +
 				"id=" + id +
-				", runId='" + runId + '\'' +
+				", runId=" + runId +
 				", branchPath='" + branchPath + '\'' +
-				", status=" + status +
+				", status='" + status + '\'' +
 				", contentHeadTimestamp=" + contentHeadTimestamp +
-				", reportUrl=" + reportUrl +
-				", projectKey=" + projectKey +
-				", taskKey=" + taskKey +
+				", reportUrl='" + reportUrl + '\'' +
+				", dailyBuildReportUrl='" + dailyBuildReportUrl + '\'' +
+				", projectKey='" + projectKey + '\'' +
+				", taskKey='" + taskKey + '\'' +
+				", startTimestamp=" + startTimestamp +
+				", endTimestamp=" + endTimestamp +
 				'}';
 	}
 }
