@@ -64,20 +64,20 @@ public class ValidationStatusListener {
 					Map<String, String> newPropertyValues = new HashMap<>();
 					newPropertyValues.put(ValidationService.VALIDATION_STATUS, state);
 
+					// Notify user
+					Notification notification = new Notification(
+							validation.getProjectKey(),
+							validation.getTaskKey(),
+							EntityType.Validation,
+							state);
+					notification.setBranchPath(validation.getBranchPath());
+					notificationService.queueNotification(
+							username,
+							notification);
+
 					if (ValidationJobStatus.COMPLETED.name().equalsIgnoreCase(state) || ValidationJobStatus.FAILED.name().equalsIgnoreCase(state)) {
 						newPropertyValues.put(ValidationService.VALIDATION_END_TIMESTAMP, String.valueOf((new Date()).getTime()));
 						validationService.updateValidationCache(validation.getBranchPath(), newPropertyValues);
-
-						// Notify user
-						Notification notification = new Notification(
-								validation.getProjectKey(),
-								validation.getTaskKey(),
-								EntityType.Validation,
-								state);
-						notification.setBranchPath(validation.getBranchPath());
-						notificationService.queueNotification(
-								username,
-								notification);
 
 						// Notify AAG
 						if (ValidationJobStatus.COMPLETED.name().equalsIgnoreCase(state)) {
