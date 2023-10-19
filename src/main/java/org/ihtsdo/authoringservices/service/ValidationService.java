@@ -54,6 +54,11 @@ public class ValidationService {
 
 	private Logger logger = LoggerFactory.getLogger(getClass());
 
+	public static final String EXECUTION_STATUS = "executionStatus";
+	public static final String DAILY_BUILD_RVF_URL = "dailyBuildRvfUrl";
+	public static final String DAILY_BUILD_REPORT = "dailyBuildReport";
+	public static final String RVF_URL = "rvfUrl";
+	public static final String VALIDATION_REPORT = "report";
 	public static final String VALIDATION_STATUS = "validationStatus";
 	public static final String REPORT_URL = "reportUrl";
 	public static final String DAILY_BUILD_REPORT_URL = "dailyBuildReportUrl";
@@ -63,7 +68,6 @@ public class ValidationService {
 	public static final String TASK_KEY = "taskKey";
 	public static final String VALIDATION_START_TIMESTAMP = "startTimestamp";
 	public static final String VALIDATION_END_TIMESTAMP = "endTimestamp";
-
 	public static final String VALIDATION_RESPONSE_QUEUE = "termserver-release-validation.response";
 	public static final String ASSERTION_GROUP_NAMES = "assertionGroupNames";
 	public static final String DISABLE_TRACEABILITY_VALIDATION = "disableTraceabilityValidation";
@@ -331,46 +335,44 @@ public class ValidationService {
 	
 	private String getValidationJsonIfAvailable(String path) throws BusinessServiceException {
 		try {
-			//Only return the validation json if the validation is complete
 			Validation validation = getValidation(path);
-			JSONObject jsonObj = new JSONObject();
 			if (validation != null) {
+				JSONObject jsonObj = new JSONObject();
 				if (validation.getStartTimestamp() != null) {
-					jsonObj.put("startTimestamp", validation.getStartTimestamp());
+					jsonObj.put(VALIDATION_START_TIMESTAMP, validation.getStartTimestamp());
 				}
 				if (validation.getEndTimestamp() != null) {
-					jsonObj.put("endTimestamp", validation.getEndTimestamp());
+					jsonObj.put(VALIDATION_END_TIMESTAMP, validation.getEndTimestamp());
 				}
-			}
-			if (validation != null && validation.getDailyBuildReportUrl() != null) {
-				jsonObj.put("dailyBuildRvfUrl", validation.getDailyBuildReportUrl());
-				jsonObj.put("dailyBuildReport", rvfRestTemplate.getForObject(validation.getDailyBuildReportUrl(), String.class));
-			} else {
-				jsonObj.put("dailyBuildRvfUrl", null);
-				jsonObj.put("dailyBuildReport", null);
-			}
+				if (validation.getDailyBuildReportUrl() != null) {
+					jsonObj.put(DAILY_BUILD_RVF_URL, validation.getDailyBuildReportUrl());
+					jsonObj.put(DAILY_BUILD_REPORT, rvfRestTemplate.getForObject(validation.getDailyBuildReportUrl(), String.class));
+				}
+				if (validation.getStatus() != null) {
+					jsonObj.put(EXECUTION_STATUS, validation.getStatus());
 
-			if (ValidationJobStatus.COMPLETED.name().equals(validation.getStatus()) && validation.getReportUrl() != null) {
-				jsonObj.put("rvfUrl", validation.getReportUrl());
-
-				String report = rvfRestTemplate.getForObject(validation.getReportUrl(), String.class);
-				if (StringUtils.hasLength(report) && validation.getContentHeadTimestamp() != null) {
-					Branch branch = branchService.getBranch(path);
-					if (!validation.getContentHeadTimestamp().equals(branch.getHeadTimestamp())) {
-						jsonObj.put("executionStatus", ValidationJobStatus.STALE.name());
-					} else {
-						jsonObj.put("executionStatus", validation.getStatus());
+					//Only return the validation report if the validation is complete
+					if (ValidationJobStatus.COMPLETED.name().equals(validation.getStatus())) {
+						if (validation.getReportUrl() == null) {
+							logger.info(validation.toString());
+							throw new BusinessServiceException("Validation was completed but the report URL is not found");
+						}
+						jsonObj.put(RVF_URL, validation.getReportUrl());
+						String report = rvfRestTemplate.getForObject(validation.getReportUrl(), String.class);
+						jsonObj.put(VALIDATION_REPORT, report);
+						if (StringUtils.hasLength(report) && validation.getContentHeadTimestamp() != null) {
+							Branch branch = branchService.getBranch(path);
+							if (!validation.getContentHeadTimestamp().equals(branch.getHeadTimestamp())) {
+								jsonObj.put(EXECUTION_STATUS, ValidationJobStatus.STALE.name());
+							}
+						}
 					}
+					return  jsonObj.toString();
 				} else {
-					jsonObj.put("executionStatus", validation.getStatus());
+					logger.warn("Ignoring request for validation json for path {} as status {} ", path, validation.getStatus());
+					return null;
 				}
-				jsonObj.put("report", report);
-				return  jsonObj.toString();
-			} else if (validation.getStatus() != null) {
-				jsonObj.put("executionStatus", validation.getStatus());
-				return  jsonObj.toString();
 			} else {
-				logger.warn("Ignoring request for validation json for path {} as status {} ", path, validation.getStatus());
 				return null;
 			}
 		} catch (Exception e) {

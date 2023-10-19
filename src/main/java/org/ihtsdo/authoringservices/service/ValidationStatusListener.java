@@ -61,30 +61,32 @@ public class ValidationStatusListener {
 				}
 				Validation validation = validationRepository.findByRunId(runId);
 				if (validation != null) {
-					Map<String, String> newPropertyValues = new HashMap<>();
-					newPropertyValues.put(ValidationService.VALIDATION_STATUS, state);
+					try {
+						Map<String, String> newPropertyValues = new HashMap<>();
+						newPropertyValues.put(ValidationService.VALIDATION_STATUS, state);
 
-					// Notify user
-					Notification notification = new Notification(
-							validation.getProjectKey(),
-							validation.getTaskKey(),
-							EntityType.Validation,
-							state);
-					notification.setBranchPath(validation.getBranchPath());
-					notificationService.queueNotification(
-							username,
-							notification);
+						if (ValidationJobStatus.COMPLETED.name().equalsIgnoreCase(state) || ValidationJobStatus.FAILED.name().equalsIgnoreCase(state)) {
+							newPropertyValues.put(ValidationService.VALIDATION_END_TIMESTAMP, String.valueOf((new Date()).getTime()));
+							validationService.updateValidationCache(validation.getBranchPath(), newPropertyValues);
 
-					if (ValidationJobStatus.COMPLETED.name().equalsIgnoreCase(state) || ValidationJobStatus.FAILED.name().equalsIgnoreCase(state)) {
-						newPropertyValues.put(ValidationService.VALIDATION_END_TIMESTAMP, String.valueOf((new Date()).getTime()));
-						validationService.updateValidationCache(validation.getBranchPath(), newPropertyValues);
-
-						// Notify AAG
-						if (ValidationJobStatus.COMPLETED.name().equalsIgnoreCase(state)) {
-							aagClient.validationComplete(validation.getBranchPath(), state, validation.getReportUrl(), authenticationToken);
+							// Notify AAG
+							if (ValidationJobStatus.COMPLETED.name().equalsIgnoreCase(state)) {
+								aagClient.validationComplete(validation.getBranchPath(), state, validation.getReportUrl(), authenticationToken);
+							}
+						} else {
+							validationService.updateValidationCache(validation.getBranchPath(), newPropertyValues);
 						}
-					} else {
-						validationService.updateValidationCache(validation.getBranchPath(), newPropertyValues);
+					} finally {
+						// Notify user
+						Notification notification = new Notification(
+								validation.getProjectKey(),
+								validation.getTaskKey(),
+								EntityType.Validation,
+								state);
+						notification.setBranchPath(validation.getBranchPath());
+						notificationService.queueNotification(
+								username,
+								notification);
 					}
 				} else {
 					logger.error("Error while retrieving validation for run Id {}", runId);
