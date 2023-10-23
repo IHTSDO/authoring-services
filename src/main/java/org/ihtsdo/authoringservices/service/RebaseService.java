@@ -5,7 +5,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import javax.annotation.PreDestroy;
+import jakarta.annotation.PreDestroy;
 
 import org.ihtsdo.authoringservices.domain.AuthoringProject;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;

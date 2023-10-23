@@ -1,14 +1,12 @@
 package org.ihtsdo.authoringservices.service;
 
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.services.s3.model.CannedAccessControlList;
-import com.amazonaws.services.s3.model.PutObjectRequest;
-import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableMap;
+import jakarta.annotation.PostConstruct;
+import jakarta.transaction.Transactional;
 import net.sf.json.JSONObject;
 import org.apache.commons.io.FileUtils;
 import org.ihtsdo.authoringservices.domain.ReleaseRequest;
@@ -36,9 +34,9 @@ import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
+import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
+import software.amazon.awssdk.services.s3.S3Client;
 
-import javax.annotation.PostConstruct;
-import javax.transaction.Transactional;
 import java.io.*;
 import java.nio.file.Files;
 import java.text.ParseException;
@@ -170,9 +168,9 @@ public class ValidationService {
                         });
 		this.technicalItems = new HashSet<>();
 		if (this.awsResourceEnabled) {
-		 	S3ClientImpl s3Client = new S3ClientImpl(new BasicAWSCredentials(accessKey, secretKey));
-			if (s3Client.doesObjectExist(this.bucket, this.techinicalIssueItemsPath)) {
-				S3ObjectInputStream objectContent = s3Client.getObject(bucket, techinicalIssueItemsPath).getObjectContent();
+		 	S3ClientImpl s3Client = new S3ClientImpl(S3Client.builder().credentialsProvider(ProfileCredentialsProvider.create()).build());
+			if (s3Client.exists(this.bucket, this.techinicalIssueItemsPath)) {
+				InputStream objectContent = s3Client.getObject(bucket, techinicalIssueItemsPath);
 				try (BufferedReader reader = new BufferedReader(new InputStreamReader(objectContent))) {
 					String line;
 					while ((line = reader.readLine()) != null) {
@@ -441,9 +439,9 @@ public class ValidationService {
 			}
 		}
 		try {
-			S3ClientImpl s3Client = new S3ClientImpl(new BasicAWSCredentials(accessKey, secretKey));
-			s3Client.putObject(new PutObjectRequest(bucket, path, modifiedList)
-					.withCannedAcl(CannedAccessControlList.PublicRead));
+			S3ClientImpl s3Client = new S3ClientImpl(S3Client.builder().credentialsProvider(ProfileCredentialsProvider.create()).build());
+			s3Client.putObject(bucket, path, modifiedList);
+//					.withCannedAcl(CannedAccessControlList.PublicRead));
 		} finally {
 			FileUtils.forceDelete(modifiedList);
 		}
@@ -451,9 +449,9 @@ public class ValidationService {
 
 	private Set<String> loadSemanticTags(){
 		Set<String> semanticTags = new HashSet<>();
-		S3ClientImpl s3Client = new S3ClientImpl(new BasicAWSCredentials(accessKey, secretKey));
-		if (s3Client.doesObjectExist(this.bucket, this.semanticTagItemsPath)) {
-			S3ObjectInputStream objectContent = s3Client.getObject(bucket, semanticTagItemsPath).getObjectContent();
+		S3ClientImpl s3Client = new S3ClientImpl(S3Client.builder().credentialsProvider(ProfileCredentialsProvider.create()).build());
+		if (s3Client.exists(this.bucket, this.semanticTagItemsPath)) {
+			InputStream objectContent = s3Client.getObject(bucket, semanticTagItemsPath);
 			try (BufferedReader reader = new BufferedReader(new InputStreamReader(objectContent))) {
 				String line;
 				while ((line = reader.readLine()) != null) {

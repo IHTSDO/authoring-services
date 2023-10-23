@@ -27,7 +27,7 @@ public class WebSocketConfiguration implements WebSocketMessageBrokerConfigurer 
 				.addEndpoint("/authoring-services-websocket")
 				.setAllowedOrigins("*")
 				.withSockJS()
-				.setSupressCors(true);
+				.setSuppressCors(true);
 	}
 
 	@Scheduled(cron = "*/10 * * * * *")

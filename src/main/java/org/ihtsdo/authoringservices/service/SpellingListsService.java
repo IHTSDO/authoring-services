@@ -1,20 +1,18 @@
 package org.ihtsdo.authoringservices.service;
 
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.services.s3.model.AccessControlList;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.S3ObjectInputStream;
+import io.awspring.cloud.s3.ObjectMetadata;
+import jakarta.annotation.PostConstruct;
+import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.otf.dao.s3.S3ClientImpl;
 import org.ihtsdo.otf.spellcheck.service.SpellCheckService;
-import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
+import software.amazon.awssdk.services.s3.S3Client;
 
-import javax.annotation.PostConstruct;
 import java.io.*;
 import java.nio.file.Files;
 import java.util.List;
@@ -33,12 +31,10 @@ public class SpellingListsService {
 
     public SpellingListsService(
             @Value("${aws.resources.enabled}") boolean awsResourceEnabled,
-            @Value("${aws.key}") String accessKey,
-			@Value("${aws.secretKey}") String secretKey,
 			@Value("${aws.s3.spell-check.bucket}") String bucket,
 			@Value("${aws.s3.spell-check.path}") String path) throws IOException {
 
-	    this.s3Client = new S3ClientImpl(new BasicAWSCredentials(accessKey, secretKey));
+	    this.s3Client = new S3ClientImpl(S3Client.builder().credentialsProvider(ProfileCredentialsProvider.create()).build());
 		this.bucket = bucket;
 		this.path = path;
 		this.spellCheckService = new SpellCheckService();
@@ -48,7 +44,7 @@ public class SpellingListsService {
 	@PostConstruct
 	public void loadList() throws ServiceException {
 	    if (awsResourceEnabled) {
-            try (S3ObjectInputStream inputStream = getListObject().getObjectContent()) {
+            try (InputStream inputStream = getListObject()) {
                 synchronized (spellCheckService) {
                     doLoadList(inputStream);
                 }
@@ -72,13 +68,12 @@ public class SpellingListsService {
 		}
 	}
 
-	public S3Object getListObject() {
+	public InputStream getListObject() {
 		return s3Client.getObject(bucket, path);
 	}
 
 	public void replaceList(MultipartFile file) throws IOException, ServiceException {
-		ObjectMetadata objectMetadata = new ObjectMetadata();
-		objectMetadata.setContentLength(file.getSize());
+		ObjectMetadata objectMetadata = ObjectMetadata.builder().contentDisposition(String.valueOf(file.getSize())).build();
 		try (InputStream inputStream = file.getInputStream()) {
 			s3Client.putObject(bucket, path, inputStream, objectMetadata);
 			loadList();
@@ -141,7 +136,7 @@ public class SpellingListsService {
 	}
 
 	private boolean updateList(FileModifier fileModifier) throws IOException {
-		try (S3ObjectInputStream inputStream = getListObject().getObjectContent()) {
+		try (InputStream inputStream = getListObject()) {
 			File modifiedList = Files.createTempFile("temp-spelling-list", "txt").toFile();
 			try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
 				boolean changes;
@@ -149,9 +144,9 @@ public class SpellingListsService {
 					changes = fileModifier.modifyFile(reader, writer);
 				}
 				if (changes) {
-					AccessControlList acl = s3Client.getObjectAcl(bucket, path);
+//					AccessControlList acl = s3Client.getObjectAcl(bucket, path);
 					s3Client.putObject(bucket, path, modifiedList);
-					s3Client.setObjectAcl(bucket, path, acl);
+//					s3Client.setObjectAcl(bucket, path, acl);
 					doLoadList(new FileInputStream(modifiedList));
 				}
 				return changes;

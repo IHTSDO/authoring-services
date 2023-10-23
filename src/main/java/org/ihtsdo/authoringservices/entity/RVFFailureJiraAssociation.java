@@ -2,8 +2,7 @@ package org.ihtsdo.authoringservices.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
-import javax.persistence.*;
-import java.util.Date;
+import jakarta.persistence.*;
 
 @Entity
 @Table(name="rvf_failure_jira_associations")

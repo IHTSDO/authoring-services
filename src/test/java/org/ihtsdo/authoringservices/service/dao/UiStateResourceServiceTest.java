@@ -2,9 +2,9 @@ package org.ihtsdo.authoringservices.service.dao;
 
 import org.ihtsdo.authoringservices.configuration.UiStateStorageConfiguration;
 import org.ihtsdo.authoringservices.service.exceptions.PathNotProvidedException;
-import org.json.JSONException;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import us.monoid.json.JSONException;
 
 import java.io.File;
 import java.io.FileNotFoundException;

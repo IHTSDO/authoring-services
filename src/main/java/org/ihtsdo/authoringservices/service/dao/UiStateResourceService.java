@@ -1,16 +1,17 @@
 package org.ihtsdo.authoringservices.service.dao;
 
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.services.s3.model.ObjectListing;
-import com.amazonaws.services.s3.model.S3ObjectSummary;
 import org.apache.commons.io.IOUtils;
 import org.ihtsdo.authoringservices.configuration.UiStateStorageConfiguration;
 import org.ihtsdo.authoringservices.service.exceptions.PathNotProvidedException;
 import org.ihtsdo.otf.dao.s3.S3ClientImpl;
-import org.json.JSONException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
+import software.amazon.awssdk.services.s3.model.S3Object;
+import us.monoid.json.JSONException;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -27,12 +28,6 @@ public final class UiStateResourceService extends AbstractResourceService {
     @Value("${ui-state.storage.useCloud}")
     private boolean useCloud;
 
-    @Value("${aws.key}")
-    private String awsKey;
-
-    @Value("${aws.secretKey}")
-    private String secretKey;
-
     @Value("${ui-state.storage.cloud.bucketName}")
     private String bucketName;
 
@@ -47,7 +42,7 @@ public final class UiStateResourceService extends AbstractResourceService {
 	}
 
 	@Override
-	public final void write(final String path, final String data) throws IOException {
+	public final void write(final String path, final String data) throws IOException, JSONException {
 		if (path == null) {
 			throw new PathNotProvidedException("Panel path is null while trying to write to the resource.");
 		}
@@ -91,11 +86,11 @@ public final class UiStateResourceService extends AbstractResourceService {
             throw new PathNotProvidedException("Either the from/to path is null, both are required for the move operation to proceed.");
         }
         if (this.useCloud) {
-            S3ClientImpl s3Client = new S3ClientImpl(new BasicAWSCredentials(awsKey, secretKey));
+            S3ClientImpl s3Client = new S3ClientImpl(S3Client.builder().credentialsProvider(ProfileCredentialsProvider.create()).build());
             String fromPathFull = (path != null ? path : "") + fromPath;
-            ObjectListing objectListing = s3Client.listObjects(bucketName, (path != null ? path : "") + fromPath);
-            for (S3ObjectSummary summary : objectListing.getObjectSummaries()) {
-                String key = summary.getKey().substring(fromPathFull.length());
+			ListObjectsResponse objectListing = s3Client.listObjects(bucketName, (path != null ? path : "") + fromPath);
+            for (S3Object s3Object : objectListing.contents()) {
+                String key = s3Object.key().substring(fromPathFull.length());
                 resourceManager.moveResource(fromPath + key, toPath + key);
             }
         } else {
