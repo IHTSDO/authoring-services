@@ -1,5 +1,7 @@
 package org.ihtsdo.authoringservices.service.dao;
 
+import us.monoid.json.JSONException;
+
 import java.io.File;
 import java.io.IOException;
 
@@ -19,7 +21,7 @@ public interface ResourceService {
 	 * @throws IOException If an error occurs while trying to write
 	 *                     the {@code data} into the resource.
 	 */
-	void write(String path, String data) throws IOException;
+	void write(String path, String data) throws IOException, JSONException;
 
 	/**
 	 * Reads the resource from the given path.

@@ -2,15 +2,21 @@ package org.ihtsdo.authoringservices.configuration;
 
 import org.ihtsdo.authoringservices.rest.security.RequestHeaderAuthenticationDecoratorWithOverride;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.access.intercept.FilterSecurityInterceptor;
+
+import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration
 @EnableWebSecurity
-public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
+public class WebSecurityConfig {
 
 	@Value("${ims-security.required-role}")
 	private String requiredRole;
@@ -34,21 +40,25 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 			"/v3/api-docs/**"
 	};
 
-	@Override
-	protected void configure(HttpSecurity http) throws Exception {
-		http.csrf().disable();
-		http.addFilterBefore(new RequestHeaderAuthenticationDecoratorWithOverride(overrideUsername, overrideRoles, overrideToken), FilterSecurityInterceptor.class);
-
+	@Bean
+	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+		http.httpBasic(withDefaults());
+		http.csrf(AbstractHttpConfigurer::disable);
+		http.sessionManagement(sessionManagement -> sessionManagement.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+		http.addFilterBefore(new RequestHeaderAuthenticationDecoratorWithOverride(overrideUsername, overrideRoles, overrideToken), AuthorizationFilter.class);
 		if (requiredRole != null && !requiredRole.isEmpty()) {
-			http.authorizeRequests()
-					.antMatchers(excludedUrlPatterns).permitAll()
+			http.authorizeHttpRequests((authorize) -> authorize.requestMatchers(excludedUrlPatterns)
+					.permitAll()
 					.anyRequest().hasAuthority(requiredRole)
-					.and().httpBasic();
+			);
+
 		} else {
-			http.authorizeRequests()
-					.antMatchers(excludedUrlPatterns).permitAll()
+			http.authorizeHttpRequests((authorize) -> authorize.requestMatchers(excludedUrlPatterns)
+					.permitAll()
 					.anyRequest().authenticated()
-					.and().httpBasic();
+			);
 		}
+
+		return http.build();
 	}
 }

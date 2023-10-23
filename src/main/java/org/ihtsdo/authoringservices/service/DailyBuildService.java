@@ -1,17 +1,15 @@
 package org.ihtsdo.authoringservices.service;
 
-import com.amazonaws.auth.BasicAWSCredentials;
 import org.ihtsdo.otf.dao.s3.S3Client;
 import org.ihtsdo.otf.dao.s3.S3ClientImpl;
 import org.ihtsdo.otf.dao.s3.helper.FileHelper;
-import org.ihtsdo.otf.dao.s3.helper.S3ClientHelper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
+import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
@@ -32,8 +30,8 @@ public class DailyBuildService {
 	public DailyBuildService(@Value("${dailybuild.storage.cloud.bucketName}") final String bucketName,
 								  @Value("${aws.key}") String accessKey,
 								  @Value("${aws.secretKey}") String secretKey) {
-		this.s3Client = new S3ClientImpl(new BasicAWSCredentials(accessKey, secretKey));
-		this.fileHelper = new FileHelper(bucketName, s3Client, new S3ClientHelper(this.s3Client));
+		this.s3Client = new S3ClientImpl(software.amazon.awssdk.services.s3.S3Client.builder().credentialsProvider(ProfileCredentialsProvider.create()).build());
+		this.fileHelper = new FileHelper(bucketName, s3Client);
 	}
 
 	public String getLatestDailyBuildFileName(final String codeSystemShortName) {

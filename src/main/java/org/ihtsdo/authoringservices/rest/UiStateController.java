@@ -13,6 +13,7 @@ import org.ihtsdo.sso.integration.SecurityUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import us.monoid.json.JSONException;
 
 import java.io.IOException;
 
@@ -38,7 +39,7 @@ public class UiStateController {
 	})
 	@PostMapping(value = "/projects/{projectKey}/tasks/{taskKey}/ui-state/{panelId}")
 	public void persistTaskUiPanelState(@PathVariable final String projectKey, @PathVariable final String taskKey, @PathVariable final String panelId,
-			@RequestBody final String jsonState) throws IOException, BusinessServiceException, JiraException {
+			@RequestBody final String jsonState) throws IOException, BusinessServiceException, JiraException, JSONException {
 		// TODO - move this to an explicit "Start progress" endpoint.
 		taskService.conditionalStateTransition(projectKey, taskKey, TaskStatus.NEW, TaskStatus.IN_PROGRESS);
 		uiStateService.persistTaskPanelState(projectKey, taskKey, SecurityUtil.getUsername(), panelId, jsonState);
@@ -73,7 +74,7 @@ public class UiStateController {
 	@PostMapping(value = "/projects/{projectKey}/tasks/{taskKey}/shared-ui-state/{panelId}")
 	public void persistSharedTaskUiPanelState(
 			@PathVariable final String projectKey, @PathVariable final String taskKey,
-			@PathVariable final String panelId, @RequestBody final String jsonState) throws IOException {
+			@PathVariable final String panelId, @RequestBody final String jsonState) throws IOException, JSONException {
 		uiStateService.persistTaskPanelState(projectKey, taskKey, SHARED, panelId, jsonState);
 	}
 
@@ -107,7 +108,7 @@ public class UiStateController {
 			@ApiResponse(responseCode = "200", description = "OK")
 	})
 	@PostMapping(value = "/ui-state/{panelId}")
-	public void persistUiPanelState(@PathVariable final String panelId, @RequestBody final String jsonState) throws IOException {
+	public void persistUiPanelState(@PathVariable final String panelId, @RequestBody final String jsonState) throws IOException, JSONException {
 		uiStateService.persistPanelState(SecurityUtil.getUsername(), panelId, jsonState);
 	}
 

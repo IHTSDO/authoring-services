@@ -3,7 +3,7 @@ package org.ihtsdo.authoringservices.entity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.util.Date;
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 @Entity(name = "ReviewConceptView")
 public class ReviewConceptView {

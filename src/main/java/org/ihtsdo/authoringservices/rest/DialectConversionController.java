@@ -1,7 +1,5 @@
 package org.ihtsdo.authoringservices.rest;
 
-import com.amazonaws.services.s3.model.S3Object;
-
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.ihtsdo.authoringservices.domain.DialectVariations;
@@ -16,6 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.lang.model.type.NullType;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Map;
 import java.util.Set;
 
@@ -98,26 +97,26 @@ public class DialectConversionController {
 			description = "Visit this endpoint URL directly in your browser, loading through Swagger may not work.")
 	@ResponseBody
 	@RequestMapping(value = "/dialect/en-us/map/en-gb/file", method = RequestMethod.GET, produces = "application/octet-stream")
-	public ResponseEntity<InputStreamResource> downloadEnUSToEnGbMap() {
-		S3Object listObject = dialectConversionService.getMapObject();
+	public ResponseEntity<InputStreamResource> downloadEnUSToEnGbMap() throws IOException {
+		InputStream inputStream = dialectConversionService.getMapObject();
 		return ResponseEntity.ok()
-				.contentLength(listObject.getObjectMetadata().getContentLength())
+				.contentLength(inputStream.available())
 				.contentType(MediaType.APPLICATION_OCTET_STREAM)
 				.header("content-disposition", "attachment; filename=\"dialect_map_en-us_to_en-gb.txt\"")
-				.body(new InputStreamResource(listObject.getObjectContent()));
+				.body(new InputStreamResource(inputStream));
 	}
 	
 	@Operation(summary = "Download the whole EN-US to EN-GB dialect synonyms mapping",
 			description = "Visit this endpoint URL directly in your browser, loading through Swagger may not work.")
 	@ResponseBody
 	@RequestMapping(value = "/dialect/en-us/synonyms/en-gb/file", method = RequestMethod.GET, produces = "application/octet-stream")
-	public ResponseEntity<InputStreamResource> downloadEnUSToEnGbSynonyms() {
-		S3Object listObject = dialectConversionService.getSynonymsMapObject();
+	public ResponseEntity<InputStreamResource> downloadEnUSToEnGbSynonyms() throws IOException {
+		InputStream inputStream = dialectConversionService.getSynonymsMapObject();
 		return ResponseEntity.ok()
-				.contentLength(listObject.getObjectMetadata().getContentLength())
+				.contentLength(inputStream.available())
 				.contentType(MediaType.APPLICATION_OCTET_STREAM)
 				.header("content-disposition", "attachment; filename=\"us-to-gb-synonyms-map.txt\"")
-				.body(new InputStreamResource(listObject.getObjectContent()));
+				.body(new InputStreamResource(inputStream));
 	}
 
 	@Operation(summary = "Replace the whole EN-US to EN-GB dialect map",

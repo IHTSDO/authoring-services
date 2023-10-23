@@ -1,11 +1,8 @@
 package org.ihtsdo.authoringservices.service;
 
-import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.services.s3.model.AccessControlList;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.google.common.collect.Sets;
+import io.awspring.cloud.s3.ObjectMetadata;
+import jakarta.annotation.PostConstruct;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.ihtsdo.authoringservices.domain.DialectVariations;
@@ -16,8 +13,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
+import software.amazon.awssdk.services.s3.S3Client;
 
-import javax.annotation.PostConstruct;
 import java.io.*;
 import java.nio.file.Files;
 import java.util.HashMap;
@@ -44,7 +42,7 @@ public class DialectConversionService {
 			@Value("${aws.s3.spell-check.bucket}") String bucket,
 			@Value("${aws.s3.dialect.us-to-gb-map.path}") String usToGbTermsMapPath,
 			@Value("${aws.s3.dialect.us-to-gb-synonyms-map.path}") String usToGbSynonymsMapPath) {
-		this.s3Client = new S3ClientImpl(new BasicAWSCredentials(accessKey, secretKey));
+		this.s3Client = new S3ClientImpl(S3Client.builder().credentialsProvider(ProfileCredentialsProvider.create()).build());
 		this.bucket = bucket;
 		this.usToGbTermsMapPath = usToGbTermsMapPath;
 		this.usToGbSynonymsMapPath = usToGbSynonymsMapPath;
@@ -56,8 +54,8 @@ public class DialectConversionService {
 	@PostConstruct
 	public void loadList() throws ServiceException {
 	    if (awsResourceEnabled) {
-            doLoadList(getMapObject().getObjectContent());
-            doLoadSynonymsList(getSynonymsMapObject().getObjectContent());
+            doLoadList(getMapObject());
+            doLoadSynonymsList(getSynonymsMapObject());
         } else {
             logger.info("AWS resources disabled, not loading US-GB dialect conversion map.");
         }
@@ -146,32 +144,30 @@ public class DialectConversionService {
 		return result;
 	}
 
-	public S3Object getMapObject() {
+	public InputStream getMapObject() {
 		return s3Client.getObject(bucket, usToGbTermsMapPath);
 	}
 	
-	public S3Object getSynonymsMapObject() {
+	public InputStream getSynonymsMapObject() {
 		return s3Client.getObject(bucket, usToGbSynonymsMapPath);
 	}
 
 	public void replaceMap(MultipartFile file) throws IOException, ServiceException {
-		ObjectMetadata objectMetadata = new ObjectMetadata();
-		objectMetadata.setContentLength(file.getSize());
+		ObjectMetadata objectMetadata = ObjectMetadata.builder().contentDisposition(String.valueOf(file.getSize())).build();
 		try (InputStream inputStream = file.getInputStream()) {
-			AccessControlList acl = s3Client.getObjectAcl(bucket, usToGbTermsMapPath);
+			//AccessControlList acl = s3Client.getObjectAcl(bucket, usToGbTermsMapPath);
 			s3Client.putObject(bucket, usToGbTermsMapPath, inputStream, objectMetadata);
-			s3Client.setObjectAcl(bucket, usToGbTermsMapPath, acl);
+			//s3Client.setObjectAcl(bucket, usToGbTermsMapPath, acl);
 			loadList();
 		}
 	}
 	
 	public void replaceSynonymsMap(MultipartFile file) throws IOException, ServiceException {
-		ObjectMetadata objectMetadata = new ObjectMetadata();
-		objectMetadata.setContentLength(file.getSize());
+		ObjectMetadata objectMetadata = ObjectMetadata.builder().contentDisposition(String.valueOf(file.getSize())).build();
 		try (InputStream inputStream = file.getInputStream()) {
-			AccessControlList acl = s3Client.getObjectAcl(bucket, usToGbSynonymsMapPath);
+//			AccessControlList acl = s3Client.getObjectAcl(bucket, usToGbSynonymsMapPath);
 			s3Client.putObject(bucket, usToGbSynonymsMapPath, inputStream, objectMetadata);
-			s3Client.setObjectAcl(bucket, usToGbSynonymsMapPath, acl);
+//			s3Client.setObjectAcl(bucket, usToGbSynonymsMapPath, acl);
 			loadList();
 		}
 	}
@@ -293,7 +289,7 @@ public class DialectConversionService {
 	}
 
 	private boolean updateList(FileModifier fileModifier) throws IOException, ServiceException {
-		try (S3ObjectInputStream inputStream = getMapObject().getObjectContent()) {
+		try (InputStream inputStream = getMapObject()) {
 			File modifiedList = Files.createTempFile("us-gb-map", "txt").toFile();
 			try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
 				boolean changes;
@@ -301,9 +297,9 @@ public class DialectConversionService {
 					changes = fileModifier.modifyFile(reader, writer);
 				}
 				if (changes) {
-					AccessControlList acl = s3Client.getObjectAcl(bucket, usToGbTermsMapPath);
+//					AccessControlList acl = s3Client.getObjectAcl(bucket, usToGbTermsMapPath);
 					s3Client.putObject(bucket, usToGbTermsMapPath, modifiedList);
-					s3Client.setObjectAcl(bucket, usToGbTermsMapPath, acl);
+//					s3Client.setObjectAcl(bucket, usToGbTermsMapPath, acl);
 					logger.info("Load US/GB map");
 					doLoadList(new FileInputStream(modifiedList));
 				}
@@ -315,7 +311,7 @@ public class DialectConversionService {
 	}
 	
 	private boolean updateSynonymsList(FileModifier fileModifier) throws IOException, ServiceException {
-		try (S3ObjectInputStream inputStream = getSynonymsMapObject().getObjectContent()) {
+		try (InputStream inputStream = getSynonymsMapObject()) {
 			File modifiedList = Files.createTempFile("us-gb-synonyms", "txt").toFile();
 			try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream))) {
 				boolean changes;
@@ -323,9 +319,9 @@ public class DialectConversionService {
 					changes = fileModifier.modifyFile(reader, writer);
 				}
 				if (changes) {
-					AccessControlList acl = s3Client.getObjectAcl(bucket, usToGbSynonymsMapPath);
+//					AccessControlList acl = s3Client.getObjectAcl(bucket, usToGbSynonymsMapPath);
 					s3Client.putObject(bucket, usToGbSynonymsMapPath, modifiedList);
-					s3Client.setObjectAcl(bucket, usToGbSynonymsMapPath, acl);
+//					s3Client.setObjectAcl(bucket, usToGbSynonymsMapPath, acl);
 					logger.info("Load US/GB synonyms");
 					doLoadSynonymsList(new FileInputStream(modifiedList));
 				}

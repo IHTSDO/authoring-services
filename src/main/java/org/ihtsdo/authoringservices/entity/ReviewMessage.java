@@ -2,7 +2,7 @@ package org.ihtsdo.authoringservices.entity;
 
 import java.util.Date;
 import java.util.List;
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 @Entity
 public class ReviewMessage {

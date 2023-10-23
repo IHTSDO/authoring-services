@@ -1,10 +1,9 @@
 package org.ihtsdo.authoringservices.rest;
 
-import com.amazonaws.services.s3.model.S3Object;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.authoringservices.service.SpellingListsService;
+import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.MediaType;
@@ -14,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.lang.model.type.NullType;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -58,12 +58,12 @@ public class SpellCheckController {
 			description = "Visit this endpoint URL directly in your browser, loading through Swagger may not work.")
 	@ResponseBody
 	@RequestMapping(value = "/spelling/words/list", method = RequestMethod.GET, produces = "application/octet-stream")
-	public ResponseEntity<InputStreamResource> getWordList() {
-		S3Object listObject = spellingListsService.getListObject();
+	public ResponseEntity<InputStreamResource> getWordList() throws IOException {
+		InputStream inputStream = spellingListsService.getListObject();
 		return ResponseEntity.ok()
-				.contentLength(listObject.getObjectMetadata().getContentLength())
+				.contentLength(inputStream.available())
 				.contentType(MediaType.APPLICATION_OCTET_STREAM)
-				.body(new InputStreamResource(listObject.getObjectContent()));
+				.body(new InputStreamResource(inputStream));
 	}
 
 	@Operation(summary = "Replace the whole spelling list")

@@ -1,7 +1,6 @@
 package org.ihtsdo.authoringservices.rest.config;
 
 import org.ihtsdo.authoringservices.service.exceptions.PathNotProvidedException;
-import org.json.JSONException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -9,6 +8,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
+import us.monoid.json.JSONException;
 
 import java.util.HashMap;
 import java.util.Map;
