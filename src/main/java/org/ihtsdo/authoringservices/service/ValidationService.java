@@ -34,7 +34,7 @@ import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
-import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
+import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.services.s3.S3Client;
 
 import java.io.*;
@@ -168,7 +168,7 @@ public class ValidationService {
                         });
 		this.technicalItems = new HashSet<>();
 		if (this.awsResourceEnabled) {
-		 	S3ClientImpl s3Client = new S3ClientImpl(S3Client.builder().credentialsProvider(ProfileCredentialsProvider.create()).build());
+		 	S3ClientImpl s3Client = new S3ClientImpl(S3Client.builder().region(DefaultAwsRegionProviderChain.builder().build().getRegion()).build());
 			if (s3Client.exists(this.bucket, this.techinicalIssueItemsPath)) {
 				InputStream objectContent = s3Client.getObject(bucket, techinicalIssueItemsPath);
 				try (BufferedReader reader = new BufferedReader(new InputStreamReader(objectContent))) {
@@ -439,9 +439,8 @@ public class ValidationService {
 			}
 		}
 		try {
-			S3ClientImpl s3Client = new S3ClientImpl(S3Client.builder().credentialsProvider(ProfileCredentialsProvider.create()).build());
+			S3ClientImpl s3Client = new S3ClientImpl(S3Client.builder().region(DefaultAwsRegionProviderChain.builder().build().getRegion()).build());
 			s3Client.putObject(bucket, path, modifiedList);
-//					.withCannedAcl(CannedAccessControlList.PublicRead));
 		} finally {
 			FileUtils.forceDelete(modifiedList);
 		}
@@ -449,7 +448,7 @@ public class ValidationService {
 
 	private Set<String> loadSemanticTags(){
 		Set<String> semanticTags = new HashSet<>();
-		S3ClientImpl s3Client = new S3ClientImpl(S3Client.builder().credentialsProvider(ProfileCredentialsProvider.create()).build());
+		S3ClientImpl s3Client = new S3ClientImpl(S3Client.builder().region(DefaultAwsRegionProviderChain.builder().build().getRegion()).build());
 		if (s3Client.exists(this.bucket, this.semanticTagItemsPath)) {
 			InputStream objectContent = s3Client.getObject(bucket, semanticTagItemsPath);
 			try (BufferedReader reader = new BufferedReader(new InputStreamReader(objectContent))) {
@@ -487,7 +486,7 @@ public class ValidationService {
 	}
 
 	public void resetBranchValidationStatus(String branchPath) {
-		Map<String, String> newPropertyValues = new HashMap();
+		Map<String, String> newPropertyValues = new HashMap<>();
 		newPropertyValues.put(VALIDATION_STATUS, ValidationJobStatus.NOT_TRIGGERED.name());
 		updateValidationCache(branchPath, newPropertyValues);
 	}

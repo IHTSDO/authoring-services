@@ -7,7 +7,7 @@ import org.ihtsdo.otf.dao.s3.S3ClientImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
+import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
 import software.amazon.awssdk.services.s3.model.S3Object;
@@ -86,7 +86,7 @@ public final class UiStateResourceService extends AbstractResourceService {
             throw new PathNotProvidedException("Either the from/to path is null, both are required for the move operation to proceed.");
         }
         if (this.useCloud) {
-            S3ClientImpl s3Client = new S3ClientImpl(S3Client.builder().credentialsProvider(ProfileCredentialsProvider.create()).build());
+            S3ClientImpl s3Client = new S3ClientImpl(S3Client.builder().region(DefaultAwsRegionProviderChain.builder().build().getRegion()).build());
             String fromPathFull = (path != null ? path : "") + fromPath;
 			ListObjectsResponse objectListing = s3Client.listObjects(bucketName, (path != null ? path : "") + fromPath);
             for (S3Object s3Object : objectListing.contents()) {
