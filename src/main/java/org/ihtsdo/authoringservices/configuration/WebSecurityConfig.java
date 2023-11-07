@@ -1,6 +1,7 @@
 package org.ihtsdo.authoringservices.configuration;
 
 import org.ihtsdo.authoringservices.rest.security.RequestHeaderAuthenticationDecoratorWithOverride;
+import org.ihtsdo.sso.integration.RequestHeaderAuthenticationDecorator;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,6 +12,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.access.intercept.FilterSecurityInterceptor;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import static org.springframework.security.config.Customizer.withDefaults;
 
@@ -34,7 +36,7 @@ public class WebSecurityConfig {
 			"/",
 			"/version",
 			"/ui-configuration",
-			"/authoring-services-websocket/**/*",
+			"/authoring-services-websocket/**",
 			// Swagger API Docs:
 			"/swagger-ui/**",
 			"/v3/api-docs/**"
@@ -51,7 +53,6 @@ public class WebSecurityConfig {
 					.permitAll()
 					.anyRequest().hasAuthority(requiredRole)
 			);
-
 		} else {
 			http.authorizeHttpRequests((authorize) -> authorize.requestMatchers(excludedUrlPatterns)
 					.permitAll()
