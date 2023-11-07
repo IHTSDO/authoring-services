@@ -6,7 +6,7 @@ import org.ihtsdo.otf.dao.s3.helper.FileHelper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
-import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
+import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -27,10 +27,9 @@ public class DailyBuildService {
 	@Value("${dailybuild.storage.cloud.path}")
 	private String dailyBuildStoragePath;
 
-	public DailyBuildService(@Value("${dailybuild.storage.cloud.bucketName}") final String bucketName,
-								  @Value("${aws.key}") String accessKey,
-								  @Value("${aws.secretKey}") String secretKey) {
-		this.s3Client = new S3ClientImpl(software.amazon.awssdk.services.s3.S3Client.builder().credentialsProvider(ProfileCredentialsProvider.create()).build());
+	public DailyBuildService(@Value("${dailybuild.storage.cloud.bucketName}") final String bucketName) {
+		this.s3Client = new S3ClientImpl(software.amazon.awssdk.services.s3.S3Client.builder()
+				.region(DefaultAwsRegionProviderChain.builder().build().getRegion()).build());
 		this.fileHelper = new FileHelper(bucketName, s3Client);
 	}
 
@@ -53,7 +52,6 @@ public class DailyBuildService {
 			fileNames.sort(reverseComparator);
 			return fileNames.get(0);
 		}
-
 		return null;
 	}
 

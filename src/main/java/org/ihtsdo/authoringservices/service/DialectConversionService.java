@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
+import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.services.s3.S3Client;
 
 import java.io.*;
@@ -42,7 +42,7 @@ public class DialectConversionService {
 			@Value("${aws.s3.spell-check.bucket}") String bucket,
 			@Value("${aws.s3.dialect.us-to-gb-map.path}") String usToGbTermsMapPath,
 			@Value("${aws.s3.dialect.us-to-gb-synonyms-map.path}") String usToGbSynonymsMapPath) {
-		this.s3Client = new S3ClientImpl(S3Client.builder().credentialsProvider(ProfileCredentialsProvider.create()).build());
+		this.s3Client = new S3ClientImpl(S3Client.builder().region(DefaultAwsRegionProviderChain.builder().build().getRegion()).build());
 		this.bucket = bucket;
 		this.usToGbTermsMapPath = usToGbTermsMapPath;
 		this.usToGbSynonymsMapPath = usToGbSynonymsMapPath;

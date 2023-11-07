@@ -4,7 +4,7 @@ import org.ihtsdo.otf.resourcemanager.ResourceConfiguration;
 import org.ihtsdo.otf.resourcemanager.ResourceManager;
 import org.snomed.otf.script.dao.SimpleStorageResourceLoader;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
-import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
+import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.services.s3.S3Client;
 
 import java.util.Objects;
@@ -31,7 +31,8 @@ public abstract class AbstractResourceService implements ResourceService {
 	public AbstractResourceService(final ResourceConfiguration resourceConfiguration) {
         SimpleStorageResourceLoader cloudResourceLoader = null;
         if (resourceConfiguration.isUseCloud()) {
-            cloudResourceLoader = new SimpleStorageResourceLoader(S3Client.builder().credentialsProvider(ProfileCredentialsProvider.create()).build());
+            cloudResourceLoader = new SimpleStorageResourceLoader(S3Client.builder()
+					.region(DefaultAwsRegionProviderChain.builder().build().getRegion()).build());
 			cloudResourceLoader.setTaskExecutor(new SimpleAsyncTaskExecutor("cloud-resource-loader"));
         }
 		this.resourceManager = new ResourceManager(resourceConfiguration, cloudResourceLoader);
