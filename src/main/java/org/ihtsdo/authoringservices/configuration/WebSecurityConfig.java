@@ -1,17 +1,14 @@
 package org.ihtsdo.authoringservices.configuration;
 
 import org.ihtsdo.authoringservices.rest.security.RequestHeaderAuthenticationDecoratorWithOverride;
-import org.ihtsdo.sso.integration.RequestHeaderAuthenticationDecorator;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
-import org.springframework.security.web.access.intercept.FilterSecurityInterceptor;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import static org.springframework.security.config.Customizer.withDefaults;
@@ -36,7 +33,7 @@ public class WebSecurityConfig {
 			"/",
 			"/version",
 			"/ui-configuration",
-			"/authoring-services-websocket/**",
+			"/authoring-services-websocket/**/*",
 			// Swagger API Docs:
 			"/swagger-ui/**",
 			"/v3/api-docs/**"
@@ -44,22 +41,16 @@ public class WebSecurityConfig {
 
 	@Bean
 	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-		http.httpBasic(withDefaults());
 		http.csrf(AbstractHttpConfigurer::disable);
-		http.sessionManagement(sessionManagement -> sessionManagement.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 		http.addFilterBefore(new RequestHeaderAuthenticationDecoratorWithOverride(overrideUsername, overrideRoles, overrideToken), AuthorizationFilter.class);
-		if (requiredRole != null && !requiredRole.isEmpty()) {
-			http.authorizeHttpRequests((authorize) -> authorize.requestMatchers(excludedUrlPatterns)
-					.permitAll()
-					.anyRequest().hasAuthority(requiredRole)
-			);
-		} else {
-			http.authorizeHttpRequests((authorize) -> authorize.requestMatchers(excludedUrlPatterns)
-					.permitAll()
-					.anyRequest().authenticated()
-			);
+		for (String excludedPath : excludedUrlPatterns) {
+			http.authorizeHttpRequests(auth -> auth.requestMatchers(new AntPathRequestMatcher(excludedPath)).permitAll());
 		}
-
+		if (requiredRole != null && !requiredRole.isEmpty()) {
+			http.authorizeHttpRequests(auth -> auth.anyRequest().hasAuthority(requiredRole)).httpBasic(withDefaults());
+		} else {
+			http.authorizeHttpRequests(auth -> auth.anyRequest().authenticated()).httpBasic(withDefaults());
+		}
 		return http.build();
 	}
 }
