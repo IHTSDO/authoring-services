@@ -51,6 +51,8 @@ public class WebSecurityConfig {
 		} else {
 			http.authorizeHttpRequests(auth -> auth.anyRequest().authenticated()).httpBasic(withDefaults());
 		}
+		http.securityContext((securityContext) -> securityContext
+				.requireExplicitSave(false));
 		return http.build();
 	}
 }
