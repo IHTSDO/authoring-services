@@ -462,14 +462,18 @@ public class PromotionService {
 		for (AxiomPojo axiom : concept.getClassAxioms()) {
 			if (axiom.isActive()) {
 				for (RelationshipPojo rel : axiom.getRelationships()) {
-					attributeTargets.add(rel.getTarget().getConceptId());
+					if (rel.getTarget() != null && rel.getTarget().getConceptId() != null) {
+						attributeTargets.add(rel.getTarget().getConceptId());
+					}
 				}
 			}
 		}
 		for (AxiomPojo axiom : concept.getGciAxioms()) {
 			if (axiom.isActive()) {
 				for (RelationshipPojo rel : axiom.getRelationships()) {
-					attributeTargets.add(rel.getTarget().getConceptId());
+					if (rel.getTarget() != null && rel.getTarget().getConceptId() != null) {
+						attributeTargets.add(rel.getTarget().getConceptId());
+					}
 				}
 			}
 		}
