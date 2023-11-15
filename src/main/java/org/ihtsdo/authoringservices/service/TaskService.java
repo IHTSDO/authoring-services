@@ -932,11 +932,20 @@ public class TaskService {
 				}
 			}
 		} catch (JiraException e) {
-			throw new BusinessServiceException("Failed to update task.", e);
+			throw new BusinessServiceException("Failed to update task due to " + findRootCause(e).getMessage(), e);
 		}
 
 		// Pick up those changes in a new Task object
 		return retrieveTask(projectKey, taskKey, false);
+	}
+
+	public static Throwable findRootCause(Throwable throwable) {
+		Objects.requireNonNull(throwable);
+		Throwable rootCause = throwable;
+		while (rootCause.getCause() != null && rootCause.getCause() != rootCause) {
+			rootCause = rootCause.getCause();
+		}
+		return rootCause;
 	}
 
 	public AuthoringProject updateProject(String projectKey, AuthoringProject updatedProject) throws BusinessServiceException {
