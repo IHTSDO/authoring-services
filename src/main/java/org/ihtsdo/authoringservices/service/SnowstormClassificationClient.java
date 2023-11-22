@@ -46,7 +46,12 @@ public class SnowstormClassificationClient {
 
 	public synchronized Classification startClassification(String projectKey, String taskKey, String branchPath, String username) throws RestClientException, JSONException, BusinessServiceException {
 		if (!snowstormRestClientFactory.getClient().isClassificationInProgressOnBranch(branchPath)) {
-			return callClassification(projectKey, taskKey, branchPath, username);
+			Classification classificationResult = callClassification(projectKey, taskKey, branchPath, username);
+			Notification notification = new Notification(projectKey, taskKey, EntityType.Classification, "Classification is running");
+			notification.setBranchPath(branchPath);
+			notificationService.queueNotification(SecurityUtil.getUsername(), notification);
+
+			return classificationResult;
 		} else {
 			throw new IllegalStateException("Classification already in progress on this branch.");
 		}

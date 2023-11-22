@@ -9,10 +9,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.transaction.Transactional;
 import net.sf.json.JSONObject;
 import org.apache.commons.io.FileUtils;
-import org.ihtsdo.authoringservices.domain.ReleaseRequest;
-import org.ihtsdo.authoringservices.domain.Status;
-import org.ihtsdo.authoringservices.domain.ValidationConfiguration;
-import org.ihtsdo.authoringservices.domain.ValidationJobStatus;
+import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.entity.Validation;
 import org.ihtsdo.authoringservices.repository.ValidationRepository;
 import org.ihtsdo.authoringservices.service.dao.SRSFileDAO;
@@ -265,6 +262,15 @@ public class ValidationService {
 			newPropertyValues.put(VALIDATION_END_TIMESTAMP, null);
 
 			updateValidationCache(branchPath, newPropertyValues);
+
+			// Notify user
+			Notification notification = new Notification(
+					projectKey,
+					taskKey,
+					EntityType.Validation,
+					ValidationJobStatus.SCHEDULED.name());
+			notification.setBranchPath(branchPath);
+			notificationService.queueNotification(username, notification);
 
 			return new Status(ValidationJobStatus.SCHEDULED.name());
 		} catch (ServiceException | ExecutionException e) {
