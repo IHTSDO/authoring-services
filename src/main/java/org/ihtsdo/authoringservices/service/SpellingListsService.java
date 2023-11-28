@@ -75,7 +75,7 @@ public class SpellingListsService {
 	public void replaceList(MultipartFile file) throws IOException, ServiceException {
 		ObjectMetadata objectMetadata = ObjectMetadata.builder().contentDisposition(String.valueOf(file.getSize())).build();
 		try (InputStream inputStream = file.getInputStream()) {
-			s3Client.putObject(bucket, path, inputStream, objectMetadata);
+			s3Client.putObject(bucket, path, inputStream, objectMetadata, file.getSize());
 			loadList();
 		}
 	}

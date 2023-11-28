@@ -156,7 +156,7 @@ public class DialectConversionService {
 		ObjectMetadata objectMetadata = ObjectMetadata.builder().contentDisposition(String.valueOf(file.getSize())).build();
 		try (InputStream inputStream = file.getInputStream()) {
 			//AccessControlList acl = s3Client.getObjectAcl(bucket, usToGbTermsMapPath);
-			s3Client.putObject(bucket, usToGbTermsMapPath, inputStream, objectMetadata);
+			s3Client.putObject(bucket, usToGbTermsMapPath, inputStream, objectMetadata, file.getSize());
 			//s3Client.setObjectAcl(bucket, usToGbTermsMapPath, acl);
 			loadList();
 		}
@@ -166,7 +166,7 @@ public class DialectConversionService {
 		ObjectMetadata objectMetadata = ObjectMetadata.builder().contentDisposition(String.valueOf(file.getSize())).build();
 		try (InputStream inputStream = file.getInputStream()) {
 //			AccessControlList acl = s3Client.getObjectAcl(bucket, usToGbSynonymsMapPath);
-			s3Client.putObject(bucket, usToGbSynonymsMapPath, inputStream, objectMetadata);
+			s3Client.putObject(bucket, usToGbSynonymsMapPath, inputStream, objectMetadata, file.getSize());
 //			s3Client.setObjectAcl(bucket, usToGbSynonymsMapPath, acl);
 			loadList();
 		}
