@@ -6,6 +6,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import net.rcarz.jiraclient.Status;
 import net.rcarz.jiraclient.User;
@@ -17,7 +18,6 @@ import org.apache.activemq.command.ActiveMQQueue;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.math.NumberUtils;
 import org.ihtsdo.authoringservices.domain.*;
-import org.ihtsdo.authoringservices.domain.TaskMessagesDetail;
 import org.ihtsdo.authoringservices.entity.Validation;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.authoringservices.service.jira.ImpersonatingJiraClientFactory;
@@ -40,6 +40,7 @@ import org.slf4j.event.Level;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -487,7 +488,17 @@ public class TaskService {
 				issueMap.put(issue.getProject().getKey(), issue);
 			}
 			return issueMap;
-		} catch (JiraException e) {
+		} catch (Exception e) {
+			if (Lists.newArrayList(projectKeys).size() == 1
+				&& e.getCause() != null
+				&& e.getCause().getCause() != null
+				&& e.getCause().getCause() instanceof RestException restException) {
+				String projectKey = projectKeys.iterator().next();
+				String errorMessage = "The value '"+ projectKey +"' does not exist for the field 'project'.";
+				if (restException.getHttpStatusCode() == HttpStatus.BAD_REQUEST.value() && restException.getMessage().contains(errorMessage)) {
+					throw new ResourceNotFoundException(String.format("Project %s not found.", projectKey));
+				}
+			}
 			throw new BusinessServiceException("Failed to load Projects from Jira.", e);
 		}
 	}
