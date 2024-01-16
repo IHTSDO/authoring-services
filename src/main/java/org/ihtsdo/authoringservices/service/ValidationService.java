@@ -76,6 +76,7 @@ public class ValidationService {
 	public static final String EXPECTED_EXTENSION_MODULES = "expectedExtensionModules";
 	public static final String INTERNATIONAL = "international";
 	public static final String MAX_FAILURE_EXPORT = "failureExportMax";
+	private static final String ASSERTION_EXCLUSION_LIST = "assertionExclusionList";
 
 	@Value("${aws.resources.enabled}")
 	private boolean awsResourceEnabled;
@@ -278,6 +279,7 @@ public class ValidationService {
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	private ValidationConfiguration constructValidationConfig(final String branchPath, final Map <String, Object> branchMetadata, String effectiveDate, boolean enableMRCM, String projectKey, String taskKey) {
 		ValidationConfiguration validationConfig = new ValidationConfiguration();
         validationConfig.setBranchPath(branchPath);
@@ -300,6 +302,9 @@ public class ValidationService {
 		}
 		if (branchMetadata.containsKey(MAX_FAILURE_EXPORT)) {
 			validationConfig.setFailureExportMax((String) branchMetadata.get(MAX_FAILURE_EXPORT));
+		}
+		if (branchMetadata.containsKey(ASSERTION_EXCLUSION_LIST)) {
+			validationConfig.setAssertionExclusionList(String.join(",", (List<String>) branchMetadata.get(ASSERTION_EXCLUSION_LIST)));
 		}
 
 		validationConfig.setEnableMRCMValidation(enableMRCM);

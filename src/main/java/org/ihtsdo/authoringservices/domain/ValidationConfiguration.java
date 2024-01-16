@@ -5,6 +5,7 @@ public class ValidationConfiguration {
     private String branchPath;
     private String previousRelease;
     private String assertionGroupNames;
+    private String assertionExclusionList;
     private String failureExportMax = "100";
     private String dependencyRelease;
     private String productName;
@@ -97,6 +98,14 @@ public class ValidationConfiguration {
 
     public void setAssertionGroupNames(String assertionGroupNames) {
         this.assertionGroupNames = assertionGroupNames;
+    }
+
+    public String getAssertionExclusionList() {
+        return assertionExclusionList;
+    }
+
+    public void setAssertionExclusionList(String assertionExclusionList) {
+        this.assertionExclusionList = assertionExclusionList;
     }
 
     public String getFailureExportMax() {

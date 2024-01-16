@@ -210,6 +210,9 @@ public class ValidationRunner implements Runnable {
             body.add("dependencyRelease", config.getDependencyPackage());
         }
         body.add("groups", config.getAssertionGroupNames());
+        if (config.getAssertionExclusionList() != null) {
+            body.add("assertionExclusionList", config.getAssertionExclusionList());
+        }
         // If RvfDroolsAssertionGroupNames is not empty, enable Drools validation on RVF
         if (config.isEnableDroolsValidation() && StringUtils.isNotEmpty(config.getAssertionGroupNames())) {
             body.add("enableDrools", Boolean.TRUE.toString());
