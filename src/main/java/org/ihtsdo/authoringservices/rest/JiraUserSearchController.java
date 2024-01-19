@@ -12,6 +12,7 @@ import org.ihtsdo.authoringservices.domain.JiraUserGroup;
 import org.ihtsdo.authoringservices.service.JiraUserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Arrays;
@@ -29,11 +30,18 @@ public class JiraUserSearchController {
 	@Operation(summary = "Returns authoring users from Jira")
 	@ResponseBody
 	public JiraUserGroup getUsers(
+			@RequestParam(required = false) String groupName,
 			@RequestParam(required = false, defaultValue = "0") int offset,
 			@RequestParam(required = false, defaultValue = "50") int limit) throws JiraException {
 		Gson gson = new Gson();
-		return gson.fromJson(configurationService.getUsers(offset, limit).toString(), JiraUserGroup.class);
+		if (StringUtils.hasLength(groupName)) {
+			return gson.fromJson(configurationService.findUsersByGroupName(groupName, offset, limit).toString(), JiraUserGroup.class);
+		} else {
+			return gson.fromJson(configurationService.getUsers(offset, limit).toString(), JiraUserGroup.class);
+		}
 	}
+
+
 	
 	@RequestMapping(value = "users/search", method = RequestMethod.GET)
 	@Operation(summary = "Returns authoring users from Jira by search conditions")

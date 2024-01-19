@@ -29,6 +29,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
@@ -43,6 +44,8 @@ public class CodeSystemService {
 	private static final String DEFAULT_ISSUE_TYPE = "Service Request";
 	private static final String SHARED = "SHARED";
 	private static final String UPGRADE_JOB_PANEL_ID = "code-system-upgrade-job";
+
+	private static final String AUTHORING_FREEZE = "authoringFreeze";
 
 	@Value("${email.link.platform.url}")
 	private String platformUrl;
@@ -74,8 +77,21 @@ public class CodeSystemService {
 		return buildAuthoringCodeSystems(codeSystems);
 	}
 
-	public String upgrade(String shortName, Integer newDependantVersion) throws BusinessServiceException {
-		String location = snowstormRestClientFactory.getClient().upgradeCodeSystem(shortName, newDependantVersion, true);
+	public String upgrade(String shortName, Integer newDependantVersion) throws BusinessServiceException, ServiceException {
+		SnowstormRestClient snowstormRestClient = snowstormRestClientFactory.getClient();
+
+		List<CodeSystem> codeSystems = snowstormRestClient.getCodeSystems();
+		CodeSystem cs = codeSystems.stream().filter(item -> item.getShortName().equals(shortName)).findFirst().orElse(null);
+		if (cs == null) {
+			throw new BusinessServiceException("Code system with shortname " + shortName + " not found");
+		}
+
+		final Map<String, Object> branchMetadata = branchService.getBranchMetadataIncludeInherited(cs.getBranchPath());
+		boolean authoringFreeze = branchMetadata.containsKey(AUTHORING_FREEZE) && "true".equalsIgnoreCase((String) branchMetadata.get(AUTHORING_FREEZE));
+		if (authoringFreeze) {
+			throw new BusinessServiceException("Extension upgrade disabled during authoring freeze");
+		}
+		String location = snowstormRestClient.upgradeCodeSystem(shortName, newDependantVersion, true);
 		return location.substring(location.lastIndexOf("/") + 1);
 	}
 

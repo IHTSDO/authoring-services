@@ -20,6 +20,7 @@ import org.springframework.jms.annotation.JmsListener;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import us.monoid.json.JSONException;
+import us.monoid.json.JSONObject;
 
 import jakarta.jms.JMSException;
 import jakarta.jms.TextMessage;
@@ -105,8 +106,6 @@ public class SnowstormClassificationClient {
 
 	private class ClassificationRunner implements Runnable {
 
-		private static final int PAUSE_SECONDS = 10;
-
 		private ClassificationRequest request;
 		private ClassificationStatus status;
 
@@ -133,19 +132,31 @@ public class SnowstormClassificationClient {
 				taskService.addCommentLogErrors(request.getProjectKey(), resultMessage);
 			}
 
-			// Pause few seconds to make sure that the Snowstorm updates the classification results before clearing the cache
-			try {
-				Thread.sleep(PAUSE_SECONDS * 1000);
-				taskService.clearClassificationCache(request.getBranchPath());
-			}
-			catch (InterruptedException e) {
-				// This will probably happen when we restart the application.
-				logger.info("Classification interrupted.", e);
-			}
+			// Clear the cache
+			taskService.clearClassificationCache(request.getBranchPath());
 
+			// Notify user
 			Notification notification = new Notification(request.getProjectKey(), request.getTaskKey(), EntityType.Classification, resultMessage);
 			notification.setBranchPath(request.getBranchPath());
 			notificationService.queueNotification(SecurityUtil.getUsername(), notification);
+
+			// Mark task as IN_REVIEW when inferred relationship changes found
+			if (request.getTaskKey() != null && ClassificationStatus.COMPLETED.equals(status)) {
+				try {
+					AuthoringTask task = taskService.retrieveTask(request.getProjectKey(), request.getTaskKey(), true);
+					if (TaskStatus.REVIEW_COMPLETED.equals(task.getStatus())) {
+						String jsonStr = snowstormRestClientFactory.getClient().getLatestClassificationOnBranch(request.getBranchPath());
+						JSONObject jsonObject = new JSONObject(jsonStr);
+						if (jsonObject.has("inferredRelationshipChangesFound") && jsonObject.getBoolean("inferredRelationshipChangesFound")) {
+							AuthoringTaskUpdateRequest taskUpdateRequest = new AuthoringTask();
+							taskUpdateRequest.setStatus(TaskStatus.IN_REVIEW);
+							taskService.updateTask(request.getProjectKey(), request.getTaskKey(), taskUpdateRequest);
+						}
+					}
+				} catch (BusinessServiceException | RestClientException | JSONException e) {
+					throw new RuntimeException("Failed to mark task as IN_REVIEW", e);
+				}
+            }
 		}
 	}
 }
