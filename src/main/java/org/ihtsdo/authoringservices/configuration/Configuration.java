@@ -108,7 +108,8 @@ public abstract class Configuration {
 				"/validation/(.*)/status/reset",
 				"/branches/(.*)/validation",
 				"/branches/(.*)/classifications",
-				"/branches/(.*)/validation-reports/(.*)"
+				"/branches/(.*)/validation-reports/(.*)",
+				"/branches/(.*)/authoring-info"
 		));
 	}
 

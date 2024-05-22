@@ -28,6 +28,7 @@ import org.springframework.util.StringUtils;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -71,6 +72,21 @@ public class CodeSystemService {
 	@Autowired
 	@Qualifier("validationTicketOAuthJiraClient")
 	private ImpersonatingJiraClientFactory jiraClientFactory;
+
+	public AuthoringCodeSystem findOne(String shortname) throws BusinessServiceException {
+		List<CodeSystem> codeSystems = snowstormRestClientFactory.getClient().getCodeSystems();
+		CodeSystem cs = codeSystems.stream().filter(codeSystem -> codeSystem.getShortName().equals(shortname)).findFirst().orElse(null);
+		if (cs != null) {
+			List<AuthoringCodeSystem> authoringCodeSystems = buildAuthoringCodeSystems(Collections.singletonList(cs));
+			return authoringCodeSystems.get(0);
+		}
+
+		return null;
+	}
+
+	public List<CodeSystemVersion> getCodeSystemVersions(String shortname) throws BusinessServiceException {
+		return snowstormRestClientFactory.getClient().getCodeSystemVersions(shortname, null, null);
+	}
 
 	public List<AuthoringCodeSystem> findAll() throws BusinessServiceException {
 		List<CodeSystem> codeSystems = snowstormRestClientFactory.getClient().getCodeSystems();

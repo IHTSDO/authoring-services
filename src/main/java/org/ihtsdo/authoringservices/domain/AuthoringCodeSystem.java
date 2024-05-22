@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystemVersion;
 
+import java.util.List;
 import java.util.Set;
 
 @JsonDeserialize
@@ -19,6 +20,7 @@ public class AuthoringCodeSystem {
 	private CodeSystemVersion latestVersion;
 	private String latestClassificationJson;
 	private String latestValidationStatus;
+	private List<CodeSystemVersion> versions;
 
 	public AuthoringCodeSystem() {
 	}
@@ -96,6 +98,14 @@ public class AuthoringCodeSystem {
 
 	public void setLatestVersion(CodeSystemVersion latestVersion) {
 		this.latestVersion = latestVersion;
+	}
+
+	public void setVersions(List<CodeSystemVersion> versions) {
+		this.versions = versions;
+	}
+
+	public List<CodeSystemVersion> getVersions() {
+		return versions;
 	}
 
 	@JsonRawValue

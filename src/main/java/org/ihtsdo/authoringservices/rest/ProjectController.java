@@ -1,5 +1,6 @@
 package org.ihtsdo.authoringservices.rest;
 
+import io.kaicode.rest.util.branchpathrewrite.BranchPathUriUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -9,6 +10,7 @@ import org.ihtsdo.authoringservices.service.PromotionService;
 import org.ihtsdo.authoringservices.service.RebaseService;
 import org.ihtsdo.authoringservices.service.ScheduledRebaseService;
 import org.ihtsdo.authoringservices.service.TaskService;
+import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.sso.integration.SecurityUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +39,14 @@ public class ProjectController {
 
 	@Autowired
 	private ScheduledRebaseService scheduledRebaseService;
+
+	@Operation(summary = "Retrieve Authoring Info (Code System, Project and Task information) for a given branch")
+	@ApiResponse(responseCode = "200", description = "OK")
+	@RequestMapping(value="/branches/{branch}/authoring-info", method= RequestMethod.GET)
+	public ResponseEntity<AuthoringInformation> getBranchAuthoringInformation(@PathVariable String branch) throws BusinessServiceException, ServiceException {
+		String branchPath = BranchPathUriUtil.decodePath(branch);
+		return new ResponseEntity<>(taskService.getBranchAuthoringInformation(branchPath), HttpStatus.OK);
+	}
 
 	@Operation(summary = "List authoring projects")
 	@ApiResponse(responseCode = "200", description = "OK")

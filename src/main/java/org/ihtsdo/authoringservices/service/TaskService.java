@@ -41,6 +41,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -71,6 +72,8 @@ public class TaskService {
 	private static final int LIMIT_UNLIMITED = -1;
 
 	private static final String SHARED = "SHARED";
+
+	private static final String BRANCH_MAIN = "MAIN";
 
 	@Autowired
 	private BranchService branchService;
@@ -104,6 +107,9 @@ public class TaskService {
 
 	@Autowired
 	private PromotionService promotionService;
+
+	@Autowired
+	private CodeSystemService codeSystemService;
 
 	@Value("${task-state-change.notification-queues}")
 	private Set<String> taskStateChangeNotificationQueues;
@@ -210,6 +216,44 @@ public class TaskService {
 	@PostConstruct
 	public void postConstruct() {
 		logger.info("{} task state notification queues configured {}", taskStateChangeNotificationQueues.size(), taskStateChangeNotificationQueues);
+	}
+
+	public AuthoringInformation getBranchAuthoringInformation(String branchPath) throws BusinessServiceException, ServiceException {
+		final Branch branchOrNull = branchService.getBranchOrNull(branchPath);
+		if (branchOrNull == null) {
+			throw new BusinessServiceException("Branch " + branchPath + " does not exist.");
+		}
+		String codeSystemShortname = null, projectKey = null, taskKey = null;
+		String[] parts = branchPath.split("/");
+		if (branchPath.startsWith("MAIN/SNOMEDCT-")) {
+			for (int i = 0 ; i < parts.length; i++) {
+				if (i == 1) codeSystemShortname = parts[i];
+				if (i == 2) projectKey = parts[i];
+				if (i == 3) taskKey = parts[i];
+			}
+		} else {
+			codeSystemShortname = "SNOMEDCT";
+			for (int i = 0 ; i < parts.length; i++) {
+				if (i == 1) projectKey = parts[i];
+				if (i == 2) taskKey = parts[i];
+			}
+		}
+		AuthoringCodeSystem codeSystem = null;
+		AuthoringProject project = null;
+		AuthoringTask task = null;
+		if (codeSystemShortname != null) {
+			codeSystem = codeSystemService.findOne(codeSystemShortname);
+			if (codeSystem != null) {
+				codeSystem.setVersions(codeSystemService.getCodeSystemVersions(codeSystemShortname));
+			}
+		}
+		if (projectKey != null) {
+			project = retrieveProject(projectKey, true);
+		}
+		if (taskKey != null) {
+			task = retrieveTask(projectKey, taskKey, true);
+		}
+		return new AuthoringInformation(codeSystem, project, task);
 	}
 
 	public List<AuthoringProject> listProjects(Boolean lightweight) throws JiraException {
