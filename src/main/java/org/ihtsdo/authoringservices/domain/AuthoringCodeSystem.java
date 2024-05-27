@@ -4,7 +4,9 @@ import com.fasterxml.jackson.annotation.JsonRawValue;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystemVersion;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ConceptMiniPojo;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
@@ -15,7 +17,8 @@ public class AuthoringCodeSystem {
 	private String countryCode;
 	private String maintainerType;
 	private String branchPath;
-	private Set <String> userRoles;
+	private Set<String> userRoles;
+	private Collection<ConceptMiniPojo> modules;
 	private Integer dependantVersionEffectiveTime;
 	private CodeSystemVersion latestVersion;
 	private String latestClassificationJson;
@@ -32,6 +35,7 @@ public class AuthoringCodeSystem {
 		setMaintainerType(codeSystem.getMaintainerType());
 		setBranchPath(codeSystem.getBranchPath());
 		setUserRoles(codeSystem.getUserRoles());
+		setModules(codeSystem.getModules());
 		setDependantVersionEffectiveTime(codeSystem.getDependantVersionEffectiveTime());
 		setLatestVersion(codeSystem.getLatestVersion());
 	}
@@ -82,6 +86,14 @@ public class AuthoringCodeSystem {
 
 	public void setUserRoles(Set <String> userRoles) {
 		this.userRoles = userRoles;
+	}
+
+	public Collection<ConceptMiniPojo> getModules() {
+		return modules;
+	}
+
+	public void setModules(Collection<ConceptMiniPojo> modules) {
+		this.modules = modules;
 	}
 
 	public Integer getDependantVersionEffectiveTime() {

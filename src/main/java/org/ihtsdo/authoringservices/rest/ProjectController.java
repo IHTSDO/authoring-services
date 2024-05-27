@@ -11,6 +11,7 @@ import org.ihtsdo.authoringservices.service.RebaseService;
 import org.ihtsdo.authoringservices.service.ScheduledRebaseService;
 import org.ihtsdo.authoringservices.service.TaskService;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
+import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.sso.integration.SecurityUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,7 +44,7 @@ public class ProjectController {
 	@Operation(summary = "Retrieve Authoring Info (Code System, Project and Task information) for a given branch")
 	@ApiResponse(responseCode = "200", description = "OK")
 	@RequestMapping(value="/branches/{branch}/authoring-info", method= RequestMethod.GET)
-	public ResponseEntity<AuthoringInformation> getBranchAuthoringInformation(@PathVariable String branch) throws BusinessServiceException, ServiceException {
+	public ResponseEntity<AuthoringInformation> getBranchAuthoringInformation(@PathVariable String branch) throws BusinessServiceException, ServiceException, RestClientException {
 		String branchPath = BranchPathUriUtil.decodePath(branch);
 		return new ResponseEntity<>(taskService.getBranchAuthoringInformation(branchPath), HttpStatus.OK);
 	}

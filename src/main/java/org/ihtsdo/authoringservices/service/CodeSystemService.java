@@ -73,18 +73,17 @@ public class CodeSystemService {
 	@Qualifier("validationTicketOAuthJiraClient")
 	private ImpersonatingJiraClientFactory jiraClientFactory;
 
-	public AuthoringCodeSystem findOne(String shortname) throws BusinessServiceException {
-		List<CodeSystem> codeSystems = snowstormRestClientFactory.getClient().getCodeSystems();
-		CodeSystem cs = codeSystems.stream().filter(codeSystem -> codeSystem.getShortName().equals(shortname)).findFirst().orElse(null);
-		if (cs != null) {
-			List<AuthoringCodeSystem> authoringCodeSystems = buildAuthoringCodeSystems(Collections.singletonList(cs));
+	public AuthoringCodeSystem findOne(String shortname) throws BusinessServiceException, RestClientException {
+		CodeSystem codeSystem = snowstormRestClientFactory.getClient().getCodeSystem(shortname);
+		if (codeSystem != null) {
+			List<AuthoringCodeSystem> authoringCodeSystems = buildAuthoringCodeSystems(Collections.singletonList(codeSystem));
 			return authoringCodeSystems.get(0);
 		}
 
 		return null;
 	}
 
-	public List<CodeSystemVersion> getCodeSystemVersions(String shortname) throws BusinessServiceException {
+	public List<CodeSystemVersion> getCodeSystemVersions(String shortname) {
 		return snowstormRestClientFactory.getClient().getCodeSystemVersions(shortname, null, null);
 	}
 

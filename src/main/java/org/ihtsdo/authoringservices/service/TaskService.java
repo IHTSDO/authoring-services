@@ -218,7 +218,7 @@ public class TaskService {
 		logger.info("{} task state notification queues configured {}", taskStateChangeNotificationQueues.size(), taskStateChangeNotificationQueues);
 	}
 
-	public AuthoringInformation getBranchAuthoringInformation(String branchPath) throws BusinessServiceException, ServiceException {
+	public AuthoringInformation getBranchAuthoringInformation(String branchPath) throws BusinessServiceException, ServiceException, RestClientException {
 		final Branch branchOrNull = branchService.getBranchOrNull(branchPath);
 		if (branchOrNull == null) {
 			throw new BusinessServiceException("Branch " + branchPath + " does not exist.");
