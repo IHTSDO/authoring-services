@@ -8,12 +8,14 @@ import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.entity.Validation;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.authoringservices.service.jira.ImpersonatingJiraClientFactory;
+import org.ihtsdo.otf.RF2Constants;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.*;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.sso.integration.SecurityUtil;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,7 +34,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 
 import static org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystemUpgradeJob.UpgradeStatus.*;
 
@@ -40,6 +41,8 @@ import static org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystemUpgrad
 public class CodeSystemService {
 
 	private final Logger logger = LoggerFactory.getLogger(getClass());
+
+	private static final String CODE_SYSTEM_NOT_FOUND_MSG = "Code system with shortname %s not found";
 
 	private static final String DEFAULT_JIRA_PROJECT = "MSSP";
 	private static final String DEFAULT_ISSUE_TYPE = "Service Request";
@@ -98,7 +101,7 @@ public class CodeSystemService {
 		List<CodeSystem> codeSystems = snowstormRestClient.getCodeSystems();
 		CodeSystem cs = codeSystems.stream().filter(item -> item.getShortName().equals(shortName)).findFirst().orElse(null);
 		if (cs == null) {
-			throw new BusinessServiceException("Code system with shortname " + shortName + " not found");
+			throw new BusinessServiceException(String.format(CODE_SYSTEM_NOT_FOUND_MSG, shortName));
 		}
 
 		final Map<String, Object> branchMetadata = branchService.getBranchMetadataIncludeInherited(cs.getBranchPath());
@@ -118,10 +121,10 @@ public class CodeSystemService {
 		List<CodeSystem> codeSystems = snowstormRestClientFactory.getClient().getCodeSystems();
 		CodeSystem cs = codeSystems.stream().filter(item -> item.getShortName().equals(codeSystemShortame)).findAny().orElse(null);
 		if (cs == null) {
-			throw new BusinessServiceException("Code system with shortname " + codeSystemShortame + " not found");
+			throw new BusinessServiceException(String.format(CODE_SYSTEM_NOT_FOUND_MSG, codeSystemShortame));
 		}
 		List<AuthoringProject> projects = taskService.listProjects(true);
-		projects = projects.stream().filter(project -> project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/")).equals(cs.getBranchPath())).collect(Collectors.toList());
+		projects = projects.stream().filter(project -> project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/")).equals(cs.getBranchPath())).toList();
 		List<String> failedToLockProjects = new ArrayList<>();
 		for (AuthoringProject project : projects) {
 			try {
@@ -131,7 +134,7 @@ public class CodeSystemService {
 				failedToLockProjects.add(project.getKey());
 			}
 		}
-		if (failedToLockProjects.size() != 0) {
+		if (!failedToLockProjects.isEmpty()) {
 			throw new BusinessServiceException(String.format("The following projects %s failed to lock. Please contact technical support to get help", failedToLockProjects.toString()));
 		}
 	}
@@ -140,10 +143,10 @@ public class CodeSystemService {
 		List<CodeSystem> codeSystems = snowstormRestClientFactory.getClient().getCodeSystems();
 		CodeSystem cs = codeSystems.stream().filter(item -> item.getShortName().equals(codeSystemShortame)).findAny().orElse(null);
 		if (cs == null) {
-			throw new BusinessServiceException("Code system with shortname " + codeSystemShortame + " not found");
+			throw new BusinessServiceException(String.format(CODE_SYSTEM_NOT_FOUND_MSG, codeSystemShortame));
 		}
 		List<AuthoringProject> projects = taskService.listProjects(true);
-		projects = projects.stream().filter(project -> project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/")).equals(cs.getBranchPath())).collect(Collectors.toList());
+		projects = projects.stream().filter(project -> project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/")).equals(cs.getBranchPath())).toList();
 		List<String> failedToUnlockProjects = new ArrayList<>();
 		for (AuthoringProject project : projects) {
 			try {
@@ -153,13 +156,13 @@ public class CodeSystemService {
 				failedToUnlockProjects.add(project.getKey());
 			}
 		}
-		if (failedToUnlockProjects.size() != 0) {
+		if (!failedToUnlockProjects.isEmpty()) {
 			throw new BusinessServiceException(String.format("The following projects %s failed to unlock. Please contact technical support to get help.", failedToUnlockProjects.toString()));
 		}
 	}
 
 	@Async
-	public void waitForCodeSystemUpgradeToComplete(String jobId, Boolean generateEn_GbLanguageRefsetDelta, String projectKey, SecurityContext securityContext) throws BusinessServiceException {
+	public void waitForCodeSystemUpgradeToComplete(String jobId, Boolean generateEnGbLanguageRefsetDelta, String projectKey, SecurityContext securityContext) throws BusinessServiceException {
 		SecurityContextHolder.setContext(securityContext);
 		SnowstormRestClient client = snowstormRestClientFactory.getClient();
 		CodeSystemUpgradeJob codeSystemUpgradeJob;
@@ -168,7 +171,7 @@ public class CodeSystemService {
 		int maxTotalWait = 2 * 60 * 60;
 		try {
 			do {
-				Thread.sleep(1000 * sleepSeconds);
+				Thread.sleep(1000L * sleepSeconds);
 				totalWait += sleepSeconds;
 				codeSystemUpgradeJob = client.getCodeSystemUpgradeJob(jobId);
 			} while (totalWait < maxTotalWait && RUNNING.equals(codeSystemUpgradeJob.getStatus()));
@@ -183,49 +186,68 @@ public class CodeSystemService {
 					String newDependantVersionISOFormat = newDependantVersionRF2Format.substring(0, 4) + "-" + newDependantVersionRF2Format.substring(4, 6) + "-" + newDependantVersionRF2Format.substring(6, 8);
 
 					// Generate additional EN_GB language refset
-					if (COMPLETED.equals(codeSystemUpgradeJob.getStatus()) && Boolean.TRUE.equals(generateEn_GbLanguageRefsetDelta) && isIntegrityCheckEmpty(codeSystem.getBranchPath())) {
-						String projectBranchPath = taskService.getProjectBranchPathUsingCache(projectKey);
-						Merge merge = null;
-						try {
-							merge = branchService.mergeBranchSync(codeSystem.getBranchPath(), projectBranchPath, null);
-						} catch (Exception e) {
-							logger.error("Failed to rebase the project " + projectKey + ". Error: " + e.getMessage());
-						}
-						if (merge != null) {
-							if (merge.getStatus() == Merge.Status.COMPLETED) {
-								AuthoringTaskCreateRequest taskCreateRequest = new AuthoringTask();
-								taskCreateRequest.setSummary("en-GB Import " + newDependantVersionISOFormat);
-
-								AuthoringTask task = taskService.createTask(projectKey, taskCreateRequest);
-								if (client.getBranch(task.getBranchPath()) == null) {
-									client.createBranch(task.getBranchPath());
-								}
-								try {
-									client.generateAdditionalLanguageRefsetDelta(codeSystemShortname, task.getBranchPath(), "900000000000508004", false);
-								} catch (Exception e) {
-									logger.error("Failed to generate additional language refset delta", e);
-								}
-							} else {
-								ApiError apiError = merge.getApiError();
-								String message = apiError != null ? apiError.getMessage() : null;
-								logger.error("Failed to rebase the project " + projectKey + ". Error: " + message);
-							}
-						}
+					if (COMPLETED.equals(codeSystemUpgradeJob.getStatus()) && Boolean.TRUE.equals(generateEnGbLanguageRefsetDelta) && isIntegrityCheckEmpty(codeSystem.getBranchPath())) {
+						rebaseMainProjectAndGenerateAdditionalLanguageRefsetDelta(projectKey, codeSystem, newDependantVersionISOFormat, client, codeSystemShortname);
 					}
 
 					// Raise an JIRA ticket for SI to update the daily build
 					createJiraIssue(codeSystem.getName().replace("Edition","Extension"), newDependantVersionISOFormat, generateDescription(codeSystem, codeSystemUpgradeJob, newDependantVersionISOFormat));
 				}
 
-				try {
-					uiStateService.deleteTaskPanelState(codeSystemShortname, codeSystemShortname, SHARED, UPGRADE_JOB_PANEL_ID);
-				} catch (Exception e) {
-					logger.error("Failed to delete the UI panel with id " + UPGRADE_JOB_PANEL_ID, e);
-				}
+				deleteUpgradeJobPanelState(codeSystemShortname);
 			}
 		} catch (InterruptedException | RestClientException e) {
-			throw new BusinessServiceException("Failed to fetch code system upgrade status.", e);
+			logger.error("Failed to fetch code system upgrade status.", e);
+			Thread.currentThread().interrupt();
 		}
+	}
+
+	private void rebaseMainProjectAndGenerateAdditionalLanguageRefsetDelta(String projectKey, CodeSystem codeSystem, String newDependantVersionISOFormat, SnowstormRestClient client, String codeSystemShortname) throws BusinessServiceException, RestClientException {
+		String projectBranchPath = taskService.getProjectBranchPathUsingCache(projectKey);
+		Merge merge = rebaseProject(projectKey, codeSystem, projectBranchPath);
+		if (merge != null) {
+			if (merge.getStatus() == Merge.Status.COMPLETED) {
+				AuthoringTaskCreateRequest taskCreateRequest = new AuthoringTask();
+				taskCreateRequest.setSummary("en-GB Import " + newDependantVersionISOFormat);
+
+				AuthoringTask task = taskService.createTask(projectKey, taskCreateRequest);
+				if (client.getBranch(task.getBranchPath()) == null) {
+					client.createBranch(task.getBranchPath());
+				}
+				generateAdditionalLanguageRefsetDelta(client, codeSystemShortname, task);
+			} else {
+				ApiError apiError = merge.getApiError();
+				String message = apiError != null ? apiError.getMessage() : null;
+				logger.error("Failed to rebase the project {}. Error: {}", projectKey, message);
+			}
+		}
+	}
+
+	private void generateAdditionalLanguageRefsetDelta(SnowstormRestClient client, String codeSystemShortname, AuthoringTask task) {
+		try {
+			client.generateAdditionalLanguageRefsetDelta(codeSystemShortname, task.getBranchPath(), RF2Constants.GB_ENG_LANG_REFSET , false);
+		} catch (Exception e) {
+			logger.error("Failed to generate additional language refset delta", e);
+		}
+	}
+
+	private void deleteUpgradeJobPanelState(String codeSystemShortname) {
+		try {
+			uiStateService.deleteTaskPanelState(codeSystemShortname, codeSystemShortname, SHARED, UPGRADE_JOB_PANEL_ID);
+		} catch (Exception e) {
+			logger.error("Failed to delete the UI panel with id " + UPGRADE_JOB_PANEL_ID, e);
+		}
+	}
+
+	@Nullable
+	private Merge rebaseProject(String projectKey, CodeSystem codeSystem, String projectBranchPath) {
+		Merge merge = null;
+		try {
+			merge = branchService.mergeBranchSync(codeSystem.getBranchPath(), projectBranchPath, null);
+		} catch (Exception e) {
+			logger.error("Failed to rebase the project {}. Error: {}", projectKey, e.getMessage());
+		}
+		return merge;
 	}
 
 	private Issue createJiraIssue(String codeSystemName, String newDependantVersion, String description) throws BusinessServiceException {

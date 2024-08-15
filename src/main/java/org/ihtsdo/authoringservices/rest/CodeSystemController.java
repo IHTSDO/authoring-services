@@ -3,8 +3,9 @@ package org.ihtsdo.authoringservices.rest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import net.rcarz.jiraclient.JiraException;
 import org.ihtsdo.authoringservices.domain.AuthoringCodeSystem;
 import org.ihtsdo.authoringservices.service.CodeSystemService;
@@ -25,8 +26,6 @@ import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
@@ -50,7 +49,7 @@ public class CodeSystemController {
 
 	@Operation(summary = "Upgrade code system to a different dependant version asynchronously")
 	@ApiResponse(responseCode = "201", description = "CREATED")
-	@RequestMapping(value="/{shortName}/upgrade/{newDependantVersion}", method= RequestMethod.POST)
+	@PostMapping(value="/{shortName}/upgrade/{newDependantVersion}")
 	public ResponseEntity<Void> upgradeCodeSystem(
 			@Parameter(description = "Extension code system shortname") @PathVariable final String shortName,
 			@Parameter(description = "New dependant version with the same format as the effectiveTime RF2 field, for example '20190731'") @PathVariable final Integer newDependantVersion,
@@ -76,7 +75,7 @@ public class CodeSystemController {
 	}
 
 	@Operation(summary = "Download daily build package for a given code system")
-	@ApiResponses({ @ApiResponse(responseCode = "200", description = "OK") })
+	@ApiResponse(responseCode = "200", description = "OK")
 	@GetMapping(value = "/{shortName}/daily-build-package/download")
 	public void downloadDailyBuildPackageFile(@PathVariable final String shortName, final HttpServletResponse response) throws IOException {
 		String latestDailyBuildFileName = dailyBuildService.getLatestDailyBuildFileName(shortName);
@@ -96,14 +95,14 @@ public class CodeSystemController {
 	}
 
 	@Operation(summary = "Lock all projects for a given code system")
-	@ApiResponses({ @ApiResponse(responseCode = "200", description = "OK") })
+	@ApiResponse(responseCode = "200", description = "OK")
 	@PostMapping(value = "/{shortName}/projects/lock")
 	public void lockProjects(@PathVariable final String shortName, final HttpServletResponse response) throws BusinessServiceException, JiraException {
 		codeSystemService.lockProjects(shortName);
 	}
 
 	@Operation(summary = "Unlock all projects for a given code system")
-	@ApiResponses({ @ApiResponse(responseCode = "200", description = "OK") })
+	@ApiResponse(responseCode = "200", description = "OK")
 	@PostMapping(value = "/{shortName}/projects/unlock")
 	public void unlockProjects(@PathVariable final String shortName, final HttpServletResponse response) throws BusinessServiceException, JiraException {
 		codeSystemService.unlockProjects(shortName);
