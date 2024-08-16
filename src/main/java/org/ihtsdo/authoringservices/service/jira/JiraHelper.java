@@ -105,5 +105,10 @@ public class JiraHelper {
             }
         }
 	}
+
+	public static boolean deleteIssue(JiraClient client, String issueKey) throws JiraException {
+		Issue issue = client.getIssue(issueKey);
+		return issue.delete(true);
+	}
 	
 }
