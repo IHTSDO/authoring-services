@@ -121,6 +121,16 @@ public class JiraHelper {
         return client.createProject(createMetadata);
     }
 
+    public static void deleteProject(JiraClient jiraClient, String key) throws JiraException {
+        final RestClient restClient = jiraClient.getRestClient();
+        try {
+            URI uri = restClient.buildURI("rest/api/latest/project/" + key);
+            restClient.delete(uri);
+        } catch (IOException | URISyntaxException | RestException e) {
+            throw new JiraException("Failed to delete project " + key, e);
+        }
+    }
+
     public static String getCategoryIdByName(JiraClient client, String categoryName) throws JiraException {
         final RestClient restClient = client.getRestClient();
         try {

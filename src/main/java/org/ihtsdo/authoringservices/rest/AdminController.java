@@ -50,7 +50,7 @@ public class AdminController {
     @Operation(summary = "Bulk-delete multiple task keys", description = "-")
     @DeleteMapping(value = "/projects/{projectKey}/tasks/bulk-delete")
     public ResponseEntity<Void> deleteTasks(@PathVariable final String projectKey,
-                                              @Parameter(description = "Task keys") @RequestParam final List<String> taskKeys) throws JiraException, BusinessServiceException {
+                                            @Parameter(description = "Task keys") @RequestParam final List<String> taskKeys) throws JiraException, BusinessServiceException {
         AuthoringProject project = taskService.retrieveProject(projectKey, true);
         adminService.deleteIssues(project, new HashSet<>(taskKeys));
         return new ResponseEntity<>(HttpStatus.OK);
@@ -62,6 +62,24 @@ public class AdminController {
         findProjectAndThrowIfExists(request.key());
         AuthoringCodeSystem codeSystem = codeSystemService.findOne(request.codeSystemShortName());
         return new ResponseEntity<>(adminService.createProject(codeSystem, request), HttpStatus.CREATED);
+    }
+
+    @Operation(summary = "Delete a given project key", description = "-")
+    @DeleteMapping(value = "/projects/{projectKey}")
+    public ResponseEntity<Void> deleteProject(@PathVariable final String projectKey) throws JiraException, BusinessServiceException {
+        AuthoringProject project = taskService.retrieveProject(projectKey, true);
+        adminService.deleteProject(project);
+        return new ResponseEntity<>(HttpStatus.OK);
+    }
+
+    @Operation(summary = "Bulk-delete multiple project keys", description = "-")
+    @DeleteMapping(value = "/projects/bulk-delete")
+    public ResponseEntity<Void> deleteProjects(@Parameter(description = "Project keys") @RequestParam final List<String> projectKeys) throws JiraException, BusinessServiceException {
+        for (String projectKey : projectKeys) {
+            AuthoringProject project = taskService.retrieveProject(projectKey, true);
+            adminService.deleteProject(project);
+        }
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 
     private void findProjectAndThrowIfExists(String projectKey) {

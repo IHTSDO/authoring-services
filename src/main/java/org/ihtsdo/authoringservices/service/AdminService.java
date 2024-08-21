@@ -57,6 +57,13 @@ public class AdminService {
         }
     }
 
+    @PreAuthorize("hasPermission('ADMIN', 'global') || hasPermission('ADMIN', #project.codeSystem.branchPath)")
+    public void deleteProject(AuthoringProject project) throws JiraException {
+        logger.info("Deleting project {}", project.getKey());
+        JiraClient adminJiraClient = jiraClientFactory.getAdminInstance();
+        JiraHelper.deleteProject(adminJiraClient, project.getKey());
+    }
+
     @PreAuthorize("hasPermission('ADMIN', 'global') || hasPermission('ADMIN', #codeSystem.branchPath)")
     public Project createProject(AuthoringCodeSystem codeSystem, CreateProjectRequest request) throws BusinessServiceException, ServiceException, JiraException {
         logger.info("Creating new project {} on code system {}", request.key(), codeSystem.getShortName());
