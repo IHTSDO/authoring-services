@@ -4,7 +4,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import net.rcarz.jiraclient.JiraException;
 import org.ihtsdo.authoringservices.domain.TaskStatus;
 import org.ihtsdo.authoringservices.service.TaskService;
 import org.ihtsdo.authoringservices.service.UiStateService;
@@ -39,7 +38,7 @@ public class UiStateController {
 	})
 	@PostMapping(value = "/projects/{projectKey}/tasks/{taskKey}/ui-state/{panelId}")
 	public void persistTaskUiPanelState(@PathVariable final String projectKey, @PathVariable final String taskKey, @PathVariable final String panelId,
-			@RequestBody final String jsonState) throws IOException, BusinessServiceException, JiraException, JSONException {
+			@RequestBody final String jsonState) throws IOException, BusinessServiceException, JSONException {
 		// TODO - move this to an explicit "Start progress" endpoint.
 		taskService.conditionalStateTransition(projectKey, taskKey, TaskStatus.NEW, TaskStatus.IN_PROGRESS);
 		uiStateService.persistTaskPanelState(projectKey, taskKey, SecurityUtil.getUsername(), panelId, jsonState);

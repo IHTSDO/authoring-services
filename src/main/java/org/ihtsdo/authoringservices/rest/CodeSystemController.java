@@ -6,7 +6,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import net.rcarz.jiraclient.JiraException;
 import org.ihtsdo.authoringservices.domain.AuthoringCodeSystem;
 import org.ihtsdo.authoringservices.service.CodeSystemService;
 import org.ihtsdo.authoringservices.service.DailyBuildService;
@@ -97,14 +96,14 @@ public class CodeSystemController {
 	@Operation(summary = "Lock all projects for a given code system")
 	@ApiResponse(responseCode = "200", description = "OK")
 	@PostMapping(value = "/{shortName}/projects/lock")
-	public void lockProjects(@PathVariable final String shortName, final HttpServletResponse response) throws BusinessServiceException, JiraException {
+	public void lockProjects(@PathVariable final String shortName, final HttpServletResponse response) throws BusinessServiceException {
 		codeSystemService.lockProjects(shortName);
 	}
 
 	@Operation(summary = "Unlock all projects for a given code system")
 	@ApiResponse(responseCode = "200", description = "OK")
 	@PostMapping(value = "/{shortName}/projects/unlock")
-	public void unlockProjects(@PathVariable final String shortName, final HttpServletResponse response) throws BusinessServiceException, JiraException {
+	public void unlockProjects(@PathVariable final String shortName, final HttpServletResponse response) throws BusinessServiceException {
 		codeSystemService.unlockProjects(shortName);
 	}
 }

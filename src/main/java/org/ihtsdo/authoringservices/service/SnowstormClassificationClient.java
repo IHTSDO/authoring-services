@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.jms.JMSException;
+import jakarta.jms.TextMessage;
 import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
@@ -22,8 +24,6 @@ import org.springframework.stereotype.Service;
 import us.monoid.json.JSONException;
 import us.monoid.json.JSONObject;
 
-import jakarta.jms.JMSException;
-import jakarta.jms.TextMessage;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -32,7 +32,13 @@ import java.util.Map;
 public class SnowstormClassificationClient {
 
 	@Autowired
+	private CacheService cacheService;
+
+	@Autowired
 	private TaskService taskService;
+
+	@Autowired
+	private ProjectService projectService;
 
 	@Autowired
 	private SnowstormRestClientFactory snowstormRestClientFactory;
@@ -45,7 +51,7 @@ public class SnowstormClassificationClient {
 	private final ObjectMapper objectMapper = new ObjectMapper();
 	private final Map <String, ClassificationRequest> classificationRequests = Collections.synchronizedMap(new HashMap <>());
 
-	public synchronized Classification startClassification(String projectKey, String taskKey, String branchPath, String username) throws RestClientException, JSONException, BusinessServiceException {
+	public synchronized Classification startClassification(String projectKey, String taskKey, String branchPath, String username) throws RestClientException, JSONException {
 		if (!snowstormRestClientFactory.getClient().isClassificationInProgressOnBranch(branchPath)) {
 			Classification classificationResult = callClassification(projectKey, taskKey, branchPath, username);
 			Notification notification = new Notification(projectKey, taskKey, EntityType.Classification, "Classification is running");
@@ -72,13 +78,11 @@ public class SnowstormClassificationClient {
 	void messageConsumer(TextMessage statusResponseMessage) throws JMSException, JsonProcessingException {
 		try {
 			ClassificationStatusResponse response = objectMapper.readValue(statusResponseMessage.getText(), ClassificationStatusResponse.class);
-			if (classificationRequests.containsKey(response.getId())) {
-				if (!ClassificationStatus.RUNNING.equals(response.getStatus())
+			if (classificationRequests.containsKey(response.getId()) && (!ClassificationStatus.RUNNING.equals(response.getStatus())
 					&& !ClassificationStatus.SCHEDULED.equals(response.getStatus())
-					&& !ClassificationStatus.SAVING_IN_PROGRESS.equals(response.getStatus())) {
+					&& !ClassificationStatus.SAVING_IN_PROGRESS.equals(response.getStatus()))) {
 					ClassificationRequest request = classificationRequests.remove(response.getId());
 					new Thread(new ClassificationRunner(request, response.getStatus())).start();
-				}
 			}
 		} catch (JsonParseException | JsonMappingException e) {
 			logger.error("Failed to parse message. Message: {}.", statusResponseMessage.getText());
@@ -124,16 +128,11 @@ public class SnowstormClassificationClient {
 				resultMessage = "Classification failed to complete due to an internal error. Please try again.";
 			}
 
-			if (request.getTaskKey() != null) {
-				//In every case we'll report what we know to the jira ticket
-				taskService.addCommentLogErrors(request.getProjectKey(), request.getTaskKey(), resultMessage);
-			} else if (request.getProjectKey() != null) {
-				// Comment on project magic ticket
-				taskService.addCommentLogErrors(request.getProjectKey(), resultMessage);
-			}
+			// Add new comment to project/task
+			addCommentLog(resultMessage);
 
 			// Clear the cache
-			taskService.clearClassificationCache(request.getBranchPath());
+			cacheService.clearClassificationCache(request.getBranchPath());
 
 			// Notify user
 			Notification notification = new Notification(request.getProjectKey(), request.getTaskKey(), EntityType.Classification, resultMessage);
@@ -154,8 +153,22 @@ public class SnowstormClassificationClient {
 						}
 					}
 				} catch (BusinessServiceException | RestClientException | JSONException e) {
-					throw new RuntimeException("Failed to mark task as IN_REVIEW", e);
+					logger.error("Failed to mark task as IN_REVIEW", e);
 				}
+            }
+		}
+
+		private void addCommentLog(String resultMessage) {
+			if (request.getTaskKey() != null) {
+				//In every case we'll report what we know to the jira ticket
+				taskService.addCommentLogErrors(request.getProjectKey(), request.getTaskKey(), resultMessage);
+			} else if (request.getProjectKey() != null) {
+				// Comment on project magic ticket
+                try {
+                    projectService.addCommentLogErrors(request.getProjectKey(), resultMessage);
+                } catch (BusinessServiceException e) {
+                    logger.error("Failed to add comment to project", e);
+                }
             }
 		}
 	}

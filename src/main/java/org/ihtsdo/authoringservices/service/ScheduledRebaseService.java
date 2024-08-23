@@ -1,14 +1,8 @@
 package org.ihtsdo.authoringservices.service;
 
 
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.ihtsdo.otf.rest.client.RestClientException;
+import org.ihtsdo.authoringservices.domain.AuthoringProject;
+import org.ihtsdo.authoringservices.domain.BranchState;
 import org.ihtsdo.otf.rest.client.ims.IMSRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
@@ -16,8 +10,6 @@ import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ApiError;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Merge;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
-import org.ihtsdo.authoringservices.domain.AuthoringProject;
-import org.ihtsdo.authoringservices.domain.BranchState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,106 +20,118 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.stereotype.Component;
 
-import net.rcarz.jiraclient.JiraException;
+import java.io.IOException;
+import java.net.URISyntaxException;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @Component
 public class ScheduledRebaseService {
 
-	private final Logger logger = LoggerFactory.getLogger(getClass());
+    private final Logger logger = LoggerFactory.getLogger(getClass());
 
-	@Value("${auto.rebase.username}")
-	private String username;
+    @Value("${auto.rebase.username}")
+    private String username;
 
-	@Value("${auto.rebase.password}")
-	private String password;
+    @Value("${auto.rebase.password}")
+    private String password;
 
-	@Value("${ims.url}")
-	private String imsUrl;
+    @Value("${ims.url}")
+    private String imsUrl;
 
-	@Autowired
-	private TaskService taskService;
-	
-	@Autowired
-	private BranchService branchService;
+    @Autowired
+    private TaskService taskService;
 
-	@Autowired
-	private SnowstormRestClientFactory snowstormRestClientFactory;
+    @Autowired
+    private ProjectService projectService;
 
-	private boolean cronJobRunning = false;
+    @Autowired
+    private BranchService branchService;
 
-	@Scheduled(cron = "${scheduled.rebase.project.cron}")
-	@SuppressWarnings("rawtypes")
-	public void rebaseProjects() throws BusinessServiceException {
-		if (cronJobRunning) {
-			logger.info("Scheduled rebase already running. Ignoring this trigger.");
-			return;
-		} else {
-			cronJobRunning = true;
-		}
+    @Autowired
+    private SnowstormRestClientFactory snowstormRestClientFactory;
 
-		try {
-			loginToIMSAndSetSecurityContext();
-			logger.info("Starting scheduled rebase for all configured projects.");
-			List<AuthoringProject> projects = taskService.listProjects(false);
-			projects = projects.stream().filter(project -> !Boolean.TRUE.equals(project.isProjectScheduledRebaseDisabled())
-														&& !Boolean.TRUE.equals(project.isProjectRebaseDisabled())
-														&& !Boolean.TRUE.equals(project.isProjectLocked()))
-										.collect(Collectors.toList());
-			for (AuthoringProject project : projects) {
-				logger.info("Performing scheduled rebase of project " + project.getKey() + ".");
-				if (project.getBranchState() == null || BranchState.UP_TO_DATE.name().equals(project.getBranchState())
-						|| BranchState.FORWARD.name().equals(project.getBranchState())) {
-					logger.info("No rebase needed for project  " + project.getKey() + " with branch state " + project.getBranchState() + ".");
-				} else {
-					try {
-						String projectBranchPath = taskService.getProjectBranchPathUsingCache(project.getKey());
-						String mergeId = branchService.generateBranchMergeReviews(PathHelper.getParentPath(projectBranchPath), projectBranchPath);
-						SnowstormRestClient client = snowstormRestClientFactory.getClient();
-						Set mergeReviewResult =  client.getMergeReviewsDetails(mergeId);
-						// Check conflict of merge review
-						if (mergeReviewResult.isEmpty()) {
-							Merge merge = branchService.mergeBranchSync(PathHelper.getParentPath(projectBranchPath), projectBranchPath, mergeId);
-							if (merge.getStatus() == Merge.Status.COMPLETED) {
-								logger.info("Rebase of project " + project.getKey() + " successful.");
-							} else if (merge.getStatus().equals(Merge.Status.CONFLICTS)) {
-								Map<String, Object> additionalInfo = merge.getApiError().getAdditionalInfo();
-								List conflicts = (List) additionalInfo.get("conflicts");
-								logger.info(conflicts.size() + " conflicts found for project " + project.getKey() + " , skipping rebase.");
-							} else {
-								ApiError apiError = merge.getApiError();
-								String message = apiError != null ? apiError.getMessage() : null;
-								logger.info("Rebase of project " + project.getKey() + " failed. Error message: " + message);
-							}
-						} else {
-							logger.info(mergeReviewResult.size() + " conflicts found for project " + project.getKey() + " , skipping rebase.");
-						}
+    private boolean cronJobRunning = false;
 
-					} catch (Exception e) {
-						logger.error("Rebase of project " + project.getKey() + " failed. Error message: " + e.getMessage(), e);
-					}
-				}
-			}
+    @Scheduled(cron = "${scheduled.rebase.project.cron}")
+    @SuppressWarnings("rawtypes")
+    public void rebaseProjects() throws BusinessServiceException {
+        if (cronJobRunning) {
+            logger.info("Scheduled rebase already running. Ignoring this trigger.");
+            return;
+        } else {
+            cronJobRunning = true;
+        }
 
-			logger.info("Scheduled rebase complete.");
-		} catch (IOException | URISyntaxException | RestClientException | JiraException e) {
-			throw new BusinessServiceException("Error while rebasing projects", e);
-		} finally {
-			cronJobRunning = false;
-			SecurityContextHolder.getContext().setAuthentication(null);
-		}
-	}
+        try {
+            loginToIMSAndSetSecurityContext();
+            logger.info("Starting scheduled rebase for all configured projects.");
+            List<AuthoringProject> projects = projectService.listProjects(false);
+            projects = projects.stream().filter(project -> !Boolean.TRUE.equals(project.isProjectScheduledRebaseDisabled())
+                            && !Boolean.TRUE.equals(project.isProjectRebaseDisabled())
+                            && !Boolean.TRUE.equals(project.isProjectLocked()))
+                    .toList();
+            for (AuthoringProject project : projects) {
+                rebaseProject(project);
+            }
 
-	@Async
-	public void rebaseProjectsManualTrigger() throws BusinessServiceException {
-		logger.info("Manual trigger used for Scheduled project rebase.");
-		rebaseProjects();
-	}
+            logger.info("Scheduled rebase complete.");
+        } catch (IOException | URISyntaxException e) {
+            throw new BusinessServiceException("Error while rebasing projects", e);
+        } finally {
+            cronJobRunning = false;
+            SecurityContextHolder.getContext().setAuthentication(null);
+        }
+    }
 
-	private void loginToIMSAndSetSecurityContext() throws URISyntaxException, IOException, RestClientException {
-		IMSRestClient imsClient = new IMSRestClient(imsUrl);
-		String token = imsClient.loginForceNewSession(username, password);
-		PreAuthenticatedAuthenticationToken decoratedAuthentication = new PreAuthenticatedAuthenticationToken(username, token);
-		SecurityContextHolder.getContext().setAuthentication(decoratedAuthentication);
-	}
+    private void rebaseProject(AuthoringProject project) {
+        logger.info("Performing scheduled rebase of project {}.", project.getKey());
+        if (project.getBranchState() == null || BranchState.UP_TO_DATE.name().equals(project.getBranchState())
+                || BranchState.FORWARD.name().equals(project.getBranchState())) {
+            logger.info("No rebase needed for project  {} with branch state {}.", project.getKey(), project.getBranchState());
+            return;
+        }
+        try {
+            String projectBranchPath = branchService.getProjectBranchPathUsingCache(project.getKey());
+            String mergeId = branchService.generateBranchMergeReviews(PathHelper.getParentPath(projectBranchPath), projectBranchPath);
+            SnowstormRestClient client = snowstormRestClientFactory.getClient();
+            Set mergeReviewResult = client.getMergeReviewsDetails(mergeId);
+            // Check conflict of merge review
+            if (mergeReviewResult.isEmpty()) {
+                Merge merge = branchService.mergeBranchSync(PathHelper.getParentPath(projectBranchPath), projectBranchPath, mergeId);
+                if (merge.getStatus() == Merge.Status.COMPLETED) {
+                    logger.info("Rebase of project {} successful.", project.getKey());
+                } else if (merge.getStatus().equals(Merge.Status.CONFLICTS)) {
+                    Map<String, Object> additionalInfo = merge.getApiError().getAdditionalInfo();
+                    List conflicts = (List) additionalInfo.get("conflicts");
+                    logger.info("{} conflicts found for project {}, skipping rebase.", conflicts.size(), project.getKey());
+                } else {
+                    ApiError apiError = merge.getApiError();
+                    String message = apiError != null ? apiError.getMessage() : null;
+                    logger.info("Rebase of project {} failed. Error message: {}", project.getKey(), message);
+                }
+            } else {
+                logger.info("{} conflicts found for project {}, skipping rebase.", mergeReviewResult.size(), project.getKey());
+            }
+
+        } catch (Exception e) {
+            logger.error("Rebase of project " + project.getKey() + " failed. Error message: " + e.getMessage(), e);
+        }
+
+    }
+
+    @Async
+    public void rebaseProjectsManualTrigger() throws BusinessServiceException {
+        logger.info("Manual trigger used for Scheduled project rebase.");
+        rebaseProjects();
+    }
+
+    private void loginToIMSAndSetSecurityContext() throws URISyntaxException, IOException {
+        IMSRestClient imsClient = new IMSRestClient(imsUrl);
+        String token = imsClient.loginForceNewSession(username, password);
+        PreAuthenticatedAuthenticationToken decoratedAuthentication = new PreAuthenticatedAuthenticationToken(username, token);
+        SecurityContextHolder.getContext().setAuthentication(decoratedAuthentication);
+    }
 
 }

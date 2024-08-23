@@ -4,15 +4,18 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.util.StdDateFormat;
-import com.google.common.base.Charsets;
 import io.kaicode.rest.util.branchpathrewrite.BranchPathUriRewriteFilter;
 import io.swagger.v3.oas.models.ExternalDocumentation;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
+import jakarta.jms.ConnectionFactory;
 import net.rcarz.jiraclient.JiraException;
+import org.ihtsdo.authoringservices.service.ProjectService;
 import org.ihtsdo.authoringservices.service.TaskService;
+import org.ihtsdo.authoringservices.service.impl.JiraProjectServiceImpl;
+import org.ihtsdo.authoringservices.service.impl.JiraTaskServiceImpl;
 import org.ihtsdo.authoringservices.service.jira.ImpersonatingJiraClientFactory;
 import org.ihtsdo.otf.jms.MessagingHelper;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
@@ -35,7 +38,7 @@ import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.jms.config.DefaultJmsListenerContainerFactory;
 
-import jakarta.jms.ConnectionFactory;
+import java.nio.charset.StandardCharsets;
 import java.util.TimeZone;
 
 @SpringBootApplication
@@ -52,7 +55,12 @@ public abstract class Configuration {
 
 	@Bean
 	public TaskService taskService(@Autowired @Qualifier("authoringTaskOAuthJiraClient") ImpersonatingJiraClientFactory jiraClientFactory, @Value("${jira.username}") String jiraUsername) throws JiraException {
-        return new TaskService(jiraClientFactory, jiraUsername);
+        return new JiraTaskServiceImpl(jiraClientFactory, jiraUsername);
+	}
+
+	@Bean
+	public ProjectService projectService(@Autowired @Qualifier("authoringTaskOAuthJiraClient") ImpersonatingJiraClientFactory jiraClientFactory, @Value("${jira.username}") String jiraUsername) throws JiraException {
+		return new JiraProjectServiceImpl(jiraClientFactory, jiraUsername);
 	}
 
 	@Bean
@@ -87,7 +95,7 @@ public abstract class Configuration {
 
 	@Bean
 	public HttpMessageConverters customConverters() {
-		final StringHttpMessageConverter stringConverter = new StringHttpMessageConverter(Charsets.UTF_8);
+		final StringHttpMessageConverter stringConverter = new StringHttpMessageConverter(StandardCharsets.UTF_8);
 		stringConverter.setWriteAcceptCharset(false);
 
 		final MappingJackson2HttpMessageConverter jacksonConverter = new MappingJackson2HttpMessageConverter();

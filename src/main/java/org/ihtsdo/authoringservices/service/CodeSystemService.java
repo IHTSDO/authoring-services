@@ -64,6 +64,9 @@ public class CodeSystemService {
 	private TaskService taskService;
 
 	@Autowired
+	private ProjectService projectService;
+
+	@Autowired
 	private  BranchService branchService;
 
 	@Autowired
@@ -117,18 +120,18 @@ public class CodeSystemService {
 		return snowstormRestClientFactory.getClient().getCodeSystemUpgradeJob(jobId);
 	}
 
-	public void lockProjects(String codeSystemShortame) throws BusinessServiceException, JiraException {
+	public void lockProjects(String codeSystemShortame) throws BusinessServiceException {
 		List<CodeSystem> codeSystems = snowstormRestClientFactory.getClient().getCodeSystems();
 		CodeSystem cs = codeSystems.stream().filter(item -> item.getShortName().equals(codeSystemShortame)).findAny().orElse(null);
 		if (cs == null) {
 			throw new BusinessServiceException(String.format(CODE_SYSTEM_NOT_FOUND_MSG, codeSystemShortame));
 		}
-		List<AuthoringProject> projects = taskService.listProjects(true);
+		List<AuthoringProject> projects = projectService.listProjects(true);
 		projects = projects.stream().filter(project -> project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/")).equals(cs.getBranchPath())).toList();
 		List<String> failedToLockProjects = new ArrayList<>();
 		for (AuthoringProject project : projects) {
 			try {
-				taskService.lockProject(project.getKey());
+				projectService.lockProject(project.getKey());
 			} catch (Exception e) {
 				logger.error("Failed to lock the project " + project.getKey(), e);
 				failedToLockProjects.add(project.getKey());
@@ -139,18 +142,18 @@ public class CodeSystemService {
 		}
 	}
 
-	public void unlockProjects(String codeSystemShortame) throws BusinessServiceException, JiraException {
+	public void unlockProjects(String codeSystemShortame) throws BusinessServiceException {
 		List<CodeSystem> codeSystems = snowstormRestClientFactory.getClient().getCodeSystems();
 		CodeSystem cs = codeSystems.stream().filter(item -> item.getShortName().equals(codeSystemShortame)).findAny().orElse(null);
 		if (cs == null) {
 			throw new BusinessServiceException(String.format(CODE_SYSTEM_NOT_FOUND_MSG, codeSystemShortame));
 		}
-		List<AuthoringProject> projects = taskService.listProjects(true);
+		List<AuthoringProject> projects = projectService.listProjects(true);
 		projects = projects.stream().filter(project -> project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/")).equals(cs.getBranchPath())).toList();
 		List<String> failedToUnlockProjects = new ArrayList<>();
 		for (AuthoringProject project : projects) {
 			try {
-				taskService.unlockProject(project.getKey());
+				projectService.unlockProject(project.getKey());
 			} catch (Exception e) {
 				logger.error("Failed to unlock the project " + project.getKey(), e);
 				failedToUnlockProjects.add(project.getKey());
@@ -203,7 +206,7 @@ public class CodeSystemService {
 	}
 
 	private void rebaseMainProjectAndGenerateAdditionalLanguageRefsetDelta(String projectKey, CodeSystem codeSystem, String newDependantVersionISOFormat, SnowstormRestClient client, String codeSystemShortname) throws BusinessServiceException, RestClientException {
-		String projectBranchPath = taskService.getProjectBranchPathUsingCache(projectKey);
+		String projectBranchPath = branchService.getProjectBranchPathUsingCache(projectKey);
 		Merge merge = rebaseProject(projectKey, codeSystem, projectBranchPath);
 		if (merge != null) {
 			if (merge.getStatus() == Merge.Status.COMPLETED) {

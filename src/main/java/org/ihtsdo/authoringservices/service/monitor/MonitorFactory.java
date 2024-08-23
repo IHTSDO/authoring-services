@@ -1,8 +1,8 @@
 package org.ihtsdo.authoringservices.service.monitor;
 
-import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.authoringservices.service.BranchService;
-import org.ihtsdo.authoringservices.service.TaskService;
+import org.ihtsdo.authoringservices.service.CacheService;
+import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -13,11 +13,11 @@ public class MonitorFactory {
 	private BranchService branchService;
 
 	@Autowired
-	private TaskService taskService;
+	private CacheService cacheService;
 
 	public Monitor createMonitor(String focusProjectId, String focusTaskId) throws BusinessServiceException {
-		final String branchPath = taskService.getTaskBranchPathUsingCache(focusProjectId, focusTaskId);
-		return new BranchMonitor(focusProjectId, focusTaskId, branchPath, branchService, taskService);
+		final String branchPath = branchService.getBranchPathUsingCache(focusProjectId, focusTaskId);
+		return new BranchMonitor(focusProjectId, focusTaskId, branchPath, branchService, cacheService);
 	}
 
 }

@@ -3,14 +3,13 @@ package org.ihtsdo.authoringservices.rest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import net.rcarz.jiraclient.JiraException;
-import net.rcarz.jiraclient.Project;
+import net.sf.json.JSONObject;
 import org.ihtsdo.authoringservices.domain.AuthoringCodeSystem;
 import org.ihtsdo.authoringservices.domain.AuthoringProject;
 import org.ihtsdo.authoringservices.domain.CreateProjectRequest;
 import org.ihtsdo.authoringservices.service.AdminService;
 import org.ihtsdo.authoringservices.service.CodeSystemService;
-import org.ihtsdo.authoringservices.service.TaskService;
+import org.ihtsdo.authoringservices.service.ProjectService;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
@@ -34,49 +33,57 @@ public class AdminController {
     private AdminService adminService;
 
     @Autowired
-    private TaskService taskService;
+    private ProjectService projectService;
 
     @Autowired
     private CodeSystemService codeSystemService;
 
     @Operation(summary = "Delete a given task key", description = "-")
     @DeleteMapping(value = "/projects/{projectKey}/tasks/{taskKey}")
-    public ResponseEntity<Void> deleteTask(@PathVariable final String projectKey, @PathVariable final String taskKey) throws JiraException, BusinessServiceException {
-        AuthoringProject project = taskService.retrieveProject(projectKey, true);
-        adminService.deleteIssue(project, taskKey);
+    public ResponseEntity<Void> deleteTask(@PathVariable final String projectKey, @PathVariable final String taskKey) throws BusinessServiceException {
+        AuthoringProject project = projectService.retrieveProject(projectKey, true);
+        adminService.deleteTask(project, taskKey);
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
     @Operation(summary = "Bulk-delete multiple task keys", description = "-")
     @DeleteMapping(value = "/projects/{projectKey}/tasks/bulk-delete")
     public ResponseEntity<Void> deleteTasks(@PathVariable final String projectKey,
-                                            @Parameter(description = "Task keys") @RequestParam final List<String> taskKeys) throws JiraException, BusinessServiceException {
-        AuthoringProject project = taskService.retrieveProject(projectKey, true);
-        adminService.deleteIssues(project, new HashSet<>(taskKeys));
+                                            @Parameter(description = "Task keys") @RequestParam final List<String> taskKeys) throws BusinessServiceException {
+        AuthoringProject project = projectService.retrieveProject(projectKey, true);
+        adminService.deleteTasks(project, new HashSet<>(taskKeys));
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
     @Operation(summary = "Create a new project", description = "-")
     @PostMapping(value = "/projects")
-    public ResponseEntity<Project> createProject(@RequestBody CreateProjectRequest request) throws BusinessServiceException, RestClientException, ServiceException, JiraException {
+    public ResponseEntity<AuthoringProject> createProject(@RequestBody CreateProjectRequest request) throws BusinessServiceException, RestClientException, ServiceException {
         findProjectAndThrowIfExists(request.key());
         AuthoringCodeSystem codeSystem = codeSystemService.findOne(request.codeSystemShortName());
         return new ResponseEntity<>(adminService.createProject(codeSystem, request), HttpStatus.CREATED);
     }
 
+    @Operation(summary = "Retrieve all custom fields for a given project", description = "-")
+    @GetMapping(value = "/projects/{projectKey}/custom-field")
+    public ResponseEntity<List<JSONObject>> getProjectCustomFields(@PathVariable final String projectKey) throws BusinessServiceException {
+        AuthoringProject project = projectService.retrieveProject(projectKey, true);
+        return new ResponseEntity<>(adminService.retrieveProjectCustomFields(project), HttpStatus.OK);
+    }
+
     @Operation(summary = "Delete a given project key", description = "-")
     @DeleteMapping(value = "/projects/{projectKey}")
-    public ResponseEntity<Void> deleteProject(@PathVariable final String projectKey) throws JiraException, BusinessServiceException {
-        AuthoringProject project = taskService.retrieveProject(projectKey, true);
+    public ResponseEntity<Void> deleteProject(@PathVariable final String projectKey) throws BusinessServiceException {
+        AuthoringProject project = projectService.retrieveProject(projectKey, true);
         adminService.deleteProject(project);
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
+
     @Operation(summary = "Bulk-delete multiple project keys", description = "-")
     @DeleteMapping(value = "/projects/bulk-delete")
-    public ResponseEntity<Void> deleteProjects(@Parameter(description = "Project keys") @RequestParam final List<String> projectKeys) throws JiraException, BusinessServiceException {
+    public ResponseEntity<Void> deleteProjects(@Parameter(description = "Project keys") @RequestParam final List<String> projectKeys) throws BusinessServiceException {
         for (String projectKey : projectKeys) {
-            AuthoringProject project = taskService.retrieveProject(projectKey, true);
+            AuthoringProject project = projectService.retrieveProject(projectKey, true);
             adminService.deleteProject(project);
         }
         return new ResponseEntity<>(HttpStatus.OK);
@@ -84,7 +91,7 @@ public class AdminController {
 
     private void findProjectAndThrowIfExists(String projectKey) {
         try {
-            taskService.retrieveProject(projectKey, true);
+            projectService.retrieveProject(projectKey, true);
             throw new EntityAlreadyExistsException(String.format("Project with key %s already exists", projectKey));
         } catch (BusinessServiceException | ResourceNotFoundException e) {
             // do nothing

@@ -1,12 +1,10 @@
 package org.ihtsdo.authoringservices.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableMap;
 import jakarta.annotation.PostConstruct;
-import jakarta.transaction.Transactional;
 import net.sf.json.JSONObject;
 import org.apache.commons.io.FileUtils;
 import org.ihtsdo.authoringservices.domain.*;
@@ -27,7 +25,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
@@ -106,6 +103,9 @@ public class ValidationService {
 	private TaskService taskService;
 
 	@Autowired
+	private ProjectService projectService;
+
+	@Autowired
 	private BranchService branchService;
 
 	@Autowired
@@ -122,15 +122,12 @@ public class ValidationService {
 
 	private final RestTemplate rvfRestTemplate;
 
-	private final ObjectMapper objectMapper;
-
 	private LoadingCache<String, Validation> validationLoadingCache;
 
 	private Set<String> technicalItems;
 
 	public ValidationService() {
 		this.rvfRestTemplate = new RestTemplate();
-		this.objectMapper = Jackson2ObjectMapperBuilder.json().failOnUnknownProperties(false).build();
 	}
 
 	@PostConstruct
@@ -166,17 +163,21 @@ public class ValidationService {
                         });
 		this.technicalItems = new HashSet<>();
 		if (this.awsResourceEnabled) {
-		 	S3ClientImpl s3Client = new S3ClientImpl(S3Client.builder().region(DefaultAwsRegionProviderChain.builder().build().getRegion()).build());
-			if (s3Client.exists(this.bucket, this.techinicalIssueItemsPath)) {
-				InputStream objectContent = s3Client.getObject(bucket, techinicalIssueItemsPath);
-				try (BufferedReader reader = new BufferedReader(new InputStreamReader(objectContent))) {
-					String line;
-					while ((line = reader.readLine()) != null) {
-						this.technicalItems.add(line);
-					}
-				} catch (IOException e) {
-					logger.error("Failed to load technical assertion list from S3", e);
+			fetchTechnicalAssertions();
+		}
+	}
+
+	private void fetchTechnicalAssertions() {
+		S3ClientImpl s3Client = new S3ClientImpl(S3Client.builder().region(DefaultAwsRegionProviderChain.builder().build().getRegion()).build());
+		if (s3Client.exists(this.bucket, this.techinicalIssueItemsPath)) {
+			InputStream objectContent = s3Client.getObject(bucket, techinicalIssueItemsPath);
+			try (BufferedReader reader = new BufferedReader(new InputStreamReader(objectContent))) {
+				String line;
+				while ((line = reader.readLine()) != null) {
+					this.technicalItems.add(line);
 				}
+			} catch (IOException e) {
+				logger.error("Failed to load technical assertion list from S3", e);
 			}
 		}
 	}
@@ -239,7 +240,7 @@ public class ValidationService {
 	}
 
 	public Status startValidation(String projectKey, String taskKey, boolean enableMRCMValidation) throws BusinessServiceException {
-		String branchPath = taskKey != null ? taskService.getTaskBranchPathUsingCache(projectKey, taskKey) : taskService.getProjectBranchPathUsingCache(projectKey);
+		String branchPath = taskKey != null ? branchService.getTaskBranchPathUsingCache(projectKey, taskKey) : branchService.getProjectBranchPathUsingCache(projectKey);
 	    return doStartValidation(branchPath, projectKey, taskKey, null, enableMRCMValidation);
 	}
 
@@ -331,11 +332,11 @@ public class ValidationService {
 	}
 
 	public String getValidationJson(String projectKey, String taskKey) throws BusinessServiceException {
-		return getValidationJsonIfAvailable(taskService.getTaskBranchPathUsingCache(projectKey, taskKey));
+		return getValidationJsonIfAvailable(branchService.getTaskBranchPathUsingCache(projectKey, taskKey));
 	}
 
 	public String getValidationJson(String projectKey) throws BusinessServiceException {
-		return getValidationJsonIfAvailable(taskService.getProjectBranchPathUsingCache(projectKey));
+		return getValidationJsonIfAvailable(branchService.getProjectBranchPathUsingCache(projectKey));
 	}
 	
 	public String getValidationJson() throws BusinessServiceException {
@@ -362,19 +363,7 @@ public class ValidationService {
 
 					//Only return the validation report if the validation is complete
 					if (ValidationJobStatus.COMPLETED.name().equals(validation.getStatus())) {
-						if (validation.getReportUrl() == null) {
-							logger.info(validation.toString());
-							throw new BusinessServiceException("Validation was completed but the report URL is not found");
-						}
-						jsonObj.put(RVF_URL, validation.getReportUrl());
-						String report = rvfRestTemplate.getForObject(validation.getReportUrl(), String.class);
-						jsonObj.put(VALIDATION_REPORT, report);
-						if (StringUtils.hasLength(report) && validation.getContentHeadTimestamp() != null) {
-							Branch branch = branchService.getBranch(path);
-							if (!validation.getContentHeadTimestamp().equals(branch.getHeadTimestamp())) {
-								jsonObj.put(EXECUTION_STATUS, ValidationJobStatus.STALE.name());
-							}
-						}
+						getCompletedValidationReport(path, validation, jsonObj);
 					}
 					return  jsonObj.toString();
 				} else {
@@ -386,6 +375,22 @@ public class ValidationService {
 			}
 		} catch (Exception e) {
 			throw new BusinessServiceException ("Unable to recover validation json for " + path, e);
+		}
+	}
+
+	private void getCompletedValidationReport(String path, Validation validation, JSONObject jsonObj) throws BusinessServiceException, ServiceException {
+		if (validation.getReportUrl() == null) {
+			logger.info(validation.toString());
+			throw new BusinessServiceException("Validation was completed but the report URL is not found");
+		}
+		jsonObj.put(RVF_URL, validation.getReportUrl());
+		String report = rvfRestTemplate.getForObject(validation.getReportUrl(), String.class);
+		jsonObj.put(VALIDATION_REPORT, report);
+		if (StringUtils.hasLength(report) && validation.getContentHeadTimestamp() != null) {
+			Branch branch = branchService.getBranch(path);
+			if (!validation.getContentHeadTimestamp().equals(branch.getHeadTimestamp())) {
+				jsonObj.put(EXECUTION_STATUS, ValidationJobStatus.STALE.name());
+			}
 		}
 	}
 
@@ -474,7 +479,6 @@ public class ValidationService {
 		return semanticTags;
 	}
 
-	@Transactional
 	private Map<String, Validation> getValidationStatusesWithoutCache(List<String> paths) {
 		List<Validation> validations = validationRepository.findAllByBranchPathIn(paths);
 		Map<String, Validation> branchToValidationMap = validations.stream().collect(Collectors.toMap(Validation::getBranchPath, Function.identity()));

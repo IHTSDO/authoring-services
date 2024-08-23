@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 public class NotificationService {
 
 	@Autowired
-	private TaskService taskService;
+	private BranchService branchService;
 
 	@Autowired
 	private SimpMessagingTemplate simpMessagingTemplate;
@@ -44,7 +44,7 @@ public class NotificationService {
 		final String projectKey = notification.getProject();
 		if (!Strings.isNullOrEmpty(projectKey)) {
 			try {
-				notification.setBranchPath(taskService.getBranchPathUsingCache(projectKey, notification.getTask()));
+				notification.setBranchPath(branchService.getBranchPathUsingCache(projectKey, notification.getTask()));
 			} catch (BusinessServiceException e) {
 				logger.error("Failed to retrieve project base for {}", projectKey);
 			}

@@ -68,6 +68,10 @@ public class AuthoringProject {
 		return projectLead;
 	}
 
+	public void setBranchPath(String branchPath) {
+		this.branchPath = branchPath;
+	}
+
 	public String getBranchPath() {
 		return branchPath;
 	}

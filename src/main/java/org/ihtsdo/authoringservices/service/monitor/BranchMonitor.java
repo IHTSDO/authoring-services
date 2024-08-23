@@ -3,8 +3,7 @@ package org.ihtsdo.authoringservices.service.monitor;
 import org.ihtsdo.authoringservices.domain.EntityType;
 import org.ihtsdo.authoringservices.domain.Notification;
 import org.ihtsdo.authoringservices.service.BranchService;
-import org.ihtsdo.authoringservices.service.TaskService;
-import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
+import org.ihtsdo.authoringservices.service.CacheService;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,17 +16,18 @@ public class BranchMonitor extends Monitor {
 	private final String taskId;
 	private final String branchPath;
 	private final BranchService branchService;
-	private final TaskService taskService;
+	private final CacheService cacheService;
+
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 	private String branchState;
 	private long branchHead = -1;
 
-	public BranchMonitor(String projectId, String taskId, String branchPath, BranchService branchService, TaskService taskService) {
+	public BranchMonitor(String projectId, String taskId, String branchPath, BranchService branchService, CacheService cacheService) {
 		this.projectId = projectId;
 		this.taskId = taskId;
 		this.branchPath = branchPath;
 		this.branchService = branchService;
-		this.taskService = taskService;
+		this.cacheService = cacheService;
 	}
 
 	@Override
@@ -47,7 +47,7 @@ public class BranchMonitor extends Monitor {
 			if (newBranchHead != this.branchHead) {
 				logger.info("Branch {} head {}, changed", branchPath, newBranchHead);
 				this.branchHead = newBranchHead;
-				this.taskService.clearClassificationCache(branchPath);
+				this.cacheService.clearClassificationCache(branchPath);
 				return new Notification(projectId, taskId, EntityType.BranchHead, Long.toString(newBranchHead));
 			} else {
 				logger.info("Branch {} head {}, no change", taskId, newBranchHead);

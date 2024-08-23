@@ -1,31 +1,34 @@
 package org.ihtsdo.authoringservices.service;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
-
 import org.ihtsdo.authoringservices.domain.AuthoringProject;
+import org.ihtsdo.authoringservices.domain.ProcessStatus;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ApiError;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Merge;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
-import org.ihtsdo.authoringservices.domain.ProcessStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Service
 public class RebaseService {
 
+	private static final String REBASE_ERROR_STATUS = "Rebase Error";
+
 	@Autowired
 	private TaskService taskService;
+
+	@Autowired
+	private ProjectService projectService;
 
 	@Autowired
 	private BranchService branchService;
@@ -42,7 +45,7 @@ public class RebaseService {
 		executorService = Executors.newCachedThreadPool();
 	}
 
-	public void doTaskRebase(String projectKey, String taskKey) throws BusinessServiceException {
+	public void doTaskRebase(String projectKey, String taskKey) {
 		
 		final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		ProcessStatus taskProcessStatus = new ProcessStatus();
@@ -52,7 +55,7 @@ public class RebaseService {
 
 				taskProcessStatus.setStatus("Rebasing");
 				taskRebaseStatus.put(parseKey(projectKey, taskKey), taskProcessStatus);
-				String taskBranchPath = taskService.getTaskBranchPathUsingCache(projectKey, taskKey);
+				String taskBranchPath = branchService.getTaskBranchPathUsingCache(projectKey, taskKey);
 				Merge merge = branchService.mergeBranchSync(PathHelper.getParentPath(taskBranchPath), taskBranchPath,
 						null);
 				if (merge.getStatus() == Merge.Status.COMPLETED) {
@@ -71,13 +74,13 @@ public class RebaseService {
 				} else {
 					ApiError apiError = merge.getApiError();
 					String message = apiError != null ? apiError.getMessage() : null;
-					taskProcessStatus.setStatus("Rebase Error");
+					taskProcessStatus.setStatus(REBASE_ERROR_STATUS);
 					taskProcessStatus.setMessage(message);
 					taskRebaseStatus.put(parseKey(projectKey, taskKey), taskProcessStatus);
 				}
 			} catch (BusinessServiceException e) {
 				e.printStackTrace();
-				taskProcessStatus.setStatus("Rebase Error");
+				taskProcessStatus.setStatus(REBASE_ERROR_STATUS);
 				taskProcessStatus.setMessage(e.getMessage());
 				taskRebaseStatus.put(parseKey(projectKey, taskKey), taskProcessStatus);
 			}
@@ -85,7 +88,7 @@ public class RebaseService {
 	}
 	
 	public void doProjectRebase(String projectKey) throws BusinessServiceException {
-		AuthoringProject project = taskService.retrieveProject(projectKey, true);
+		AuthoringProject project = projectService.retrieveProject(projectKey, true);
 		if (Boolean.TRUE.equals(project.isProjectRebaseDisabled())|| Boolean.TRUE.equals(project.isProjectLocked())) {
 			throw new BusinessServiceException("Project rebase is disabled");
 		}
@@ -98,7 +101,7 @@ public class RebaseService {
 
 				projectProcessStatus.setStatus("Rebasing");
 				projectRebaseStatus.put(projectKey, projectProcessStatus);
-				String projectBranchPath = taskService.getProjectBranchPathUsingCache(projectKey);
+				String projectBranchPath = branchService.getProjectBranchPathUsingCache(projectKey);
 				Merge merge = branchService.mergeBranchSync(PathHelper.getParentPath(projectBranchPath), projectBranchPath, null);
 				if (merge.getStatus() == Merge.Status.COMPLETED) {
 					projectProcessStatus.setStatus("Rebase Complete");
@@ -116,13 +119,13 @@ public class RebaseService {
 				} else {
 					ApiError apiError = merge.getApiError();
 					String message = apiError != null ? apiError.getMessage() : null;
-					projectProcessStatus.setStatus("Rebase Error");
+					projectProcessStatus.setStatus(REBASE_ERROR_STATUS);
 					projectProcessStatus.setMessage(message);
 					projectRebaseStatus.put(projectKey, projectProcessStatus);
 				}
 			} catch (BusinessServiceException e) {
 				e.printStackTrace();
-				projectProcessStatus.setStatus("Rebase Error");
+				projectProcessStatus.setStatus(REBASE_ERROR_STATUS);
 				projectProcessStatus.setMessage(e.getMessage());
 				projectRebaseStatus.put(projectKey, projectProcessStatus);
 			}

@@ -38,9 +38,7 @@ public class JiraHelper {
     public static String fieldIdLookup(String fieldName, JiraClient client, Set<String> customFieldsSet) throws JiraException {
         try {
             String fieldId = null;
-            final RestClient restClient = client.getRestClient();
-            final URI uri = restClient.buildURI("rest/api/latest/field");
-            final JSONArray fields = (JSONArray) restClient.get(uri);
+            final JSONArray fields = getFields(client);
             for (int i = 0; i < fields.size(); i++) {
                 final JSONObject jsonObject = fields.getJSONObject(i);
                 if (fieldName.equals(jsonObject.getString("name"))) {
@@ -54,6 +52,12 @@ public class JiraHelper {
         } catch (IOException | URISyntaxException | RestException e) {
             throw new JiraException("Failed to lookup field ID", e);
         }
+    }
+
+    public static JSONArray getFields(JiraClient client) throws URISyntaxException, RestException, IOException {
+        final RestClient restClient = client.getRestClient();
+        final URI uri = restClient.buildURI("rest/api/latest/field");
+        return (JSONArray) restClient.get(uri);
     }
 
     public static Object findUsersByGroupName(JiraClient client, String expand, String groupName) throws JiraException {
