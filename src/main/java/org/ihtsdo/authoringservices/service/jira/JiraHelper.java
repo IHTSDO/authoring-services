@@ -16,14 +16,14 @@ import java.util.*;
 
 public class JiraHelper {
 
-    private static Logger logger = LoggerFactory.getLogger(JiraHelper.class);
+    private static final Logger logger = LoggerFactory.getLogger(JiraHelper.class);
 
     public static final String JSON_MALFORMED_MSG = "JSON payload is malformed";
 
     public static String toStringOrNull(Object jsonProperty) {
         if (jsonProperty != null) {
-            if (jsonProperty instanceof String) {
-                return (String) jsonProperty;
+            if (jsonProperty instanceof String string) {
+                return string;
             } else if (jsonProperty instanceof Map) {
                 return (String) ((Map) jsonProperty).get("value");
             } else if (jsonProperty instanceof net.sf.json.JSONNull) {
@@ -86,8 +86,7 @@ public class JiraHelper {
         final RestClient restClient = client.getRestClient();
         try {
             URI uri = restClient.buildURI("rest/api/latest/user/assignable/search", params);
-            Object response = restClient.get(uri);
-            return response;
+            return restClient.get(uri);
         } catch (IOException | URISyntaxException | RestException e) {
             throw new JiraException("Failed to lookup sca users", e);
         }
@@ -123,6 +122,23 @@ public class JiraHelper {
             createMetadata.put("categoryId", categoryId);
         }
         return client.createProject(createMetadata);
+    }
+
+    public static Project updateProject(JiraClient client, String projectKey, JSONObject request) throws JiraException {
+        final RestClient restClient = client.getRestClient();
+        JSON result;
+        try {
+            URI uri = restClient.buildURI("rest/api/latest/project/" + projectKey);
+            result = restClient.put(uri, request);
+        } catch (IOException | URISyntaxException | RestException e) {
+            throw new JiraException("Failed to update project " + projectKey, e);
+        }
+
+        if (!(result instanceof JSONObject))
+            throw new JiraException(JSON_MALFORMED_MSG);
+
+        Gson gson = new Gson();
+        return gson.fromJson(result.toString(), Project.class);
     }
 
     public static void deleteProject(JiraClient jiraClient, String key) throws JiraException {

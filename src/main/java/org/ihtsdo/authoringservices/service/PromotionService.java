@@ -313,17 +313,17 @@ public class PromotionService {
             } else {
                 throw new BusinessServiceException(classification.getMessage());
             }
-            cacheService.clearClassificationCache(branchService.getBranchPathUsingCache(projectKey, taskKey));
+            cacheService.clearClassificationCache(branchService.getProjectOrTaskBranchPathUsingCache(projectKey, taskKey));
             return classification;
         } catch (RestClientException | JSONException | InterruptedException e) {
             notificationService.queueNotification(SecurityUtil.getUsername(), new Notification(projectKey, taskKey, EntityType.Classification, "Failed to start classification"));
-            cacheService.clearClassificationCache(branchService.getBranchPathUsingCache(projectKey, taskKey));
+            cacheService.clearClassificationCache(branchService.getProjectOrTaskBranchPathUsingCache(projectKey, taskKey));
             throw new BusinessServiceException("Failed to classify", e);
         } catch (IllegalStateException e) {
             notificationService.queueNotification(SecurityUtil.getUsername(), new Notification(projectKey, taskKey, EntityType.Classification, "Failed to start classification due to classification already in progress"));
             status = new ProcessStatus("Classification in progress", e.getMessage());
             automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
-            cacheService.clearClassificationCache(branchService.getBranchPathUsingCache(projectKey, taskKey));
+            cacheService.clearClassificationCache(branchService.getProjectOrTaskBranchPathUsingCache(projectKey, taskKey));
             return null;
         }
     }

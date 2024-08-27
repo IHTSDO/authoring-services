@@ -3,10 +3,7 @@ package org.ihtsdo.authoringservices.rest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import net.sf.json.JSONObject;
-import org.ihtsdo.authoringservices.domain.AuthoringCodeSystem;
-import org.ihtsdo.authoringservices.domain.AuthoringProject;
-import org.ihtsdo.authoringservices.domain.CreateProjectRequest;
+import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.service.AdminService;
 import org.ihtsdo.authoringservices.service.CodeSystemService;
 import org.ihtsdo.authoringservices.service.ProjectService;
@@ -65,9 +62,17 @@ public class AdminController {
 
     @Operation(summary = "Retrieve all custom fields for a given project", description = "-")
     @GetMapping(value = "/projects/{projectKey}/custom-field")
-    public ResponseEntity<List<JSONObject>> getProjectCustomFields(@PathVariable final String projectKey) throws BusinessServiceException {
+    public ResponseEntity<List<AuthoringProjectField>> getProjectCustomFields(@PathVariable final String projectKey) throws BusinessServiceException {
         AuthoringProject project = projectService.retrieveProject(projectKey, true);
         return new ResponseEntity<>(adminService.retrieveProjectCustomFields(project), HttpStatus.OK);
+    }
+
+    @Operation(summary = "Update custom fields for a given project", description = "-")
+    @PutMapping(value = "/projects/{projectKey}/custom-field")
+    public ResponseEntity<Void> updateProjectCustomFields(@PathVariable final String projectKey, @RequestBody ProjectFieldUpdateRequest request) throws BusinessServiceException {
+        AuthoringProject project = projectService.retrieveProject(projectKey, true);
+        adminService.updateProjectCustomFields(project, request);
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 
     @Operation(summary = "Delete a given project key", description = "-")

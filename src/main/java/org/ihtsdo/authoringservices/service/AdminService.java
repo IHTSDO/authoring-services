@@ -1,9 +1,6 @@
 package org.ihtsdo.authoringservices.service;
 
-import net.sf.json.JSONObject;
-import org.ihtsdo.authoringservices.domain.AuthoringCodeSystem;
-import org.ihtsdo.authoringservices.domain.AuthoringProject;
-import org.ihtsdo.authoringservices.domain.CreateProjectRequest;
+import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.slf4j.Logger;
@@ -50,7 +47,7 @@ public class AdminService {
     }
 
     @PreAuthorize("hasPermission('ADMIN', 'global') || hasPermission('ADMIN', #project.codeSystem.branchPath)")
-    public List<JSONObject> retrieveProjectCustomFields(AuthoringProject project) throws BusinessServiceException {
+    public List<AuthoringProjectField> retrieveProjectCustomFields(AuthoringProject project) throws BusinessServiceException {
         return projectService.retrieveProjectCustomFields(project.getKey());
     }
 
@@ -62,5 +59,11 @@ public class AdminService {
         branchService.createProjectBranchIfNeeded(projectBranchPath);
         project.setBranchPath(projectBranchPath);
         return project;
+    }
+
+    @PreAuthorize("hasPermission('ADMIN', 'global') || hasPermission('ADMIN', #project.codeSystem.branchPath)")
+    public void updateProjectCustomFields(AuthoringProject project, ProjectFieldUpdateRequest request) throws BusinessServiceException {
+        logger.info("Updating custom fields for project {}", project.getKey());
+        projectService.updateProjectCustomFields(project.getKey(), request);
     }
 }

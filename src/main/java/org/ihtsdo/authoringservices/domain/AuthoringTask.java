@@ -15,253 +15,240 @@ import java.util.List;
 
 public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskUpdateRequest {
 
-	public static final String JIRA_CREATED_FIELD = "created";
-	public static final String JIRA_UPDATED_FIELD = "updated";
+    public static final String JIRA_CREATED_FIELD = "created";
+    public static final String JIRA_UPDATED_FIELD = "updated";
 
-	public static String jiraReviewerField;
-	public static String jiraReviewersField;
+    private String key;
+    private String projectKey;
+    private String summary;
+    private TaskStatus status;
+    private String branchState;
+    private Long branchHeadTimestamp;
+    private Long branchBaseTimestamp;
+    private Long latestCodeSystemVersionTimestamp;
+    private String description;
+    private User assignee;
+    private List<User> reviewers;
+    private String created;
+    private String updated;
+    private String latestClassificationJson;
+    private String latestValidationStatus;
+    private TaskMessagesStatus feedbackMessagesStatus;
+    private Date feedbackMessageDate;
+    private Date viewDate;
+    private String branchPath;
+    private String labels;
 
-	private String key;
-	private String projectKey;
-	private String summary;
-	private TaskStatus status;
-	private String branchState;
-	private Long branchHeadTimestamp;
-	private Long branchBaseTimestamp;
-	private Long latestCodeSystemVersionTimestamp;
-	private String description;
-	private User assignee;
-	private List<User> reviewers;
-	private String created;
-	private String updated;
-	private String latestClassificationJson;
-	private String latestValidationStatus;
-	private TaskMessagesStatus feedbackMessagesStatus;
-	private Date feedbackMessageDate;
-	private Date viewDate;
-	private String branchPath;
-	private String labels;
+    public AuthoringTask() {
+    }
 
-	public AuthoringTask() {
-	}
+    public AuthoringTask(Issue issue, String extensionBase, String jiraReviewerField, String jiraReviewersField) {
+        key = issue.getKey();
+        projectKey = issue.getProject().getKey();
+        summary = issue.getSummary();
+        status = TaskStatus.fromLabel(issue.getStatus().getName());
+        description = issue.getDescription();
+        net.rcarz.jiraclient.User user = issue.getAssignee();
+        if (user != null) {
+            this.assignee = new User(user);
+        }
+        created = (String) issue.getField(JIRA_CREATED_FIELD);
+        updated = (String) issue.getField(JIRA_UPDATED_FIELD);
 
-	public AuthoringTask(Issue issue, String extensionBase) {
-		key = issue.getKey();
-		projectKey = issue.getProject().getKey();
-		summary = issue.getSummary();
-		status = TaskStatus.fromLabel(issue.getStatus().getName());
-		description = issue.getDescription();
-		net.rcarz.jiraclient.User assignee = issue.getAssignee();
-		if (assignee != null) {
-			this.assignee = new User(assignee);
-		}
-		created = (String) issue.getField(JIRA_CREATED_FIELD);
-		updated = (String) issue.getField(JIRA_UPDATED_FIELD);
+        // declare the object mapper for JSON conversion
+        ObjectMapper mapper = new ObjectMapper();
 
-		// declare the object mapper for JSON conversion
-		ObjectMapper mapper = new ObjectMapper();
+        // set the labels
+        try {
+            labels = mapper.writeValueAsString(issue.getLabels());
+        } catch (JsonProcessingException e) {
+            labels = "Failed to convert Jira labels into json string";
+        }
 
-		// set the labels
-		try {
-			labels = mapper.writeValueAsString(issue.getLabels());
-		} catch (JsonProcessingException e) {
-			labels = "Failed to convert Jira labels into json string";
-		}
-		
-		// set the reviewer object
-		reviewers = new ArrayList<>();
-		Object reviewerObj = issue.getField(jiraReviewerField);
-		if (reviewerObj != null && reviewerObj instanceof JSONObject) {
-			reviewers.add(new User((JSONObject)reviewerObj));
-		}
-		
-		Object reviewersObj = issue.getField(jiraReviewersField);
-		if (reviewersObj != null && reviewersObj instanceof JSONArray array) {
-			if (!array.isEmpty()) {
-				array.forEach(item -> reviewers.add(new User((JSONObject) item)));
-			}
-		}
-		
-		branchPath = PathHelper.getTaskPath(extensionBase, projectKey, key);
-	}
+        // set the reviewer object
+        reviewers = new ArrayList<>();
+        Object reviewerObj = issue.getField(jiraReviewerField);
+        if (reviewerObj instanceof JSONObject obj) {
+            reviewers.add(new User(obj));
+        }
 
-	public String getKey() {
-		return key;
-	}
+        Object reviewersObj = issue.getField(jiraReviewersField);
+        if (reviewersObj instanceof JSONArray array && (!array.isEmpty())) {
+            array.forEach(item -> reviewers.add(new User((JSONObject) item)));
+        }
 
-	public void setKey(String key) {
-		this.key = key;
-	}
+        branchPath = PathHelper.getTaskPath(extensionBase, projectKey, key);
+    }
 
-	public String getProjectKey() {
-		return projectKey;
-	}
+    public String getKey() {
+        return key;
+    }
 
-	public void setProjectKey(String projectKey) {
-		this.projectKey = projectKey;
-	}
+    public void setKey(String key) {
+        this.key = key;
+    }
 
-	@Override
-	public String getSummary() {
-		return summary;
-	}
+    public String getProjectKey() {
+        return projectKey;
+    }
 
-	@Override
-	public void setSummary(String summary) {
-		this.summary = summary;
-	}
+    public void setProjectKey(String projectKey) {
+        this.projectKey = projectKey;
+    }
 
-	@JsonProperty("status")
-	public String getStatusName() {
-		return status != null ? status.getLabel() : null;
-	}
+    @Override
+    public String getSummary() {
+        return summary;
+    }
 
-	public TaskStatus getStatus() {
-		return status;
-	}
+    @Override
+    public void setSummary(String summary) {
+        this.summary = summary;
+    }
 
-	public void setStatus(TaskStatus status) {
-		this.status = status;
-	}
+    @JsonProperty("status")
+    public String getStatusName() {
+        return status != null ? status.getLabel() : null;
+    }
 
-	@Override
-	public String getDescription() {
-		return description;
-	}
+    public TaskStatus getStatus() {
+        return status;
+    }
 
-	@Override
-	public void setDescription(String description) {
-		this.description = description;
-	}
+    public void setStatus(TaskStatus status) {
+        this.status = status;
+    }
 
-	@Override
-	public User getAssignee() {
-		return assignee;
-	}
+    @Override
+    public String getDescription() {
+        return description;
+    }
 
-	@Override
-	public void setAssignee(User assignee) {
-		this.assignee = assignee;
-	}
+    @Override
+    public void setDescription(String description) {
+        this.description = description;
+    }
 
-	public String getCreated() {
-		return created;
-	}
+    @Override
+    public User getAssignee() {
+        return assignee;
+    }
 
-	public void setCreated(String created) {
-		this.created = created;
-	}
+    @Override
+    public void setAssignee(User assignee) {
+        this.assignee = assignee;
+    }
 
-	public String getUpdated() {
-		return updated;
-	}
+    public String getCreated() {
+        return created;
+    }
 
-	public void setUpdated(String updated) {
-		this.updated = updated;
-	}
+    public void setCreated(String created) {
+        this.created = created;
+    }
 
-	@JsonRawValue
-	public String getLatestClassificationJson() {
-		return latestClassificationJson;
-	}
-	
-	public void setLatestClassificationJson(String json) {
-		latestClassificationJson = json;
-	}
+    public String getUpdated() {
+        return updated;
+    }
 
-	public void setLatestValidationStatus(String latestValidationStatus) {
-		this.latestValidationStatus = latestValidationStatus;
-	}
+    public void setUpdated(String updated) {
+        this.updated = updated;
+    }
 
-	public String getLatestValidationStatus() {
-		return "".equals(latestValidationStatus) ? null : latestValidationStatus;
-	}
+    @JsonRawValue
+    public String getLatestClassificationJson() {
+        return latestClassificationJson;
+    }
 
-	public List<User> getReviewers() {
-		return reviewers;
-	}
+    public void setLatestClassificationJson(String json) {
+        latestClassificationJson = json;
+    }
 
-	public void setReviewers(List<User> reviewers) {
-		this.reviewers = reviewers;
-	}
+    public void setLatestValidationStatus(String latestValidationStatus) {
+        this.latestValidationStatus = latestValidationStatus;
+    }
 
-	public void setFeedbackMessagesStatus(TaskMessagesStatus unreadFeedbackMessages) {
-		this.feedbackMessagesStatus = unreadFeedbackMessages;
-	}
+    public String getLatestValidationStatus() {
+        return "".equals(latestValidationStatus) ? null : latestValidationStatus;
+    }
 
-	public TaskMessagesStatus getFeedbackMessagesStatus() {
-		return feedbackMessagesStatus;
-	}
+    public List<User> getReviewers() {
+        return reviewers;
+    }
 
-	public void setBranchState(String branchState) {
-		this.branchState = branchState;
-	}
+    public void setReviewers(List<User> reviewers) {
+        this.reviewers = reviewers;
+    }
 
-	public String getBranchState() {
-		return branchState;
-	}
+    public void setFeedbackMessagesStatus(TaskMessagesStatus unreadFeedbackMessages) {
+        this.feedbackMessagesStatus = unreadFeedbackMessages;
+    }
 
-	public Long getBranchHeadTimestamp() {
-		return branchHeadTimestamp;
-	}
+    public TaskMessagesStatus getFeedbackMessagesStatus() {
+        return feedbackMessagesStatus;
+    }
 
-	public void setBranchHeadTimestamp(Long branchHeadTimestamp) {
-		this.branchHeadTimestamp = branchHeadTimestamp;
-	}
+    public void setBranchState(String branchState) {
+        this.branchState = branchState;
+    }
 
-	public Long getBranchBaseTimestamp() {
-		return branchBaseTimestamp;
-	}
+    public String getBranchState() {
+        return branchState;
+    }
 
-	public void setBranchBaseTimestamp(Long branchBaseTimestamp) {
-		this.branchBaseTimestamp = branchBaseTimestamp;
-	}
+    public Long getBranchHeadTimestamp() {
+        return branchHeadTimestamp;
+    }
 
-	public Long getLatestCodeSystemVersionTimestamp() {
-		return latestCodeSystemVersionTimestamp;
-	}
+    public void setBranchHeadTimestamp(Long branchHeadTimestamp) {
+        this.branchHeadTimestamp = branchHeadTimestamp;
+    }
 
-	public void setLatestCodeSystemVersionTimestamp(Long latestCodeSystemVersionTimestamp) {
-		this.latestCodeSystemVersionTimestamp = latestCodeSystemVersionTimestamp;
-	}
+    public Long getBranchBaseTimestamp() {
+        return branchBaseTimestamp;
+    }
 
-	public static void setJiraReviewerField(String jiraReviewerField) {
-		AuthoringTask.jiraReviewerField = jiraReviewerField;
-	}
+    public void setBranchBaseTimestamp(Long branchBaseTimestamp) {
+        this.branchBaseTimestamp = branchBaseTimestamp;
+    }
 
-	public static void setJiraReviewersField(String jiraReviewersField) {
-		AuthoringTask.jiraReviewersField = jiraReviewersField;
-	}
-	
-	public String getBranchPath() {
-		return branchPath;
-	}
+    public Long getLatestCodeSystemVersionTimestamp() {
+        return latestCodeSystemVersionTimestamp;
+    }
 
-	public Date getFeedbackMessageDate() {
-		return feedbackMessageDate;
-	}
+    public void setLatestCodeSystemVersionTimestamp(Long latestCodeSystemVersionTimestamp) {
+        this.latestCodeSystemVersionTimestamp = latestCodeSystemVersionTimestamp;
+    }
 
-	public void setFeedbackMessageDate(Date feedbackMessageDate) {
-		this.feedbackMessageDate = feedbackMessageDate;
-	}
+    public String getBranchPath() {
+        return branchPath;
+    }
 
-	public Date getViewDate() {
-		return viewDate;
-	}
+    public Date getFeedbackMessageDate() {
+        return feedbackMessageDate;
+    }
 
-	public void setViewDate(Date viewDate) {
-		this.viewDate = viewDate;
-	}
+    public void setFeedbackMessageDate(Date feedbackMessageDate) {
+        this.feedbackMessageDate = feedbackMessageDate;
+    }
+
+    public Date getViewDate() {
+        return viewDate;
+    }
+
+    public void setViewDate(Date viewDate) {
+        this.viewDate = viewDate;
+    }
 
 
-	@JsonRawValue
-	public String getLabels() {
-		return labels;
-	}
+    @JsonRawValue
+    public String getLabels() {
+        return labels;
+    }
 
-	public void setLabels(String labels) {
-		this.labels = labels;
-	}
+    public void setLabels(String labels) {
+        this.labels = labels;
+    }
 
 
 }

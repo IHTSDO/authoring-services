@@ -40,11 +40,11 @@ public class NotificationService {
 
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 
-	public Notification queueNotification(String username, Notification notification) {
+	public void queueNotification(String username, Notification notification) {
 		final String projectKey = notification.getProject();
 		if (!Strings.isNullOrEmpty(projectKey)) {
 			try {
-				notification.setBranchPath(branchService.getBranchPathUsingCache(projectKey, notification.getTask()));
+				notification.setBranchPath(branchService.getProjectOrTaskBranchPathUsingCache(projectKey, notification.getTask()));
 			} catch (BusinessServiceException e) {
 				logger.error("Failed to retrieve project base for {}", projectKey);
 			}
@@ -57,8 +57,6 @@ public class NotificationService {
 			pendingNotifications.get(username).add(notification);
 			sendNotification();
 		}
-
-		return notification;
 	}
 
 	public void sendNotification() {

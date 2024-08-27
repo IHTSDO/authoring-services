@@ -56,12 +56,15 @@ public class JiraProjectServiceImpl implements ProjectService {
     private static final String ENABLED_TEXT = "Enabled";
     private static final String DISABLED_TEXT = "Disabled";
     private static final String VALUE = "value";
+    private static final String FIELD_NAME = "name";
+    private static final String FIELD_LEAD = "lead";
+    private static final String STRING_TYPE = "string";
 
     private static final String FAILED_TO_RECOVER_PROJECT_MSG = "Failed to recover project: ";
 
 
     @Value("${jira.issue.custom.fields}")
-    private Set<String> requiredCustomFields;
+    private List<String> requiredCustomFields;
 
     private LoadingCache<String, ProjectDetails> projectDetailsCache;
 
@@ -105,8 +108,7 @@ public class JiraProjectServiceImpl implements ProjectService {
         if (!jiraUsername.equals(UNIT_TEST)) {
             logger.info("Fetching Jira custom field names.");
             final JiraClient jiraClientForFieldLookup = jiraClientFactory.getAdminInstance();
-            AuthoringTask.setJiraReviewerField(JiraHelper.fieldIdLookup("Reviewer", jiraClientForFieldLookup, null));
-            AuthoringTask.setJiraReviewersField(JiraHelper.fieldIdLookup("Reviewers", jiraClientForFieldLookup, null));
+
             projectJiraFetchFields = new HashSet<>();
             projectJiraFetchFields.add("project");
             jiraExtensionBaseField = JiraHelper.fieldIdLookup("Extension Base", jiraClientForFieldLookup, projectJiraFetchFields);
@@ -189,24 +191,35 @@ public class JiraProjectServiceImpl implements ProjectService {
     }
 
     @Override
-    public List<JSONObject> retrieveProjectCustomFields(String projectKey) throws BusinessServiceException {
+    public List<AuthoringProjectField> retrieveProjectCustomFields(String projectKey) throws BusinessServiceException {
         JiraClient adminJiraClient = jiraClientFactory.getAdminInstance();
-        Issue issue = findMagicTickForProject(adminJiraClient, projectKey);
+        Issue issue = getProjectTicket(projectKey);
         if (issue == null) throw new ResourceNotFoundException("No magic ticket found for project " + projectKey);
 
-        List<JSONObject> allCustomFields = new ArrayList<>();
+        List<AuthoringProjectField> allCustomFields = new ArrayList<>();
         JSONArray fields;
         try {
             fields = JiraHelper.getFields(adminJiraClient);
         } catch (URISyntaxException | RestException | IOException e) {
             throw new BusinessServiceException("Failed to get JIRA field", e);
         }
-        for (int i = 0; i < fields.size(); i++) {
-            final JSONObject jsonObject = fields.getJSONObject(i);
-            String fieldName = jsonObject.getString("name");
-            if (requiredCustomFields.contains(fieldName)) {
-                jsonObject.put(VALUE, issue.getField(fieldName));
-                allCustomFields.add(jsonObject);
+        for (String requiredCustomField : requiredCustomFields) {
+            for (int i = 0; i < fields.size(); i++) {
+                final JSONObject jsonObject = fields.getJSONObject(i);
+                String fieldName = jsonObject.getString("name");
+                if (requiredCustomField.equals(fieldName)) {
+                    final JSONObject typeObject = jsonObject.getJSONObject("schema");
+
+                    AuthoringProjectField authoringProjectField = new AuthoringProjectField();
+                    String fieldId = jsonObject.getString("id");
+                    authoringProjectField.setId(fieldId);
+                    authoringProjectField.setName(jsonObject.getString("name"));
+                    authoringProjectField.setType(typeObject.getString("type"));
+                    authoringProjectField.setValue(issue.getField(fieldId));
+
+                    allCustomFields.add(authoringProjectField);
+                    break;
+                }
             }
         }
 
@@ -220,7 +233,7 @@ public class JiraProjectServiceImpl implements ProjectService {
         // Search for authoring project tickets this user has visibility of
         List<Issue> issues;
         try {
-            issues = searchIssues("type = \"SCA Authoring Project\"", -1, projectJiraFetchFields);
+            issues = searchIssues("type = \"SCA Authoring Project\"", LIMIT_UNLIMITED, projectJiraFetchFields);
         } catch (JiraException e) {
             throw new BusinessServiceException("Failed to list projects", e);
         }
@@ -385,8 +398,9 @@ public class JiraProjectServiceImpl implements ProjectService {
         JSONObject fieldmap = new JSONObject();
         final Boolean projectScheduledRebaseDisabled = updatedProject.isProjectScheduledRebaseDisabled();
         final Boolean taskPromotionDisabled = updatedProject.isTaskPromotionDisabled();
-        if (updateProjectScheduleRebaseField(project, projectScheduledRebaseDisabled, fieldmap)
-                || updateProjectTaskPromotionField(project, taskPromotionDisabled, fieldmap)) {
+        boolean shouldUpdateScheduleRebaseField = updateProjectScheduleRebaseField(project, projectScheduledRebaseDisabled, fieldmap);
+        boolean shouldUpdateTaskPromotionField = updateProjectTaskPromotionField(project, taskPromotionDisabled, fieldmap);
+        if (shouldUpdateScheduleRebaseField || shouldUpdateTaskPromotionField) {
             JSONObject req = new JSONObject();
             req.put("fields", fieldmap);
             try {
@@ -433,6 +447,57 @@ public class JiraProjectServiceImpl implements ProjectService {
         taskService.addCommentLogErrors(projectKey, projectTicket.getKey(), commentString);
     }
 
+    @Override
+    public void updateProjectCustomFields(String projectKey, ProjectFieldUpdateRequest request) throws BusinessServiceException {
+        Issue project = getProjectTicket(projectKey);
+
+        if (project == null) {
+            throw new BusinessServiceException(FAILED_TO_RECOVER_PROJECT_MSG + projectKey);
+        }
+        JSONObject magicTicketCustomFieldMap = new JSONObject();
+        JSONObject projectFieldMap = new JSONObject();
+        for (AuthoringProjectField field : request.fields()) {
+            if (FIELD_NAME.equals(field.getName()) || FIELD_LEAD.equals(field.getName())) {
+                projectFieldMap.put(field.getName(), field.getValue());
+                continue;
+            }
+
+            if(STRING_TYPE.equals(field.getType())) {
+                magicTicketCustomFieldMap.put(field.getId(), field.getValue());
+            } else {
+                JSONObject updateObj = new JSONObject();
+                updateObj.put(VALUE, field.getValue());
+                magicTicketCustomFieldMap.put(field.getId(), updateObj);
+            }
+        }
+        JSONObject req = new JSONObject();
+        req.put("fields", magicTicketCustomFieldMap);
+        JiraClient jiraClient = jiraClientFactory.getAdminInstance();
+        updateProjectMagicTicketCustomFields(project, jiraClient, req);
+        updateProjectFields(projectKey, projectFieldMap, jiraClient);
+    }
+
+    private void updateProjectFields(String projectKey, JSONObject request, JiraClient jiraClient) throws BusinessServiceException {
+        if (!request.isEmpty()) {
+            try {
+                JiraHelper.updateProject(jiraClient, projectKey, request);
+            } catch (JiraException e) {
+                throw new BusinessServiceException("Failed to update the project fields for project ." + projectKey, e);
+            }
+        }
+    }
+
+    private void updateProjectMagicTicketCustomFields(Issue project, JiraClient jiraClient, JSONObject request) throws BusinessServiceException {
+        if (!request.isEmpty()) {
+            try {
+                URI uri = new URI(project.getSelf());
+                jiraClient.getRestClient().put(uri, request);
+            } catch (RestException | IOException | URISyntaxException e) {
+                throw new BusinessServiceException("Failed to update SCA Project Magic ticket custom fields.", e);
+            }
+        }
+    }
+
     private void associateIssueTypeSchemeToProject(CreateProjectRequest request, JiraClient adminJiraClient, Project project, String issueTypeSchemeId) throws BusinessServiceException {
         try {
             adminJiraClient.associateIssueTypeSchemeToProject(project.getId(), issueTypeSchemeId);
@@ -460,17 +525,6 @@ public class JiraProjectServiceImpl implements ProjectService {
         } catch (JiraException e) {
             throw new BusinessServiceException("Failed to create Jira task", e);
         }
-    }
-
-    private Issue findMagicTickForProject(JiraClient client, String projectKey) throws BusinessServiceException {
-        String magicTicketQuery = "project = " + projectKey + " AND type = \"" + AUTHORING_PROJECT_TYPE + "\"";
-        final List<Issue> issues;
-        try {
-            issues = client.searchIssues(magicTicketQuery).issues;
-        } catch (JiraException e) {
-            throw new BusinessServiceException("Failed to find the magic ticket in project " + projectKey, e);
-        }
-        return !issues.isEmpty() ? issues.get(0) : null;
     }
 
     private List<AuthoringProject> buildAuthoringProjects(List<Issue> projectTickets, boolean lightweight) {
@@ -573,7 +627,7 @@ public class JiraProjectServiceImpl implements ProjectService {
     }
 
     private void populateValidationStatusForProjects(Set<String> branchPaths, List<AuthoringProject> authoringProjects, boolean lightweight) {
-        if (lightweight) {
+        if (!lightweight) {
             final ImmutableMap<String, Validation> validationMap;
             try {
                 validationMap = validationService.getValidations(branchPaths);

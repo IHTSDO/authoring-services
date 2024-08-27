@@ -51,7 +51,7 @@ public class ConceptPromotionController {
         String branchPath;
         CodeSystem codeSystem = null;
         if (StringUtils.hasLength(request.getProjectKey())) {
-            branchPath = branchService.getBranchPathUsingCache(request.getProjectKey(), request.getTaskKey());
+            branchPath = branchService.getProjectOrTaskBranchPathUsingCache(request.getProjectKey(), request.getTaskKey());
         } else {
             branchPath = request.getBranchPath();
         }

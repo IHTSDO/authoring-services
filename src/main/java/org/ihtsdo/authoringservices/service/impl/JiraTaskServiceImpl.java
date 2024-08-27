@@ -46,12 +46,13 @@ import static org.ihtsdo.authoringservices.service.impl.JiraProjectServiceImpl.U
 
 public class JiraTaskServiceImpl implements TaskService {
 
+    public static final String INCLUDE_ALL_FIELDS = "*all";
+
     private static final String AUTHORING_TASK_TYPE = "SCA Authoring Task";
     private static final String SHARED = "SHARED";
-    private static final String INCLUDE_ALL_FIELDS = "*all";
+
     private static final String EXCLUDE_STATUSES = " AND (status != \"" + TaskStatus.COMPLETED.getLabel()
             + "\" AND status != \"" + TaskStatus.DELETED.getLabel() + "\") ";
-
     private static final String TASK_NOT_FOUND_MSG = "Task not found ";
     private static final String OR_STATUS_CLAUSE = "\" OR status = \"";
 
@@ -99,6 +100,8 @@ public class JiraTaskServiceImpl implements TaskService {
 
     private final String jiraCrsIdField;
     private final String jiraOrganizationField;
+    private final String jiraReviewerField;
+    private final String jiraReviewersField;
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
@@ -106,9 +109,14 @@ public class JiraTaskServiceImpl implements TaskService {
         this.jiraClientFactory = jiraClientFactory;
         if (!jiraUsername.equals(UNIT_TEST)) {
             final JiraClient jiraClientForFieldLookup = jiraClientFactory.getAdminInstance();
+
+            jiraReviewerField = JiraHelper.fieldIdLookup("Reviewer", jiraClientForFieldLookup, null);
+            jiraReviewersField = JiraHelper.fieldIdLookup("Reviewers", jiraClientForFieldLookup, null);
             jiraOrganizationField = JiraHelper.fieldIdLookup("Organization", jiraClientForFieldLookup, null);
             jiraCrsIdField = JiraHelper.fieldIdLookup("CRS-ID", jiraClientForFieldLookup, null);
         } else {
+            jiraReviewerField = null;
+            jiraReviewersField = null;
             jiraOrganizationField = null;
             jiraCrsIdField = null;
         }
@@ -122,10 +130,9 @@ public class JiraTaskServiceImpl implements TaskService {
                 Field.CREATED_DATE,
                 Field.UPDATED_DATE,
                 Field.LABELS,
-                AuthoringTask.jiraReviewerField,
-                AuthoringTask.jiraReviewersField);
+                jiraReviewerField,
+                jiraReviewersField);
     }
-
 
     @PostConstruct
     public void postConstruct() {
@@ -332,7 +339,7 @@ public class JiraTaskServiceImpl implements TaskService {
             throw new BusinessServiceException("Failed to create Jira task", e);
         }
 
-        AuthoringTask authoringTask = new AuthoringTask(jiraIssue, projectService.getProjectBaseUsingCache(projectKey));
+        AuthoringTask authoringTask = new AuthoringTask(jiraIssue, projectService.getProjectBaseUsingCache(projectKey), jiraReviewerField, jiraReviewersField);
         try {
             branchService.createProjectBranchIfNeeded(PathHelper.getParentPath(authoringTask.getBranchPath()));
         } catch (ServiceException e) {
@@ -362,7 +369,7 @@ public class JiraTaskServiceImpl implements TaskService {
                 buildAuthoringTask(lightweight, issue, projectKeyToBranchBaseMap, allTasks, codeSystems, timer, startedTasks);
             }
 
-            if ((lightweight == null || !lightweight) && (!startedTasks.isEmpty())) {
+            if (!Boolean.TRUE.equals(lightweight) && (!startedTasks.isEmpty())) {
                 setValidationStatusForAuthoringTasks(startedTasks, timer);
             }
 
@@ -400,7 +407,7 @@ public class JiraTaskServiceImpl implements TaskService {
     private void buildAuthoringTask(Boolean lightweight, Issue issue, Map<String, ProjectDetails> projectKeyToBranchBaseMap, List<AuthoringTask> allTasks, List<CodeSystem> codeSystems, TimerUtil timer, Map<String, AuthoringTask> startedTasks) throws ServiceException, RestClientException {
         final ProjectDetails projectDetails = projectKeyToBranchBaseMap.get(issue.getProject().getKey());
         if (instanceConfiguration.isJiraProjectVisible(projectDetails.productCode())) {
-            AuthoringTask task = new AuthoringTask(issue, projectDetails.baseBranchPath());
+            AuthoringTask task = new AuthoringTask(issue, projectDetails.baseBranchPath(), jiraReviewerField, jiraReviewersField);
 
             setTaskStatusFromAutomatedPromotionIfAny(task);
 
@@ -544,8 +551,8 @@ public class JiraTaskServiceImpl implements TaskService {
                     updateTaskReviewers(projectKey, taskKey, reviewers, authoringTask, updateRequest);
                     fieldUpdates = true;
                 } else {
-                    updateRequest.field(AuthoringTask.jiraReviewerField, null);
-                    updateRequest.field(AuthoringTask.jiraReviewersField, null);
+                    updateRequest.field(jiraReviewerField, null);
+                    updateRequest.field(jiraReviewersField, null);
                     fieldUpdates = true;
                 }
             }
@@ -601,8 +608,8 @@ public class JiraTaskServiceImpl implements TaskService {
         // Send email to new reviewers
         emailService.sendTaskReviewAssignedNotification(projectKey, taskKey, authoringTask.getSummary(), getNewReviewers(authoringTask.getReviewers(), reviewers));
 
-        updateRequest.field(AuthoringTask.jiraReviewerField, null);
-        updateRequest.field(AuthoringTask.jiraReviewersField, users);
+        updateRequest.field(jiraReviewerField, null);
+        updateRequest.field(jiraReviewersField, users);
     }
 
     private void transferTaskToNewAuthor(String projectKey, String taskKey, TaskTransferRequest taskTransferRequest) {

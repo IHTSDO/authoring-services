@@ -33,6 +33,8 @@ import static org.ihtsdo.otf.rest.client.terminologyserver.pojo.MergeReviewsResu
 @Service
 public class BranchService {
 
+    private static final String SNOMEDCT = "SNOMEDCT";
+
     @Autowired
     private SnowstormRestClientFactory snowstormRestClientFactory;
 
@@ -68,7 +70,6 @@ public class BranchService {
         } else {
             return getInternationBranchInformation(parts, projectKey, taskKey);
         }
-
     }
 
     @NotNull
@@ -83,13 +84,11 @@ public class BranchService {
 
     @NotNull
     private static Information getInternationBranchInformation(String[] parts, String projectKey, String taskKey) {
-        String codeSystemShortname;
-        codeSystemShortname = "SNOMEDCT";
         for (int i = 0; i < parts.length; i++) {
             if (i == 1) projectKey = parts[i];
             if (i == 2) taskKey = parts[i];
         }
-        return new Information(codeSystemShortname, projectKey, taskKey);
+        return new Information(SNOMEDCT, projectKey, taskKey);
     }
 
     private record Information(String codeSystemShortname, String projectKey, String taskKey) {
@@ -166,7 +165,7 @@ public class BranchService {
         return PathHelper.getProjectPath(projectService.getProjectBaseUsingCache(projectKey), projectKey);
     }
 
-    public String getBranchPathUsingCache(String projectKey, String taskKey) throws BusinessServiceException {
+    public String getProjectOrTaskBranchPathUsingCache(String projectKey, String taskKey) throws BusinessServiceException {
         if (!Strings.isNullOrEmpty(projectKey)) {
             final String extensionBase = projectService.getProjectBaseUsingCache(projectKey);
             if (!Strings.isNullOrEmpty(taskKey)) {
@@ -239,7 +238,6 @@ public class BranchService {
         return merge;
     }
 
-    @SuppressWarnings("rawtypes")
     public String generateBranchMergeReviews(String sourceBranchPath, String targetBranchPath) throws InterruptedException, RestClientException {
         SnowstormRestClient client = snowstormRestClientFactory.getClient();
         String mergeId = client.createBranchMergeReviews(sourceBranchPath, targetBranchPath);
