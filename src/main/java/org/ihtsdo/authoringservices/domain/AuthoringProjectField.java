@@ -1,15 +1,12 @@
 package org.ihtsdo.authoringservices.domain;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-
-@JsonDeserialize
 public class AuthoringProjectField {
 
     private String id;
 
     private String name;
 
-    private Object value;
+    private String value;
 
     private String type;
 
@@ -29,11 +26,11 @@ public class AuthoringProjectField {
         this.name = name;
     }
 
-    public Object getValue() {
+    public String getValue() {
         return value;
     }
 
-    public void setValue(Object value) {
+    public void setValue(String value) {
         this.value = value;
     }
 

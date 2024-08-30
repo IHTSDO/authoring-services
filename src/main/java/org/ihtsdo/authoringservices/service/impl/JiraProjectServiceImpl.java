@@ -59,6 +59,8 @@ public class JiraProjectServiceImpl implements ProjectService {
     private static final String FIELD_NAME = "name";
     private static final String FIELD_LEAD = "lead";
     private static final String STRING_TYPE = "string";
+    private static final String OPTION_TYPE = "option";
+    private static final String NULL_STRING = "null";
 
     private static final String FAILED_TO_RECOVER_PROJECT_MSG = "Failed to recover project: ";
 
@@ -197,12 +199,7 @@ public class JiraProjectServiceImpl implements ProjectService {
         if (issue == null) throw new ResourceNotFoundException("No magic ticket found for project " + projectKey);
 
         List<AuthoringProjectField> allCustomFields = new ArrayList<>();
-        JSONArray fields;
-        try {
-            fields = JiraHelper.getFields(adminJiraClient);
-        } catch (URISyntaxException | RestException | IOException e) {
-            throw new BusinessServiceException("Failed to get JIRA field", e);
-        }
+        JSONArray fields = getAllFieldsFromJira(adminJiraClient);
         for (String requiredCustomField : requiredCustomFields) {
             for (int i = 0; i < fields.size(); i++) {
                 final JSONObject jsonObject = fields.getJSONObject(i);
@@ -214,8 +211,10 @@ public class JiraProjectServiceImpl implements ProjectService {
                     String fieldId = jsonObject.getString("id");
                     authoringProjectField.setId(fieldId);
                     authoringProjectField.setName(jsonObject.getString("name"));
-                    authoringProjectField.setType(typeObject.getString("type"));
-                    authoringProjectField.setValue(issue.getField(fieldId));
+
+                    String type = typeObject.getString("type");
+                    authoringProjectField.setType(type);
+                    setFieldValue(authoringProjectField, type, issue, fieldId);
 
                     allCustomFields.add(authoringProjectField);
                     break;
@@ -226,8 +225,29 @@ public class JiraProjectServiceImpl implements ProjectService {
         return allCustomFields;
     }
 
+    private void setFieldValue(AuthoringProjectField authoringProjectField, String type, Issue issue, String fieldId) {
+        if (null != issue.getField(fieldId)) {
+            Object value = issue.getField(fieldId);
+            switch (type) {
+                case STRING_TYPE -> authoringProjectField.setValue(NULL_STRING.equals(value.toString()) ? null : value.toString());
+                case OPTION_TYPE -> authoringProjectField.setValue(((JSONObject) value).getString(VALUE));
+                default -> logger.warn("Custom field type {} has not been supported", type);
+            }
+        }
+    }
+
+    private static JSONArray getAllFieldsFromJira(JiraClient adminJiraClient) throws BusinessServiceException {
+        JSONArray fields;
+        try {
+            fields = JiraHelper.getFields(adminJiraClient);
+        } catch (URISyntaxException | RestException | IOException e) {
+            throw new BusinessServiceException("Failed to get JIRA field", e);
+        }
+        return fields;
+    }
+
     @Override
-    public List<AuthoringProject> listProjects(Boolean lightweight) throws BusinessServiceException {
+    public List<AuthoringProject> listProjects(Boolean lightweight, Boolean ignoreProductCodeFilter) throws BusinessServiceException {
         final TimerUtil timer = new TimerUtil("ProjectsList");
         List<Issue> projectTickets = new ArrayList<>();
         // Search for authoring project tickets this user has visibility of
@@ -241,7 +261,7 @@ public class JiraProjectServiceImpl implements ProjectService {
         timer.checkpoint("First jira search");
         for (Issue projectMagicTicket : issues) {
             final String productCode = getProjectDetailsPopulatingCache(projectMagicTicket).productCode();
-            if (instanceConfiguration.isJiraProjectVisible(productCode)) {
+            if (instanceConfiguration.isJiraProjectVisible(productCode) || Boolean.TRUE.equals(ignoreProductCodeFilter)) {
                 projectTickets.add(projectMagicTicket);
             }
         }

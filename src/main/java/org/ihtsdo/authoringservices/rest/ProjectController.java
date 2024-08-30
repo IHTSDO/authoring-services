@@ -56,8 +56,9 @@ public class ProjectController {
 	@Operation(summary = "List authoring projects")
 	@ApiResponse(responseCode = "200", description = "OK")
 	@GetMapping(value="/projects")
-	public List<AuthoringProject> listProjects(@RequestParam(value = "lightweight", required = false)  Boolean lightweight) throws BusinessServiceException {
-		return projectService.listProjects(lightweight);
+	public List<AuthoringProject> listProjects(@RequestParam(value = "lightweight", required = false)  Boolean lightweight,
+											   @RequestParam(value = "ignoreProductCodeFilter", required = false)  Boolean ignoreProductCodeFilter) throws BusinessServiceException {
+		return projectService.listProjects(lightweight, ignoreProductCodeFilter);
 	}
 
 	@Operation(summary = "Retrieve an authoring project")

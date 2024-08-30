@@ -126,7 +126,7 @@ public class CodeSystemService {
 		if (cs == null) {
 			throw new BusinessServiceException(String.format(CODE_SYSTEM_NOT_FOUND_MSG, codeSystemShortame));
 		}
-		List<AuthoringProject> projects = projectService.listProjects(true);
+		List<AuthoringProject> projects = projectService.listProjects(true, false);
 		projects = projects.stream().filter(project -> project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/")).equals(cs.getBranchPath())).toList();
 		List<String> failedToLockProjects = new ArrayList<>();
 		for (AuthoringProject project : projects) {
@@ -148,7 +148,7 @@ public class CodeSystemService {
 		if (cs == null) {
 			throw new BusinessServiceException(String.format(CODE_SYSTEM_NOT_FOUND_MSG, codeSystemShortame));
 		}
-		List<AuthoringProject> projects = projectService.listProjects(true);
+		List<AuthoringProject> projects = projectService.listProjects(true, false);
 		projects = projects.stream().filter(project -> project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/")).equals(cs.getBranchPath())).toList();
 		List<String> failedToUnlockProjects = new ArrayList<>();
 		for (AuthoringProject project : projects) {

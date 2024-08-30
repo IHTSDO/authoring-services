@@ -67,7 +67,7 @@ public class ScheduledRebaseService {
         try {
             loginToIMSAndSetSecurityContext();
             logger.info("Starting scheduled rebase for all configured projects.");
-            List<AuthoringProject> projects = projectService.listProjects(false);
+            List<AuthoringProject> projects = projectService.listProjects(false, false);
             projects = projects.stream().filter(project -> !Boolean.TRUE.equals(project.isProjectScheduledRebaseDisabled())
                             && !Boolean.TRUE.equals(project.isProjectRebaseDisabled())
                             && !Boolean.TRUE.equals(project.isProjectLocked()))
@@ -117,6 +117,7 @@ public class ScheduledRebaseService {
 
         } catch (Exception e) {
             logger.error("Rebase of project " + project.getKey() + " failed. Error message: " + e.getMessage(), e);
+            Thread.currentThread().interrupt();
         }
 
     }
