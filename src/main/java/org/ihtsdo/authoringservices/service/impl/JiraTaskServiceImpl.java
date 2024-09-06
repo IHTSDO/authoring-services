@@ -48,6 +48,8 @@ public class JiraTaskServiceImpl implements TaskService {
 
     public static final String INCLUDE_ALL_FIELDS = "*all";
 
+    private static final String CRS_JIRA_LABEL = "CRS";
+    private static final String INT_TASK_STATE_CHANGE_QUEUE = "int-authoring";
     private static final String AUTHORING_TASK_TYPE = "SCA Authoring Task";
     private static final String SHARED = "SHARED";
 
@@ -94,6 +96,9 @@ public class JiraTaskServiceImpl implements TaskService {
 
     @Value("${task-state-change.notification-queues}")
     private Set<String> taskStateChangeNotificationQueues;
+
+    @Value("${crs.int.jira.issueKey}")
+    private String intCrsIssueKeyPrefix;
 
     private final ImpersonatingJiraClientFactory jiraClientFactory;
     private final Set<String> myTasksRequiredFields;
@@ -742,26 +747,44 @@ public class JiraTaskServiceImpl implements TaskService {
 
         if (!taskStateChangeNotificationQueues.isEmpty()) {
             // Send JMS Task State Notification
-            try {
-                Map<String, String> properties = new HashMap<>();
-                properties.put("key", key);
-                properties.put("status", newStateLabel);
-
-                if (TaskStatus.COMPLETED.equals(newState)) {
-                    setCrsConceptsIfAny(projectKey, taskKey, properties);
-                }
-
-                // To comma separated list
-                final String labelsString = issue.getLabels().toString();
-                properties.put("labels", labelsString.substring(1, labelsString.length() - 1).replace(", ", ","));
-
-                for (String queue : taskStateChangeNotificationQueues) {
-                    messagingHelper.send(new ActiveMQQueue(queue), properties);
-                }
-            } catch (JsonProcessingException | JMSException e) {
-                logger.error("Failed to send task state change notification for {} {}.", key, newStateLabel, e);
-            }
+            sendJMSTaskStateChangeNotification(taskKey, newState, projectKey, key, newStateLabel, issue);
         }
+    }
+
+    private void sendJMSTaskStateChangeNotification(String taskKey, TaskStatus newState, String projectKey, String key, String newStateLabel, Issue issue) {
+        try {
+            Map<String, String> properties = new HashMap<>();
+            properties.put("key", key);
+            properties.put("status", newStateLabel);
+
+            if (TaskStatus.COMPLETED.equals(newState)) {
+                setCrsConceptsIfAny(projectKey, taskKey, properties);
+            }
+
+            // To comma separated list
+            final String labelsString = issue.getLabels().toString();
+            properties.put("labels", labelsString.substring(1, labelsString.length() - 1).replace(", ", ","));
+
+            if (labelsString.contains(CRS_JIRA_LABEL)) {
+                for (String queue : taskStateChangeNotificationQueues) {
+                    if ((isIntAuthoringTask(issue) && isIntTaskStateChangeQueue(queue))
+                        || (!isIntAuthoringTask(issue) && !isIntTaskStateChangeQueue(queue))) {
+                        messagingHelper.send(new ActiveMQQueue(queue), properties);
+                    }
+                }
+            }
+        } catch (JsonProcessingException | JMSException e) {
+            logger.error("Failed to send task state change notification for {} {}.", key, newStateLabel, e);
+        }
+    }
+
+    private boolean isIntAuthoringTask(Issue issue) {
+        List<IssueLink> issueLinks = issue.getIssueLinks();
+        return issueLinks.stream().anyMatch(issueLink -> issueLink.getOutwardIssue().getKey().startsWith(intCrsIssueKeyPrefix));
+    }
+
+    private boolean isIntTaskStateChangeQueue(String queue) {
+        return queue.contains(INT_TASK_STATE_CHANGE_QUEUE);
     }
 
     private void setCrsConceptsIfAny(String projectKey, String taskKey, Map<String, String> properties) {
