@@ -7,7 +7,7 @@ import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import java.util.List;
 
 public interface ProjectService {
-    AuthoringProject createProject(CreateProjectRequest request) throws BusinessServiceException;
+    AuthoringProject createProject(CreateProjectRequest request, String codeSystemBranchPath) throws BusinessServiceException;
 
     AuthoringProject updateProject(String projectKey, AuthoringProject updatedProject) throws BusinessServiceException;
 

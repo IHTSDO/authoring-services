@@ -50,9 +50,7 @@ public class JiraProjectServiceImpl implements ProjectService {
     public static final String UNIT_TEST = "UNIT_TEST";
     public static final int LIMIT_UNLIMITED = -1;
 
-    private static final String SCA_PROJECT_CATEGORY = "SCA";
     private static final String AUTHORING_PROJECT_TYPE = "SCA Authoring Project";
-    private static final String ISSUE_TYPE_SCHEME = "SCA Issue Type Scheme";
     private static final String ENABLED_TEXT = "Enabled";
     private static final String DISABLED_TEXT = "Disabled";
     private static final String VALUE = "value";
@@ -67,6 +65,9 @@ public class JiraProjectServiceImpl implements ProjectService {
 
     @Value("${jira.issue.custom.fields}")
     private List<String> requiredCustomFields;
+
+    @Value("${jira.project.creation.defaultProjectTemplateKey}")
+    private String defaultProjectTemplateKey;
 
     private LoadingCache<String, ProjectDetails> projectDetailsCache;
 
@@ -381,24 +382,25 @@ public class JiraProjectServiceImpl implements ProjectService {
     }
 
     @Override
-    public AuthoringProject createProject(CreateProjectRequest request) throws BusinessServiceException {
+    public AuthoringProject createProject(CreateProjectRequest request, String codeSystemBranchPath) throws BusinessServiceException {
         logger.info("Creating new project {}", request.key());
         JiraClient adminJiraClient = jiraClientFactory.getAdminInstance();
-        Project project;
+        Project newProject;
+        Project projectTemplate;
+        String projectTemplateKey = request.projectTemplateKey() != null ? request.projectTemplateKey() : defaultProjectTemplateKey;
         try {
-            project = JiraHelper.createProject(adminJiraClient, request, JiraHelper.getCategoryIdByName(adminJiraClient, SCA_PROJECT_CATEGORY));
+            projectTemplate = Project.get(adminJiraClient.getRestClient(), projectTemplateKey);
+            newProject = JiraHelper.createProject(adminJiraClient, request, projectTemplate.getId());
         } catch (JiraException e) {
-            throw new BusinessServiceException("Failed to create JIRA project " + request.key(), e);
+            throw new BusinessServiceException(String.format("Failed to create JIRA project %s. Error: %s", request.key(), e.getMessage()), e);
         }
 
-        String issueTypeSchemeId = getIssueTypeSchemeId(adminJiraClient);
-        if (issueTypeSchemeId != null) {
-            associateIssueTypeSchemeToProject(request, adminJiraClient, project, issueTypeSchemeId);
-            createFirstIssueForProject(adminJiraClient, request);
-        }
+        addRolesToProject(projectTemplate, adminJiraClient, projectTemplateKey, newProject);
 
-        return new AuthoringProject(project.getKey(), project.getName(),
-                new org.ihtsdo.authoringservices.domain.User(project.getLead()), null, null, null, null, null, false, false, false, false, false, false, false, false);
+        createMagicTicketForProject(request, codeSystemBranchPath.startsWith("MAIN/SNOMEDCT-") ? codeSystemBranchPath : null);
+
+        return new AuthoringProject(newProject.getKey(), newProject.getName(),
+                new org.ihtsdo.authoringservices.domain.User(newProject.getLead()), null, null, null, null, null, false, false, false, false, false, false, false, false);
     }
 
     @Override
@@ -518,32 +520,45 @@ public class JiraProjectServiceImpl implements ProjectService {
         }
     }
 
-    private void associateIssueTypeSchemeToProject(CreateProjectRequest request, JiraClient adminJiraClient, Project project, String issueTypeSchemeId) throws BusinessServiceException {
-        try {
-            adminJiraClient.associateIssueTypeSchemeToProject(project.getId(), issueTypeSchemeId);
-        } catch (JiraException e) {
-            throw new BusinessServiceException("Failed to assign issue type scheme to JIRA project " + request.key(), e);
+    private void addRolesToProject(Project projectTemplate, JiraClient adminJiraClient, String projectTemplateKey, Project newProject) throws BusinessServiceException {
+        if (projectTemplate.getRoles().isEmpty()) {
+            logger.warn("The template project {} does not contain any roles", projectTemplate.getKey());
+            return;
+        }
+
+        for (Map.Entry<String, String> entry : projectTemplate.getRoles().entrySet()) {
+            if (entry.getKey().equals("Administrators")) continue;
+
+            String roleUrl = entry.getValue();
+            String userRolesId = roleUrl.contains("/") ? roleUrl.substring(roleUrl.lastIndexOf("/") + 1) : roleUrl;
+            Set<String> actorUsers;
+            try {
+                actorUsers = JiraHelper.getActorUsersFromProject(adminJiraClient, projectTemplateKey, userRolesId);
+            } catch (JiraException e) {
+                throw new BusinessServiceException("Failed to get roles from template project " + projectTemplate.getKey() + ". Error: " + e.getMessage(), e);
+            }
+            if (!actorUsers.isEmpty()) {
+                try {
+                    JiraHelper.addActorUsersToProject(adminJiraClient, newProject.getKey(), userRolesId, actorUsers);
+                } catch (JiraException e) {
+                    throw new BusinessServiceException("Failed to add roles to project " + newProject.getKey() + ". Error: " + e.getMessage(), e);
+                }
+            }
         }
     }
 
-    private String getIssueTypeSchemeId(JiraClient adminJiraClient) throws BusinessServiceException {
-        String issueTypeSchemeId;
+    private void createMagicTicketForProject(CreateProjectRequest request, String extensionBasePath) throws BusinessServiceException {
         try {
-            issueTypeSchemeId = JiraHelper.getIssueTypeSchemeIdByName(adminJiraClient, ISSUE_TYPE_SCHEME);
+            JiraClient jiraClient = jiraClientFactory.getImpersonatingInstance(SecurityUtil.getUsername());
+            Issue.FluentCreate fluentCreate = jiraClient.createIssue(request.key(), AUTHORING_PROJECT_TYPE);
+            fluentCreate.field(Field.SUMMARY, request.name());
+            fluentCreate.field(Field.DESCRIPTION, request.description());
+            if (extensionBasePath != null) {
+                fluentCreate.field(jiraExtensionBaseField, extensionBasePath);
+            }
+            fluentCreate.execute();
         } catch (JiraException e) {
-            throw new BusinessServiceException("Failed to lookup JIRA issue type scheme " + ISSUE_TYPE_SCHEME, e);
-        }
-        return issueTypeSchemeId;
-    }
-
-    private void createFirstIssueForProject(JiraClient jiraClient, CreateProjectRequest request) throws BusinessServiceException {
-        try {
-            jiraClient.createIssue(request.key(), AUTHORING_PROJECT_TYPE)
-                    .field(Field.SUMMARY, request.name())
-                    .field(Field.DESCRIPTION, request.description())
-                    .execute();
-        } catch (JiraException e) {
-            throw new BusinessServiceException("Failed to create Jira task", e);
+            throw new BusinessServiceException("Failed to create Jira Magic ticket. Error: " + e.getMessage(), e);
         }
     }
 

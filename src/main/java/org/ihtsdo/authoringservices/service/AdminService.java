@@ -54,7 +54,7 @@ public class AdminService {
     @PreAuthorize("hasPermission('ADMIN', 'global') || hasPermission('ADMIN', #codeSystem.branchPath)")
     public AuthoringProject createProject(AuthoringCodeSystem codeSystem, CreateProjectRequest request) throws BusinessServiceException, ServiceException {
         logger.info("Creating new project {} on code system {}", request.key(), codeSystem.getShortName());
-        AuthoringProject project = projectService.createProject(request);
+        AuthoringProject project = projectService.createProject(request, codeSystem.getBranchPath());
         String projectBranchPath = codeSystem.getBranchPath() + SLASH + request.key();
         branchService.createProjectBranchIfNeeded(projectBranchPath);
         project.setBranchPath(projectBranchPath);

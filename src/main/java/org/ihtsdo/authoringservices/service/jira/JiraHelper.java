@@ -6,8 +6,10 @@ import net.sf.json.JSON;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.ihtsdo.authoringservices.domain.CreateProjectRequest;
+import org.ihtsdo.sso.integration.SecurityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.net.URI;
@@ -17,6 +19,9 @@ import java.util.*;
 public class JiraHelper {
 
     private static final Logger logger = LoggerFactory.getLogger(JiraHelper.class);
+
+    private static final String JIRA_BASE_URI = "rest/api/latest/";
+    private static final String JIRA_PROJECT_BASE_URI = JIRA_BASE_URI + "project/";
 
     public static final String JSON_MALFORMED_MSG = "JSON payload is malformed";
 
@@ -56,7 +61,7 @@ public class JiraHelper {
 
     public static JSONArray getFields(JiraClient client) throws URISyntaxException, RestException, IOException {
         final RestClient restClient = client.getRestClient();
-        final URI uri = restClient.buildURI("rest/api/latest/field");
+        final URI uri = restClient.buildURI(JIRA_BASE_URI + "field");
         return (JSONArray) restClient.get(uri);
     }
 
@@ -66,7 +71,7 @@ public class JiraHelper {
         params.put("groupname", groupName);
         final RestClient restClient = client.getRestClient();
         try {
-            URI uri = restClient.buildURI("rest/api/latest/group", params);
+            URI uri = restClient.buildURI(JIRA_BASE_URI + "group", params);
             return restClient.get(uri);
         } catch (IOException | URISyntaxException | RestException e) {
             throw new JiraException("Failed to lookup sca users", e);
@@ -85,7 +90,7 @@ public class JiraHelper {
 
         final RestClient restClient = client.getRestClient();
         try {
-            URI uri = restClient.buildURI("rest/api/latest/user/assignable/search", params);
+            URI uri = restClient.buildURI(JIRA_BASE_URI + "user/assignable/search", params);
             return restClient.get(uri);
         } catch (IOException | URISyntaxException | RestException e) {
             throw new JiraException("Failed to lookup sca users", e);
@@ -110,25 +115,20 @@ public class JiraHelper {
         return issue.delete(true);
     }
 
-    public static Project createProject(JiraClient client, CreateProjectRequest request, String categoryId) throws JiraException {
+    public static Project createProject(JiraClient client, CreateProjectRequest request, String projectTemplateId) throws JiraException {
         JSONObject createMetadata = new JSONObject();
         createMetadata.put("key", request.key());
         createMetadata.put("name", request.name());
-        createMetadata.put("description", request.description());
-        createMetadata.put("lead", request.lead());
-        createMetadata.put("projectTypeKey", "software");
+        createMetadata.put("lead", StringUtils.hasLength(request.lead()) ? request.lead() : SecurityUtil.getUsername());
 
-        if (categoryId != null) {
-            createMetadata.put("categoryId", categoryId);
-        }
-        return client.createProject(createMetadata);
+        return client.createProject(createMetadata, projectTemplateId);
     }
 
     public static Project updateProject(JiraClient client, String projectKey, JSONObject request) throws JiraException {
         final RestClient restClient = client.getRestClient();
         JSON result;
         try {
-            URI uri = restClient.buildURI("rest/api/latest/project/" + projectKey);
+            URI uri = restClient.buildURI( JIRA_PROJECT_BASE_URI + projectKey);
             result = restClient.put(uri, request);
         } catch (IOException | URISyntaxException | RestException e) {
             throw new JiraException("Failed to update project " + projectKey, e);
@@ -144,46 +144,44 @@ public class JiraHelper {
     public static void deleteProject(JiraClient jiraClient, String key) throws JiraException {
         final RestClient restClient = jiraClient.getRestClient();
         try {
-            URI uri = restClient.buildURI("rest/api/latest/project/" + key);
+            URI uri = restClient.buildURI(JIRA_PROJECT_BASE_URI + key);
             restClient.delete(uri);
         } catch (IOException | URISyntaxException | RestException e) {
             throw new JiraException("Failed to delete project " + key, e);
         }
     }
 
-    public static String getCategoryIdByName(JiraClient client, String categoryName) throws JiraException {
-        final RestClient restClient = client.getRestClient();
+    public static void addActorUsersToProject(JiraClient jiraClient, String projectKey, String roleId, Set<String> groups)
+            throws JiraException {
         try {
-            URI uri = restClient.buildURI("rest/api/latest/projectCategory");
-            Object response = restClient.get(uri);
-            if (response != null) {
-                Gson gson = new Gson();
-                ProjectCategory[] categories = gson.fromJson(response.toString(), ProjectCategory[].class);
-                ProjectCategory category = Arrays.stream(categories).filter(cat -> cat.getName().equals(categoryName)).findFirst().orElse(null);
-                return category != null ? category.getId() : null;
-            }
-            return null;
-        } catch (IOException | URISyntaxException | RestException e) {
-            throw new JiraException("Failed to lookup project categories", e);
+            JSONObject requestBody = new JSONObject();
+            requestBody.put("group", groups);
+            String path = JIRA_PROJECT_BASE_URI + projectKey + "/role/" + roleId;
+            jiraClient.getRestClient().post(path, requestBody);
+        } catch (Exception ex) {
+            throw new JiraException("Failed to add actor users to project " + projectKey, ex);
         }
     }
 
-    public static String getIssueTypeSchemeIdByName(JiraClient client, String issueTypeSchemeName) throws JiraException {
-        final RestClient restClient = client.getRestClient();
+    public static Set<String> getActorUsersFromProject(JiraClient jiraClient, String projectKey, String roleId)
+            throws JiraException {
         JSON result;
         try {
-            URI uri = restClient.buildURI("rest/api/latest/issuetypescheme");
-            result = restClient.get(uri);
-        } catch (IOException | URISyntaxException | RestException e) {
-            throw new JiraException("Failed to get all issue type schemes", e);
+            String path = JIRA_PROJECT_BASE_URI + projectKey + "/role/" + roleId;
+            result = jiraClient.getRestClient().get(path);
+        } catch (Exception ex) {
+            throw new JiraException("Failed to get actor users from project " + projectKey, ex);
         }
+
         if (!(result instanceof JSONObject))
             throw new JiraException(JSON_MALFORMED_MSG);
 
-        Gson gson = new Gson();
-        IssueTypeScheme[] issueTypeSchemes = gson.fromJson(((JSONObject) result).getJSONArray("schemes").toString(), IssueTypeScheme[].class);
-        IssueTypeScheme foundIssueTypeScheme = Arrays.stream(issueTypeSchemes).filter(issueTypeScheme -> issueTypeScheme.getName().equals(issueTypeSchemeName)).findFirst().orElse(null);
-        return foundIssueTypeScheme != null ? foundIssueTypeScheme.getId() : null;
-    }
+        JSONArray users = ((JSONObject) result).getJSONArray("actors");
+        Set<String> results = new HashSet<>();
+        for (int i = 0; i < users.size(); i++) {
+            results.add(users.getJSONObject(i).getString("name"));
+        }
 
+        return results;
+    }
 }
