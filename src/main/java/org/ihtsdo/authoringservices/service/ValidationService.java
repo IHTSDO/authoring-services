@@ -360,6 +360,7 @@ public class ValidationService {
 				}
 				if (validation.getStatus() != null) {
 					jsonObj.put(EXECUTION_STATUS, validation.getStatus());
+					jsonObj.put(RVF_URL, validation.getReportUrl());
 
 					//Only return the validation report if the validation is complete
 					if (ValidationJobStatus.COMPLETED.name().equals(validation.getStatus())) {
@@ -383,7 +384,6 @@ public class ValidationService {
 			logger.info(validation.toString());
 			throw new BusinessServiceException("Validation was completed but the report URL is not found");
 		}
-		jsonObj.put(RVF_URL, validation.getReportUrl());
 		String report = rvfRestTemplate.getForObject(validation.getReportUrl(), String.class);
 		jsonObj.put(VALIDATION_REPORT, report);
 		if (StringUtils.hasLength(report) && validation.getContentHeadTimestamp() != null) {
