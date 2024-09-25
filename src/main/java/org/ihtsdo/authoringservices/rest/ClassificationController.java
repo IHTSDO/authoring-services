@@ -92,4 +92,12 @@ public class ClassificationController {
 		cacheService.clearClassificationCache(branchPath);
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
+
+	@Operation(summary = "Clear classification status cache for a branch")
+	@PostMapping(value = "/branches/{branch}/classifications/status/cache-evict")
+	public ResponseEntity<String> clearBranchClassificationStatusCache(@PathVariable String branch) {
+		String branchPath = BranchPathUriUtil.decodePath(branch);
+		cacheService.clearClassificationCache(branchPath);
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
 }
