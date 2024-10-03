@@ -12,4 +12,9 @@ public interface AuthoringTaskCreateRequest {
 	String getDescription();
 
 	void setDescription(String description);
+
+	User getAssignee();
+
+	void setAssignee(User assignee);
+
 }

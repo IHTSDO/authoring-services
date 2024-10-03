@@ -48,12 +48,22 @@ public class BranchService {
     private TaskService taskService;
 
     public AuthoringInfoWrapper getBranchAuthoringInfoWrapper(String branchPath) throws BusinessServiceException, RestClientException, ServiceException {
-        final Branch branchOrNull = getBranchOrNull(branchPath);
-        if (branchOrNull == null) {
-            throw new BusinessServiceException("Branch " + branchPath + " does not exist.");
-        }
         String[] parts = branchPath.split("/");
         Information result = getBranchInformation(branchPath, parts);
+
+        // Verify the branch path
+        Branch branchOrNull = getBranchOrNull(branchPath);
+        if (branchOrNull == null) {
+            // The task branch is not created when creating a new Authoring Task. Therefore, verify the project branch instead.
+            if (result.taskKey != null) {
+                String parentBranch = PathHelper.getParentPath(branchPath);
+                branchOrNull = getBranchOrNull(parentBranch);
+                if (branchOrNull == null)  throw new BusinessServiceException("Project branch " + branchPath + " does not exist.");
+            } else {
+                throw new BusinessServiceException("Branch " + branchPath + " does not exist.");
+            }
+        }
+
         AuthoringCodeSystem codeSystem = getAuthoringCodeSystem(result.codeSystemShortname());
         AuthoringProject project = getAuthoringProject(result.projectKey());
         AuthoringTask task = getAuthoringTask(result.taskKey(), result.projectKey());
@@ -151,7 +161,7 @@ public class BranchService {
         }
     }
 
-    public void createProjectBranchIfNeeded(String branchPath) throws ServiceException {
+    public void createBranchIfNeeded(String branchPath) throws ServiceException {
         if (getBranchOrNull(branchPath) == null) {
             createBranch(branchPath);
         }

@@ -327,12 +327,7 @@ public class JiraTaskServiceImpl implements TaskService {
     }
 
     @Override
-    public AuthoringTask createTask(String projectKey, AuthoringTaskCreateRequest taskCreateRequest)
-            throws BusinessServiceException {
-        return createTask(projectKey, getUsername(), taskCreateRequest);
-    }
-
-    private AuthoringTask createTask(String projectKey, String username, AuthoringTaskCreateRequest taskCreateRequest)
+    public AuthoringTask createTask(String projectKey, String username, AuthoringTaskCreateRequest taskCreateRequest)
             throws BusinessServiceException {
         Issue jiraIssue;
         try {
@@ -345,8 +340,9 @@ public class JiraTaskServiceImpl implements TaskService {
         }
 
         AuthoringTask authoringTask = new AuthoringTask(jiraIssue, projectService.getProjectBaseUsingCache(projectKey), jiraReviewerField, jiraReviewersField);
+        // Create project branch if needed
         try {
-            branchService.createProjectBranchIfNeeded(PathHelper.getParentPath(authoringTask.getBranchPath()));
+            branchService.createBranchIfNeeded(PathHelper.getParentPath(authoringTask.getBranchPath()));
         } catch (ServiceException e) {
             throw new BusinessServiceException("Failed to create project branch.", e);
         }

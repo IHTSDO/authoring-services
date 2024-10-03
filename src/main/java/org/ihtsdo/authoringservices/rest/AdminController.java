@@ -35,6 +35,13 @@ public class AdminController {
     @Autowired
     private CodeSystemService codeSystemService;
 
+    @Operation(summary = "Create a task within a project")
+    @PostMapping(value="/projects/{projectKey}/tasks")
+    public AuthoringTask createTask(@PathVariable final String projectKey, @RequestBody final AuthoringTaskCreateRequest taskCreateRequest) throws BusinessServiceException {
+        AuthoringProject project = projectService.retrieveProject(projectKey, true);
+        return adminService.createTask(project, taskCreateRequest);
+    }
+
     @Operation(summary = "Delete a given task key", description = "-")
     @DeleteMapping(value = "/projects/{projectKey}/tasks/{taskKey}")
     public ResponseEntity<Void> deleteTask(@PathVariable final String projectKey, @PathVariable final String taskKey) throws BusinessServiceException {

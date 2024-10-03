@@ -3,6 +3,7 @@ package org.ihtsdo.authoringservices.service;
 import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
+import org.ihtsdo.sso.integration.SecurityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +28,12 @@ public class AdminService {
 
     @Autowired
     private TaskService taskService;
+
+    @PreAuthorize("hasPermission('ADMIN', 'global') || hasPermission('ADMIN', #project.codeSystem.branchPath)")
+    public AuthoringTask createTask(AuthoringProject project, AuthoringTaskCreateRequest taskCreateRequest) throws BusinessServiceException {
+        String assignee = taskCreateRequest.getAssignee() != null ? taskCreateRequest.getAssignee().getUsername() : SecurityUtil.getUsername();
+        return taskService.createTask(project.getKey(), assignee, taskCreateRequest);
+    }
 
     @PreAuthorize("hasPermission('ADMIN', 'global') || hasPermission('ADMIN', #project.codeSystem.branchPath)")
     public void deleteTask(AuthoringProject project, String issueKey) throws BusinessServiceException {
@@ -56,7 +63,7 @@ public class AdminService {
         logger.info("Creating new project {} on code system {}", request.key(), codeSystem.getShortName());
         AuthoringProject project = projectService.createProject(request, codeSystem.getBranchPath());
         String projectBranchPath = codeSystem.getBranchPath() + SLASH + request.key();
-        branchService.createProjectBranchIfNeeded(projectBranchPath);
+        branchService.createBranchIfNeeded(projectBranchPath);
         project.setBranchPath(projectBranchPath);
         return project;
     }

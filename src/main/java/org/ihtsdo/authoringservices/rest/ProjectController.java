@@ -150,7 +150,7 @@ public class ProjectController {
 	@ApiResponse(responseCode = "200", description = "OK")
 	@PostMapping(value="/projects/{projectKey}/tasks")
 	public AuthoringTask createTask(@PathVariable final String projectKey, @RequestBody final AuthoringTaskCreateRequest taskCreateRequest) throws BusinessServiceException {
-		return taskService.createTask(requiredParam(projectKey, PROJECT_KEY), taskCreateRequest);
+		return taskService.createTask(requiredParam(projectKey, PROJECT_KEY), SecurityUtil.getUsername(), taskCreateRequest);
 	}
 
 	@Operation(summary = "Update a task")
