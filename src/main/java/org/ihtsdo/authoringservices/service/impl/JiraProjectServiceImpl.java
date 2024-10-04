@@ -397,10 +397,12 @@ public class JiraProjectServiceImpl implements ProjectService {
 
         addRolesToProject(projectTemplate, adminJiraClient, projectTemplateKey, newProject);
 
-        createMagicTicketForProject(request, codeSystemBranchPath.startsWith("MAIN/SNOMEDCT-") ? codeSystemBranchPath : null);
+        String extensionBasePath = codeSystemBranchPath.startsWith("MAIN/SNOMEDCT-") ? codeSystemBranchPath : null;
+        Issue projectTemplateMagicTicket = getProjectTicket(projectTemplateKey);
+        String productCode = JiraHelper.toStringOrNull(projectTemplateMagicTicket.getField(jiraProductCodeField));
+        createMagicTicketForProject(request, extensionBasePath, productCode);
 
-        return new AuthoringProject(newProject.getKey(), newProject.getName(),
-                new org.ihtsdo.authoringservices.domain.User(newProject.getLead()), null, null, null, null, null, false, false, false, false, false, false, false, false);
+        return  retrieveProject(newProject.getKey(), true);
     }
 
     @Override
@@ -547,7 +549,7 @@ public class JiraProjectServiceImpl implements ProjectService {
         }
     }
 
-    private void createMagicTicketForProject(CreateProjectRequest request, String extensionBasePath) throws BusinessServiceException {
+    private void createMagicTicketForProject(CreateProjectRequest request, String extensionBasePath, String productCode) throws BusinessServiceException {
         try {
             JiraClient jiraClient = jiraClientFactory.getImpersonatingInstance(SecurityUtil.getUsername());
             Issue.FluentCreate fluentCreate = jiraClient.createIssue(request.key(), AUTHORING_PROJECT_TYPE);
@@ -556,6 +558,10 @@ public class JiraProjectServiceImpl implements ProjectService {
             if (extensionBasePath != null) {
                 fluentCreate.field(jiraExtensionBaseField, extensionBasePath);
             }
+            if (productCode != null) {
+                fluentCreate.field(jiraProductCodeField, productCode);
+            }
+
             fluentCreate.execute();
         } catch (JiraException e) {
             throw new BusinessServiceException("Failed to create Jira Magic ticket. Error: " + e.getMessage(), e);
