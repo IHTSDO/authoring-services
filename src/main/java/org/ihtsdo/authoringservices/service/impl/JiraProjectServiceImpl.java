@@ -10,6 +10,7 @@ import jakarta.annotation.PreDestroy;
 import net.rcarz.jiraclient.*;
 import net.sf.json.JSON;
 import net.sf.json.JSONArray;
+import net.sf.json.JSONNull;
 import net.sf.json.JSONObject;
 import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.entity.Validation;
@@ -231,7 +232,11 @@ public class JiraProjectServiceImpl implements ProjectService {
             Object value = issue.getField(fieldId);
             switch (type) {
                 case STRING_TYPE -> authoringProjectField.setValue(NULL_STRING.equals(value.toString()) ? null : value.toString());
-                case OPTION_TYPE -> authoringProjectField.setValue(((JSONObject) value).getString(VALUE));
+                case OPTION_TYPE -> {
+                    if (!(value instanceof JSONNull)) {
+                        authoringProjectField.setValue(((JSONObject) value).getString(VALUE));
+                    }
+                }
                 default -> logger.warn("Custom field type {} has not been supported", type);
             }
         }
