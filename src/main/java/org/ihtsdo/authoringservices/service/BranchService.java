@@ -51,18 +51,17 @@ public class BranchService {
         String[] parts = branchPath.split("/");
         Information result = getBranchInformation(branchPath, parts);
 
-        // Verify the branch path
-        Branch branchOrNull = getBranchOrNull(branchPath);
-        if (branchOrNull == null) {
-            // The task branch is not created when creating a new Authoring Task. Therefore, verify the project branch instead.
-            if (result.taskKey != null) {
-                String parentBranch = PathHelper.getParentPath(branchPath);
-                branchOrNull = getBranchOrNull(parentBranch);
-                if (branchOrNull == null)  throw new BusinessServiceException("Project branch " + branchPath + " does not exist.");
-            } else {
-                throw new BusinessServiceException("Branch " + branchPath + " does not exist.");
-            }
+        // Verify that the code system branch path must be valid
+        String codeSystemBranch;
+        if (result.taskKey != null) {
+            codeSystemBranch = PathHelper.getParentPath(PathHelper.getParentPath(branchPath));
+        } else if (result.projectKey != null) {
+            codeSystemBranch = PathHelper.getParentPath(branchPath);
+        } else {
+            codeSystemBranch = branchPath;
         }
+        Branch branchOrNull = getBranchOrNull(codeSystemBranch);
+        if (branchOrNull == null)  throw new BusinessServiceException("Code system branch " + codeSystemBranch + " does not exist.");
 
         AuthoringCodeSystem codeSystem = getAuthoringCodeSystem(result.codeSystemShortname());
         AuthoringProject project = getAuthoringProject(result.projectKey());
