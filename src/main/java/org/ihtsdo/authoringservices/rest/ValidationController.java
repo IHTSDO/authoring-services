@@ -7,22 +7,29 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import net.rcarz.jiraclient.JiraException;
+import org.ihtsdo.authoringservices.domain.AuthoringCodeSystem;
+import org.ihtsdo.authoringservices.domain.AuthoringProject;
 import org.ihtsdo.authoringservices.domain.ReleaseRequest;
 import org.ihtsdo.authoringservices.domain.Status;
 import org.ihtsdo.authoringservices.entity.RVFFailureJiraAssociation;
+import org.ihtsdo.authoringservices.service.CodeSystemService;
+import org.ihtsdo.authoringservices.service.ProjectService;
 import org.ihtsdo.authoringservices.service.RVFFailureJiraAssociationService;
 import org.ihtsdo.authoringservices.service.ValidationService;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.ihtsdo.authoringservices.rest.ControllerHelper.*;
 
@@ -31,11 +38,27 @@ import static org.ihtsdo.authoringservices.rest.ControllerHelper.*;
 @RequestMapping(produces={MediaType.APPLICATION_JSON_VALUE})
 public class ValidationController {
 
+	private final Logger logger = LoggerFactory.getLogger(getClass());
+
+	@Autowired
+	private ProjectService projectService;
+
 	@Autowired
 	private ValidationService validationService;
 
 	@Autowired
+	private CodeSystemService codeSystemService;
+
+	@Autowired
 	private RVFFailureJiraAssociationService rvfFailureJiraAssociationService;
+
+	@PostMapping(value = "/codesystems/validation/run-all")
+	public Map<String, Set<String>> startValidationForAllCodeSystems() throws BusinessServiceException {
+		Set<String> codeSystemShortnames = doValidateForAllCodeSystems();
+		Map<String, Set<String>> response = new HashMap<>();
+		response.put("items", codeSystemShortnames);
+		return response;
+	}
 
 	@Operation(summary = "Initiate validation on MAIN")
 	@ApiResponses({
@@ -196,5 +219,32 @@ public class ValidationController {
 	@RequestMapping(value = "/validation-reports/{reportRunId}/failure-jira-associations", method = RequestMethod.GET)
 	public ResponseEntity<List<RVFFailureJiraAssociation>> getJiraTickets(@PathVariable final Long reportRunId) {
 		return new ResponseEntity<>(rvfFailureJiraAssociationService.findByReportRunId(reportRunId), HttpStatus.OK);
+	}
+
+	private Set<String> doValidateForAllCodeSystems() throws BusinessServiceException {
+		SecurityContext context = SecurityContextHolder.getContext();
+		List<AuthoringCodeSystem> codeSystems = codeSystemService.findAll();
+		List<AuthoringProject> projects = projectService.listProjects(true, false);
+		Set<AuthoringCodeSystem> filteredCodeSystems = new HashSet<>();
+		for(AuthoringCodeSystem codeSystem : codeSystems) {
+			for(AuthoringProject project : projects) {
+				String path = project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/"));
+				if(path.equals(codeSystem.getBranchPath()) && !filteredCodeSystems.contains(codeSystem)){
+					filteredCodeSystems.add(codeSystem);
+					break;
+				}
+			}
+		}
+		Set<String> codeSystemShortnames = filteredCodeSystems.stream().map(AuthoringCodeSystem::getShortName).collect(Collectors.toSet());
+		logger.info("Total code systems to validate: {}. Items: {}", filteredCodeSystems.size(), codeSystemShortnames);
+		filteredCodeSystems.stream().parallel().forEach(item -> {
+			try {
+				SecurityContextHolder.setContext(context);
+				startValidation(item.getBranchPath(), true);
+			} catch (BusinessServiceException e) {
+				throw new RuntimeException(e);
+			}
+		});
+		return codeSystemShortnames;
 	}
 }
