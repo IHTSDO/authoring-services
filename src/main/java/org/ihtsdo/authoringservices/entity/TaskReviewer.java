@@ -3,6 +3,8 @@ package org.ihtsdo.authoringservices.entity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
+import java.util.Objects;
+
 @Entity(name = "task_reviewer")
 @Table(uniqueConstraints={
         @UniqueConstraint(columnNames = {"task_key", "username"})
@@ -48,5 +50,17 @@ public class TaskReviewer {
 
     public void setUsername(String username) {
         this.username = username;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof TaskReviewer reviewer)) return false;
+        return Objects.equals(getTask(), reviewer.getTask()) && Objects.equals(getUsername(), reviewer.getUsername());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getTask(), getUsername());
     }
 }
