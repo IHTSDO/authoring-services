@@ -28,6 +28,9 @@ public class ProjectController {
 	private static final String REBASING_STATUS = "Rebasing";
 
 	@Autowired
+	private JiraAuthoringTaskMigrateService migrateJiraTaskService;
+
+	@Autowired
 	private TaskService taskService;
 
 	@Autowired
@@ -122,7 +125,9 @@ public class ProjectController {
 	@ApiResponse(responseCode = "200", description = "OK")
 	@GetMapping(value="/projects/my-tasks")
 	public List<AuthoringTask> listMyTasks(@RequestParam(value = "excludePromoted", required = false) String excludePromoted) throws BusinessServiceException {
-		return taskService.listMyTasks(SecurityUtil.getUsername(), excludePromoted);
+		List<AuthoringTask> authoringTasks = taskService.listMyTasks(SecurityUtil.getUsername(), excludePromoted);
+		migrateJiraTaskService.migrateJiraTask(SecurityUtil.getAuthentication(), authoringTasks);
+		return authoringTasks;
 	}
 
 	@Operation(summary = "List review tasks, with the current user or unassigned reviewer, across projects")

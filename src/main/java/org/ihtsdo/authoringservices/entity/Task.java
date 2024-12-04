@@ -1,6 +1,7 @@
 package org.ihtsdo.authoringservices.entity;
 
 import jakarta.persistence.*;
+import org.ihtsdo.authoringservices.domain.TaskStatus;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,9 +16,10 @@ public class Task {
     @Column(name = "task_name", nullable = false)
     private String name;
 
-    private String status;
+    @Enumerated(EnumType.STRING)
+    private TaskStatus status;
 
-    @OneToOne
+    @ManyToOne
     @JoinColumn(name = "project_key", nullable = false)
     private Project project;
 
@@ -48,11 +50,11 @@ public class Task {
         this.name = name;
     }
 
-    public String getStatus() {
+    public TaskStatus getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(TaskStatus status) {
         this.status = status;
     }
 

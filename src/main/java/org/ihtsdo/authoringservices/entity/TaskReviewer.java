@@ -4,19 +4,30 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
 @Entity(name = "task_reviewer")
+@Table(uniqueConstraints={
+        @UniqueConstraint(columnNames = {"task_key", "username"})
+})
 public class TaskReviewer {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
 
-    @OneToOne
-    @JoinColumn(name = "task_key", unique = true)
+    @ManyToOne
+    @JoinColumn(name = "task_key")
     private Task task;
 
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String username;
+
+    public TaskReviewer() {
+    }
+
+    public TaskReviewer(Task task, String username) {
+        this.task = task;
+        this.username = username;
+    }
 
     @JsonIgnore
     public long getId() {

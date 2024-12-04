@@ -28,6 +28,7 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
     private Long latestCodeSystemVersionTimestamp;
     private String description;
     private User assignee;
+    private User reporter;
     private List<User> reviewers;
     private String created;
     private String updated;
@@ -51,6 +52,10 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
         net.rcarz.jiraclient.User user = issue.getAssignee();
         if (user != null) {
             this.assignee = new User(user);
+        }
+        net.rcarz.jiraclient.User issueReporter = issue.getReporter();
+        if (issueReporter != null) {
+            this.reporter = new User(issueReporter);
         }
         created = (String) issue.getField(JIRA_CREATED_FIELD);
         updated = (String) issue.getField(JIRA_UPDATED_FIELD);
@@ -137,6 +142,10 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
     @Override
     public void setAssignee(User assignee) {
         this.assignee = assignee;
+    }
+
+    public User getReporter() {
+        return reporter;
     }
 
     public String getCreated() {

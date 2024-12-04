@@ -12,7 +12,7 @@ public class ProjectGroup {
     @Column(name = "group_name", nullable = false)
     private String name;
 
-    @OneToOne
+    @ManyToOne
     @JoinColumn(name = "project_key", nullable = false)
     private Project project;
 
