@@ -3,6 +3,8 @@ package org.ihtsdo.authoringservices.entity;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 
+import java.util.Objects;
+
 @Entity(name = "project_group")
 public class ProjectGroup {
     @Id
@@ -39,5 +41,17 @@ public class ProjectGroup {
 
     public void setProject(Project project) {
         this.project = project;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof ProjectGroup that)) return false;
+        return Objects.equals(getName(), that.getName()) && Objects.equals(getProject(), that.getProject());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getName(), getProject());
     }
 }
