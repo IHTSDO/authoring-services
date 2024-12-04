@@ -5,6 +5,7 @@ import org.ihtsdo.authoringservices.domain.TaskStatus;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Entity(name = "task")
 public class Task {
@@ -96,5 +97,17 @@ public class Task {
 
     public void setReviewers(List<TaskReviewer> reviewers) {
         this.reviewers = reviewers;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Task task)) return false;
+        return Objects.equals(getKey(), task.getKey()) && Objects.equals(getProject(), task.getProject());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getKey(), getProject());
     }
 }

@@ -13,9 +13,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 public class JiraAuthoringTaskMigrateService {
@@ -32,7 +30,7 @@ public class JiraAuthoringTaskMigrateService {
     @Async
     public void migrateJiraTask(Authentication authentication, List<AuthoringTask> authoringTasks) throws BusinessServiceException {
         SecurityContextHolder.getContext().setAuthentication(authentication);
-        List<Task> tasks = new ArrayList<>();
+        Set<Task> tasks = new HashSet<>();
         for (AuthoringTask authoringTask : authoringTasks) {
             Optional<Project> optionalProject = projectRepository.findById(authoringTask.getProjectKey());
             if (optionalProject.isPresent()) {
@@ -46,9 +44,9 @@ public class JiraAuthoringTaskMigrateService {
                 task.setStatus(authoringTaskWithDetails.getStatus());
 
                 if (authoringTaskWithDetails.getReviewers() != null) {
-                    List<TaskReviewer> reviewers = new ArrayList<>();
+                    Set<TaskReviewer> reviewers = new HashSet<>();
                     authoringTaskWithDetails.getReviewers().forEach(item -> reviewers.add(new TaskReviewer(task, item.getUsername())));
-                    task.setReviewers(reviewers);
+                    task.setReviewers(new ArrayList<>(reviewers));
                 }
                 tasks.add(task);
             }
