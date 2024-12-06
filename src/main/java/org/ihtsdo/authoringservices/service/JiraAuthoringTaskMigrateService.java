@@ -2,6 +2,7 @@ package org.ihtsdo.authoringservices.service;
 
 import jakarta.transaction.Transactional;
 import org.ihtsdo.authoringservices.domain.AuthoringTask;
+import org.ihtsdo.authoringservices.domain.User;
 import org.ihtsdo.authoringservices.entity.Project;
 import org.ihtsdo.authoringservices.entity.Task;
 import org.ihtsdo.authoringservices.entity.TaskReviewer;
@@ -59,13 +60,8 @@ public class JiraAuthoringTaskMigrateService {
                 task.setReporter(jiraTaskWithDetails.getReporter().getUsername());
                 task.setStatus(jiraTaskWithDetails.getStatus());
                 if (jiraTaskWithDetails.getReviewers() != null) {
-                    Set<TaskReviewer> reviewers = new HashSet<>();
-                    List<TaskReviewer> existing = Objects.requireNonNullElseGet(task.getReviewers(), ArrayList::new);
-                    jiraTaskWithDetails.getReviewers().forEach(item -> {
-                        TaskReviewer found = existing.stream().filter(e -> e.getUsername().equals(item.getUsername())).findFirst().orElse(null);
-                        reviewers.add(Objects.requireNonNullElseGet(found, () -> new TaskReviewer(task, item.getUsername())));
-                    });
-                    task.setReviewers(new ArrayList<>(reviewers));
+                    List<TaskReviewer> existing = getTaskReviewers(jiraTaskWithDetails, task);
+                    task.setReviewers(existing);
                 }
                 tasks.add(task);
                 int taskSequence = getTaskSequence(jiraTaskWithDetails.getKey());
@@ -79,6 +75,19 @@ public class JiraAuthoringTaskMigrateService {
 
         taskRepository.saveAll(tasks);
         updateTaskSequence(projectToSequenceMap);
+    }
+
+    private List<TaskReviewer> getTaskReviewers(AuthoringTask jiraTaskWithDetails, Task task) {
+        List<TaskReviewer> existing = Objects.requireNonNullElseGet(task.getReviewers(), ArrayList::new);
+        List<String> reviewers = jiraTaskWithDetails.getReviewers().stream().map(User::getUsername).toList();
+        reviewers.forEach(item -> {
+            TaskReviewer found = existing.stream().filter(e -> e.getUsername().equals(item)).findFirst().orElse(null);
+            if (found == null) {
+                existing.add(new TaskReviewer(task, item));
+            }
+        });
+        existing.removeIf(item -> !reviewers.contains(item.getUsername()));
+        return existing;
     }
 
     private void updateTaskSequence(Map<Project, Integer> projectToSequenceMap) {
