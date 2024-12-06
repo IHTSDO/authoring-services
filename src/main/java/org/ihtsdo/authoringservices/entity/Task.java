@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Objects;
 
 @Entity(name = "task")
-public class Task {
+public class Task extends BaseEntity {
 
     @Id
     @Column(name = "task_key", nullable = false)
@@ -16,6 +16,9 @@ public class Task {
 
     @Column(name = "task_name", nullable = false)
     private String name;
+
+    @Column(name = "branch_path")
+    private String branchPath;
 
     @Enumerated(EnumType.STRING)
     private TaskStatus status;
@@ -49,6 +52,14 @@ public class Task {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getBranchPath() {
+        return branchPath;
+    }
+
+    public void setBranchPath(String branchPath) {
+        this.branchPath = branchPath;
     }
 
     public TaskStatus getStatus() {

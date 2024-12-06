@@ -1,12 +1,18 @@
 package org.ihtsdo.authoringservices.service;
 
+import jakarta.transaction.Transactional;
 import org.ihtsdo.authoringservices.domain.AuthoringTask;
 import org.ihtsdo.authoringservices.entity.Project;
 import org.ihtsdo.authoringservices.entity.Task;
 import org.ihtsdo.authoringservices.entity.TaskReviewer;
+import org.ihtsdo.authoringservices.entity.TaskSequence;
 import org.ihtsdo.authoringservices.repository.ProjectRepository;
 import org.ihtsdo.authoringservices.repository.TaskRepository;
+import org.ihtsdo.authoringservices.repository.TaskReviewerRepository;
+import org.ihtsdo.authoringservices.repository.TaskSequenceRepository;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.core.Authentication;
@@ -18,6 +24,8 @@ import java.util.*;
 @Service
 public class JiraAuthoringTaskMigrateService {
 
+    private final Logger logger = LoggerFactory.getLogger(getClass());
+
     @Autowired
     private TaskRepository taskRepository;
 
@@ -25,32 +33,77 @@ public class JiraAuthoringTaskMigrateService {
     private ProjectRepository projectRepository;
 
     @Autowired
+    private TaskSequenceRepository taskSequenceRepository;
+
+    @Autowired
     private TaskService taskService;
 
     @Async
-    public void migrateJiraTask(Authentication authentication, List<AuthoringTask> authoringTasks) throws BusinessServiceException {
+    @Transactional
+    public void migrateJiraTask(Authentication authentication, List<AuthoringTask> authoringTasks) {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         Set<Task> tasks = new HashSet<>();
-        for (AuthoringTask authoringTask : authoringTasks) {
-            Optional<Project> optionalProject = projectRepository.findById(authoringTask.getProjectKey());
-            if (optionalProject.isPresent()) {
-                AuthoringTask authoringTaskWithDetails = taskService.retrieveTask(authoringTask.getProjectKey(), authoringTask.getKey(), true);
-                Task task = new Task();
-                task.setKey(authoringTaskWithDetails.getKey());
-                task.setProject(optionalProject.get());
-                task.setName(authoringTaskWithDetails.getSummary());
-                task.setAssignee(authoringTaskWithDetails.getAssignee() != null ? authoringTaskWithDetails.getAssignee().getUsername() : null);
-                task.setReporter(authoringTaskWithDetails.getReporter().getUsername());
-                task.setStatus(authoringTaskWithDetails.getStatus());
+        Map<Project, Integer> projectToSequenceMap = new HashMap<>();
+        for (AuthoringTask jiraTask : authoringTasks) {
+            Optional<Project> optionalProject = projectRepository.findById(jiraTask.getProjectKey());
+            if (optionalProject.isEmpty()) continue;
 
-                if (authoringTaskWithDetails.getReviewers() != null) {
+            try {
+                Project project = optionalProject.get();
+                AuthoringTask jiraTaskWithDetails = taskService.retrieveTask(jiraTask.getProjectKey(), jiraTask.getKey(), true);
+                Optional<Task> existingTaskOptional = taskRepository.findById(jiraTaskWithDetails.getKey());
+                Task task = existingTaskOptional.orElseGet(Task::new);
+                task.setKey(jiraTaskWithDetails.getKey());
+                task.setProject(project);
+                task.setName(jiraTaskWithDetails.getSummary());
+                task.setAssignee(jiraTaskWithDetails.getAssignee() != null ? jiraTaskWithDetails.getAssignee().getUsername() : null);
+                task.setReporter(jiraTaskWithDetails.getReporter().getUsername());
+                task.setStatus(jiraTaskWithDetails.getStatus());
+                if (jiraTaskWithDetails.getReviewers() != null) {
                     Set<TaskReviewer> reviewers = new HashSet<>();
-                    authoringTaskWithDetails.getReviewers().forEach(item -> reviewers.add(new TaskReviewer(task, item.getUsername())));
+                    List<TaskReviewer> existing = Objects.requireNonNullElseGet(task.getReviewers(), ArrayList::new);
+                    jiraTaskWithDetails.getReviewers().forEach(item -> {
+                        TaskReviewer found = existing.stream().filter(e -> e.getUsername().equals(item.getUsername())).findFirst().orElse(null);
+                        reviewers.add(Objects.requireNonNullElseGet(found, () -> new TaskReviewer(task, item.getUsername())));
+                    });
                     task.setReviewers(new ArrayList<>(reviewers));
                 }
                 tasks.add(task);
+                int taskSequence = getTaskSequence(jiraTaskWithDetails.getKey());
+                if (!(projectToSequenceMap.containsKey(project) && projectToSequenceMap.get(project) >= taskSequence)) {
+                    projectToSequenceMap.put(project, taskSequence);
+                }
+            } catch (BusinessServiceException e) {
+                logger.error(e.getMessage());
             }
         }
+
         taskRepository.saveAll(tasks);
+        updateTaskSequence(projectToSequenceMap);
+    }
+
+    private void updateTaskSequence(Map<Project, Integer> projectToSequenceMap) {
+        if (!projectToSequenceMap.isEmpty()) {
+            Set<TaskSequence> sequences = new HashSet<>();
+            projectToSequenceMap.forEach((key, value) -> {
+                TaskSequence existing = taskSequenceRepository.findOneByProject(key);
+                if (existing != null) {
+                    existing.setSequence(value);
+                    sequences.add(existing);
+                } else {
+                    sequences.add(new TaskSequence(key, value));
+                }
+            });
+            taskSequenceRepository.saveAll(sequences);
+        }
+    }
+
+    private int getTaskSequence(String key) throws BusinessServiceException {
+        String[] split = key.split("-");
+        if (split.length != 0) {
+            return Integer.parseInt(split[split.length - 1]);
+        }
+
+        throw new BusinessServiceException("Could not determine the task sequence from key: " + key);
     }
 }

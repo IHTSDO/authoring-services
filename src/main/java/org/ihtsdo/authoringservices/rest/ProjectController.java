@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.service.*;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
+import org.ihtsdo.authoringservices.service.factory.ProjectServiceFactory;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.sso.integration.SecurityUtil;
@@ -34,7 +35,7 @@ public class ProjectController {
 	private TaskService taskService;
 
 	@Autowired
-	private ProjectService projectService;
+	private ProjectServiceFactory projectServiceFactory;
 
 	@Autowired
 	private PromotionService promotionService;
@@ -60,15 +61,16 @@ public class ProjectController {
 	@ApiResponse(responseCode = "200", description = "OK")
 	@GetMapping(value="/projects")
 	public List<AuthoringProject> listProjects(@RequestParam(value = "lightweight", required = false)  Boolean lightweight,
-											   @RequestParam(value = "ignoreProductCodeFilter", required = false)  Boolean ignoreProductCodeFilter) throws BusinessServiceException {
-		return projectService.listProjects(lightweight, ignoreProductCodeFilter);
+											   @RequestParam(value = "ignoreProductCodeFilter", required = false)  Boolean ignoreProductCodeFilter,
+											   @RequestParam(value = "useNew", required = false) Boolean useNew) throws BusinessServiceException {
+		return projectServiceFactory.getInstance(useNew).listProjects(lightweight, ignoreProductCodeFilter);
 	}
 
 	@Operation(summary = "Retrieve an authoring project")
 	@ApiResponse(responseCode = "200", description = "OK")
 	@GetMapping(value="/projects/{projectKey}")
-	public AuthoringProject retrieveProject(@PathVariable final String projectKey) throws BusinessServiceException {
-		return projectService.retrieveProject(requiredParam(projectKey, PROJECT_KEY));
+	public AuthoringProject retrieveProject(@PathVariable final String projectKey, @RequestParam(value = "useNew", required = false) Boolean useNew) throws BusinessServiceException {
+		return projectServiceFactory.getInstance(useNew).retrieveProject(requiredParam(projectKey, PROJECT_KEY));
 	}
 
 	@Operation(summary = "Rebase an authoring project")
@@ -168,8 +170,8 @@ public class ProjectController {
 	@Operation(summary = "Update a project")
 	@ApiResponse(responseCode = "200", description = "OK")
 	@PutMapping(value = "/projects/{projectKey}")
-	public AuthoringProject updateProject(@PathVariable final String projectKey,  @RequestBody final AuthoringProject updatedProject) throws BusinessServiceException {
-		return projectService.updateProject(requiredParam(projectKey, PROJECT_KEY),  updatedProject);
+	public AuthoringProject updateProject(@PathVariable final String projectKey, @RequestParam(value = "useNew", required = false) Boolean useNew,  @RequestBody final AuthoringProject updatedProject) throws BusinessServiceException {
+		return projectServiceFactory.getInstance(useNew).updateProject(requiredParam(projectKey, PROJECT_KEY),  updatedProject);
 	}
 
 	@Operation(summary = "Retrieve task attachments")
@@ -263,15 +265,15 @@ public class ProjectController {
 	@Operation(summary = "Lock project")
 	@ApiResponse(responseCode = "200", description = "OK")
 	@PostMapping(value = "/projects/{projectKey}/lock")
-	public void lockProjects(@PathVariable final String projectKey) throws BusinessServiceException {
-		projectService.lockProject(projectKey);
+	public void lockProject(@PathVariable final String projectKey, @RequestParam(value = "useNew", required = false) Boolean useNew) throws BusinessServiceException {
+		projectServiceFactory.getInstance(useNew).lockProject(projectKey);
 	}
 
 	@Operation(summary = "Unlock project")
 	@ApiResponse(responseCode = "200", description = "OK")
 	@PostMapping(value = "/projects/{projectKey}/unlock")
-	public void unlockProjects(@PathVariable final String projectKey) throws BusinessServiceException {
-		projectService.unlockProject(projectKey);
+	public void unlockProject(@PathVariable final String projectKey, @RequestParam(value = "useNew", required = false) Boolean useNew) throws BusinessServiceException {
+		projectServiceFactory.getInstance(useNew).unlockProject(projectKey);
 	}
 
 }

@@ -7,6 +7,7 @@ import net.rcarz.jiraclient.JiraException;
 import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.entity.Validation;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
+import org.ihtsdo.authoringservices.service.factory.ProjectServiceFactory;
 import org.ihtsdo.authoringservices.service.jira.ImpersonatingJiraClientFactory;
 import org.ihtsdo.otf.RF2Constants;
 import org.ihtsdo.otf.rest.client.RestClientException;
@@ -67,6 +68,9 @@ public class CodeSystemService {
 	private ProjectService projectService;
 
 	@Autowired
+	private ProjectServiceFactory projectServiceFactory;
+
+	@Autowired
 	private  BranchService branchService;
 
 	@Autowired
@@ -120,18 +124,18 @@ public class CodeSystemService {
 		return snowstormRestClientFactory.getClient().getCodeSystemUpgradeJob(jobId);
 	}
 
-	public void lockProjects(String codeSystemShortame) throws BusinessServiceException {
+	public void lockProjects(String codeSystemShortame, Boolean useNew) throws BusinessServiceException {
 		List<CodeSystem> codeSystems = snowstormRestClientFactory.getClient().getCodeSystems();
 		CodeSystem cs = codeSystems.stream().filter(item -> item.getShortName().equals(codeSystemShortame)).findAny().orElse(null);
 		if (cs == null) {
 			throw new BusinessServiceException(String.format(CODE_SYSTEM_NOT_FOUND_MSG, codeSystemShortame));
 		}
-		List<AuthoringProject> projects = projectService.listProjects(true, false);
+		List<AuthoringProject> projects = projectServiceFactory.getInstance(useNew).listProjects(true, false);
 		projects = projects.stream().filter(project -> project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/")).equals(cs.getBranchPath())).toList();
 		List<String> failedToLockProjects = new ArrayList<>();
 		for (AuthoringProject project : projects) {
 			try {
-				projectService.lockProject(project.getKey());
+				projectServiceFactory.getInstance(useNew).lockProject(project.getKey());
 			} catch (Exception e) {
 				logger.error("Failed to lock the project " + project.getKey(), e);
 				failedToLockProjects.add(project.getKey());
@@ -142,18 +146,18 @@ public class CodeSystemService {
 		}
 	}
 
-	public void unlockProjects(String codeSystemShortame) throws BusinessServiceException {
+	public void unlockProjects(String codeSystemShortame, Boolean useNew) throws BusinessServiceException {
 		List<CodeSystem> codeSystems = snowstormRestClientFactory.getClient().getCodeSystems();
 		CodeSystem cs = codeSystems.stream().filter(item -> item.getShortName().equals(codeSystemShortame)).findAny().orElse(null);
 		if (cs == null) {
 			throw new BusinessServiceException(String.format(CODE_SYSTEM_NOT_FOUND_MSG, codeSystemShortame));
 		}
-		List<AuthoringProject> projects = projectService.listProjects(true, false);
+		List<AuthoringProject> projects = projectServiceFactory.getInstance(useNew).listProjects(true, false);
 		projects = projects.stream().filter(project -> project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/")).equals(cs.getBranchPath())).toList();
 		List<String> failedToUnlockProjects = new ArrayList<>();
 		for (AuthoringProject project : projects) {
 			try {
-				projectService.unlockProject(project.getKey());
+				projectServiceFactory.getInstance(useNew).unlockProject(project.getKey());
 			} catch (Exception e) {
 				logger.error("Failed to unlock the project " + project.getKey(), e);
 				failedToUnlockProjects.add(project.getKey());
