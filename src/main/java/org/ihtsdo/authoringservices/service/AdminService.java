@@ -2,6 +2,7 @@ package org.ihtsdo.authoringservices.service;
 
 import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
+import org.ihtsdo.authoringservices.service.factory.ProjectServiceFactory;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.sso.integration.SecurityUtil;
 import org.slf4j.Logger;
@@ -24,7 +25,7 @@ public class AdminService {
     private BranchService branchService;
 
     @Autowired
-    private ProjectService projectService;
+    private ProjectServiceFactory projectServiceFactory;
 
     @Autowired
     private TaskService taskService;
@@ -48,20 +49,20 @@ public class AdminService {
     }
 
     @PreAuthorize("hasPermission('ADMIN', 'global') || hasPermission('ADMIN', #project.codeSystem.branchPath)")
-    public void deleteProject(AuthoringProject project) throws BusinessServiceException {
+    public void deleteProject(AuthoringProject project, Boolean useNew) throws BusinessServiceException {
         logger.info("Deleting project {}", project.getKey());
-        projectService.deleteProject(project.getKey());
+        projectServiceFactory.getInstance(useNew).deleteProject(project.getKey());
     }
 
     @PreAuthorize("hasPermission('ADMIN', 'global') || hasPermission('ADMIN', #project.codeSystem.branchPath)")
-    public List<AuthoringProjectField> retrieveProjectCustomFields(AuthoringProject project) throws BusinessServiceException {
-        return projectService.retrieveProjectCustomFields(project.getKey());
+    public List<AuthoringProjectField> retrieveProjectCustomFields(AuthoringProject project, Boolean useNew) throws BusinessServiceException {
+        return projectServiceFactory.getInstance(useNew).retrieveProjectCustomFields(project.getKey());
     }
 
     @PreAuthorize("hasPermission('ADMIN', 'global') || hasPermission('ADMIN', #codeSystem.branchPath)")
-    public AuthoringProject createProject(AuthoringCodeSystem codeSystem, CreateProjectRequest request) throws BusinessServiceException, ServiceException {
+    public AuthoringProject createProject(AuthoringCodeSystem codeSystem, CreateProjectRequest request, Boolean useNew) throws BusinessServiceException, ServiceException {
         logger.info("Creating new project {} on code system {}", request.key(), codeSystem.getShortName());
-        AuthoringProject project = projectService.createProject(request, codeSystem.getBranchPath());
+        AuthoringProject project = projectServiceFactory.getInstance(useNew).createProject(request, codeSystem.getBranchPath());
         String projectBranchPath = codeSystem.getBranchPath() + SLASH + request.key();
         branchService.createBranchIfNeeded(projectBranchPath);
         project.setBranchPath(projectBranchPath);
@@ -69,8 +70,8 @@ public class AdminService {
     }
 
     @PreAuthorize("hasPermission('ADMIN', 'global') || hasPermission('ADMIN', #project.codeSystem.branchPath)")
-    public void updateProjectCustomFields(AuthoringProject project, ProjectFieldUpdateRequest request) throws BusinessServiceException {
+    public void updateProjectCustomFields(AuthoringProject project, ProjectFieldUpdateRequest request, Boolean useNew) throws BusinessServiceException {
         logger.info("Updating custom fields for project {}", project.getKey());
-        projectService.updateProjectCustomFields(project.getKey(), request);
+        projectServiceFactory.getInstance(useNew).updateProjectCustomFields(project.getKey(), request);
     }
 }

@@ -4,7 +4,6 @@ import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import jakarta.annotation.PreDestroy;
 import net.rcarz.jiraclient.*;
@@ -13,7 +12,6 @@ import net.sf.json.JSONArray;
 import net.sf.json.JSONNull;
 import net.sf.json.JSONObject;
 import org.ihtsdo.authoringservices.domain.*;
-import org.ihtsdo.authoringservices.entity.Validation;
 import org.ihtsdo.authoringservices.service.*;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.authoringservices.service.jira.ImpersonatingJiraClientFactory;
@@ -28,7 +26,6 @@ import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
 import org.ihtsdo.sso.integration.SecurityUtil;
-import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,7 +42,7 @@ import java.util.concurrent.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-public class JiraProjectServiceImpl implements ProjectService {
+public class JiraProjectServiceImpl extends ProjectServiceBase implements ProjectService {
     private final Logger logger = LoggerFactory.getLogger(JiraProjectServiceImpl.class);
 
     public static final String UNIT_TEST = "UNIT_TEST";
@@ -573,10 +570,12 @@ public class JiraProjectServiceImpl implements ProjectService {
         }
     }
 
-    private List<AuthoringProject> buildAuthoringProjects(List<Issue> projectTickets, boolean lightweight) {
-        if (projectTickets.isEmpty()) {
+    @Override
+    protected List<AuthoringProject> buildAuthoringProjects(Collection<?> collection, boolean lightweight) {
+        if (collection.isEmpty()) {
             return new ArrayList<>();
         }
+        List<Issue> projectTickets = (List<Issue>) collection;
         final List<AuthoringProject> authoringProjects = new ArrayList<>();
         final Set<String> branchPaths = new HashSet<>();
         final Map<String, Branch> parentBranchCache = new ConcurrentHashMap<>();
@@ -606,7 +605,7 @@ public class JiraProjectServiceImpl implements ProjectService {
 
                 final Branch branchOrNull = branchService.getBranchOrNull(branchPath);
                 String parentPath = PathHelper.getParentPath(branchPath);
-                Branch parentBranchOrNull = getParentBranch(parentBranchCache, parentPath);
+                Branch parentBranchOrNull = getParentBranch(branchService, parentBranchCache, parentPath);
                 if (parentBranchOrNull == null) {
                     logger.error("Project {} expected parent branch does not exist: {}", projectKey, parentPath);
                     return;
@@ -647,63 +646,9 @@ public class JiraProjectServiceImpl implements ProjectService {
             }
         });
 
-        populateValidationStatusForProjects(branchPaths, authoringProjects, lightweight);
+        populateValidationStatusForProjects(validationService, branchPaths, authoringProjects, lightweight);
 
         return authoringProjects;
-    }
-
-    private Branch getParentBranch(Map<String, Branch> parentBranchCache, String parentPath) throws ServiceException {
-        Branch parentBranchOrNull = parentBranchCache.get(parentPath);
-        if (parentBranchOrNull == null) {
-            parentBranchOrNull = branchService.getBranchOrNull(parentPath);
-
-        }
-        return parentBranchOrNull;
-    }
-
-    @Nullable
-    private static CodeSystem getCodeSystemForProject(List<CodeSystem> codeSystems, String parentPath) {
-        CodeSystem codeSystem = codeSystems.stream().filter(c -> parentPath.equals(c.getBranchPath())).findFirst().orElse(null);
-        if (codeSystem == null && parentPath.contains("/")) {
-            // Attempt match using branch grandfather
-            String grandfatherPath = PathHelper.getParentPath(parentPath);
-            codeSystem = codeSystems.stream().filter(c -> grandfatherPath.equals(c.getBranchPath())).findFirst().orElse(null);
-        }
-        return codeSystem;
-    }
-
-    private void populateValidationStatusForProjects(Set<String> branchPaths, List<AuthoringProject> authoringProjects, boolean lightweight) {
-        if (!lightweight) {
-            final ImmutableMap<String, Validation> validationMap;
-            try {
-                validationMap = validationService.getValidations(branchPaths);
-                for (AuthoringProject authoringProject : authoringProjects) {
-                    populateValidationStatusForProject(authoringProject, validationMap);
-                }
-            } catch (ExecutionException e) {
-                logger.warn("Failed to fetch validation statuses for branch paths {}", branchPaths);
-            }
-        }
-    }
-
-    private void populateValidationStatusForProject(AuthoringProject authoringProject, ImmutableMap<String, Validation> validationMap) {
-        try {
-            String branchPath = authoringProject.getBranchPath();
-            Validation validation = validationMap.get(branchPath);
-            if (validation != null) {
-                if (ValidationJobStatus.COMPLETED.name().equals(validation.getStatus())
-                        && validation.getContentHeadTimestamp() != null
-                        && authoringProject.getBranchHeadTimestamp() != null
-                        && !authoringProject.getBranchHeadTimestamp().equals(validation.getContentHeadTimestamp())) {
-                    authoringProject.setValidationStatus(ValidationJobStatus.STALE.name());
-                } else {
-                    authoringProject.setValidationStatus(validation.getStatus());
-                }
-            }
-
-        } catch (Exception e) {
-            logger.error("Failed to recover/set validation status for " + authoringProject.getKey(), e);
-        }
     }
 
     private List<Issue> searchIssues(String jql, int limit, Set<String> requiredFields) throws JiraException {

@@ -7,7 +7,7 @@ import org.hibernate.type.SqlTypes;
 import java.util.*;
 
 @Entity(name = "project")
-public class Project {
+public class Project extends BaseEntity {
 
     @Id
     @Column(name = "project_key", nullable = false)
@@ -19,9 +19,17 @@ public class Project {
     @Column(name = "project_lead")
     private String lead;
 
+    @Column(name = "branch_path")
+    private String branchPath;
+
+    private Boolean active = true;
+
     @Column(name = "custom_fields")
     @JdbcTypeCode(SqlTypes.JSON)
     private Map<String, Boolean> customFields = new HashMap<>();
+
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    private TaskSequence taskSequence;
 
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<ProjectGroup> groups = new ArrayList<>();
@@ -53,12 +61,32 @@ public class Project {
         this.lead = lead;
     }
 
+    public String getBranchPath() {
+        return branchPath;
+    }
+
+    public void setBranchPath(String branchPath) {
+        this.branchPath = branchPath;
+    }
+
+    public void setActive(Boolean active) {
+        this.active = active;
+    }
+
+    public Boolean getActive() {
+        return active;
+    }
+
     public Map<String, Boolean> getCustomFields() {
         return customFields;
     }
 
     public void setCustomFields(Map<String, Boolean> customFields) {
         this.customFields = customFields;
+    }
+
+    public TaskSequence getTaskSequence() {
+        return taskSequence;
     }
 
     public List<ProjectGroup> getGroups() {

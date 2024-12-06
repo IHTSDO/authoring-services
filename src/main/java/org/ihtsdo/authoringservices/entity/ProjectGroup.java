@@ -7,6 +7,7 @@ import java.util.Objects;
 
 @Entity(name = "project_group")
 public class ProjectGroup {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
