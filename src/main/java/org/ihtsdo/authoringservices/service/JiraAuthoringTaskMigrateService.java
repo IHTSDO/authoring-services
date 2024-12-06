@@ -8,7 +8,6 @@ import org.ihtsdo.authoringservices.entity.TaskReviewer;
 import org.ihtsdo.authoringservices.entity.TaskSequence;
 import org.ihtsdo.authoringservices.repository.ProjectRepository;
 import org.ihtsdo.authoringservices.repository.TaskRepository;
-import org.ihtsdo.authoringservices.repository.TaskReviewerRepository;
 import org.ihtsdo.authoringservices.repository.TaskSequenceRepository;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.slf4j.Logger;
