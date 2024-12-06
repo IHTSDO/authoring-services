@@ -1,188 +1,188 @@
 package org.ihtsdo.authoringservices.domain;
 
-import java.util.Map;
-
 import com.fasterxml.jackson.annotation.JsonRawValue;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
 
+import java.util.Map;
+
 @JsonDeserialize
 public class AuthoringProject {
 
-	private String key;
-	private String title;
-	private User projectLead;
-	private String branchPath;
-	private String branchState;
-	private String latestClassificationJson;
-	private String validationStatus;
-	private Long branchHeadTimestamp;
-	private Long branchBaseTimestamp;
-	private Boolean projectPromotionDisabled;
-	private Boolean projectLocked;
-	private Boolean projectRebaseDisabled;
-	private Boolean projectMrcmDisabled;
-	private Boolean projectTemplatesDisabled;
-	private Boolean projectSpellCheckDisabled;
-	private Boolean projectScheduledRebaseDisabled;
-	private Boolean taskPromotionDisabled;
-	private Map<String, Object> metadata;
-	private CodeSystem codeSystem;
+    private String key;
+    private String title;
+    private User projectLead;
+    private String branchPath;
+    private String branchState;
+    private String latestClassificationJson;
+    private String validationStatus;
+    private Long branchHeadTimestamp;
+    private Long branchBaseTimestamp;
+    private Boolean projectPromotionDisabled;
+    private Boolean projectLocked;
+    private Boolean projectRebaseDisabled;
+    private Boolean projectMrcmDisabled;
+    private Boolean projectTemplatesDisabled;
+    private Boolean projectSpellCheckDisabled;
+    private Boolean projectScheduledRebaseDisabled;
+    private Boolean taskPromotionDisabled;
+    private Map<String, Object> metadata;
+    private CodeSystem codeSystem;
 
-	public AuthoringProject() {
-	}
-	
-	public AuthoringProject(String key, String title, User leadUser, String branchPath, String branchState, Long baseTimeStamp, Long headTimeStamp,
-							String latestClassificationJson, boolean projectPromotionDisabled,
-							boolean projectMrcmDisabled, boolean projectTemplatesDisabled, boolean projectSpellCheckDisabled, boolean projectRebaseDisabled,
-							boolean projectScheduledRebaseDisabled,
-							boolean taskPromotionDisabled,
-							boolean projectLocked) {
-		this.key = key;
-		this.title = title;
-		this.projectLead = leadUser;
-		this.branchPath = branchPath;
-		this.branchState = branchState;
-		this.branchBaseTimestamp = baseTimeStamp;
-		this.branchHeadTimestamp = headTimeStamp;
-		this.latestClassificationJson = latestClassificationJson;
-		this.projectPromotionDisabled = projectPromotionDisabled;
-		this.projectMrcmDisabled = projectMrcmDisabled;
-		this.projectTemplatesDisabled = projectTemplatesDisabled;
-		this.projectSpellCheckDisabled = projectSpellCheckDisabled;
-		this.projectRebaseDisabled = projectRebaseDisabled;
-		this.projectScheduledRebaseDisabled = projectScheduledRebaseDisabled;
-		this.taskPromotionDisabled = taskPromotionDisabled;
-		this.projectLocked = projectLocked;
-	}
+    public AuthoringProject() {
+    }
 
-	public String getKey() {
-		return key;
-	}
+    public AuthoringProject(String key, String title, User leadUser, String branchPath, String branchState, Long baseTimeStamp, Long headTimeStamp,
+                            String latestClassificationJson, boolean projectPromotionDisabled,
+                            boolean projectMrcmDisabled, boolean projectTemplatesDisabled, boolean projectSpellCheckDisabled, boolean projectRebaseDisabled,
+                            boolean projectScheduledRebaseDisabled,
+                            boolean taskPromotionDisabled,
+                            boolean projectLocked) {
+        this.key = key;
+        this.title = title;
+        this.projectLead = leadUser;
+        this.branchPath = branchPath;
+        this.branchState = branchState;
+        this.branchBaseTimestamp = baseTimeStamp;
+        this.branchHeadTimestamp = headTimeStamp;
+        this.latestClassificationJson = latestClassificationJson;
+        this.projectPromotionDisabled = projectPromotionDisabled;
+        this.projectMrcmDisabled = projectMrcmDisabled;
+        this.projectTemplatesDisabled = projectTemplatesDisabled;
+        this.projectSpellCheckDisabled = projectSpellCheckDisabled;
+        this.projectRebaseDisabled = projectRebaseDisabled;
+        this.projectScheduledRebaseDisabled = projectScheduledRebaseDisabled;
+        this.taskPromotionDisabled = taskPromotionDisabled;
+        this.projectLocked = projectLocked;
+    }
 
-	public String getTitle() {
-		return title;
-	}
+    public String getKey() {
+        return key;
+    }
 
-	public User getProjectLead() {
-		return projectLead;
-	}
+    public String getTitle() {
+        return title;
+    }
 
-	public void setBranchPath(String branchPath) {
-		this.branchPath = branchPath;
-	}
+    public User getProjectLead() {
+        return projectLead;
+    }
 
-	public String getBranchPath() {
-		return branchPath;
-	}
+    public void setBranchPath(String branchPath) {
+        this.branchPath = branchPath;
+    }
 
-	public String getValidationStatus() {
-		return validationStatus;
-	}
+    public String getBranchPath() {
+        return branchPath;
+    }
 
-	public void setValidationStatus(String validationStatus) {
-		this.validationStatus = validationStatus;
-	}
+    public String getValidationStatus() {
+        return validationStatus;
+    }
 
-	@JsonRawValue
-	public String getLatestClassificationJson() {
-		return latestClassificationJson;
-	}
-	
-	public Long getBranchHeadTimestamp() {
-		return branchHeadTimestamp;
-	}
+    public void setValidationStatus(String validationStatus) {
+        this.validationStatus = validationStatus;
+    }
 
-	public void setBranchHeadTimestamp(Long branchHeadTimestamp) {
-		this.branchHeadTimestamp = branchHeadTimestamp;
-	}
+    @JsonRawValue
+    public String getLatestClassificationJson() {
+        return latestClassificationJson;
+    }
 
-	public Long getBranchBaseTimestamp() {
-		return branchBaseTimestamp;
-	}
+    public Long getBranchHeadTimestamp() {
+        return branchHeadTimestamp;
+    }
 
-	public void setBranchBaseTimestamp(Long branchBaseTimestamp) {
-		this.branchBaseTimestamp = branchBaseTimestamp;
-	}
+    public void setBranchHeadTimestamp(Long branchHeadTimestamp) {
+        this.branchHeadTimestamp = branchHeadTimestamp;
+    }
 
-	public String getBranchState() {
-		return branchState;
-	}
+    public Long getBranchBaseTimestamp() {
+        return branchBaseTimestamp;
+    }
 
-	public Boolean isProjectPromotionDisabled() {
-		return projectPromotionDisabled;
-	}
+    public void setBranchBaseTimestamp(Long branchBaseTimestamp) {
+        this.branchBaseTimestamp = branchBaseTimestamp;
+    }
 
-	public void setProjectPromotionDisabled(Boolean projectPromotionDisabled) {
-		this.projectPromotionDisabled = projectPromotionDisabled;
-	}
-	
-	public Boolean isProjectRebaseDisabled() {
-		return projectRebaseDisabled;
-	}
+    public String getBranchState() {
+        return branchState;
+    }
 
-	public void setProjectRebaseDisabled(Boolean projectRebaseDisabled) {
-		this.projectRebaseDisabled = projectRebaseDisabled;
-	}
+    public Boolean isProjectPromotionDisabled() {
+        return projectPromotionDisabled;
+    }
 
-	public Boolean isProjectMrcmDisabled() {
-		return projectMrcmDisabled;
-	}
+    public void setProjectPromotionDisabled(Boolean projectPromotionDisabled) {
+        this.projectPromotionDisabled = projectPromotionDisabled;
+    }
 
-	public void setProjectMrcmDisabled(Boolean projectMrcmDisabled) {
-		this.projectMrcmDisabled = projectMrcmDisabled;
-	}
+    public Boolean isProjectRebaseDisabled() {
+        return projectRebaseDisabled;
+    }
 
-	public Map<String, Object> getMetadata() {
-		return metadata;
-	}
+    public void setProjectRebaseDisabled(Boolean projectRebaseDisabled) {
+        this.projectRebaseDisabled = projectRebaseDisabled;
+    }
 
-	public Boolean isProjectTemplatesDisabled() {
-		return projectTemplatesDisabled;
-	}
+    public Boolean isProjectMrcmDisabled() {
+        return projectMrcmDisabled;
+    }
 
-	public void setProjectTemplatesDisabled(Boolean projectTemplatesDisabled) {
-		this.projectTemplatesDisabled = projectTemplatesDisabled;
-	}
+    public void setProjectMrcmDisabled(Boolean projectMrcmDisabled) {
+        this.projectMrcmDisabled = projectMrcmDisabled;
+    }
 
-	public Boolean isProjectSpellCheckDisabled() {
-		return projectSpellCheckDisabled;
-	}
+    public Map<String, Object> getMetadata() {
+        return metadata;
+    }
 
-	public Boolean isProjectScheduledRebaseDisabled() {
-		return projectScheduledRebaseDisabled;
-	}
+    public Boolean isProjectTemplatesDisabled() {
+        return projectTemplatesDisabled;
+    }
 
-	public void setProjectScheduledRebaseDisabled(Boolean projectScheduledRebaseDisabled) {
-		this.projectScheduledRebaseDisabled = projectScheduledRebaseDisabled;
-	}
+    public void setProjectTemplatesDisabled(Boolean projectTemplatesDisabled) {
+        this.projectTemplatesDisabled = projectTemplatesDisabled;
+    }
 
-	public void setProjectSpellCheckDisabled(Boolean projectSpellCheckDisabled) {
-		this.projectSpellCheckDisabled = projectSpellCheckDisabled;
-	}
+    public Boolean isProjectSpellCheckDisabled() {
+        return projectSpellCheckDisabled;
+    }
 
-	public void setMetadata(Map<String, Object> metadata) {
-		this.metadata = metadata;
-	}
+    public Boolean isProjectScheduledRebaseDisabled() {
+        return projectScheduledRebaseDisabled;
+    }
+
+    public void setProjectScheduledRebaseDisabled(Boolean projectScheduledRebaseDisabled) {
+        this.projectScheduledRebaseDisabled = projectScheduledRebaseDisabled;
+    }
+
+    public void setProjectSpellCheckDisabled(Boolean projectSpellCheckDisabled) {
+        this.projectSpellCheckDisabled = projectSpellCheckDisabled;
+    }
+
+    public void setMetadata(Map<String, Object> metadata) {
+        this.metadata = metadata;
+    }
 
 
-	public Boolean isTaskPromotionDisabled() {
-		return taskPromotionDisabled;
-	}
+    public Boolean isTaskPromotionDisabled() {
+        return taskPromotionDisabled;
+    }
 
-	public void setTaskPromotionDisabled(Boolean taskPromotionDisabled) {
-		this.taskPromotionDisabled = taskPromotionDisabled;
-	}
+    public void setTaskPromotionDisabled(Boolean taskPromotionDisabled) {
+        this.taskPromotionDisabled = taskPromotionDisabled;
+    }
 
-	public Boolean isProjectLocked() {
-		return projectLocked;
-	}
+    public Boolean isProjectLocked() {
+        return projectLocked;
+    }
 
-	public void setCodeSystem(CodeSystem codeSystem) {
-		this.codeSystem = codeSystem;
-	}
+    public void setCodeSystem(CodeSystem codeSystem) {
+        this.codeSystem = codeSystem;
+    }
 
-	public CodeSystem getCodeSystem() {
-		return codeSystem;
-	}
+    public CodeSystem getCodeSystem() {
+        return codeSystem;
+    }
 }

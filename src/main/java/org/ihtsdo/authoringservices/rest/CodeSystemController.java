@@ -96,14 +96,14 @@ public class CodeSystemController {
 	@Operation(summary = "Lock all projects for a given code system")
 	@ApiResponse(responseCode = "200", description = "OK")
 	@PostMapping(value = "/{shortName}/projects/lock")
-	public void lockProjects(@PathVariable final String shortName, final HttpServletResponse response) throws BusinessServiceException {
-		codeSystemService.lockProjects(shortName);
+	public void lockProjects(@PathVariable final String shortName, @RequestParam(value = "useNew", required = false) Boolean useNew, final HttpServletResponse response) throws BusinessServiceException {
+		codeSystemService.lockProjects(shortName, useNew);
 	}
 
 	@Operation(summary = "Unlock all projects for a given code system")
 	@ApiResponse(responseCode = "200", description = "OK")
 	@PostMapping(value = "/{shortName}/projects/unlock")
-	public void unlockProjects(@PathVariable final String shortName, final HttpServletResponse response) throws BusinessServiceException {
-		codeSystemService.unlockProjects(shortName);
+	public void unlockProjects(@PathVariable final String shortName, @RequestParam(value = "useNew", required = false) Boolean useNew, final HttpServletResponse response) throws BusinessServiceException {
+		codeSystemService.unlockProjects(shortName, useNew);
 	}
 }
