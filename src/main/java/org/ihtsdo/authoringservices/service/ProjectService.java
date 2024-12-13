@@ -10,7 +10,7 @@ public interface ProjectService {
 
     boolean isUseNew(String projectKey);
 
-    AuthoringProject createProject(CreateProjectRequest request, String codeSystemBranchPath) throws BusinessServiceException;
+    AuthoringProject createProject(CreateProjectRequest request, AuthoringCodeSystem codeSystem) throws BusinessServiceException;
 
     AuthoringProject updateProject(String projectKey, AuthoringProject updatedProject) throws BusinessServiceException;
 
