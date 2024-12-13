@@ -13,9 +13,9 @@ import org.ihtsdo.authoringservices.domain.ReleaseRequest;
 import org.ihtsdo.authoringservices.domain.Status;
 import org.ihtsdo.authoringservices.entity.RVFFailureJiraAssociation;
 import org.ihtsdo.authoringservices.service.CodeSystemService;
-import org.ihtsdo.authoringservices.service.ProjectService;
 import org.ihtsdo.authoringservices.service.RVFFailureJiraAssociationService;
 import org.ihtsdo.authoringservices.service.ValidationService;
+import org.ihtsdo.authoringservices.service.factory.ProjectServiceFactory;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +29,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.ihtsdo.authoringservices.rest.ControllerHelper.*;
@@ -41,7 +42,7 @@ public class ValidationController {
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 
 	@Autowired
-	private ProjectService projectService;
+	private ProjectServiceFactory projectServiceFactory;
 
 	@Autowired
 	private ValidationService validationService;
@@ -53,7 +54,7 @@ public class ValidationController {
 	private RVFFailureJiraAssociationService rvfFailureJiraAssociationService;
 
 	@PostMapping(value = "/codesystems/validation/run-all")
-	public Map<String, Set<String>> startValidationForAllCodeSystems() throws BusinessServiceException {
+	public Map<String, Set<String>> startValidationForAllCodeSystems( ) throws BusinessServiceException {
 		Set<String> codeSystemShortnames = doValidateForAllCodeSystems();
 		Map<String, Set<String>> response = new HashMap<>();
 		response.put("items", codeSystemShortnames);
@@ -224,10 +225,13 @@ public class ValidationController {
 	private Set<String> doValidateForAllCodeSystems() throws BusinessServiceException {
 		SecurityContext context = SecurityContextHolder.getContext();
 		List<AuthoringCodeSystem> codeSystems = codeSystemService.findAll();
-		List<AuthoringProject> projects = projectService.listProjects(true, false);
+		List<AuthoringProject> authoringProjects = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(true, false));
+		List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(true, false);
+		filterJiraProjects(jiraProjects, authoringProjects);
+
 		Set<AuthoringCodeSystem> filteredCodeSystems = new HashSet<>();
 		for(AuthoringCodeSystem codeSystem : codeSystems) {
-			for(AuthoringProject project : projects) {
+			for(AuthoringProject project : authoringProjects) {
 				String path = project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/"));
 				if(path.equals(codeSystem.getBranchPath()) && !filteredCodeSystems.contains(codeSystem)){
 					filteredCodeSystems.add(codeSystem);
@@ -246,5 +250,18 @@ public class ValidationController {
 			}
 		});
 		return codeSystemShortnames;
+	}
+
+	private void filterJiraProjects(List<AuthoringProject> jiraProjects, List<AuthoringProject> authoringProjects) {
+		if (!jiraProjects.isEmpty()) {
+			List<String> authoringProjectKeys = authoringProjects.stream().map(AuthoringProject::getKey).toList();
+			Map<String, AuthoringProject> keyToJiraTask = jiraProjects.stream().collect(
+					Collectors.toMap(AuthoringProject::getKey, Function.identity()));
+			for (Map.Entry<String, AuthoringProject> entry : keyToJiraTask.entrySet()) {
+				if (!authoringProjectKeys.contains(entry.getKey())) {
+					authoringProjects.add(entry.getValue());
+				}
+			}
+		}
 	}
 }

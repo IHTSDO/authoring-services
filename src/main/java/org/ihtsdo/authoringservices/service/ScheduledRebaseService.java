@@ -41,10 +41,7 @@ public class ScheduledRebaseService {
     private String imsUrl;
 
     @Autowired
-    private TaskService taskService;
-
-    @Autowired
-    private ProjectService projectService;
+    private ProjectService jiraProjectService;
 
     @Autowired
     private BranchService branchService;
@@ -67,12 +64,18 @@ public class ScheduledRebaseService {
         try {
             loginToIMSAndSetSecurityContext();
             logger.info("Starting scheduled rebase for all configured projects.");
-            List<AuthoringProject> projects = projectService.listProjects(false, false);
+            List<AuthoringProject> projects = jiraProjectService.listProjects(false, false);
             projects = projects.stream().filter(project -> !Boolean.TRUE.equals(project.isProjectScheduledRebaseDisabled())
                             && !Boolean.TRUE.equals(project.isProjectRebaseDisabled())
                             && !Boolean.TRUE.equals(project.isProjectLocked()))
                     .toList();
             for (AuthoringProject project : projects) {
+                logger.info("Performing scheduled rebase of project {}.", project.getKey());
+                if (project.getBranchState() == null || BranchState.UP_TO_DATE.name().equals(project.getBranchState())
+                        || BranchState.FORWARD.name().equals(project.getBranchState())) {
+                    logger.info("No rebase needed for project  {} with branch state {}.", project.getKey(), project.getBranchState());
+                    continue;
+                }
                 rebaseProject(project);
             }
 
@@ -86,12 +89,6 @@ public class ScheduledRebaseService {
     }
 
     private void rebaseProject(AuthoringProject project) {
-        logger.info("Performing scheduled rebase of project {}.", project.getKey());
-        if (project.getBranchState() == null || BranchState.UP_TO_DATE.name().equals(project.getBranchState())
-                || BranchState.FORWARD.name().equals(project.getBranchState())) {
-            logger.info("No rebase needed for project  {} with branch state {}.", project.getKey(), project.getBranchState());
-            return;
-        }
         try {
             String projectBranchPath = branchService.getProjectBranchPathUsingCache(project.getKey());
             String mergeId = branchService.generateBranchMergeReviews(PathHelper.getParentPath(projectBranchPath), projectBranchPath);
@@ -117,9 +114,7 @@ public class ScheduledRebaseService {
 
         } catch (Exception e) {
             logger.error("Rebase of project " + project.getKey() + " failed. Error message: " + e.getMessage(), e);
-            Thread.currentThread().interrupt();
         }
-
     }
 
     @Async

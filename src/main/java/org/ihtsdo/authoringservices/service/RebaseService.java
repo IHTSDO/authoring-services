@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
 import org.ihtsdo.authoringservices.domain.AuthoringProject;
 import org.ihtsdo.authoringservices.domain.ProcessStatus;
+import org.ihtsdo.authoringservices.service.factory.ProjectServiceFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ApiError;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Merge;
@@ -25,10 +26,7 @@ public class RebaseService {
 	private static final String REBASE_ERROR_STATUS = "Rebase Error";
 
 	@Autowired
-	private TaskService taskService;
-
-	@Autowired
-	private ProjectService projectService;
+	private ProjectServiceFactory projectServiceFactory;
 
 	@Autowired
 	private BranchService branchService;
@@ -88,7 +86,7 @@ public class RebaseService {
 	}
 	
 	public void doProjectRebase(String projectKey) throws BusinessServiceException {
-		AuthoringProject project = projectService.retrieveProject(projectKey, true);
+		AuthoringProject project = retrieveProject(projectKey);
 		if (Boolean.TRUE.equals(project.isProjectRebaseDisabled())|| Boolean.TRUE.equals(project.isProjectLocked())) {
 			throw new BusinessServiceException("Project rebase is disabled");
 		}
@@ -131,6 +129,10 @@ public class RebaseService {
 			}
 		});
 		
+	}
+
+	private AuthoringProject retrieveProject(String projectKey) throws BusinessServiceException {
+		return projectServiceFactory.getInstanceByKey(projectKey).retrieveProject(projectKey, true);
 	}
 
 	private String parseKey(String projectKey, String taskKey) {

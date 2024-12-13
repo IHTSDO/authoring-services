@@ -2,6 +2,8 @@ package org.ihtsdo.authoringservices.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import java.util.Objects;
 
@@ -17,6 +19,7 @@ public class TaskReviewer {
 
     @ManyToOne
     @JoinColumn(name = "task_key")
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Task task;
 
 
