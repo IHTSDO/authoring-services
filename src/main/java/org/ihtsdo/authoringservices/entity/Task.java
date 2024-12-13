@@ -1,8 +1,6 @@
 package org.ihtsdo.authoringservices.entity;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.OnDelete;
-import org.hibernate.annotations.OnDeleteAction;
 import org.ihtsdo.authoringservices.domain.TaskStatus;
 
 import java.util.ArrayList;
