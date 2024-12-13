@@ -254,12 +254,13 @@ public class ValidationController {
 
 	private void filterJiraProjects(List<AuthoringProject> jiraProjects, List<AuthoringProject> authoringProjects) {
 		if (!jiraProjects.isEmpty()) {
-			List<String> authoringProjectKeys = authoringProjects.stream().map(AuthoringProject::getKey).toList();
+			List<String> authoringProjectKeys = new ArrayList<>(authoringProjects.stream().map(AuthoringProject::getKey).toList());
 			Map<String, AuthoringProject> keyToJiraTask = jiraProjects.stream().collect(
 					Collectors.toMap(AuthoringProject::getKey, Function.identity()));
 			for (Map.Entry<String, AuthoringProject> entry : keyToJiraTask.entrySet()) {
 				if (!authoringProjectKeys.contains(entry.getKey())) {
 					authoringProjects.add(entry.getValue());
+					authoringProjectKeys.add(entry.getKey());
 				}
 			}
 		}
