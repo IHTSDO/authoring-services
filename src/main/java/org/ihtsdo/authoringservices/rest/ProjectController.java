@@ -304,12 +304,13 @@ public class ProjectController {
 
     private List<AuthoringProject> filterJiraProjects(List<AuthoringProject> jiraProjects, List<AuthoringProject> results) {
         if (!jiraProjects.isEmpty()) {
-            List<String> authoringProjectKeys = results.stream().map(AuthoringProject::getKey).toList();
+            List<String> authoringProjectKeys = new ArrayList<>(results.stream().map(AuthoringProject::getKey).toList());
             Map<String, AuthoringProject> keyToJiraTask = jiraProjects.stream().collect(
                     Collectors.toMap(AuthoringProject::getKey, Function.identity()));
             for (Map.Entry<String, AuthoringProject> entry : keyToJiraTask.entrySet()) {
                 if (!authoringProjectKeys.contains(entry.getKey())) {
                     results.add(entry.getValue());
+                    authoringProjectKeys.add(entry.getKey());
                 }
             }
         }

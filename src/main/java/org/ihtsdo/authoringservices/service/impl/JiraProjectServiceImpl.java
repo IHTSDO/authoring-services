@@ -389,7 +389,7 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
     }
 
     @Override
-    public AuthoringProject createProject(CreateProjectRequest request, String codeSystemBranchPath) throws BusinessServiceException {
+    public AuthoringProject createProject(CreateProjectRequest request, AuthoringCodeSystem codeSystem) throws BusinessServiceException {
         logger.info("Creating new project {}", request.key());
         JiraClient adminJiraClient = jiraClientFactory.getAdminInstance();
         Project newProject;
@@ -404,7 +404,7 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
 
         addRolesToProject(projectTemplate, adminJiraClient, projectTemplateKey, newProject);
 
-        String extensionBasePath = codeSystemBranchPath.startsWith("MAIN/SNOMEDCT-") ? codeSystemBranchPath : null;
+        String extensionBasePath = codeSystem.getBranchPath().startsWith("MAIN/SNOMEDCT-") ? codeSystem.getBranchPath() : null;
         Issue projectTemplateMagicTicket = getProjectTicket(projectTemplateKey);
         String productCode = JiraHelper.toStringOrNull(projectTemplateMagicTicket.getField(jiraProductCodeField));
         createMagicTicketForProject(request, extensionBasePath, productCode);

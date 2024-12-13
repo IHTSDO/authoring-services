@@ -63,17 +63,16 @@ public class JiraAuthoringTaskMigrateService {
         Set<Task> tasks = new HashSet<>();
         Map<Project, Integer> projectToSequenceMap = new HashMap<>();
         for (Project project : projectIterable) {
-            TimerUtil timer = new TimerUtil("Migrate Jira Task for project " + project.getKey(), Level.DEBUG);
-            List<Issue> issues;
             try {
-                issues = listAllJiraTasksForProject(project.getKey());
+                TimerUtil timer = new TimerUtil("Migrate Jira Task for project " + project.getKey(), Level.INFO);
+                List<Issue> issues = listAllJiraTasksForProject(project.getKey());
                 for (Issue issue : issues) {
                     migrateJiraTask(project, issue, tasks, projectToSequenceMap);
                 }
-            } catch (BusinessServiceException e) {
+                timer.finish();
+            } catch (Exception e) {
                 logger.error(e.getMessage());
             }
-            timer.finish();
         }
 
         taskRepository.saveAll(tasks);

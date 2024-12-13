@@ -4,6 +4,7 @@ import com.google.common.cache.LoadingCache;
 import jakarta.transaction.Transactional;
 import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.entity.Project;
+import org.ihtsdo.authoringservices.entity.ProjectGroup;
 import org.ihtsdo.authoringservices.repository.ProjectRepository;
 import org.ihtsdo.authoringservices.repository.TaskRepository;
 import org.ihtsdo.authoringservices.service.*;
@@ -70,13 +71,22 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
     }
 
     @Override
-    public AuthoringProject createProject(CreateProjectRequest request, String codeSystemBranchPath) throws BusinessServiceException {
+    public AuthoringProject createProject(CreateProjectRequest request, AuthoringCodeSystem codeSystem) throws BusinessServiceException {
         Project project = new Project();
         project.setKey(request.key());
         project.setName(request.name());
         project.setLead(request.lead());
-        project.setBranchPath(codeSystemBranchPath + "/" + request.key());
-        project.setExtensionBase(codeSystemBranchPath);
+        project.setBranchPath(codeSystem + "/" + request.key());
+        project.setExtensionBase(codeSystem.getBranchPath());
+
+        List<ProjectGroup> groups = new ArrayList<>();
+        for (String role : codeSystem.getUserRoles()){
+            ProjectGroup group = new ProjectGroup();
+            group.setProject(project);
+            group.setName(role);
+            groups.add(group);
+        }
+        project.setGroups(groups);
         project.setCreatedDate(Timestamp.from(Instant.now()));
         project.setUpdatedDate(Timestamp.from(Instant.now()));
         project = projectRepository.save(project);
