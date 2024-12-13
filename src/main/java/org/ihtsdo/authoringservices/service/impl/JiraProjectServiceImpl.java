@@ -101,7 +101,7 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
     private ValidationService validationService;
 
     @Autowired
-    private TaskService taskService;
+    private TaskService jiraTaskService;
 
     public JiraProjectServiceImpl(ImpersonatingJiraClientFactory jiraClientFactory, String jiraUsername) throws JiraException {
         this.jiraClientFactory = jiraClientFactory;
@@ -384,6 +384,11 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
     }
 
     @Override
+    public boolean isUseNew(String projectKey) {
+        return false;
+    }
+
+    @Override
     public AuthoringProject createProject(CreateProjectRequest request, String codeSystemBranchPath) throws BusinessServiceException {
         logger.info("Creating new project {}", request.key());
         JiraClient adminJiraClient = jiraClientFactory.getAdminInstance();
@@ -470,7 +475,7 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
     @Override
     public void addCommentLogErrors(String projectKey, String commentString) throws BusinessServiceException {
         final Issue projectTicket = getProjectTicket(projectKey);
-        taskService.addCommentLogErrors(projectKey, projectTicket.getKey(), commentString);
+        jiraTaskService.addCommentLogErrors(projectKey, projectTicket.getKey(), commentString);
     }
 
     @Override
@@ -571,7 +576,7 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
     }
 
     @Override
-    protected List<AuthoringProject> buildAuthoringProjects(Collection<?> collection, boolean lightweight) {
+    protected List<AuthoringProject> buildAuthoringProjects(Collection<?> collection, Boolean lightweight) {
         if (collection.isEmpty()) {
             return new ArrayList<>();
         }
@@ -628,7 +633,7 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
                 synchronized (branchPaths) {
                     branchPaths.add(branchPath);
                 }
-                String latestClassificationJson = !lightweight ? classificationService.getLatestClassification(branchPath) : null;
+                String latestClassificationJson = !Boolean.TRUE.equals(lightweight) ? classificationService.getLatestClassification(branchPath) : null;
                 Map<String, JiraProject> projectMap = unfilteredProjects.get();
                 JiraProject project = projectMap.get(projectKey);
                 final AuthoringProject authoringProject = new AuthoringProject(projectKey, project.name(),

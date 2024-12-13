@@ -1,19 +1,17 @@
 package org.ihtsdo.authoringservices.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import jakarta.annotation.PostConstruct;
 import jakarta.jms.JMSException;
 import net.rcarz.jiraclient.Status;
-import net.rcarz.jiraclient.User;
 import net.rcarz.jiraclient.*;
 import net.sf.json.JSON;
 import org.apache.activemq.command.ActiveMQQueue;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.math.NumberUtils;
+import org.ihtsdo.authoringservices.domain.User;
 import org.ihtsdo.authoringservices.domain.*;
-import org.ihtsdo.authoringservices.entity.Validation;
 import org.ihtsdo.authoringservices.service.*;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.authoringservices.service.jira.ImpersonatingJiraClientFactory;
@@ -36,26 +34,20 @@ import org.slf4j.event.Level;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 
-import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 
 import static org.ihtsdo.authoringservices.service.impl.JiraProjectServiceImpl.LIMIT_UNLIMITED;
 import static org.ihtsdo.authoringservices.service.impl.JiraProjectServiceImpl.UNIT_TEST;
 
-public class JiraTaskServiceImpl implements TaskService {
+public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService {
 
     public static final String INCLUDE_ALL_FIELDS = "*all";
 
     private static final String CRS_JIRA_LABEL = "CRS";
-    private static final String INT_TASK_STATE_CHANGE_QUEUE = "int-authoring";
     private static final String AUTHORING_TASK_TYPE = "SCA Authoring Task";
-    private static final String SHARED = "SHARED";
-
     private static final String EXCLUDE_STATUSES = " AND (status != \"" + TaskStatus.COMPLETED.getLabel()
             + "\" AND status != \"" + TaskStatus.DELETED.getLabel() + "\") ";
-    private static final String TASK_NOT_FOUND_MSG = "Task not found ";
     private static final String OR_STATUS_CLAUSE = "\" OR status = \"";
 
     @Autowired
@@ -71,12 +63,6 @@ public class JiraTaskServiceImpl implements TaskService {
     private ReviewService reviewService;
 
     @Autowired
-    private ValidationService validationService;
-
-    @Autowired
-    private UiStateService uiService;
-
-    @Autowired
     private InstanceConfiguration instanceConfiguration;
 
     @Autowired
@@ -86,23 +72,13 @@ public class JiraTaskServiceImpl implements TaskService {
     private EmailService emailService;
 
     @Autowired
-    private NotificationService notificationService;
-
-    @Autowired
-    private PromotionService promotionService;
-
-    @Autowired
-    private ProjectService projectService;
+    private ProjectService jiraProjectService;
 
     @Value("${task-state-change.notification-queues}")
     private Set<String> taskStateChangeNotificationQueues;
 
-    @Value("${crs.int.jira.issueKey}")
-    private String intCrsIssueKeyPrefix;
-
     private final ImpersonatingJiraClientFactory jiraClientFactory;
     private final Set<String> myTasksRequiredFields;
-
     private final String jiraCrsIdField;
     private final String jiraOrganizationField;
     private final String jiraReviewerField;
@@ -163,25 +139,14 @@ public class JiraTaskServiceImpl implements TaskService {
         }
     }
 
+    @Override
+    public boolean isUseNew(String taskKey) {
+        return false;
+    }
 
     @Override
     public AuthoringMain retrieveMain() throws BusinessServiceException {
         return buildAuthoringMain();
-    }
-
-    private AuthoringMain buildAuthoringMain() throws BusinessServiceException {
-        try {
-            String path = PathHelper.getProjectPath(null, null);
-            Collection<String> paths = Collections.singletonList(path);
-            final ImmutableMap<String, Validation> validationMap = validationService.getValidations(paths);
-            final String branchState = branchService.getBranchStateOrNull(PathHelper.getMainPath());
-            final String latestClassificationJson = classificationService
-                    .getLatestClassification(PathHelper.getMainPath());
-            final Validation validation = validationMap.get(path);
-            return new AuthoringMain(path, branchState, validation != null ? validation.getStatus() : null, latestClassificationJson);
-        } catch (ExecutionException | RestClientException | ServiceException e) {
-            throw new BusinessServiceException("Failed to retrieve Main", e);
-        }
     }
 
     @Override
@@ -210,7 +175,7 @@ public class JiraTaskServiceImpl implements TaskService {
     public AuthoringTask retrieveTask(String projectKey, String taskKey, Boolean lightweight) throws BusinessServiceException {
         try {
             Issue issue = getIssue(taskKey);
-            final List<AuthoringTask> authoringTasks = buildAuthoringTasks(Collections.singletonList(issue), lightweight);
+            final List<AuthoringTask> authoringTasks = buildAuthoringTasks(new ArrayList<>(List.of(issue)), lightweight);
             return !authoringTasks.isEmpty() ? authoringTasks.get(0) : null;
         } catch (JiraException e) {
             if (e.getCause() instanceof RestException restException && restException.getHttpStatusCode() == 404) {
@@ -339,7 +304,7 @@ public class JiraTaskServiceImpl implements TaskService {
             throw new BusinessServiceException("Failed to create Jira task", e);
         }
 
-        AuthoringTask authoringTask = new AuthoringTask(jiraIssue, projectService.getProjectBaseUsingCache(projectKey), jiraReviewerField, jiraReviewersField);
+        AuthoringTask authoringTask = new AuthoringTask(jiraIssue, jiraProjectService.getProjectBaseUsingCache(projectKey), jiraReviewerField, jiraReviewersField);
         // Create project branch if needed
         try {
             branchService.createBranchIfNeeded(PathHelper.getParentPath(authoringTask.getBranchPath()));
@@ -351,8 +316,10 @@ public class JiraTaskServiceImpl implements TaskService {
         return authoringTask;
     }
 
-    private List<AuthoringTask> buildAuthoringTasks(List<Issue> tasks, Boolean lightweight) throws BusinessServiceException {
+    @Override
+    protected List<AuthoringTask> buildAuthoringTasks(Collection<?> collection, Boolean lightweight) throws BusinessServiceException {
         final TimerUtil timer = new TimerUtil("BuildTaskList", Level.DEBUG);
+        List<Issue> tasks = (List<Issue>) collection;
         List<AuthoringTask> allTasks = new ArrayList<>();
         final SnowstormRestClient snowstormRestClient = snowstormRestClientFactory.getClient();
         List<CodeSystem> codeSystems = snowstormRestClient.getCodeSystems();
@@ -365,7 +332,7 @@ public class JiraTaskServiceImpl implements TaskService {
                 projectKeys.add(issue.getProject().getKey());
             }
 
-            final Map<String, ProjectDetails> projectKeyToBranchBaseMap = projectService.getProjectDetailsCache().getAll(projectKeys);
+            final Map<String, ProjectDetails> projectKeyToBranchBaseMap = jiraProjectService.getProjectDetailsCache().getAll(projectKeys);
             for (Issue issue : tasks) {
                 buildAuthoringTask(lightweight, issue, projectKeyToBranchBaseMap, allTasks, codeSystems, timer, startedTasks);
             }
@@ -381,29 +348,6 @@ public class JiraTaskServiceImpl implements TaskService {
         return allTasks;
     }
 
-    private void setValidationStatusForAuthoringTasks(Map<String, AuthoringTask> startedTasks, TimerUtil timer) throws ExecutionException {
-        Set<String> paths = startedTasks.keySet();
-        final ImmutableMap<String, Validation> validationMap = validationService.getValidations(paths);
-        timer.checkpoint("Recovered " + (validationMap == null ? "null" : validationMap.size()) + " ValidationStatuses");
-
-        if (validationMap == null || validationMap.isEmpty()) {
-            String branchPath = paths.iterator().next();
-            logger.warn("Failed to recover validation statuses for {} branches including '{}'.", paths.size(), branchPath);
-        } else {
-            for (final String path : paths) {
-                Validation validation = validationMap.get(path);
-                if (validation != null) {
-                    if (ValidationJobStatus.COMPLETED.name().equals(validation.getStatus())
-                            && validation.getContentHeadTimestamp() != null
-                            && !startedTasks.get(path).getBranchHeadTimestamp().equals(validation.getContentHeadTimestamp())) {
-                        startedTasks.get(path).setLatestValidationStatus(ValidationJobStatus.STALE.name());
-                    } else {
-                        startedTasks.get(path).setLatestValidationStatus(validation.getStatus());
-                    }
-                }
-            }
-        }
-    }
 
     private void buildAuthoringTask(Boolean lightweight, Issue issue, Map<String, ProjectDetails> projectKeyToBranchBaseMap, List<AuthoringTask> allTasks, List<CodeSystem> codeSystems, TimerUtil timer, Map<String, AuthoringTask> startedTasks) throws ServiceException, RestClientException {
         final ProjectDetails projectDetails = projectKeyToBranchBaseMap.get(issue.getProject().getKey());
@@ -444,7 +388,7 @@ public class JiraTaskServiceImpl implements TaskService {
         }
     }
 
-    private static void setLatestCodeSystemVersionTimestampToAuthoringTask(Issue issue, List<CodeSystem> codeSystems, ProjectDetails projectDetails, AuthoringTask task) {
+    private void setLatestCodeSystemVersionTimestampToAuthoringTask(Issue issue, List<CodeSystem> codeSystems, ProjectDetails projectDetails, AuthoringTask task) {
         final String projectPath = PathHelper.getProjectPath(projectDetails.baseBranchPath(), issue.getProject().getKey());
         String projectParentPath = PathHelper.getParentPath(projectPath);
         CodeSystem codeSystem = codeSystems.stream().filter(c -> projectParentPath.equals(c.getBranchPath())).findFirst().orElse(null);
@@ -455,32 +399,6 @@ public class JiraTaskServiceImpl implements TaskService {
         }
         if (codeSystem != null && codeSystem.getLatestVersion() != null) {
             task.setLatestCodeSystemVersionTimestamp(codeSystem.getLatestVersion().getImportDate().getTime());
-        }
-    }
-
-    private void setTaskStatusFromAutomatedPromotionIfAny(AuthoringTask task) {
-        ProcessStatus autoPromotionStatus = promotionService.getAutomateTaskPromotionStatus(task.getProjectKey(), task.getKey());
-        if (autoPromotionStatus != null) {
-            switch (autoPromotionStatus.getStatus()) {
-                case "Queued":
-                    task.setStatus(TaskStatus.AUTO_QUEUED);
-                    break;
-                case "Rebasing":
-                    task.setStatus(TaskStatus.AUTO_REBASING);
-                    break;
-                case "Classifying":
-                    task.setStatus(TaskStatus.AUTO_CLASSIFYING);
-                    break;
-                case "Promoting":
-                    task.setStatus(TaskStatus.AUTO_PROMOTING);
-                    break;
-                case "Rebased with conflicts",
-                        "Classified with results":
-                    task.setStatus(TaskStatus.AUTO_CONFLICT);
-                    break;
-                default:
-                    break;
-            }
         }
     }
 
@@ -516,15 +434,11 @@ public class JiraTaskServiceImpl implements TaskService {
         return SecurityUtil.getUsername();
     }
 
-    private String toString(String projectKey, String taskKey) {
-        return projectKey + "/" + taskKey;
-    }
-
     @Override
     public AuthoringTask updateTask(String projectKey, String taskKey, AuthoringTaskUpdateRequest taskUpdateRequest) throws BusinessServiceException {
         try {
             Issue issue = getIssue(taskKey);
-            final List<AuthoringTask> authoringTasks = buildAuthoringTasks(Collections.singletonList(issue), true);
+            final List<AuthoringTask> authoringTasks = buildAuthoringTasks(new ArrayList<>(List.of(issue)), true);
             if (authoringTasks.isEmpty()) {
                 throw new ResourceNotFoundException("Task", taskKey);
             }
@@ -592,9 +506,9 @@ public class JiraTaskServiceImpl implements TaskService {
             updateRequest.field(Field.ASSIGNEE, null);
         } else {
             updateRequest.field(Field.ASSIGNEE, getUser(username));
-            String currentUser = issue.getAssignee().getName();
-            if (currentUser != null && !currentUser.isEmpty() && !currentUser.equalsIgnoreCase(username)) {
-                taskTransferRequest = new TaskTransferRequest(currentUser, username);
+            String currentIssueAssignee = issue.getAssignee().getName();
+            if (currentIssueAssignee != null && !currentIssueAssignee.isEmpty() && !currentIssueAssignee.equalsIgnoreCase(username)) {
+                taskTransferRequest = new TaskTransferRequest(getUser(currentIssueAssignee), getUser(username), getUser(SecurityUtil.getUsername()));
             }
         }
         return taskTransferRequest;
@@ -603,7 +517,7 @@ public class JiraTaskServiceImpl implements TaskService {
     private void updateTaskReviewers(String projectKey, String taskKey, List<org.ihtsdo.authoringservices.domain.User> reviewers, AuthoringTask authoringTask, Issue.FluentUpdate updateRequest) throws BusinessServiceException {
         List<User> users = new ArrayList<>();
 
-        for (org.ihtsdo.authoringservices.domain.User reviewer : reviewers) {
+        for (User reviewer : reviewers) {
             users.add(getUser(reviewer.getUsername()));
         }
         // Send email to new reviewers
@@ -611,34 +525,6 @@ public class JiraTaskServiceImpl implements TaskService {
 
         updateRequest.field(jiraReviewerField, null);
         updateRequest.field(jiraReviewersField, users);
-    }
-
-    private void transferTaskToNewAuthor(String projectKey, String taskKey, TaskTransferRequest taskTransferRequest) {
-        try {
-            uiService.transferTask(projectKey, taskKey, taskTransferRequest);
-            String taskReassignMessage = "Your task %s has been assigned to %s";
-            String taskTakenMessage = "The task %s has been assigned to you by %s";
-            if (!SecurityUtil.getUsername().equalsIgnoreCase(taskTransferRequest.getCurrentUser()) &&
-                    !SecurityUtil.getUsername().equalsIgnoreCase(taskTransferRequest.getNewUser())) {
-                User newUser = getUser(taskTransferRequest.getNewUser());
-                User currentLoggedUser = getUser(SecurityUtil.getUsername());
-                String message = String.format(taskReassignMessage, taskKey, newUser.getDisplayName());
-                notificationService.queueNotification(taskTransferRequest.getCurrentUser(), new Notification(projectKey, taskKey, EntityType.AuthorChange, message));
-                message = String.format(taskTakenMessage, taskKey, currentLoggedUser.getDisplayName());
-                notificationService.queueNotification(taskTransferRequest.getNewUser(), new Notification(projectKey, taskKey, EntityType.AuthorChange, message));
-            } else if (taskTransferRequest.getNewUser().equalsIgnoreCase(SecurityUtil.getUsername())) {
-                User user = getUser(taskTransferRequest.getNewUser());
-                String message = String.format(taskReassignMessage, taskKey, user.getDisplayName());
-                notificationService.queueNotification(taskTransferRequest.getCurrentUser(), new Notification(projectKey, taskKey, EntityType.AuthorChange, message));
-            } else {
-                User user = getUser(taskTransferRequest.getCurrentUser());
-                String message = String.format(taskTakenMessage, taskKey, user.getDisplayName());
-                notificationService.queueNotification(taskTransferRequest.getNewUser(), new Notification(projectKey, taskKey, EntityType.AuthorChange, message));
-            }
-        } catch (BusinessServiceException e) {
-            logger.error("Unable to transfer UI State in " + taskKey + " from "
-                    + taskTransferRequest.getCurrentUser() + " to " + taskTransferRequest.getNewUser(), e);
-        }
     }
 
     private void updateTaskStatus(String projectKey, String taskKey, Issue issue, TaskStatus status, AuthoringTask authoringTask) throws JiraException, BusinessServiceException {
@@ -671,7 +557,7 @@ public class JiraTaskServiceImpl implements TaskService {
                                                                                  List<org.ihtsdo.authoringservices.domain.User> reviewers) throws BusinessServiceException {
         reviewers.removeAll(currentReviewers);
         Collection<org.ihtsdo.authoringservices.domain.User> results =
-                reviewers.stream().filter(r -> !SecurityUtil.getUsername().equals(r.getUsername())).collect(Collectors.toList());
+                reviewers.stream().filter(r -> !SecurityUtil.getUsername().equals(r.getUsername())).toList();
 
         for (org.ihtsdo.authoringservices.domain.User user : results) {
             if (user.getEmail() == null || user.getDisplayName() == null) {
@@ -686,7 +572,12 @@ public class JiraTaskServiceImpl implements TaskService {
     @Override
     public User getUser(String username) throws BusinessServiceException {
         try {
-            return User.get(getJiraClient().getRestClient(), username);
+            net.rcarz.jiraclient.User result = net.rcarz.jiraclient.User.get(getJiraClient().getRestClient(), username);
+            User user = new User();
+            user.setUsername(result.getName());
+            user.setDisplayName(result.getDisplayName());
+            user.setEmail(result.getEmail());
+            return user;
         } catch (JiraException je) {
             throw new BusinessServiceException("Failed to recover user '" + username + "' from Jira instance.", je);
         }
@@ -777,21 +668,6 @@ public class JiraTaskServiceImpl implements TaskService {
     private boolean isIntAuthoringTask(Issue issue) {
         List<IssueLink> issueLinks = issue.getIssueLinks();
         return issueLinks.stream().anyMatch(issueLink -> issueLink.getOutwardIssue().getKey().startsWith(intCrsIssueKeyPrefix));
-    }
-
-    private boolean isIntTaskStateChangeQueue(String queue) {
-        return queue.contains(INT_TASK_STATE_CHANGE_QUEUE);
-    }
-
-    private void setCrsConceptsIfAny(String projectKey, String taskKey, Map<String, String> properties) {
-        try {
-            String conceptsStr = uiService.retrieveTaskPanelStateWithoutThrowingResourceNotFoundException(projectKey, taskKey, SHARED, "crs-concepts");
-            if (StringUtils.isNotEmpty(conceptsStr)) {
-                properties.put("concepts", conceptsStr);
-            }
-        } catch (IOException e) {
-            logger.error("Error while reading crs-concepts.json for task {}. Message: {}", taskKey, e.getMessage());
-        }
     }
 
     private Transition getTransitionToOrThrow(Issue issue, TaskStatus newState)

@@ -100,12 +100,6 @@ public class ValidationService {
 	private String scaQueuePrefix;
 
 	@Autowired
-	private TaskService taskService;
-
-	@Autowired
-	private ProjectService projectService;
-
-	@Autowired
 	private BranchService branchService;
 
 	@Autowired
@@ -262,6 +256,8 @@ public class ValidationService {
 			newPropertyValues.put(TASK_KEY, taskKey);
 			newPropertyValues.put(VALIDATION_START_TIMESTAMP, String.valueOf((new Date()).getTime()));
 			newPropertyValues.put(VALIDATION_END_TIMESTAMP, null);
+			newPropertyValues.put(REPORT_URL, null);
+			newPropertyValues.put(RUN_ID, null);
 
 			updateValidationCache(branchPath, newPropertyValues);
 

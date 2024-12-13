@@ -23,7 +23,7 @@ public abstract class ProjectServiceBase {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    protected abstract List<AuthoringProject> buildAuthoringProjects(Collection<?> projects, boolean lightweight );
+    protected abstract List<AuthoringProject> buildAuthoringProjects(Collection<?> projects, Boolean lightweight );
 
     protected Branch getParentBranch(BranchService branchService, Map<String, Branch> parentBranchCache, String parentPath) throws ServiceException {
         Branch parentBranchOrNull = parentBranchCache.get(parentPath);
@@ -44,8 +44,8 @@ public abstract class ProjectServiceBase {
         return codeSystem;
     }
 
-    protected void populateValidationStatusForProjects(ValidationService validationService, Set<String> branchPaths, List<AuthoringProject> authoringProjects, boolean lightweight) {
-        if (!lightweight) {
+    protected void populateValidationStatusForProjects(ValidationService validationService, Set<String> branchPaths, List<AuthoringProject> authoringProjects, Boolean lightweight) {
+        if (!Boolean.TRUE.equals(lightweight)) {
             final ImmutableMap<String, Validation> validationMap;
             try {
                 validationMap = validationService.getValidations(branchPaths);

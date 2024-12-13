@@ -8,6 +8,7 @@ import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.entity.Validation;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.authoringservices.service.factory.ProjectServiceFactory;
+import org.ihtsdo.authoringservices.service.factory.TaskServiceFactory;
 import org.ihtsdo.authoringservices.service.jira.ImpersonatingJiraClientFactory;
 import org.ihtsdo.otf.RF2Constants;
 import org.ihtsdo.otf.rest.client.RestClientException;
@@ -35,6 +36,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystemUpgradeJob.UpgradeStatus.*;
 
@@ -62,10 +65,7 @@ public class CodeSystemService {
 	private UiStateService uiStateService;
 
 	@Autowired
-	private TaskService taskService;
-
-	@Autowired
-	private ProjectService projectService;
+	private TaskServiceFactory taskServiceFactory;
 
 	@Autowired
 	private ProjectServiceFactory projectServiceFactory;
@@ -124,18 +124,21 @@ public class CodeSystemService {
 		return snowstormRestClientFactory.getClient().getCodeSystemUpgradeJob(jobId);
 	}
 
-	public void lockProjects(String codeSystemShortame, Boolean useNew) throws BusinessServiceException {
+	public void lockProjects(String codeSystemShortname) throws BusinessServiceException {
 		List<CodeSystem> codeSystems = snowstormRestClientFactory.getClient().getCodeSystems();
-		CodeSystem cs = codeSystems.stream().filter(item -> item.getShortName().equals(codeSystemShortame)).findAny().orElse(null);
+		CodeSystem cs = codeSystems.stream().filter(item -> item.getShortName().equals(codeSystemShortname)).findAny().orElse(null);
 		if (cs == null) {
-			throw new BusinessServiceException(String.format(CODE_SYSTEM_NOT_FOUND_MSG, codeSystemShortame));
+			throw new BusinessServiceException(String.format(CODE_SYSTEM_NOT_FOUND_MSG, codeSystemShortname));
 		}
-		List<AuthoringProject> projects = projectServiceFactory.getInstance(useNew).listProjects(true, false);
-		projects = projects.stream().filter(project -> project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/")).equals(cs.getBranchPath())).toList();
+		List<AuthoringProject> authoringProjects = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(true, false));
+		List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(true).listProjects(true, false);
+		filterJiraProjects(jiraProjects, authoringProjects);
+
+		authoringProjects = authoringProjects.stream().filter(project -> project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/")).equals(cs.getBranchPath())).toList();
 		List<String> failedToLockProjects = new ArrayList<>();
-		for (AuthoringProject project : projects) {
+		for (AuthoringProject project : authoringProjects) {
 			try {
-				projectServiceFactory.getInstance(useNew).lockProject(project.getKey());
+				projectServiceFactory.getInstanceByKey(project.getKey()).lockProject(project.getKey());
 			} catch (Exception e) {
 				logger.error("Failed to lock the project " + project.getKey(), e);
 				failedToLockProjects.add(project.getKey());
@@ -146,18 +149,21 @@ public class CodeSystemService {
 		}
 	}
 
-	public void unlockProjects(String codeSystemShortame, Boolean useNew) throws BusinessServiceException {
+	public void unlockProjects(String codeSystemShortname) throws BusinessServiceException {
 		List<CodeSystem> codeSystems = snowstormRestClientFactory.getClient().getCodeSystems();
-		CodeSystem cs = codeSystems.stream().filter(item -> item.getShortName().equals(codeSystemShortame)).findAny().orElse(null);
+		CodeSystem cs = codeSystems.stream().filter(item -> item.getShortName().equals(codeSystemShortname)).findAny().orElse(null);
 		if (cs == null) {
-			throw new BusinessServiceException(String.format(CODE_SYSTEM_NOT_FOUND_MSG, codeSystemShortame));
+			throw new BusinessServiceException(String.format(CODE_SYSTEM_NOT_FOUND_MSG, codeSystemShortname));
 		}
-		List<AuthoringProject> projects = projectServiceFactory.getInstance(useNew).listProjects(true, false);
-		projects = projects.stream().filter(project -> project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/")).equals(cs.getBranchPath())).toList();
+		List<AuthoringProject> authoringProjects = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(true, false));
+		List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(true).listProjects(true, false);
+		filterJiraProjects(jiraProjects, authoringProjects);
+
+		authoringProjects = authoringProjects.stream().filter(project -> project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/")).equals(cs.getBranchPath())).toList();
 		List<String> failedToUnlockProjects = new ArrayList<>();
-		for (AuthoringProject project : projects) {
+		for (AuthoringProject project : authoringProjects) {
 			try {
-				projectServiceFactory.getInstance(useNew).unlockProject(project.getKey());
+				projectServiceFactory.getInstanceByKey(project.getKey()).unlockProject(project.getKey());
 			} catch (Exception e) {
 				logger.error("Failed to unlock the project " + project.getKey(), e);
 				failedToUnlockProjects.add(project.getKey());
@@ -165,6 +171,19 @@ public class CodeSystemService {
 		}
 		if (!failedToUnlockProjects.isEmpty()) {
 			throw new BusinessServiceException(String.format("The following projects %s failed to unlock. Please contact technical support to get help.", failedToUnlockProjects.toString()));
+		}
+	}
+
+	private void filterJiraProjects(List<AuthoringProject> jiraProjects, List<AuthoringProject> results) {
+		if (!jiraProjects.isEmpty()) {
+			List<String> authoringProjectKeys = results.stream().map(AuthoringProject::getKey).toList();
+			Map<String, AuthoringProject> keyToJiraTask = jiraProjects.stream().collect(
+					Collectors.toMap(AuthoringProject::getKey, Function.identity()));
+			for (Map.Entry<String, AuthoringProject> entry : keyToJiraTask.entrySet()) {
+				if (!authoringProjectKeys.contains(entry.getKey())) {
+					results.add(entry.getValue());
+				}
+			}
 		}
 	}
 
@@ -217,7 +236,8 @@ public class CodeSystemService {
 				AuthoringTaskCreateRequest taskCreateRequest = new AuthoringTask();
 				taskCreateRequest.setSummary("en-GB Import " + newDependantVersionISOFormat);
 
-				AuthoringTask task = taskService.createTask(projectKey, SecurityUtil.getUsername(), taskCreateRequest);
+				boolean useNew = projectServiceFactory.getInstance(true).isUseNew(projectKey);
+				AuthoringTask task = taskServiceFactory.getInstance(useNew).createTask(projectKey, SecurityUtil.getUsername(), taskCreateRequest);
 				if (client.getBranch(task.getBranchPath()) == null) {
 					client.createBranch(task.getBranchPath());
 				}

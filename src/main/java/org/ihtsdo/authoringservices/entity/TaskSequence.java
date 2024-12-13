@@ -2,6 +2,8 @@ package org.ihtsdo.authoringservices.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 @Entity(name = "task_sequence")
 public class TaskSequence {
@@ -12,9 +14,10 @@ public class TaskSequence {
 
     @OneToOne
     @JoinColumn(name = "project_key", nullable = false, unique = true)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Project project;
 
-    private int sequence = 1;
+    private int sequence = 0;
 
     public TaskSequence() {
 

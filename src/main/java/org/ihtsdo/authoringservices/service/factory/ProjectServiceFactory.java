@@ -22,4 +22,11 @@ public class ProjectServiceFactory {
         }
         return  jiraProjectService;
     }
+
+    public ProjectService getInstanceByKey(String projectKey) {
+        if (authoringProjectService.isUseNew(projectKey)) {
+            return authoringProjectService;
+        }
+        return  jiraProjectService;
+    }
 }

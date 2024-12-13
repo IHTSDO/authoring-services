@@ -95,8 +95,8 @@ public class UiStateService {
 
 	public void transferTask(final String projectKey, final String taskKey, final TaskTransferRequest taskTransferRequest) throws BusinessServiceException {
 		try {
-			resourceService.move(getTaskUserPath(projectKey, taskKey, taskTransferRequest.getCurrentUser()),
-								 getTaskUserPath(projectKey, taskKey, taskTransferRequest.getNewUser()));
+			resourceService.move(getTaskUserPath(projectKey, taskKey, taskTransferRequest.getCurrentAssignee().getUsername()),
+								 getTaskUserPath(projectKey, taskKey, taskTransferRequest.getNewAssignee().getUsername()));
 		} catch (IOException e) {
 			throw new BusinessServiceException(e);
 		}

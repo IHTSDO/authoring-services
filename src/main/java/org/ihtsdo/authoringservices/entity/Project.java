@@ -22,6 +22,9 @@ public class Project extends BaseEntity {
     @Column(name = "branch_path")
     private String branchPath;
 
+    @Column(name = "extension_base")
+    private String extensionBase;
+
     private Boolean active = true;
 
     @Column(name = "custom_fields")
@@ -67,6 +70,14 @@ public class Project extends BaseEntity {
 
     public void setBranchPath(String branchPath) {
         this.branchPath = branchPath;
+    }
+
+    public String getExtensionBase() {
+        return extensionBase;
+    }
+
+    public void setExtensionBase(String extensionBase) {
+        this.extensionBase = extensionBase;
     }
 
     public void setActive(Boolean active) {

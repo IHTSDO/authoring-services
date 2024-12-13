@@ -3,12 +3,13 @@ package org.ihtsdo.authoringservices.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
-import net.rcarz.jiraclient.User;
 import net.sf.json.JSONObject;
 import org.ihtsdo.authoringservices.domain.Classification;
 import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.service.client.ContentRequestServiceClient;
 import org.ihtsdo.authoringservices.service.client.ContentRequestServiceClientFactory;
+import org.ihtsdo.authoringservices.service.factory.ProjectServiceFactory;
+import org.ihtsdo.authoringservices.service.factory.TaskServiceFactory;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
@@ -52,10 +53,10 @@ public class PromotionService {
     private CacheService cacheService;
 
     @Autowired
-    private TaskService taskService;
+    private TaskServiceFactory taskServiceFactory;
 
     @Autowired
-    private ProjectService projectService;
+    private ProjectServiceFactory projectServiceFactory;
 
     @Autowired
     private NotificationService notificationService;
@@ -131,7 +132,8 @@ public class PromotionService {
     }
 
     public void doTaskPromotion(String projectKey, String taskKey, MergeRequest mergeRequest) throws BusinessServiceException {
-        AuthoringProject project = projectService.retrieveProject(projectKey, true);
+        boolean useNew = taskServiceFactory.getInstance(true).isUseNew(taskKey);
+        AuthoringProject project = projectServiceFactory.getInstance(useNew).retrieveProject(projectKey, true);
         if (Boolean.TRUE.equals(project.isTaskPromotionDisabled())) {
             throw new BusinessServiceException(TASK_PROMOTION_DISABLED_MSG);
         }
@@ -148,15 +150,15 @@ public class PromotionService {
                 taskPromotionStatus.put(parseKey(projectKey, taskKey), taskProcessStatus);
                 Merge merge = branchService.mergeBranchSync(taskBranchPath, PathHelper.getParentPath(taskBranchPath), mergeRequest.getSourceReviewId());
                 if (merge.getStatus() == Merge.Status.COMPLETED) {
-                    taskService.stateTransition(projectKey, taskKey, TaskStatus.PROMOTED);
+                    taskServiceFactory.getInstance(useNew).stateTransition(projectKey, taskKey, TaskStatus.PROMOTED);
                     notificationService.queueNotification(SecurityUtil.getUsername(),
                             new Notification(projectKey, taskKey, EntityType.Promotion, "Task successfully promoted"));
                     taskProcessStatus.setStatus("Promotion Complete");
                     taskProcessStatus.setMessage("Task successfully promoted");
                     taskPromotionStatus.put(parseKey(projectKey, taskKey), taskProcessStatus);
 
-                    User user = taskService.getUser(SecurityUtil.getUsername());
-                    releaseNoteService.promoteTaskLineItems(branchService.getTaskBranchPathUsingCache(projectKey, taskKey), user);
+                    org.ihtsdo.authoringservices.domain.User user = taskServiceFactory.getInstance(useNew).getUser(SecurityUtil.getUsername());
+                    releaseNoteService.promoteTaskLineItems(branchService.getTaskBranchPathUsingCache(projectKey, taskKey), user.getDisplayName());
 
                     // clear Auto Promotion status if the task has been triggered the Automated Promotion
                     automateTaskPromotionStatus.remove(parseKey(projectKey, taskKey));
@@ -187,7 +189,8 @@ public class PromotionService {
     }
 
     public void doProjectPromotion(String projectKey, MergeRequest mergeRequest) throws BusinessServiceException {
-        AuthoringProject project = projectService.retrieveProject(projectKey, true);
+        boolean useNew = projectServiceFactory.getInstance(true).isUseNew(projectKey);
+        AuthoringProject project = projectServiceFactory.getInstance(useNew).retrieveProject(projectKey, true);
         if (Boolean.TRUE.equals(project.isProjectPromotionDisabled()) || Boolean.TRUE.equals(project.isProjectLocked())) {
             throw new BusinessServiceException("Project promotion is disabled");
         }
@@ -203,8 +206,8 @@ public class PromotionService {
                 String projectBranchPath = branchService.getProjectBranchPathUsingCache(projectKey);
                 Merge merge = branchService.mergeBranchSync(projectBranchPath, PathHelper.getParentPath(projectBranchPath), mergeRequest.getSourceReviewId());
                 if (merge.getStatus() == Merge.Status.COMPLETED) {
-                    List<AuthoringTask> promotedTasks = taskService.getTasksByStatus(projectKey, TaskStatus.PROMOTED);
-                    taskService.stateTransition(promotedTasks, TaskStatus.COMPLETED, projectKey);
+                    List<AuthoringTask> promotedTasks = taskServiceFactory.getInstance(useNew).getTasksByStatus(projectKey, TaskStatus.PROMOTED);
+                    taskServiceFactory.getInstance(useNew).stateTransition(promotedTasks, TaskStatus.COMPLETED, projectKey);
                     notificationService.queueNotification(SecurityUtil.getUsername(),
                             new Notification(projectKey, null, EntityType.Promotion, "Project successfully promoted"));
                     projectProcessStatus.setStatus("Promotion Complete");
@@ -242,7 +245,8 @@ public class PromotionService {
     private synchronized void doAutomateTaskPromotion(String projectKey, String taskKey, Authentication authentication) {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         try {
-            AuthoringProject project = projectService.retrieveProject(projectKey, true);
+            boolean useNew = projectServiceFactory.getInstance(true).isUseNew(projectKey);
+            AuthoringProject project = projectServiceFactory.getInstance(useNew).retrieveProject(projectKey, true);
             if (Boolean.TRUE.equals(project.isTaskPromotionDisabled())) {
                 ProcessStatus status = new ProcessStatus(FAILED_STATUS, TASK_PROMOTION_DISABLED_MSG);
                 automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
@@ -251,7 +255,7 @@ public class PromotionService {
             }
 
             // Call rebase process
-            String rebaseStatus = this.autoRebaseTask(projectKey, taskKey);
+            String rebaseStatus = this.autoRebaseTask(projectKey, taskKey, useNew);
             if (null != rebaseStatus && rebaseStatus.equals(STOPPED_STATUS)) {
                 return;
             }
@@ -268,10 +272,10 @@ public class PromotionService {
                     notificationService.queueNotification(SecurityUtil.getUsername(), new Notification(projectKey, taskKey, EntityType.Promotion, "Automated promotion completed"));
                     ProcessStatus status = new ProcessStatus("Completed", "");
                     automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
-                    taskService.stateTransition(projectKey, taskKey, TaskStatus.PROMOTED);
+                    taskServiceFactory.getInstance(useNew).stateTransition(projectKey, taskKey, TaskStatus.PROMOTED);
 
-                    User user = taskService.getUser(SecurityUtil.getUsername());
-                    releaseNoteService.promoteTaskLineItems(branchService.getTaskBranchPathUsingCache(projectKey, taskKey), user);
+                    User user = taskServiceFactory.getInstance(useNew).getUser(SecurityUtil.getUsername());
+                    releaseNoteService.promoteTaskLineItems(branchService.getTaskBranchPathUsingCache(projectKey, taskKey), user.getDisplayName());
                 } else {
                     ProcessStatus status = new ProcessStatus(FAILED_STATUS, merge.getApiError() == null ? "" : merge.getApiError().getMessage());
                     automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
@@ -329,13 +333,13 @@ public class PromotionService {
     }
 
     @SuppressWarnings("rawtypes")
-    private String autoRebaseTask(String projectKey, String taskKey) throws BusinessServiceException {
+    private String autoRebaseTask(String projectKey, String taskKey, boolean useNew) throws BusinessServiceException {
         ProcessStatus status = new ProcessStatus(REBASING_STATUS, "");
         automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
         String taskBranchPath = branchService.getTaskBranchPathUsingCache(projectKey, taskKey);
 
         // Get current task and check branch state
-        AuthoringTask authoringTask = taskService.retrieveTask(projectKey, taskKey, true);
+        AuthoringTask authoringTask = taskServiceFactory.getInstance(useNew).retrieveTask(projectKey, taskKey, true);
         String branchState = authoringTask.getBranchState();
 
         // Will skip rebase process if the branch state is FORWARD or UP_TO_DATE

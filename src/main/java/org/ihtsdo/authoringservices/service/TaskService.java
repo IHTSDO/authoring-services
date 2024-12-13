@@ -1,6 +1,5 @@
 package org.ihtsdo.authoringservices.service;
 
-import net.rcarz.jiraclient.User;
 import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 
@@ -8,6 +7,8 @@ import java.util.List;
 import java.util.Set;
 
 public interface TaskService {
+
+    boolean isUseNew(String taskKey);
 
     AuthoringMain retrieveMain() throws BusinessServiceException;
 
