@@ -7,6 +7,9 @@ import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import java.util.List;
 
 public interface ProjectService {
+
+    boolean isUseNew(String projectKey);
+
     AuthoringProject createProject(CreateProjectRequest request, String codeSystemBranchPath) throws BusinessServiceException;
 
     AuthoringProject updateProject(String projectKey, AuthoringProject updatedProject) throws BusinessServiceException;

@@ -5,10 +5,8 @@ import jakarta.transaction.Transactional;
 import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.entity.Project;
 import org.ihtsdo.authoringservices.repository.ProjectRepository;
-import org.ihtsdo.authoringservices.service.BranchService;
-import org.ihtsdo.authoringservices.service.ProjectService;
-import org.ihtsdo.authoringservices.service.SnowstormClassificationClient;
-import org.ihtsdo.authoringservices.service.ValidationService;
+import org.ihtsdo.authoringservices.repository.TaskRepository;
+import org.ihtsdo.authoringservices.service.*;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
@@ -21,9 +19,12 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -41,6 +42,9 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
     private ProjectCustomFieldConfiguration projectCustomFieldConfiguration;
 
     @Autowired
+    private TaskRepository taskRepository;
+
+    @Autowired
     private ProjectRepository projectRepository;
 
     @Autowired
@@ -55,14 +59,33 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
     @Autowired
     private ValidationService validationService;
 
+    @Autowired
+    @Qualifier(value = "authoringTaskService")
+    private TaskService authoringTaskService;
+
     @Override
-    public AuthoringProject createProject(CreateProjectRequest request, String codeSystemBranchPath) {
+    public boolean isUseNew(String projectKey) {
+        Optional<Project> projectOptional = projectRepository.findById(projectKey);
+        return projectOptional.isPresent();
+    }
+
+    @Override
+    public AuthoringProject createProject(CreateProjectRequest request, String codeSystemBranchPath) throws BusinessServiceException {
         Project project = new Project();
         project.setKey(request.key());
         project.setName(request.name());
         project.setLead(request.lead());
         project.setBranchPath(codeSystemBranchPath + "/" + request.key());
+        project.setExtensionBase(codeSystemBranchPath);
+        project.setCreatedDate(Timestamp.from(Instant.now()));
+        project.setUpdatedDate(Timestamp.from(Instant.now()));
         project = projectRepository.save(project);
+
+        try {
+            branchService.createBranchIfNeeded(project.getBranchPath());
+        } catch (ServiceException e) {
+            throw new BusinessServiceException("Failed to create project branch.", e);
+        }
         return buildAuthoringProjects(List.of(project), true).get(0);
     }
 
@@ -76,6 +99,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
         if (updatedProject.isProjectScheduledRebaseDisabled() != null) {
             customFields.put("projectScheduledRebase", !updatedProject.isProjectScheduledRebaseDisabled());
         }
+        project.setUpdatedDate(Timestamp.from(Instant.now()));
         projectRepository.save(project);
         return buildAuthoringProjects(List.of(project), false).get(0);
     }
@@ -83,6 +107,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
     @Override
     public void deleteProject(String projectKey) throws BusinessServiceException {
         Project project = getProjectOrThrow(projectKey);
+        taskRepository.deleteAll(taskRepository.findByProject(project));
         projectRepository.delete(project);
     }
 
@@ -133,6 +158,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
         Map<String, Boolean> customFields = Optional.ofNullable(project.getCustomFields()).orElse(new HashMap<>());
         customFields.put(PROJECT_LOCKED_FILED, true);
         project.setCustomFields(customFields);
+        project.setUpdatedDate(Timestamp.from(Instant.now()));
         projectRepository.save(project);
     }
 
@@ -142,12 +168,14 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
         Map<String, Boolean> customFields = Optional.ofNullable(project.getCustomFields()).orElse(new HashMap<>());
         customFields.put(PROJECT_LOCKED_FILED, false);
         project.setCustomFields(customFields);
+        project.setUpdatedDate(Timestamp.from(Instant.now()));
         projectRepository.save(project);
     }
 
     @Override
-    public String getProjectBaseUsingCache(String projectKey) {
-        return null;
+    public String getProjectBaseUsingCache(String projectKey) throws BusinessServiceException {
+        Project project = getProjectOrThrow(projectKey);
+        return project.getExtensionBase();
     }
 
     @Override
@@ -168,6 +196,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
             customFields.put(item.getId(), ENABLED_TEXT.equals(item.getValue()));
         }
         project.setCustomFields(customFields);
+        project.setUpdatedDate(Timestamp.from(Instant.now()));
         projectRepository.save(project);
     }
 
@@ -181,7 +210,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
     }
 
     @Override
-    protected List<AuthoringProject> buildAuthoringProjects(Collection<?> collection, boolean lightweight) {
+    protected List<AuthoringProject> buildAuthoringProjects(Collection<?> collection, Boolean lightweight) {
         if (collection.isEmpty()) {
             return new ArrayList<>();
         }
@@ -234,11 +263,9 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
                 synchronized (branchPaths) {
                     branchPaths.add(branchPath);
                 }
-                String latestClassificationJson = !lightweight ? classificationService.getLatestClassification(branchPath) : null;
+                String latestClassificationJson = !Boolean.TRUE.equals(lightweight) ? classificationService.getLatestClassification(branchPath) : null;
 
-                User lead = new User();
-                lead.setUsername(projectTicket.getLead());
-
+                User lead = authoringTaskService.getUser(projectTicket.getLead());
                 final AuthoringProject authoringProject = new AuthoringProject(projectKey, projectTicket.getName(),
                         lead, branchPath, branchState, baseTimeStamp, headTimeStamp, latestClassificationJson, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled, rebaseDisabled, scheduledRebaseDisabled, taskPromotionDisabled, projectLocked);
                 authoringProject.setMetadata(metadata);
@@ -246,7 +273,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
                 synchronized (authoringProjects) {
                     authoringProjects.add(authoringProject);
                 }
-            } catch (RestClientException | ServiceException e) {
+            } catch (RestClientException | ServiceException | BusinessServiceException e) {
                 logger.error("Failed to fetch details of project {}", projectTicket.getName(), e);
             }
         });

@@ -25,7 +25,7 @@ public class User {
 		email = assignee.getEmail();
 		displayName = assignee.getDisplayName();
 		username = assignee.getName();
-		avatarUrl = assignee.getAvatarUrls().get("48x48");
+		avatarUrl = assignee.getAvatarUrls().get(JSON_FIELD_AVATAR_48);
 	}
 
 	public User(JSONObject userJSON) {
@@ -72,8 +72,8 @@ public class User {
 
 	@Override
 	public boolean equals(Object other) {
-		if (other instanceof User) {
-			String otherUsername = ((User)other).getUsername();
+		if (other instanceof User user) {
+			String otherUsername = user.getUsername();
 			return this.username.equals(otherUsername);
 		}
 		return false;

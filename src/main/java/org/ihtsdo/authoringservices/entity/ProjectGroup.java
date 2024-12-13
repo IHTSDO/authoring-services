@@ -2,6 +2,8 @@ package org.ihtsdo.authoringservices.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import java.util.Objects;
 
@@ -17,6 +19,7 @@ public class ProjectGroup {
 
     @ManyToOne
     @JoinColumn(name = "project_key", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Project project;
 
     @JsonIgnore

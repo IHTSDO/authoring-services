@@ -1,19 +1,20 @@
 package org.ihtsdo.authoringservices.service;
 
+import jakarta.transaction.Transactional;
 import org.ihtsdo.authoringservices.domain.*;
-import org.ihtsdo.otf.rest.exception.BadRequestException;
-import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.authoringservices.entity.Branch;
 import org.ihtsdo.authoringservices.entity.ReviewConceptView;
 import org.ihtsdo.authoringservices.entity.ReviewMessage;
 import org.ihtsdo.authoringservices.repository.BranchRepository;
 import org.ihtsdo.authoringservices.repository.ReviewConceptViewRepository;
 import org.ihtsdo.authoringservices.repository.ReviewMessageRepository;
+import org.ihtsdo.authoringservices.service.factory.TaskServiceFactory;
+import org.ihtsdo.otf.rest.exception.BadRequestException;
+import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
 
-import jakarta.transaction.Transactional;
 import java.util.*;
 
 @Service
@@ -35,7 +36,7 @@ public class ReviewService {
 	private EmailService emailService;
 
 	@Autowired
-	private TaskService taskService;
+	private TaskServiceFactory taskServiceFactory;
 
 	@Transactional
 	public List<ReviewConcept> retrieveTaskReviewConceptDetails(String projectKey, String taskKey, String username)
@@ -111,7 +112,7 @@ public class ReviewService {
 			listener.messageSent(message, createRequest.getEvent());
 		}
 		// Send email to Author
-		AuthoringTask authoringTask = taskService.retrieveTask(projectKey, taskKey, true);
+		AuthoringTask authoringTask = taskServiceFactory.getInstanceByKey(taskKey).retrieveTask(projectKey, taskKey, true);
 		if (authoringTask.getAssignee() != null && !fromUsername.equals(authoringTask.getAssignee().getUsername())) {
 			emailService.sendCommentAddedNotification(projectKey, taskKey, authoringTask.getSummary(), createRequest.getMessageHtml(), Collections.singleton(authoringTask.getAssignee()));
 		}

@@ -1,6 +1,5 @@
 package org.ihtsdo.authoringservices.service;
 
-import net.rcarz.jiraclient.User;
 import org.ihtsdo.authoringservices.domain.LineItem;
 import org.ihtsdo.authoringservices.service.client.ReleaseNoteClient;
 import org.ihtsdo.authoringservices.service.client.ReleaseNoteClientFactory;
@@ -20,12 +19,12 @@ public class ReleaseNoteService {
     @Autowired
     private ReleaseNoteClientFactory releaseNoteClientFactory;
 
-    public void promoteTaskLineItems(String branchPath, User user) {
+    public void promoteTaskLineItems(String branchPath, String userDisplayName) {
         ReleaseNoteClient client = releaseNoteClientFactory.getClient();
         try {
             List<LineItem> lineItems = client.getLineItems(branchPath);
             for (LineItem lineItem : lineItems) {
-                lineItem.setContent(branchPath + " - " + user.getDisplayName() + "\n\n" + lineItem.getContent());
+                lineItem.setContent(branchPath + " - " + userDisplayName + "\n\n" + lineItem.getContent());
                 client.updateLineItem(branchPath, lineItem);
                 client.promoteLineItem(branchPath, lineItem.getId());
             }

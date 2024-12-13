@@ -1,6 +1,8 @@
 package org.ihtsdo.authoringservices.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 import org.ihtsdo.authoringservices.domain.TaskStatus;
 
 import java.util.ArrayList;
@@ -8,7 +10,7 @@ import java.util.List;
 import java.util.Objects;
 
 @Entity(name = "task")
-public class Task extends BaseEntity {
+public class  Task extends BaseEntity {
 
     @Id
     @Column(name = "task_key", nullable = false)
@@ -16,6 +18,8 @@ public class Task extends BaseEntity {
 
     @Column(name = "task_name", nullable = false)
     private String name;
+
+    private String description;
 
     @Column(name = "branch_path")
     private String branchPath;
@@ -32,8 +36,8 @@ public class Task extends BaseEntity {
     @Column(nullable = false)
     private String reporter;
 
-    @Column(name = "crs_task_id")
-    private String crsTaskId;
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    private List<CrsTask> crsTasks;
 
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<TaskReviewer> reviewers = new ArrayList<>();
@@ -52,6 +56,14 @@ public class Task extends BaseEntity {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
     }
 
     public String getBranchPath() {
@@ -94,12 +106,12 @@ public class Task extends BaseEntity {
         this.reporter = reporter;
     }
 
-    public String getCrsTaskId() {
-        return crsTaskId;
+    public List<CrsTask> getCrsTasks() {
+        return crsTasks;
     }
 
-    public void setCrsTaskId(String crsTaskId) {
-        this.crsTaskId = crsTaskId;
+    public void setCrsTasks(List<CrsTask> crsTasks) {
+        this.crsTasks = crsTasks;
     }
 
     public List<TaskReviewer> getReviewers() {

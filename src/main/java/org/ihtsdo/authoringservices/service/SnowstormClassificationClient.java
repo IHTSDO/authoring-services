@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.jms.JMSException;
 import jakarta.jms.TextMessage;
 import org.ihtsdo.authoringservices.domain.*;
+import org.ihtsdo.authoringservices.service.factory.ProjectServiceFactory;
+import org.ihtsdo.authoringservices.service.factory.TaskServiceFactory;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ClassificationResults;
@@ -35,10 +37,10 @@ public class SnowstormClassificationClient {
 	private CacheService cacheService;
 
 	@Autowired
-	private TaskService taskService;
+	private TaskServiceFactory taskServiceFactory;
 
 	@Autowired
-	private ProjectService projectService;
+	private ProjectServiceFactory projectServiceFactory;
 
 	@Autowired
 	private SnowstormRestClientFactory snowstormRestClientFactory;
@@ -129,9 +131,13 @@ public class SnowstormClassificationClient {
 			}
 
 			// Add new comment to project/task
-			addCommentLog(resultMessage);
+            try {
+                addCommentLog(resultMessage);
+            } catch (BusinessServiceException e) {
+				logger.error("Failed to add comment log. Error: {}", e.getMessage());
+            }
 
-			// Clear the cache
+            // Clear the cache
 			cacheService.clearClassificationCache(request.getBranchPath());
 
 			// Notify user
@@ -142,14 +148,15 @@ public class SnowstormClassificationClient {
 			// Mark task as IN_REVIEW when inferred relationship changes found
 			if (request.getTaskKey() != null && ClassificationStatus.COMPLETED.equals(status)) {
 				try {
-					AuthoringTask task = taskService.retrieveTask(request.getProjectKey(), request.getTaskKey(), true);
+					boolean useNew = taskServiceFactory.getInstance(true).isUseNew(request.getTaskKey());
+					AuthoringTask task = taskServiceFactory.getInstance(useNew).retrieveTask(request.getProjectKey(), request.getTaskKey(), true);
 					if (TaskStatus.REVIEW_COMPLETED.equals(task.getStatus())) {
 						String jsonStr = snowstormRestClientFactory.getClient().getLatestClassificationOnBranch(request.getBranchPath());
 						JSONObject jsonObject = new JSONObject(jsonStr);
 						if (jsonObject.has("inferredRelationshipChangesFound") && jsonObject.getBoolean("inferredRelationshipChangesFound")) {
 							AuthoringTaskUpdateRequest taskUpdateRequest = new AuthoringTask();
 							taskUpdateRequest.setStatus(TaskStatus.IN_REVIEW);
-							taskService.updateTask(request.getProjectKey(), request.getTaskKey(), taskUpdateRequest);
+							taskServiceFactory.getInstance(useNew).updateTask(request.getProjectKey(), request.getTaskKey(), taskUpdateRequest);
 						}
 					}
 				} catch (BusinessServiceException | RestClientException | JSONException e) {
@@ -158,14 +165,15 @@ public class SnowstormClassificationClient {
             }
 		}
 
-		private void addCommentLog(String resultMessage) {
+		private void addCommentLog(String resultMessage) throws BusinessServiceException {
 			if (request.getTaskKey() != null) {
 				//In every case we'll report what we know to the jira ticket
-				taskService.addCommentLogErrors(request.getProjectKey(), request.getTaskKey(), resultMessage);
+                boolean useNew = taskServiceFactory.getInstance(true).isUseNew(request.getTaskKey());
+				taskServiceFactory.getInstance(useNew).addCommentLogErrors(request.getProjectKey(), request.getTaskKey(), resultMessage);
 			} else if (request.getProjectKey() != null) {
 				// Comment on project magic ticket
                 try {
-                    projectService.addCommentLogErrors(request.getProjectKey(), resultMessage);
+                    projectServiceFactory.getInstanceByKey(request.getProjectKey()).addCommentLogErrors(request.getProjectKey(), resultMessage);
                 } catch (BusinessServiceException e) {
                     logger.error("Failed to add comment to project", e);
                 }
