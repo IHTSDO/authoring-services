@@ -4,8 +4,9 @@ import com.google.common.cache.LoadingCache;
 import jakarta.transaction.Transactional;
 import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.entity.Project;
-import org.ihtsdo.authoringservices.entity.ProjectGroup;
+import org.ihtsdo.authoringservices.entity.ProjectUserGroup;
 import org.ihtsdo.authoringservices.repository.ProjectRepository;
+import org.ihtsdo.authoringservices.repository.ProjectUserGroupRepository;
 import org.ihtsdo.authoringservices.repository.TaskRepository;
 import org.ihtsdo.authoringservices.service.*;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
@@ -15,12 +16,14 @@ import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.PermissionRecord;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -39,6 +42,9 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
     private static final String ENABLED_TEXT = "Enabled";
     private static final String DISABLED_TEXT = "Disabled";
 
+    @Value("${authoring.project.required.rbac.groups}")
+    private List<String> requiredRbacGroups;
+
     @Autowired
     private ProjectCustomFieldConfiguration projectCustomFieldConfiguration;
 
@@ -47,6 +53,9 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
     @Autowired
     private ProjectRepository projectRepository;
+
+    @Autowired
+    private ProjectUserGroupRepository projectUserGroupRepository;
 
     @Autowired
     private SnowstormRestClientFactory snowstormRestClientFactory;
@@ -59,6 +68,9 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
     @Autowired
     private ValidationService validationService;
+
+    @Autowired
+    private PermissionService permissionService;
 
     @Autowired
     @Qualifier(value = "authoringTaskService")
@@ -76,17 +88,23 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
         project.setKey(request.key());
         project.setName(request.name());
         project.setLead(request.lead());
-        project.setBranchPath(codeSystem + "/" + request.key());
+        project.setBranchPath(codeSystem.getBranchPath() + "/" + request.key());
         project.setExtensionBase(codeSystem.getBranchPath());
 
-        List<ProjectGroup> groups = new ArrayList<>();
-        for (String role : codeSystem.getUserRoles()){
-            ProjectGroup group = new ProjectGroup();
-            group.setProject(project);
-            group.setName(role);
-            groups.add(group);
+        final SnowstormRestClient snowstormRestClient = snowstormRestClientFactory.getClient();
+        List<PermissionRecord> permissionRecords = snowstormRestClient.findPermissionForBranch(codeSystem.getBranchPath());
+        List<ProjectUserGroup> groups = new ArrayList<>();
+        for (PermissionRecord permissionRecord : permissionRecords){
+            if (requiredRbacGroups.contains(permissionRecord.getRole())) {
+                for (String userGroup : permissionRecord.getUserGroups()){
+                    ProjectUserGroup group = new ProjectUserGroup();
+                    group.setProject(project);
+                    group.setName(userGroup);
+                    groups.add(group);
+                }
+            }
         }
-        project.setGroups(groups);
+        project.setUserGroups(groups);
         project.setCreatedDate(Timestamp.from(Instant.now()));
         project.setUpdatedDate(Timestamp.from(Instant.now()));
         project = projectRepository.save(project);
@@ -101,6 +119,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
     @Override
     public AuthoringProject updateProject(String projectKey, AuthoringProject updatedProject) throws BusinessServiceException {
+        permissionService.checkUserPermissionOnProjectOrThrow(projectKey);
         Project project = getProjectOrThrow(projectKey);
         Map<String, Boolean> customFields = Optional.ofNullable(project.getCustomFields()).orElse(new HashMap<>());
         if (updatedProject.isTaskPromotionDisabled() != null) {
@@ -143,9 +162,13 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
     @Override
     public List<AuthoringProject> listProjects(Boolean lightweight, Boolean ignoreProductCodeFilter) {
-        Iterable<Project> projects = projectRepository.findAll();
-        List<Project> result = new ArrayList<>();
-        projects.forEach(result::add);
+        List<String> loggedInUserRoles = permissionService.getUserRoles();
+        if (loggedInUserRoles.isEmpty()) return Collections.emptyList();
+
+        List<ProjectUserGroup> projectUserGroups = projectUserGroupRepository.findByNameIn(loggedInUserRoles);
+        if(projectUserGroups.isEmpty())  return Collections.emptyList();
+
+        List<Project> result = projectUserGroups.stream().map(ProjectUserGroup::getProject).distinct().toList();
         return buildAuthoringProjects(result, lightweight);
     }
 
@@ -164,6 +187,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
     @Override
     public void lockProject(String projectKey) throws BusinessServiceException {
+        permissionService.checkUserPermissionOnProjectOrThrow(projectKey);
         Project project = getProjectOrThrow(projectKey);
         Map<String, Boolean> customFields = Optional.ofNullable(project.getCustomFields()).orElse(new HashMap<>());
         customFields.put(PROJECT_LOCKED_FILED, true);
@@ -174,6 +198,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
     @Override
     public void unlockProject(String projectKey) throws BusinessServiceException {
+        permissionService.checkUserPermissionOnProjectOrThrow(projectKey);
         Project project = getProjectOrThrow(projectKey);
         Map<String, Boolean> customFields = Optional.ofNullable(project.getCustomFields()).orElse(new HashMap<>());
         customFields.put(PROJECT_LOCKED_FILED, false);
@@ -200,6 +225,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
     @Override
     public void updateProjectCustomFields(String projectKey, ProjectFieldUpdateRequest request) throws BusinessServiceException {
+        permissionService.checkUserPermissionOnProjectOrThrow(projectKey);
         Project project = getProjectOrThrow(projectKey);
         Map<String, Boolean> customFields = Optional.ofNullable(project.getCustomFields()).orElse(new HashMap<>());
         for (AuthoringProjectField item : request.fields()) {

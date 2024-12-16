@@ -7,8 +7,8 @@ import org.hibernate.annotations.OnDeleteAction;
 
 import java.util.Objects;
 
-@Entity(name = "project_group")
-public class ProjectGroup {
+@Entity(name = "user_group")
+public class ProjectUserGroup {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -50,7 +50,7 @@ public class ProjectGroup {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof ProjectGroup that)) return false;
+        if (!(o instanceof ProjectUserGroup that)) return false;
         return Objects.equals(getName(), that.getName()) && Objects.equals(getProject(), that.getProject());
     }
 

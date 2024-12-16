@@ -29,7 +29,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.ihtsdo.authoringservices.rest.ControllerHelper.*;
@@ -252,17 +251,14 @@ public class ValidationController {
 		return codeSystemShortnames;
 	}
 
-	private void filterJiraProjects(List<AuthoringProject> jiraProjects, List<AuthoringProject> authoringProjects) {
-		if (!jiraProjects.isEmpty()) {
-			List<String> authoringProjectKeys = new ArrayList<>(authoringProjects.stream().map(AuthoringProject::getKey).toList());
-			Map<String, AuthoringProject> keyToJiraTask = jiraProjects.stream().collect(
-					Collectors.toMap(AuthoringProject::getKey, Function.identity()));
-			for (Map.Entry<String, AuthoringProject> entry : keyToJiraTask.entrySet()) {
-				if (!authoringProjectKeys.contains(entry.getKey())) {
-					authoringProjects.add(entry.getValue());
-					authoringProjectKeys.add(entry.getKey());
-				}
-			}
-		}
-	}
+    private void filterJiraProjects(List<AuthoringProject> jiraProjects, List<AuthoringProject> authoringProjects) {
+        if (jiraProjects.isEmpty()) return;
+        List<String> authoringProjectKeys = new ArrayList<>(authoringProjects.stream().map(AuthoringProject::getKey).toList());
+        for (AuthoringProject project : jiraProjects) {
+            if (!authoringProjectKeys.contains(project.getKey())) {
+                authoringProjects.add(project);
+                authoringProjectKeys.add(project.getKey());
+            }
+        }
+    }
 }
