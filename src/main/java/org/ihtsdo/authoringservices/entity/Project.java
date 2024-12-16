@@ -35,7 +35,7 @@ public class Project extends BaseEntity {
     private TaskSequence taskSequence;
 
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
-    private List<ProjectGroup> groups = new ArrayList<>();
+    private List<ProjectUserGroup> userGroups = new ArrayList<>();
 
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Task> tasks = new ArrayList<>();
@@ -100,12 +100,12 @@ public class Project extends BaseEntity {
         return taskSequence;
     }
 
-    public List<ProjectGroup> getGroups() {
-        return groups;
+    public List<ProjectUserGroup> getUserGroups() {
+        return userGroups;
     }
 
-    public void setGroups(List<ProjectGroup> groups) {
-        this.groups = groups;
+    public void setUserGroups(List<ProjectUserGroup> userGroups) {
+        this.userGroups = userGroups;
     }
 
     public List<Task> getTasks() {
