@@ -12,9 +12,9 @@ public interface TaskRepository extends CrudRepository<Task, String> {
 
     List<Task> findByProjectAndStatusNotInOrderByUpdatedDateDesc(Project project, Collection<TaskStatus> excludedStatuses);
 
-    List<Task> findByAssigneeAndStatusNotInOrderByUpdatedDateDesc(String assignee, Collection<TaskStatus> excludedStatuses);
+    List<Task> findByProjectInAndAssigneeAndStatusNotInOrderByUpdatedDateDesc(Collection<Project> projects, String assignee, Collection<TaskStatus> excludedStatuses);
 
-    List<Task> findByAssigneeNotAndStatusInOrderByUpdatedDateDesc(String assignee, Collection<TaskStatus> statuses);
+    List<Task> findByProjectInAndAssigneeNotAndStatusInOrderByUpdatedDateDesc(Collection<Project> projects, String assignee, Collection<TaskStatus> statuses);
 
     List<Task> findByProjectAndStatus(Project project, TaskStatus status);
 

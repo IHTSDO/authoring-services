@@ -80,6 +80,9 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
     private ReviewService reviewService;
 
     @Autowired
+    private PermissionService permissionService;
+
+    @Autowired
     private IMSClientFactory imsClientFactory;
 
     @Override
@@ -95,6 +98,8 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
 
     @Override
     public AuthoringTask createTask(String projectKey, String username, AuthoringTaskCreateRequest taskCreateRequest) throws BusinessServiceException {
+        permissionService.checkUserPermissionOnProjectOrThrow(projectKey);
+
         Project project = getProjectOrThrow(projectKey);
         if (Boolean.FALSE.equals(project.getActive())) {
             throw new BusinessServiceException("Unable to create task on an inactive project");
@@ -136,6 +141,8 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
 
     @Override
     public AuthoringTask updateTask(String projectKey, String taskKey, AuthoringTaskUpdateRequest taskUpdateRequest) throws BusinessServiceException {
+        permissionService.checkUserPermissionOnProjectOrThrow(projectKey);
+
         Optional<Task> taskOptional = taskRepository.findById(taskKey);
         if (taskOptional.isEmpty()) {
             throw new ResourceNotFoundException(TASK_NOT_FOUND_MSG + toString(projectKey, taskKey));
@@ -248,7 +255,8 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         if (null != excludePromoted && excludePromoted.equalsIgnoreCase("TRUE")) {
             excludedStatuses.add(TaskStatus.PROMOTED);
         }
-        List<Task> tasks = taskRepository.findByAssigneeAndStatusNotInOrderByUpdatedDateDesc(username, excludedStatuses);
+        List<Project> projects = permissionService.getProjectsForUser();
+        List<Task> tasks = taskRepository.findByProjectInAndAssigneeAndStatusNotInOrderByUpdatedDateDesc(projects, username, excludedStatuses);
         return buildAuthoringTasks(tasks, false);
     }
 
@@ -259,7 +267,8 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         if (null == excludePromoted || !excludePromoted.equalsIgnoreCase("TRUE")) {
             statuses.add(TaskStatus.PROMOTED);
         }
-        List<Task> tasks = taskRepository.findByAssigneeNotAndStatusInOrderByUpdatedDateDesc(currentUser, statuses);
+        List<Project> projects = permissionService.getProjectsForUser();
+        List<Task> tasks = taskRepository.findByProjectInAndAssigneeNotAndStatusInOrderByUpdatedDateDesc(projects, currentUser, statuses);
         tasks = tasks.stream().
                 filter(task -> (CollectionUtils.isEmpty(task.getReviewers()) && TaskStatus.IN_REVIEW.equals(task.getStatus()))
                         || task.getReviewers().stream().anyMatch(reviewer -> reviewer.getUsername().equals(currentUser))).toList();
@@ -304,14 +313,14 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         }
         Task task = taskOptional.get();
         if (task.getStatus().equals(requiredState)) {
-            stateTransition(newState, taskKey);
+            stateTransition(newState, taskKey, projectKey);
         }
     }
 
     @Override
     public void stateTransition(String projectKey, String taskKey, TaskStatus newState) throws BusinessServiceException {
         try {
-            this.stateTransition(newState, taskKey);
+            this.stateTransition(newState, taskKey, projectKey);
         } catch (Exception e) {
             throw new BusinessServiceException("Failed to transition state of task " + taskKey, e);
         }
@@ -321,7 +330,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
     public void stateTransition(List<AuthoringTask> tasks, TaskStatus newState, String projectKey) throws BusinessServiceException {
         for (AuthoringTask task : tasks) {
             try {
-                this.stateTransition(newState, task.getKey());
+                this.stateTransition(newState, task.getKey(), projectKey);
             } catch (Exception e) {
                 logger.error("Failed to transition issue {} to {}", task.getKey(), newState.getLabel());
                 throw new BusinessServiceException(String.format("Failed to transition issue %s to %s", task.getKey(), newState.getLabel()), e);
@@ -329,7 +338,8 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         }
     }
 
-    private void stateTransition(TaskStatus newState, String taskKey) {
+    private void stateTransition(TaskStatus newState, String taskKey, String projectKey) {
+        permissionService.checkUserPermissionOnProjectOrThrow(projectKey);
         Optional<Task> taskOptional = taskRepository.findById(taskKey);
         if (taskOptional.isPresent()) {
             Task task = taskOptional.get();

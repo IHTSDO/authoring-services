@@ -1,7 +1,9 @@
 package org.ihtsdo.authoringservices.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import net.sf.json.JSONObject;
 
+import java.util.List;
 import java.util.Objects;
 
 public class User {
@@ -16,6 +18,8 @@ public class User {
 	private String displayName;
 	private String username;
 	private String avatarUrl;
+
+	private List<String> roles;
 
 	public User() {
 
@@ -68,6 +72,15 @@ public class User {
 
 	public void setAvatarUrl(String avatarUrl) {
 		this.avatarUrl = avatarUrl;
+	}
+
+	@JsonIgnore
+	public List<String> getRoles() {
+		return roles;
+	}
+
+	public void setRoles(List<String> roles) {
+		this.roles = roles;
 	}
 
 	@Override
