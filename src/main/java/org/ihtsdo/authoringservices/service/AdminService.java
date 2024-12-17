@@ -75,4 +75,15 @@ public class AdminService {
         logger.info("Updating custom fields for project {}", project.getKey());
         projectServiceFactory.getInstance(useNew).updateProjectCustomFields(project.getKey(), request);
     }
+
+    @PreAuthorize("hasPermission('ADMIN', 'global') || hasPermission('ADMIN', #project.codeSystem.branchPath)")
+    public List<String> retrieveProjectRoles(AuthoringProject project, Boolean useNew) throws BusinessServiceException {
+        return projectServiceFactory.getInstance(useNew).retrieveProjectRoles(project.getKey());
+    }
+
+    @PreAuthorize("hasPermission('ADMIN', 'global') || hasPermission('ADMIN', #project.codeSystem.branchPath)")
+    public void updateProjectRoles(AuthoringProject project, ProjectRoleUpdateRequest request, Boolean useNew) throws BusinessServiceException {
+        logger.info("Updating roles for project {}", project.getKey());
+        projectServiceFactory.getInstance(useNew).updateProjectRoles(project.getKey(), request);
+    }
 }

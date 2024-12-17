@@ -508,6 +508,16 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
         updateProjectFields(projectKey, projectFieldMap, jiraClient);
     }
 
+    @Override
+    public List<String> retrieveProjectRoles(String projectKey) throws BusinessServiceException {
+        return Collections.emptyList();
+    }
+
+    @Override
+    public void updateProjectRoles(String projectKey, ProjectRoleUpdateRequest request) throws BusinessServiceException {
+        // Do nothing
+    }
+
     private void updateProjectFields(String projectKey, JSONObject request, JiraClient jiraClient) throws BusinessServiceException {
         if (!request.isEmpty()) {
             try {

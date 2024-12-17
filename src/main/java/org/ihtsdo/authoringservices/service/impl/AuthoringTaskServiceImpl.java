@@ -154,7 +154,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         boolean isTaskStatusChanged = updateTaskStatus(status, task);
 
         final User assignee = taskUpdateRequest.getAssignee();
-        TaskTransferRequest taskTransferRequest = updateTaskAssignee(assignee, task);
+        TaskChangeAssigneeRequest taskChangeAssigneeRequest = updateTaskAssignee(assignee, task);
 
         final List<User> reviewers = taskUpdateRequest.getReviewers();
         List<User> newReviewersToSendEmail = new ArrayList<>();
@@ -189,8 +189,8 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
                 emailService.sendTaskReviewCompletedNotification(projectKey, task.getKey(), task.getName(), Collections.singleton(recipient));
             }
         }
-        if (taskTransferRequest != null) {
-            transferTaskToNewAuthor(projectKey, taskKey, taskTransferRequest);
+        if (taskChangeAssigneeRequest != null) {
+            transferTaskToNewAuthor(projectKey, taskKey, taskChangeAssigneeRequest);
         }
 
         if (!newReviewersToSendEmail.isEmpty()) {
@@ -201,17 +201,17 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
     }
 
     @Nullable
-    private TaskTransferRequest updateTaskAssignee(User assignee, Task task) {
-        TaskTransferRequest taskTransferRequest = null;
+    private TaskChangeAssigneeRequest updateTaskAssignee(User assignee, Task task) {
+        TaskChangeAssigneeRequest taskChangeAssigneeRequest = null;
         if (assignee != null) {
             final String newAssignee = assignee.getUsername();
             String currentAssignee = task.getAssignee();
             if (currentAssignee != null && !currentAssignee.isEmpty() && !currentAssignee.equalsIgnoreCase(newAssignee)) {
-                taskTransferRequest = new TaskTransferRequest(getUser(currentAssignee), getUser(newAssignee), getUser(SecurityUtil.getUsername()));
+                taskChangeAssigneeRequest = new TaskChangeAssigneeRequest(getUser(currentAssignee), getUser(newAssignee), getUser(SecurityUtil.getUsername()));
             }
             task.setAssignee(assignee.getUsername());
         }
-        return taskTransferRequest;
+        return taskChangeAssigneeRequest;
     }
 
     private boolean updateTaskStatus(TaskStatus status, Task task) throws BadRequestException {

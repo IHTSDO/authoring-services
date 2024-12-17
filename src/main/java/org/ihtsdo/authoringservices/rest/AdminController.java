@@ -96,6 +96,21 @@ public class AdminController {
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
+    @Operation(summary = "Retrieve all roles for a given project", description = "-")
+    @GetMapping(value = "/projects/{projectKey}/role")
+    public ResponseEntity<List<String>> getProjectRoles(@PathVariable final String projectKey, @RequestParam(value = "useNew", required = false) Boolean useNew) throws BusinessServiceException {
+        AuthoringProject project = projectServiceFactory.getInstance(useNew).retrieveProject(projectKey, true);
+        return new ResponseEntity<>(adminService.retrieveProjectRoles(project, useNew), HttpStatus.OK);
+    }
+
+    @Operation(summary = "Update roles for a given project", description = "-")
+    @PutMapping(value = "/projects/{projectKey}/role")
+    public ResponseEntity<Void> updateProjectRoles(@PathVariable final String projectKey, @RequestBody ProjectRoleUpdateRequest request, @RequestParam(value = "useNew", required = false) Boolean useNew) throws BusinessServiceException {
+        AuthoringProject project = projectServiceFactory.getInstance(useNew).retrieveProject(projectKey, true);
+        adminService.updateProjectRoles(project, request, useNew);
+        return new ResponseEntity<>(HttpStatus.OK);
+    }
+
     @Operation(summary = "Delete a given project key", description = "-")
     @DeleteMapping(value = "/projects/{projectKey}")
     public ResponseEntity<Void> deleteProject(@PathVariable final String projectKey, @RequestParam(value = "useNew", required = false) Boolean useNew) throws BusinessServiceException {

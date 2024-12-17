@@ -35,4 +35,8 @@ public interface ProjectService {
     void addCommentLogErrors(String projectKey, String commentString) throws BusinessServiceException;
 
     void updateProjectCustomFields(String projectKey, ProjectFieldUpdateRequest request) throws BusinessServiceException;
+
+    List<String> retrieveProjectRoles(String projectKey) throws BusinessServiceException;
+
+    void updateProjectRoles(String projectKey, ProjectRoleUpdateRequest request) throws BusinessServiceException;
 }
