@@ -104,6 +104,10 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
                 }
             }
         }
+
+        Map<String, Boolean> customFields = new HashMap<>();
+        projectCustomFieldConfiguration.getCustomFields().forEach((key, value) -> customFields.put(key, !PROJECT_LOCKED_FILED.equals(key)));
+        project.setCustomFields(customFields);
         project.setUserGroups(groups);
         project.setCreatedDate(Timestamp.from(Instant.now()));
         project.setUpdatedDate(Timestamp.from(Instant.now()));
@@ -306,6 +310,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
                         lead, branchPath, branchState, baseTimeStamp, headTimeStamp, latestClassificationJson, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled, rebaseDisabled, scheduledRebaseDisabled, taskPromotionDisabled, projectLocked);
                 authoringProject.setMetadata(metadata);
                 authoringProject.setCodeSystem(codeSystem);
+                authoringProject.setInternalAuthoringProject(true);
                 synchronized (authoringProjects) {
                     authoringProjects.add(authoringProject);
                 }
