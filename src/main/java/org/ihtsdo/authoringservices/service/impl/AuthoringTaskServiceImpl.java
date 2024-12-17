@@ -157,7 +157,10 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         TaskTransferRequest taskTransferRequest = updateTaskAssignee(assignee, task);
 
         final List<User> reviewers = taskUpdateRequest.getReviewers();
+        List<User> newReviewersToSendEmail = new ArrayList<>();
         if (reviewers != null) {
+            // Find new reviewers to send email
+            newReviewersToSendEmail = getNewReviewersToSendEmail(task.getReviewers(), reviewers);
             task.setReviewers(getTaskReviewers(task, reviewers.stream().map(User::getUsername).toList()));
         }
 
@@ -170,6 +173,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         if (description != null) {
             task.setDescription(description);
         }
+
         task.setUpdatedDate(Timestamp.from(Instant.now()));
         task = taskRepository.save(task);
 
@@ -181,13 +185,16 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
 
             // Send email to Author once the task has been reviewed completely
             if (TaskStatus.REVIEW_COMPLETED.equals(status)) {
-                User recipient = new User();
-                recipient.setUsername(task.getAssignee());
+                User recipient = getUser(task.getAssignee());
                 emailService.sendTaskReviewCompletedNotification(projectKey, task.getKey(), task.getName(), Collections.singleton(recipient));
             }
         }
         if (taskTransferRequest != null) {
             transferTaskToNewAuthor(projectKey, taskKey, taskTransferRequest);
+        }
+
+        if (!newReviewersToSendEmail.isEmpty()) {
+            emailService.sendTaskReviewAssignedNotification(projectKey, taskKey, task.getName(), newReviewersToSendEmail);
         }
 
         return buildAuthoringTasks(new ArrayList<>(List.of(task)), false).get(0);
@@ -207,7 +214,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         return taskTransferRequest;
     }
 
-    private static boolean updateTaskStatus(TaskStatus status, Task task) throws BadRequestException {
+    private boolean updateTaskStatus(TaskStatus status, Task task) throws BadRequestException {
         boolean isTaskStatusChanged = false;
         if (status != null) {
             TaskStatus currentStatus = task.getStatus();
@@ -221,6 +228,19 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
             }
         }
         return isTaskStatusChanged;
+    }
+
+    private List<User> getNewReviewersToSendEmail(List<TaskReviewer> currentReviewers, List<User> reviewers) {
+        List<String> currentReviewerUsername = currentReviewers != null ? currentReviewers.stream().map(TaskReviewer::getUsername).toList() : new ArrayList<>();
+        List<User> results = reviewers.stream().filter(r -> !currentReviewerUsername.contains(r.getUsername()) && !SecurityUtil.getUsername().equals(r.getUsername())).toList();
+        for (User user : results) {
+            if (user.getEmail() == null || user.getDisplayName() == null) {
+                User jiraUser = getUser(user.getUsername());
+                user.setEmail(jiraUser.getEmail());
+                user.setDisplayName(jiraUser.getDisplayName());
+            }
+        }
+        return results;
     }
 
     @Override

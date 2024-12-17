@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
 
 import java.util.Map;
+import java.util.Objects;
 
 @JsonDeserialize
 public class AuthoringProject {
@@ -28,6 +29,8 @@ public class AuthoringProject {
     private Boolean taskPromotionDisabled;
     private Map<String, Object> metadata;
     private CodeSystem codeSystem;
+
+    private boolean internalAuthoringProject;
 
     public AuthoringProject() {
     }
@@ -184,5 +187,25 @@ public class AuthoringProject {
 
     public CodeSystem getCodeSystem() {
         return codeSystem;
+    }
+
+    public void setInternalAuthoringProject(boolean internalAuthoringProject) {
+        this.internalAuthoringProject = internalAuthoringProject;
+    }
+
+    public boolean isInternalAuthoringProject() {
+        return internalAuthoringProject;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof AuthoringProject project)) return false;
+        return isInternalAuthoringProject() == project.isInternalAuthoringProject() && Objects.equals(getKey(), project.getKey());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getKey(), isInternalAuthoringProject());
     }
 }
