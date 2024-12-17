@@ -454,9 +454,9 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
             boolean fieldUpdates = false;
 
             final org.ihtsdo.authoringservices.domain.User assignee = taskUpdateRequest.getAssignee();
-            TaskTransferRequest taskTransferRequest = null;
+            TaskChangeAssigneeRequest taskChangeAssigneeRequest = null;
             if (assignee != null) {
-                taskTransferRequest = updateTaskAssigneeAndReturnTaskTransferRequestIfAny(assignee, updateRequest, issue, taskTransferRequest);
+                taskChangeAssigneeRequest = updateTaskAssigneeAndReturnTaskTransferRequestIfAny(assignee, updateRequest, issue, taskChangeAssigneeRequest);
                 fieldUpdates = true;
             }
 
@@ -488,8 +488,8 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
                 updateRequest.execute();
                 // If the JIRA update goes through, then we can move any
                 // UI-State over if required
-                if (taskTransferRequest != null) {
-                    transferTaskToNewAuthor(projectKey, taskKey, taskTransferRequest);
+                if (taskChangeAssigneeRequest != null) {
+                    transferTaskToNewAuthor(projectKey, taskKey, taskChangeAssigneeRequest);
                 }
             }
         } catch (JiraException e) {
@@ -500,7 +500,7 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
         return retrieveTask(projectKey, taskKey, false);
     }
 
-    private TaskTransferRequest updateTaskAssigneeAndReturnTaskTransferRequestIfAny(org.ihtsdo.authoringservices.domain.User assignee, Issue.FluentUpdate updateRequest, Issue issue, TaskTransferRequest taskTransferRequest) throws BusinessServiceException {
+    private TaskChangeAssigneeRequest updateTaskAssigneeAndReturnTaskTransferRequestIfAny(org.ihtsdo.authoringservices.domain.User assignee, Issue.FluentUpdate updateRequest, Issue issue, TaskChangeAssigneeRequest taskChangeAssigneeRequest) throws BusinessServiceException {
         final String username = assignee.getUsername();
         if (username == null || username.isEmpty()) {
             updateRequest.field(Field.ASSIGNEE, null);
@@ -508,10 +508,10 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
             updateRequest.field(Field.ASSIGNEE, getUser(username));
             String currentIssueAssignee = issue.getAssignee().getName();
             if (currentIssueAssignee != null && !currentIssueAssignee.isEmpty() && !currentIssueAssignee.equalsIgnoreCase(username)) {
-                taskTransferRequest = new TaskTransferRequest(getUser(currentIssueAssignee), getUser(username), getUser(SecurityUtil.getUsername()));
+                taskChangeAssigneeRequest = new TaskChangeAssigneeRequest(getUser(currentIssueAssignee), getUser(username), getUser(SecurityUtil.getUsername()));
             }
         }
-        return taskTransferRequest;
+        return taskChangeAssigneeRequest;
     }
 
     private void updateTaskReviewers(String projectKey, String taskKey, List<org.ihtsdo.authoringservices.domain.User> reviewers, AuthoringTask authoringTask, Issue.FluentUpdate updateRequest) throws BusinessServiceException {

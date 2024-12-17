@@ -73,27 +73,27 @@ public abstract class TaskServiceBase {
         return queue.contains(INT_TASK_STATE_CHANGE_QUEUE);
     }
 
-    protected void transferTaskToNewAuthor(String projectKey, String taskKey, TaskTransferRequest taskTransferRequest) {
+    protected void transferTaskToNewAuthor(String projectKey, String taskKey, TaskChangeAssigneeRequest taskChangeAssigneeRequest) {
         try {
-            uiService.transferTask(projectKey, taskKey, taskTransferRequest);
+            uiService.transferTask(projectKey, taskKey, taskChangeAssigneeRequest);
             String taskReassignMessage = "Your task %s has been assigned to %s";
             String taskTakenMessage = "The task %s has been assigned to you by %s";
-            if (!SecurityUtil.getUsername().equalsIgnoreCase(taskTransferRequest.getCurrentAssignee().getUsername()) &&
-                    !SecurityUtil.getUsername().equalsIgnoreCase(taskTransferRequest.getNewAssignee().getUsername())) {
-                String message = String.format(taskReassignMessage, taskKey, taskTransferRequest.getNewAssignee().getDisplayName());
-                notificationService.queueNotification(taskTransferRequest.getCurrentAssignee().getUsername(), new Notification(projectKey, taskKey, EntityType.AuthorChange, message));
-                message = String.format(taskTakenMessage, taskKey, taskTransferRequest.getCurrentLoggedUser().getDisplayName());
-                notificationService.queueNotification(taskTransferRequest.getNewAssignee().getUsername(), new Notification(projectKey, taskKey, EntityType.AuthorChange, message));
-            } else if (taskTransferRequest.getNewAssignee().getUsername().equalsIgnoreCase(SecurityUtil.getUsername())) {
-                String message = String.format(taskReassignMessage, taskKey, taskTransferRequest.getCurrentAssignee().getDisplayName());
-                notificationService.queueNotification(taskTransferRequest.getCurrentAssignee().getUsername(), new Notification(projectKey, taskKey, EntityType.AuthorChange, message));
+            if (!SecurityUtil.getUsername().equalsIgnoreCase(taskChangeAssigneeRequest.getCurrentAssignee().getUsername()) &&
+                    !SecurityUtil.getUsername().equalsIgnoreCase(taskChangeAssigneeRequest.getNewAssignee().getUsername())) {
+                String message = String.format(taskReassignMessage, taskKey, taskChangeAssigneeRequest.getNewAssignee().getDisplayName());
+                notificationService.queueNotification(taskChangeAssigneeRequest.getCurrentAssignee().getUsername(), new Notification(projectKey, taskKey, EntityType.AuthorChange, message));
+                message = String.format(taskTakenMessage, taskKey, taskChangeAssigneeRequest.getCurrentLoggedUser().getDisplayName());
+                notificationService.queueNotification(taskChangeAssigneeRequest.getNewAssignee().getUsername(), new Notification(projectKey, taskKey, EntityType.AuthorChange, message));
+            } else if (taskChangeAssigneeRequest.getNewAssignee().getUsername().equalsIgnoreCase(SecurityUtil.getUsername())) {
+                String message = String.format(taskReassignMessage, taskKey, taskChangeAssigneeRequest.getCurrentAssignee().getDisplayName());
+                notificationService.queueNotification(taskChangeAssigneeRequest.getCurrentAssignee().getUsername(), new Notification(projectKey, taskKey, EntityType.AuthorChange, message));
             } else {
-                String message = String.format(taskTakenMessage, taskKey, taskTransferRequest.getCurrentAssignee().getDisplayName());
-                notificationService.queueNotification(taskTransferRequest.getNewAssignee().getUsername(), new Notification(projectKey, taskKey, EntityType.AuthorChange, message));
+                String message = String.format(taskTakenMessage, taskKey, taskChangeAssigneeRequest.getCurrentAssignee().getDisplayName());
+                notificationService.queueNotification(taskChangeAssigneeRequest.getNewAssignee().getUsername(), new Notification(projectKey, taskKey, EntityType.AuthorChange, message));
             }
         } catch (BusinessServiceException e) {
             logger.error("Unable to transfer UI State in " + taskKey + " from "
-                    + taskTransferRequest.getCurrentAssignee() + " to " + taskTransferRequest.getNewAssignee(), e);
+                    + taskChangeAssigneeRequest.getCurrentAssignee() + " to " + taskChangeAssigneeRequest.getNewAssignee(), e);
         }
     }
 

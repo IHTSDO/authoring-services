@@ -1,12 +1,12 @@
 package org.ihtsdo.authoringservices.domain;
 
-public class TaskTransferRequest {
+public class TaskChangeAssigneeRequest {
 
     User currentAssignee;
     User newAssignee;
     User currentLoggedUser;
 
-    public TaskTransferRequest(User currentAssignee, User newAssignee, User currentLoggedUser) {
+    public TaskChangeAssigneeRequest(User currentAssignee, User newAssignee, User currentLoggedUser) {
         this.currentAssignee = currentAssignee;
         this.newAssignee = newAssignee;
         this.currentLoggedUser = currentLoggedUser;

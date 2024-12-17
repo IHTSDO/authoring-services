@@ -240,6 +240,34 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
         projectRepository.save(project);
     }
 
+    @Override
+    public List<String> retrieveProjectRoles(String projectKey) throws BusinessServiceException {
+        Project project = getProjectOrThrow(projectKey);
+        return project.getUserGroups().stream().map(ProjectUserGroup::getName).toList();
+    }
+
+    @Override
+    public void updateProjectRoles(String projectKey, ProjectRoleUpdateRequest request) throws BusinessServiceException {
+        permissionService.checkUserPermissionOnProjectOrThrow(projectKey);
+        Project project = getProjectOrThrow(projectKey);
+        List<ProjectUserGroup> existing = Objects.requireNonNullElseGet(project.getUserGroups(), ArrayList::new);
+
+        request.roles().forEach(item -> {
+            boolean found = existing.stream().anyMatch(e -> e.getName().equals(item));
+            if (!found) {
+                ProjectUserGroup projectUserGroup = new ProjectUserGroup();
+                projectUserGroup.setProject(project);
+                projectUserGroup.setName(item);
+                existing.add(projectUserGroup);
+            }
+        });
+        existing.removeIf(item -> !request.roles().contains(item.getName()));
+        project.setUserGroups(existing);
+        project.setUpdatedDate(Timestamp.from(Instant.now()));
+        projectRepository.save(project);
+
+    }
+
     @NotNull
     private Project getProjectOrThrow(String projectKey) throws BusinessServiceException {
         Optional<Project> projectOptional = projectRepository.findById(projectKey);
