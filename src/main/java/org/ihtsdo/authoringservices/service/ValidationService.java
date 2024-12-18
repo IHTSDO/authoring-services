@@ -191,10 +191,10 @@ public class ValidationService {
 			validation.setDailyBuildReportUrl(newPropertyValues.get(DAILY_BUILD_REPORT_URL));
 		}
 		if (newPropertyValues.containsKey(CONTENT_HEAD_TIMESTAMP)) {
-			validation.setContentHeadTimestamp(Long.valueOf(newPropertyValues.get(CONTENT_HEAD_TIMESTAMP)));
+			validation.setContentHeadTimestamp(asLongOrNull(newPropertyValues.get(CONTENT_HEAD_TIMESTAMP)));
 		}
 		if (newPropertyValues.containsKey(RUN_ID)) {
-			validation.setRunId(Long.valueOf(newPropertyValues.get(RUN_ID)));
+			validation.setRunId(asLongOrNull(newPropertyValues.get(RUN_ID)));
 		}
 		if (newPropertyValues.containsKey(PROJECT_KEY)) {
 			validation.setProjectKey(newPropertyValues.get(PROJECT_KEY));
@@ -203,10 +203,10 @@ public class ValidationService {
 			validation.setTaskKey(newPropertyValues.get(TASK_KEY));
 		}
 		if (newPropertyValues.containsKey(VALIDATION_START_TIMESTAMP)) {
-			validation.setStartTimestamp(newPropertyValues.get(VALIDATION_START_TIMESTAMP) != null ? Long.valueOf(newPropertyValues.get(VALIDATION_START_TIMESTAMP)) : null);
+			validation.setStartTimestamp(asLongOrNull(newPropertyValues.get(VALIDATION_START_TIMESTAMP)));
 		}
 		if (newPropertyValues.containsKey(VALIDATION_END_TIMESTAMP)) {
-			validation.setEndTimestamp(newPropertyValues.get(VALIDATION_END_TIMESTAMP) != null ? Long.valueOf(newPropertyValues.get(VALIDATION_END_TIMESTAMP)) : null);
+			validation.setEndTimestamp(asLongOrNull(newPropertyValues.get(VALIDATION_END_TIMESTAMP)));
 		}
 
 		validation = validationRepository.save(validation);
@@ -275,6 +275,18 @@ public class ValidationService {
 			throw new BusinessServiceException("Failed to read branch information, validation request not sent.", e);
 		}
 	}
+
+    private Long asLongOrNull(String longStr) {
+        if (longStr == null || longStr.trim().isEmpty()) {
+            return null;
+        }
+
+        try {
+            return Long.parseLong(longStr);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
 
 	@SuppressWarnings("unchecked")
 	private ValidationConfiguration constructValidationConfig(final String branchPath, final Map <String, Object> branchMetadata, String effectiveDate, boolean enableMRCM, String projectKey, String taskKey) {
