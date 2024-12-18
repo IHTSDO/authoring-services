@@ -505,7 +505,7 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
         if (username == null || username.isEmpty()) {
             updateRequest.field(Field.ASSIGNEE, null);
         } else {
-            updateRequest.field(Field.ASSIGNEE, getUser(username));
+            updateRequest.field(Field.ASSIGNEE, getJiraUser(username));
             String currentIssueAssignee = issue.getAssignee().getName();
             if (currentIssueAssignee != null && !currentIssueAssignee.isEmpty() && !currentIssueAssignee.equalsIgnoreCase(username)) {
                 taskChangeAssigneeRequest = new TaskChangeAssigneeRequest(getUser(currentIssueAssignee), getUser(username), getUser(SecurityUtil.getUsername()));
@@ -515,10 +515,10 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
     }
 
     private void updateTaskReviewers(String projectKey, String taskKey, List<org.ihtsdo.authoringservices.domain.User> reviewers, AuthoringTask authoringTask, Issue.FluentUpdate updateRequest) throws BusinessServiceException {
-        List<User> users = new ArrayList<>();
+        List<net.rcarz.jiraclient.User> users = new ArrayList<>();
 
         for (User reviewer : reviewers) {
-            users.add(getUser(reviewer.getUsername()));
+            users.add(getJiraUser(reviewer.getUsername()));
         }
         // Send email to new reviewers
         emailService.sendTaskReviewAssignedNotification(projectKey, taskKey, authoringTask.getSummary(), getNewReviewers(authoringTask.getReviewers(), reviewers));
@@ -553,15 +553,14 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
     }
 
 
-    private Collection<org.ihtsdo.authoringservices.domain.User> getNewReviewers(List<org.ihtsdo.authoringservices.domain.User> currentReviewers,
-                                                                                 List<org.ihtsdo.authoringservices.domain.User> reviewers) throws BusinessServiceException {
+    private Collection<User> getNewReviewers(List<User> currentReviewers, List<User> reviewers) throws BusinessServiceException {
         reviewers.removeAll(currentReviewers);
         Collection<org.ihtsdo.authoringservices.domain.User> results =
                 reviewers.stream().filter(r -> !SecurityUtil.getUsername().equals(r.getUsername())).toList();
 
-        for (org.ihtsdo.authoringservices.domain.User user : results) {
+        for (User user : results) {
             if (user.getEmail() == null || user.getDisplayName() == null) {
-                User jiraUser = getUser(user.getUsername());
+                net.rcarz.jiraclient.User jiraUser = getJiraUser(user.getUsername());
                 user.setEmail(jiraUser.getEmail());
                 user.setDisplayName(jiraUser.getDisplayName());
             }
@@ -571,13 +570,17 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
 
     @Override
     public User getUser(String username) throws BusinessServiceException {
+        net.rcarz.jiraclient.User result = getJiraUser(username);
+        User user = new User();
+        user.setUsername(result.getName());
+        user.setDisplayName(result.getDisplayName());
+        user.setEmail(result.getEmail());
+        return user;
+    }
+
+    private net.rcarz.jiraclient.User getJiraUser(String username) throws BusinessServiceException {
         try {
-            net.rcarz.jiraclient.User result = net.rcarz.jiraclient.User.get(getJiraClient().getRestClient(), username);
-            User user = new User();
-            user.setUsername(result.getName());
-            user.setDisplayName(result.getDisplayName());
-            user.setEmail(result.getEmail());
-            return user;
+            return net.rcarz.jiraclient.User.get(getJiraClient().getRestClient(), username);
         } catch (JiraException je) {
             throw new BusinessServiceException("Failed to recover user '" + username + "' from Jira instance.", je);
         }
@@ -655,7 +658,7 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
             if (labelsString.contains(CRS_JIRA_LABEL)) {
                 for (String queue : taskStateChangeNotificationQueues) {
                     if ((isIntAuthoringTask(issue) && isIntTaskStateChangeQueue(queue))
-                        || (!isIntAuthoringTask(issue) && !isIntTaskStateChangeQueue(queue))) {
+                            || (!isIntAuthoringTask(issue) && !isIntTaskStateChangeQueue(queue))) {
                         messagingHelper.send(new ActiveMQQueue(queue), properties);
                     }
                 }
