@@ -14,7 +14,7 @@ import org.ihtsdo.authoringservices.domain.User;
 import org.ihtsdo.authoringservices.domain.UserGroupItem;
 import org.ihtsdo.authoringservices.service.JiraUserService;
 import org.ihtsdo.authoringservices.service.client.IMSClientFactory;
-import org.ihtsdo.authoringservices.service.factory.ProjectServiceFactory;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -53,12 +53,7 @@ public class UserController {
             @RequestParam(required = false, defaultValue = "0") int offset,
             @RequestParam(required = false, defaultValue = "50") int limit) {
         String groupNameToSearch = StringUtils.hasLength(groupName) ? groupName : defaultGroupName;
-        List<User> allUsers = userCache.getIfPresent(groupNameToSearch);
-        if (allUsers == null) {
-            allUsers = new ArrayList<>();
-            fetchAllUsersForGroup(StringUtils.hasLength(groupName) ? groupName : defaultGroupName, 0, allUsers);
-            userCache.put(groupNameToSearch, allUsers);
-        }
+        List<User> allUsers = getAllUsers(groupNameToSearch);
 
         JiraUserGroup result = new JiraUserGroup();
         result.setName(groupName);
@@ -68,10 +63,7 @@ public class UserController {
         int to = Math.min((offset + limit), allUsers.size());
         List<JiraUser> items = new ArrayList<>();
         for (User user : allUsers.subList(offset, to)) {
-            JiraUser jiraUser = new JiraUser();
-            jiraUser.setName(user.getUsername());
-            jiraUser.setDisplayName(user.getDisplayName());
-            items.add(jiraUser);
+            items.add(getNewJiraUser(user));
         }
         userGroupItem.setItems(items);
         result.setUsers(userGroupItem);
@@ -80,27 +72,18 @@ public class UserController {
 
     @GetMapping(value = "users/search")
     @Operation(summary = "Returns authoring users from Jira by search conditions")
-    public List<JiraUser> findUsersByNameAndGroupName(
+    public List<JiraUser> findUsersByUsername(
             @Parameter(description = "A part of user name that to be searched") @RequestParam("username") String username,
             @Parameter(description = "Project key. Example: TESTINT2,...") @RequestParam("projectKeys") String projectKeys,
             @Parameter(description = "Task key. Example: TESTINT2-XXX") @RequestParam("issueKey") String issueKey,
             int maxResults,
             int startAt) {
-        List<User> allUsers = userCache.getIfPresent(defaultGroupName);
-        if (allUsers == null) {
-            allUsers = new ArrayList<>();
-            fetchAllUsersForGroup(defaultGroupName, 0, allUsers);
-            userCache.put(defaultGroupName, allUsers);
-        }
-
-        List<User> filteredUsers =  allUsers.stream().filter(item -> item.getUsername().contains(username) || item.getDisplayName().contains(username)).toList();
+        List<User> allUsers = getAllUsers(defaultGroupName);
+        List<User> filteredUsers = allUsers.stream().filter(item -> item.getUsername().contains(username.toLowerCase()) || item.getDisplayName().toLowerCase().contains(username.toLowerCase())).toList();
         int to = Math.min((startAt + maxResults), filteredUsers.size());
         List<JiraUser> result = new ArrayList<>();
         for (User user : filteredUsers.subList(startAt, to)) {
-            JiraUser jiraUser = new JiraUser();
-            jiraUser.setName(user.getUsername());
-            jiraUser.setDisplayName(user.getDisplayName());
-            result.add(jiraUser);
+            result.add(getNewJiraUser(user));
         }
         return result;
     }
@@ -114,11 +97,32 @@ public class UserController {
         configurationService.deleteIssueLink(issueKey, linkId);
     }
 
+    @NotNull
+    private List<User> getAllUsers(String groupName) {
+        List<User> allUsers = userCache.getIfPresent(groupName);
+        if (allUsers == null) {
+            allUsers = new ArrayList<>();
+            fetchAllUsersForGroup(groupName, 0, allUsers);
+            userCache.put(groupName, allUsers);
+        }
+        return allUsers;
+    }
+
     private void fetchAllUsersForGroup(String groupName, int offset, List<User> allUsers) {
         List<User> users = imsClientFactory.getClient().searchUserByGroupname(StringUtils.hasLength(groupName) ? groupName : defaultGroupName, offset, 1000);
-        allUsers.addAll(users);
+        allUsers.addAll(users.stream().filter(User::isActive).toList());
         if (users.size() == 1000) {
             fetchAllUsersForGroup(groupName, offset + 1000, allUsers);
         }
+    }
+
+    @NotNull
+    private static JiraUser getNewJiraUser(User user) {
+        JiraUser jiraUser = new JiraUser();
+        jiraUser.setName(user.getUsername());
+        jiraUser.setKey(user.getUsername());
+        jiraUser.setDisplayName(user.getDisplayName());
+        jiraUser.setActive(user.isActive());
+        return jiraUser;
     }
 }

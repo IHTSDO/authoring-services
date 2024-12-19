@@ -19,6 +19,8 @@ public class User {
 	private String username;
 	private String avatarUrl;
 
+	private boolean active;
+
 	private List<String> roles;
 
 	public User() {
@@ -72,6 +74,14 @@ public class User {
 
 	public void setAvatarUrl(String avatarUrl) {
 		this.avatarUrl = avatarUrl;
+	}
+
+	public boolean isActive() {
+		return active;
+	}
+
+	public void setActive(boolean active) {
+		this.active = active;
 	}
 
 	@JsonIgnore
