@@ -1,6 +1,5 @@
 package org.ihtsdo.authoringservices.domain;
 
-import java.util.List;
 public class JiraUserGroup {
 	private String expand;
 
