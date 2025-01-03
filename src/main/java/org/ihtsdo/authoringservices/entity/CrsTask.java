@@ -1,6 +1,7 @@
 package org.ihtsdo.authoringservices.entity;
 
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
@@ -11,6 +12,9 @@ public class CrsTask {
     @Id
     @Column(name = "crs_task_key")
     private String crsTaskKey;
+
+    @Column(name = "crs_jira_key")
+    private String crsJiraKey;
 
     @ManyToOne
     @JoinColumn(name = "task_key")
@@ -25,6 +29,15 @@ public class CrsTask {
         this.crsTaskKey = crsTaskKey;
     }
 
+    public String getCrsJiraKey() {
+        return crsJiraKey;
+    }
+
+    public void setCrsJiraKey(String crsJiraKey) {
+        this.crsJiraKey = crsJiraKey;
+    }
+
+    @JsonIgnore
     public Task getTask() {
         return task;
     }

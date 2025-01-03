@@ -4,22 +4,22 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.PostConstruct;
-import net.rcarz.jiraclient.JiraException;
 import org.ihtsdo.authoringservices.domain.JiraUser;
 import org.ihtsdo.authoringservices.domain.JiraUserGroup;
 import org.ihtsdo.authoringservices.domain.User;
 import org.ihtsdo.authoringservices.domain.UserGroupItem;
-import org.ihtsdo.authoringservices.service.JiraUserService;
 import org.ihtsdo.authoringservices.service.client.IMSClientFactory;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,9 +29,6 @@ import java.util.concurrent.TimeUnit;
 @RestController
 @RequestMapping(produces = {MediaType.APPLICATION_JSON_VALUE})
 public class UserController {
-
-    @Autowired
-    private JiraUserService configurationService;
 
     @Autowired
     private IMSClientFactory imsClientFactory;
@@ -88,15 +85,6 @@ public class UserController {
         return result;
     }
 
-    @Operation(summary = "Delete a related link", description = "This endpoint may be used to delete a related link which came from CRS.")
-    @ApiResponse(responseCode = "200", description = "OK")
-    @DeleteMapping(value = "/issue-key/{issueKey}/issue-link/{linkId}")
-    public void deleteIssueLink(
-            @Parameter(description = "Task key. Example: TESTINT2-XXX") @PathVariable final String issueKey,
-            @Parameter(description = "Issue ID. Example: CRT-XXX") @PathVariable final String linkId) throws JiraException {
-        configurationService.deleteIssueLink(issueKey, linkId);
-    }
-
     @NotNull
     private List<User> getAllUsers(String groupName) {
         List<User> allUsers = userCache.getIfPresent(groupName);
@@ -117,7 +105,7 @@ public class UserController {
     }
 
     @NotNull
-    private static JiraUser getNewJiraUser(User user) {
+    private JiraUser getNewJiraUser(User user) {
         JiraUser jiraUser = new JiraUser();
         jiraUser.setName(user.getUsername());
         jiraUser.setKey(user.getUsername());

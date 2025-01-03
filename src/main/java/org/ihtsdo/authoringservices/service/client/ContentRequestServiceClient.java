@@ -56,6 +56,10 @@ public class ContentRequestServiceClient {
         return requestId;
     }
 
+    public void unAssignAuthoringTask(String crsRequestId) {
+        restTemplate.put(this.contentRequestServiceUrl + "request/unassignAuthoringTask?requestId=" + crsRequestId, null);
+    }
+
 
     private class ContentRequestDto {
         private Long id;

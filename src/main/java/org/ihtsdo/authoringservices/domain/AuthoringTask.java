@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import net.rcarz.jiraclient.Issue;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
+import org.ihtsdo.authoringservices.entity.CrsTask;
 import org.ihtsdo.authoringservices.entity.Task;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
 
@@ -34,6 +35,7 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
     private User assignee;
     private User reporter;
     private List<User> reviewers;
+    private List<CrsTask> crsTasks;
     private String created;
     private String updated;
     private String latestClassificationJson;
@@ -43,6 +45,7 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
     private Date viewDate;
     private String branchPath;
     private String labels;
+    private boolean internalAuthoringTask;
 
     public AuthoringTask() {
     }
@@ -260,6 +263,14 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
         this.feedbackMessageDate = feedbackMessageDate;
     }
 
+    public void setCrsTasks(List<CrsTask> crsTasks) {
+        this.crsTasks = crsTasks;
+    }
+
+    public List<CrsTask> getCrsTasks() {
+        return crsTasks;
+    }
+
     public Date getViewDate() {
         return viewDate;
     }
@@ -278,5 +289,11 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
         this.labels = labels;
     }
 
+    public boolean isInternalAuthoringTask() {
+        return internalAuthoringTask;
+    }
 
+    public void setInternalAuthoringTask(boolean internalAuthoringTask) {
+        this.internalAuthoringTask = internalAuthoringTask;
+    }
 }

@@ -24,6 +24,8 @@ public abstract class TaskServiceBase {
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
+    protected static final String CRS_JIRA_LABEL = "CRS";
+
     protected static final String TASK_NOT_FOUND_MSG = "Task not found ";
 
     private static final String INT_TASK_STATE_CHANGE_QUEUE = "int-authoring";
