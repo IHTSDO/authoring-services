@@ -4,9 +4,6 @@ import net.rcarz.jiraclient.JiraClient;
 import net.rcarz.jiraclient.JiraException;
 import org.ihtsdo.authoringservices.service.jira.ImpersonatingJiraClientFactory;
 import org.ihtsdo.authoringservices.service.jira.JiraHelper;
-import org.ihtsdo.sso.integration.SecurityUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,8 +18,6 @@ public class JiraUserService {
 
     @Value("${jira.groupName:ihtsdo-sca-author}")
 	private String groupName;
-
-	private final Logger logger = LoggerFactory.getLogger(getClass());
 
 	public Object getUsers(int offset, int limit) throws JiraException {
 		return findUsersByGroupName(groupName, offset, limit);
@@ -43,13 +38,4 @@ public class JiraUserService {
 
 		return JiraHelper.searchUsers(adminJiraClient, username, groupName, projectKeys, issueKey, maxResults, startAt);
 	}
-
-	public void deleteIssueLink(String issueKey, String linkId) throws JiraException {
-		JiraHelper.deleteIssueLink(getJiraClient(), issueKey, linkId);
-	}
-
-	private JiraClient getJiraClient() {
-		return jiraClientFactory.getImpersonatingInstance(SecurityUtil.getUsername());
-	}
-
 }
