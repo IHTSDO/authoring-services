@@ -44,7 +44,6 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
 
     public static final String INCLUDE_ALL_FIELDS = "*all";
 
-    private static final String CRS_JIRA_LABEL = "CRS";
     private static final String AUTHORING_TASK_TYPE = "SCA Authoring Task";
     private static final String EXCLUDE_STATUSES = " AND (status != \"" + TaskStatus.COMPLETED.getLabel()
             + "\" AND status != \"" + TaskStatus.DELETED.getLabel() + "\") ";
@@ -686,15 +685,12 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
 
     @Override
     public List<TaskAttachment> getTaskAttachments(String projectKey, String taskKey) throws BusinessServiceException {
-
         List<TaskAttachment> attachments = new ArrayList<>();
-        final RestClient restClient = getJiraClient().getRestClient();
-
         try {
             Issue issue = getIssue(taskKey);
 
             for (IssueLink issueLink : issue.getIssueLinks()) {
-                getTaskAttachment(issueLink, restClient, attachments, issue);
+                getCrsTaskAttachment(issueLink.getOutwardIssue().getKey(), attachments, issue.getKey());
             }
         } catch (JiraException e) {
             if (e.getCause() instanceof RestException restException && restException.getHttpStatusCode() == 404) {
@@ -706,21 +702,27 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
         return attachments;
     }
 
-    private void getTaskAttachment(IssueLink issueLink, RestClient restClient, List<TaskAttachment> attachments, Issue issue) throws JiraException, BusinessServiceException {
-        Issue linkedIssue = issueLink.getOutwardIssue();
-
+    @Override
+    public void getCrsTaskAttachment(String issueLinkKey, List<TaskAttachment> attachments, String issueKey) throws BusinessServiceException {
         // need to forcibly retrieve the issue in order to get
         // attachments
-        Issue issue1 = this.getIssue(linkedIssue.getKey(), true);
-        Object organization = issue1.getField(jiraOrganizationField);
-        String crsId = issue1.getField(jiraCrsIdField).toString();
+
+        final RestClient restClient = getJiraClient().getRestClient();
+        Issue issue = null;
+        try {
+            issue = this.getIssue(issueLinkKey, true);
+        } catch (JiraException e) {
+            throw new BusinessServiceException(e);
+        }
+        Object organization = issue.getField(jiraOrganizationField);
+        String crsId = issue.getField(jiraCrsIdField).toString();
         if (crsId == null) {
             crsId = "Unknown";
         }
 
         boolean attachmentFound = false;
 
-        for (Attachment attachment : issue1.getAttachments()) {
+        for (Attachment attachment : issue.getAttachments()) {
 
             if (attachment.getFileName().equals("request.json")) {
 
@@ -731,7 +733,7 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
                     final JSON attachmentJson = restClient
                             .get(contentUrl.substring(contentUrl.indexOf("secure")));
 
-                    TaskAttachment taskAttachment = new TaskAttachment(issue1.getKey(), crsId, attachmentJson.toString(), organization != null ? organization.toString() : null);
+                    TaskAttachment taskAttachment = new TaskAttachment(issue.getKey(), crsId, attachmentJson.toString(), organization != null ? organization.toString() : null);
 
                     attachments.add(taskAttachment);
 
@@ -746,7 +748,7 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
 
         // if no attachments, create a blank one to link CRS ticket id
         if (!attachmentFound) {
-            TaskAttachment taskAttachment = new TaskAttachment(issue.getKey(), crsId, null, organization != null ? organization.toString() : null);
+            TaskAttachment taskAttachment = new TaskAttachment(issueKey, crsId, null, organization != null ? organization.toString() : null);
             attachments.add(taskAttachment);
         }
     }
@@ -760,6 +762,15 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
                 throw new ResourceNotFoundException(TASK_NOT_FOUND_MSG + toString(projectKey, taskKey), e);
             }
             throw new BusinessServiceException("Failed to leave comment for task " + toString(projectKey, taskKey), e);
+        }
+    }
+
+    @Override
+    public void deleteIssueLink(String issueKey, String linkId) throws BusinessServiceException {
+        try {
+            JiraHelper.deleteIssueLink(getJiraClient(), issueKey, linkId);
+        } catch (JiraException e) {
+            throw new BusinessServiceException(e);
         }
     }
 }

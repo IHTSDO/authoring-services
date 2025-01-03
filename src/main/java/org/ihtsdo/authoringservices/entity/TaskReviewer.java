@@ -22,7 +22,6 @@ public class TaskReviewer {
     @OnDelete(action = OnDeleteAction.CASCADE)
     private Task task;
 
-
     @Column(nullable = false)
     private String username;
 
@@ -39,6 +38,7 @@ public class TaskReviewer {
         return id;
     }
 
+    @JsonIgnore
     public Task getTask() {
         return task;
     }

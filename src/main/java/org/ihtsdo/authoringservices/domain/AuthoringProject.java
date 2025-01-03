@@ -29,7 +29,6 @@ public class AuthoringProject {
     private Boolean taskPromotionDisabled;
     private Map<String, Object> metadata;
     private CodeSystem codeSystem;
-
     private boolean internalAuthoringProject;
 
     public AuthoringProject() {

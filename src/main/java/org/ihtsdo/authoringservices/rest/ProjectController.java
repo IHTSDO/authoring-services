@@ -2,6 +2,7 @@ package org.ihtsdo.authoringservices.rest;
 
 import io.kaicode.rest.util.branchpathrewrite.BranchPathUriUtil;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.ihtsdo.authoringservices.domain.*;
@@ -169,7 +170,9 @@ public class ProjectController {
     @PostMapping(value = "/projects/{projectKey}/tasks")
     public AuthoringTask createTask(@PathVariable final String projectKey, @RequestBody final AuthoringTaskCreateRequest taskCreateRequest) throws BusinessServiceException {
         boolean useNew = projectServiceFactory.getInstance(true).isUseNew(projectKey);
-        return taskServiceFactory.getInstance(useNew).createTask(requiredParam(projectKey, PROJECT_KEY), SecurityUtil.getUsername(), taskCreateRequest);
+        String assignee = taskCreateRequest.getAssignee() != null ? taskCreateRequest.getAssignee().getUsername() : SecurityUtil.getUsername();
+
+        return taskServiceFactory.getInstance(useNew).createTask(requiredParam(projectKey, PROJECT_KEY), assignee, taskCreateRequest);
     }
 
     @Operation(summary = "Update a task")
@@ -286,6 +289,15 @@ public class ProjectController {
     @PostMapping(value = "/projects/{projectKey}/unlock")
     public void unlockProject(@PathVariable final String projectKey) throws BusinessServiceException {
         projectServiceFactory.getInstanceByKey(projectKey).unlockProject(projectKey);
+    }
+
+    @Operation(summary = "Delete a related link", description = "This endpoint may be used to delete a related link which came from CRS.")
+    @ApiResponse(responseCode = "200", description = "OK")
+    @DeleteMapping(value = "/issue-key/{issueKey}/issue-link/{linkId}")
+    public void deleteIssueLink(
+            @Parameter(description = "Task key. Example: TESTINT2-XXX") @PathVariable final String issueKey,
+            @Parameter(description = "Issue ID. Example: CRT-XXX") @PathVariable final String linkId) throws BusinessServiceException {
+        taskServiceFactory.getInstanceByKey(issueKey).deleteIssueLink(issueKey, linkId);
     }
 
     private List<AuthoringTask> filterJiraTasks(List<AuthoringTask> jiraTasks, List<AuthoringTask> results) {
