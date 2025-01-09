@@ -123,11 +123,11 @@ public class PromotionService {
         try {
             ProcessStatus processStatus = new ProcessStatus("Queued", "");
             automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), processStatus);
-
             autoPromoteBlockingQueue.put(automatePromoteProcess);
         } catch (InterruptedException e) {
             ProcessStatus failedStatus = new ProcessStatus(FAILED_STATUS, e.getMessage());
             automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), failedStatus);
+            Thread.currentThread().interrupt();
         }
     }
 
@@ -245,6 +245,7 @@ public class PromotionService {
     private synchronized void doAutomateTaskPromotion(String projectKey, String taskKey, Authentication authentication) {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         try {
+            logger.info("Beginning auto promotion of task {}", taskKey);
             boolean useNew = projectServiceFactory.getInstance(true).isUseNew(projectKey);
             AuthoringProject project = projectServiceFactory.getInstance(useNew).retrieveProject(projectKey, true);
             if (Boolean.TRUE.equals(project.isTaskPromotionDisabled())) {
@@ -276,15 +277,16 @@ public class PromotionService {
 
                     User user = taskServiceFactory.getInstance(useNew).getUser(SecurityUtil.getUsername());
                     releaseNoteService.promoteTaskLineItems(branchService.getTaskBranchPathUsingCache(projectKey, taskKey), user.getDisplayName());
+                    logger.info("Completed auto promotion of task {}", taskKey);
                 } else {
                     ProcessStatus status = new ProcessStatus(FAILED_STATUS, merge.getApiError() == null ? "" : merge.getApiError().getMessage());
                     automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
                 }
             }
-        } catch (BusinessServiceException e) {
+        } catch (Exception e) {
             ProcessStatus status = new ProcessStatus(FAILED_STATUS, e.getMessage());
             automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
-            logger.error("Failed to auto promote task " + taskKey, e);
+            logger.error("Failed to auto promote task {}", taskKey, e);
         } finally {
             SecurityContextHolder.getContext().setAuthentication(null);
         }
@@ -374,13 +376,12 @@ public class PromotionService {
                 automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
                 return STOPPED_STATUS;
             }
-        } catch (InterruptedException e) {
-            status = new ProcessStatus(REBASED_WITH_CONFLICT_STATUS, e.getMessage());
-            automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
-            throw new BusinessServiceException("Failed to fetch merge reviews status.", e);
-        } catch (RestClientException e) {
-            status = new ProcessStatus(REBASED_WITH_CONFLICT_STATUS, e.getMessage());
+        } catch (InterruptedException|RestClientException e) {
+            status = new ProcessStatus(FAILED_STATUS, e.getMessage());
             status.setCompleteDate(new Date());
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
             throw new BusinessServiceException("Failed to start merge reviews.", e);
         }

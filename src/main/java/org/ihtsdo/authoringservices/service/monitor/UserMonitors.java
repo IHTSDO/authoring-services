@@ -95,20 +95,13 @@ public class UserMonitors {
 			// Log monitor exception only once per monitor
 			synchronized (currentMonitors) {
 				if (currentMonitors.containsValue(monitor)) {
-					if (e instanceof FatalMonitorException) {
-						logger.warn("Fatal monitor run, removing {}.", monitor, e);
-						if (monitor.equals(currentMonitors.get(monitor.getClass()))) {
-							currentMonitors.remove(monitor.getClass());
-						}
-					} else {
-						handleNonFatalMonitorException(monitor, e);
-					}
+					handleMonitorException(monitor, e);
 				}
 			}
 		}
 	}
 
-	private void handleNonFatalMonitorException(Monitor monitor, MonitorException e) {
+	private void handleMonitorException(Monitor monitor, MonitorException e) {
 		if (e.getCause() != null && e.getCause().getCause() != null) {
 			RestClientException restClientException = (RestClientException) e.getCause().getCause();
 			if (restClientException.getMessage().startsWith("Failed to retrieve Branch, status code: 403")) {
