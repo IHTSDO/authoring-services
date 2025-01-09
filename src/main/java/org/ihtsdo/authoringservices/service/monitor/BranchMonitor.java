@@ -33,24 +33,24 @@ public class BranchMonitor extends Monitor {
 	@Override
 	public Notification runOnce() throws MonitorException {
 		try {
-			logger.info("Get branch state {}", branchPath);
+			logger.debug("Get branch state {}", branchPath);
 			final Branch branch = branchService.getBranch(branchPath);
 			String newBranchState = branch.getState();
 			if (!newBranchState.equals(this.branchState)) {
-				logger.info("Branch {} state {}, changed", branchPath, newBranchState);
+				logger.debug("Branch {} state {}, changed", branchPath, newBranchState);
 				this.branchState = newBranchState;
 				return new Notification(projectId, taskId, EntityType.BranchState, newBranchState);
 			} else {
-				logger.info("Branch {} state {}, no change", branchPath, newBranchState);
+				logger.debug("Branch {} state {}, no change", branchPath, newBranchState);
 			}
 			long newBranchHead = branch.getHeadTimestamp();
 			if (newBranchHead != this.branchHead) {
-				logger.info("Branch {} head {}, changed", branchPath, newBranchHead);
+				logger.debug("Branch {} head {}, changed", branchPath, newBranchHead);
 				this.branchHead = newBranchHead;
 				this.cacheService.clearClassificationCache(branchPath);
 				return new Notification(projectId, taskId, EntityType.BranchHead, Long.toString(newBranchHead));
 			} else {
-				logger.info("Branch {} head {}, no change", taskId, newBranchHead);
+				logger.debug("Branch {} head {}, no change", taskId, newBranchHead);
 			}
 			return null;
 		} catch (Exception e) {

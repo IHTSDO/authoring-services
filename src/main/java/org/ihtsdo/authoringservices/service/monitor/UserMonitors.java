@@ -49,67 +49,81 @@ public class UserMonitors {
 		}
 		new Thread(() -> {
 			try {
-				logger.info("Starting user monitors for {}", username);
-				while (isStillInUse()) {
-					PreAuthenticatedAuthenticationToken decoratedAuthentication = new PreAuthenticatedAuthenticationToken(username, token);
-					SecurityContextHolder.getContext().setAuthentication(decoratedAuthentication);
-
-					final List<Class<?>> keys = new ArrayList<>(currentMonitors.keySet());
-					final int size = keys.size();
-					for (int i = 0; i < size; i++) { // Old style for loop to avoid any concurrent modification problem.
-						Monitor monitor = null;
-						synchronized (currentMonitors) {
-							if (currentMonitors.size() > i) {
-								monitor = currentMonitors.get(keys.get(i));
-							}
-						}
-						if (monitor != null) {
-							logger.debug("Running monitor {}", monitor);
-							try {
-								final Notification notification = monitor.runOnce();
-								logger.debug("Monitor {}, notification result {}", monitor, notification);
-								if (notification != null) {
-									notificationService.queueNotification(username, notification);
-								}
-							} catch (MonitorException e) {
-								// Log monitor exception only once per monitor
-								synchronized (currentMonitors) {
-									if (currentMonitors.containsValue(monitor)) {
-										if (e instanceof FatalMonitorException) {
-											logger.warn("Fatal monitor run, removing {}.", monitor, e);
-											if (monitor.equals(currentMonitors.get(monitor.getClass()))) {
-												currentMonitors.remove(monitor.getClass());
-											}
-										} else {
-											if (e.getCause() != null && e.getCause() != null && e.getCause().getCause() != null) {
-												RestClientException restClientException = (RestClientException) e.getCause().getCause();
-												if (restClientException.getMessage().startsWith("Failed to retrieve Branch, status code: 403")) {
-													currentMonitors.remove(monitor.getClass());
-													logger.error("Monitor run failed.", e);
-													break;
-												}
-											}
-											if (!monitorLoggedError.contains(monitor)) {
-												monitorLoggedError.add(monitor);
-												logger.error("Monitor run failed.", e);
-											} else {
-												logger.info("Monitor run failed again.", e);
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-					Thread.sleep(PAUSE_SECONDS * 1000);
-				}
-				logger.info("User monitors for {} no longer in use. Closing down.", username);
-				deathCallback.run();
+				startMonitorForUser();
 			} catch (InterruptedException e) {
 				// This will probably happen when we restart the application.
 				logger.info("User monitor interrupted.", e);
+				Thread.currentThread().interrupt();
 			}
 		}, "UserMonitor-" + username).start();
+	}
+
+	private void startMonitorForUser() throws InterruptedException {
+		logger.info("Starting user monitors for {}", username);
+		while (isStillInUse()) {
+			PreAuthenticatedAuthenticationToken decoratedAuthentication = new PreAuthenticatedAuthenticationToken(username, token);
+			SecurityContextHolder.getContext().setAuthentication(decoratedAuthentication);
+
+			final List<Class<?>> keys = new ArrayList<>(currentMonitors.keySet());
+			final int size = keys.size();
+			for (int i = 0; i < size; i++) { // Old style for loop to avoid any concurrent modification problem.
+				Monitor monitor = null;
+				synchronized (currentMonitors) {
+					if (currentMonitors.size() > i) {
+						monitor = currentMonitors.get(keys.get(i));
+					}
+				}
+				if (monitor != null) {
+					runMonitor(monitor);
+				}
+			}
+			Thread.sleep(PAUSE_SECONDS * 1000L);
+		}
+		logger.info("User monitors for {} no longer in use. Closing down.", username);
+		deathCallback.run();
+	}
+
+	private void runMonitor(Monitor monitor) {
+		logger.debug("Running monitor {}", monitor);
+		try {
+			final Notification notification = monitor.runOnce();
+			logger.debug("Monitor {}, notification result {}", monitor, notification);
+			if (notification != null) {
+				notificationService.queueNotification(username, notification);
+			}
+		} catch (MonitorException e) {
+			// Log monitor exception only once per monitor
+			synchronized (currentMonitors) {
+				if (currentMonitors.containsValue(monitor)) {
+					if (e instanceof FatalMonitorException) {
+						logger.warn("Fatal monitor run, removing {}.", monitor, e);
+						if (monitor.equals(currentMonitors.get(monitor.getClass()))) {
+							currentMonitors.remove(monitor.getClass());
+						}
+					} else {
+						handleNonFatalMonitorException(monitor, e);
+					}
+				}
+			}
+		}
+	}
+
+	private void handleNonFatalMonitorException(Monitor monitor, MonitorException e) {
+		if (e.getCause() != null && e.getCause().getCause() != null) {
+			RestClientException restClientException = (RestClientException) e.getCause().getCause();
+			if (restClientException.getMessage().startsWith("Failed to retrieve Branch, status code: 403")) {
+				currentMonitors.remove(monitor.getClass());
+				logger.error("Monitor run failed.", e);
+				return;
+			}
+		}
+
+		if (!monitorLoggedError.contains(monitor)) {
+			monitorLoggedError.add(monitor);
+			logger.error("Monitor run failed.", e);
+		} else {
+			logger.info("Monitor run failed again.", e);
+		}
 	}
 
 	public void updateFocus(String focusProjectId, String focusTaskId) throws BusinessServiceException {
