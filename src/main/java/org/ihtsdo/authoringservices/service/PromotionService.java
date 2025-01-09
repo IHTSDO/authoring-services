@@ -21,6 +21,7 @@ import org.ihtsdo.sso.integration.SecurityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -585,5 +586,11 @@ public class PromotionService {
     @PreDestroy
     public void shutdown() {
         executorService.shutdown();
+    }
+
+    public List<String> listTasksQueuedForAutoPromotion() {
+        return autoPromoteBlockingQueue.stream()
+                .map(AutomatePromoteProcess::getTaskKey)
+                .toList();
     }
 }

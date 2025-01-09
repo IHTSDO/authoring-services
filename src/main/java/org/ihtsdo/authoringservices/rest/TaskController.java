@@ -172,6 +172,13 @@ public class TaskController {
         return promotionService.getAutomateTaskPromotionStatus(requiredParam(projectKey, PROJECT_KEY), requiredParam(taskKey, TASK_KEY));
     }
 
+    @Operation(summary = "List tasks queued for auto-promotion")
+    @ApiResponse(responseCode = "200", description = "OK")
+    @PostMapping(value = "/auto-promotion/list")
+    public List<String> listTasksQueuedForAutoPromotion() {
+        return promotionService.listTasksQueuedForAutoPromotion();
+    }
+
     @Operation(summary = "Clear status of authoring task auto-promotion.")
     @ApiResponse(responseCode = "200", description = "OK")
     @PostMapping(value = "/projects/{projectKey}/tasks/{taskKey}/auto-promote/clear-status")
