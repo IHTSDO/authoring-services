@@ -7,7 +7,10 @@ import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import java.util.List;
 
 public interface ProjectService {
-    AuthoringProject createProject(CreateProjectRequest request, String codeSystemBranchPath) throws BusinessServiceException;
+
+    boolean isUseNew(String projectKey);
+
+    AuthoringProject createProject(CreateProjectRequest request, AuthoringCodeSystem codeSystem) throws BusinessServiceException;
 
     AuthoringProject updateProject(String projectKey, AuthoringProject updatedProject) throws BusinessServiceException;
 
@@ -32,4 +35,8 @@ public interface ProjectService {
     void addCommentLogErrors(String projectKey, String commentString) throws BusinessServiceException;
 
     void updateProjectCustomFields(String projectKey, ProjectFieldUpdateRequest request) throws BusinessServiceException;
+
+    List<String> retrieveProjectRoles(String projectKey) throws BusinessServiceException;
+
+    void updateProjectRoles(String projectKey, ProjectRoleUpdateRequest request) throws BusinessServiceException;
 }

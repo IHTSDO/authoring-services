@@ -14,6 +14,8 @@ import jakarta.jms.ConnectionFactory;
 import net.rcarz.jiraclient.JiraException;
 import org.ihtsdo.authoringservices.service.ProjectService;
 import org.ihtsdo.authoringservices.service.TaskService;
+import org.ihtsdo.authoringservices.service.impl.AuthoringProjectServiceImpl;
+import org.ihtsdo.authoringservices.service.impl.AuthoringTaskServiceImpl;
 import org.ihtsdo.authoringservices.service.impl.JiraProjectServiceImpl;
 import org.ihtsdo.authoringservices.service.impl.JiraTaskServiceImpl;
 import org.ihtsdo.authoringservices.service.jira.ImpersonatingJiraClientFactory;
@@ -31,6 +33,7 @@ import org.springframework.boot.info.BuildProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.http.converter.ByteArrayHttpMessageConverter;
 import org.springframework.http.converter.ResourceHttpMessageConverter;
@@ -54,13 +57,25 @@ public abstract class Configuration {
 	private ConnectionFactory connectionFactory;
 
 	@Bean
+	@Primary
 	public TaskService taskService(@Autowired @Qualifier("authoringTaskOAuthJiraClient") ImpersonatingJiraClientFactory jiraClientFactory, @Value("${jira.username}") String jiraUsername) throws JiraException {
         return new JiraTaskServiceImpl(jiraClientFactory, jiraUsername);
 	}
 
+	@Bean(name = "authoringTaskService")
+	public TaskService authoringTaskService() {
+		return new AuthoringTaskServiceImpl();
+	}
+
 	@Bean
+	@Primary
 	public ProjectService projectService(@Autowired @Qualifier("authoringTaskOAuthJiraClient") ImpersonatingJiraClientFactory jiraClientFactory, @Value("${jira.username}") String jiraUsername) throws JiraException {
 		return new JiraProjectServiceImpl(jiraClientFactory, jiraUsername);
+	}
+
+	@Bean(name = "authoringProjectService")
+	public ProjectService authoringProjectService() {
+		return new AuthoringProjectServiceImpl();
 	}
 
 	@Bean

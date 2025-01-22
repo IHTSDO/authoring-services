@@ -7,6 +7,8 @@ import org.ihtsdo.authoringservices.domain.AuthoringInfoWrapper;
 import org.ihtsdo.authoringservices.domain.AuthoringProject;
 import org.ihtsdo.authoringservices.domain.AuthoringTask;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
+import org.ihtsdo.authoringservices.service.factory.ProjectServiceFactory;
+import org.ihtsdo.authoringservices.service.factory.TaskServiceFactory;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
@@ -42,10 +44,10 @@ public class BranchService {
     private CodeSystemService codeSystemService;
 
     @Autowired
-    private ProjectService projectService;
+    private ProjectServiceFactory projectServiceFactory;
 
     @Autowired
-    private TaskService taskService;
+    private TaskServiceFactory taskServiceFactory;
 
     public AuthoringInfoWrapper getBranchAuthoringInfoWrapper(String branchPath) throws BusinessServiceException, RestClientException, ServiceException {
         String[] parts = branchPath.split("/");
@@ -106,7 +108,7 @@ public class BranchService {
     private AuthoringTask getAuthoringTask(String taskKey, String projectKey) throws BusinessServiceException {
         AuthoringTask task = null;
         if (taskKey != null) {
-            task = taskService.retrieveTask(projectKey, taskKey, true);
+            task = taskServiceFactory.getInstanceByKey(taskKey).retrieveTask(projectKey, taskKey, true);
         }
         return task;
     }
@@ -114,7 +116,7 @@ public class BranchService {
     private AuthoringProject getAuthoringProject(String projectKey) throws BusinessServiceException {
         AuthoringProject project = null;
         if (projectKey != null) {
-            project = projectService.retrieveProject(projectKey, true);
+            project = projectServiceFactory.getInstanceByKey(projectKey).retrieveProject(projectKey, true);
         }
         return project;
     }
@@ -167,16 +169,16 @@ public class BranchService {
     }
 
     public String getTaskBranchPathUsingCache(String projectKey, String taskKey) throws BusinessServiceException {
-        return PathHelper.getTaskPath(projectService.getProjectBaseUsingCache(projectKey), projectKey, taskKey);
+        return PathHelper.getTaskPath(projectServiceFactory.getInstanceByKey(projectKey).getProjectBaseUsingCache(projectKey), projectKey, taskKey);
     }
 
     public String getProjectBranchPathUsingCache(String projectKey) throws BusinessServiceException {
-        return PathHelper.getProjectPath(projectService.getProjectBaseUsingCache(projectKey), projectKey);
+        return PathHelper.getProjectPath(projectServiceFactory.getInstanceByKey(projectKey).getProjectBaseUsingCache(projectKey), projectKey);
     }
 
     public String getProjectOrTaskBranchPathUsingCache(String projectKey, String taskKey) throws BusinessServiceException {
         if (!Strings.isNullOrEmpty(projectKey)) {
-            final String extensionBase = projectService.getProjectBaseUsingCache(projectKey);
+            final String extensionBase = projectServiceFactory.getInstanceByKey(projectKey).getProjectBaseUsingCache(projectKey);
             if (!Strings.isNullOrEmpty(taskKey)) {
                 return PathHelper.getTaskPath(extensionBase, projectKey, taskKey);
             }

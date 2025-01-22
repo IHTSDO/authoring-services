@@ -69,9 +69,6 @@ public class RVFFailureJiraAssociationService {
 	private BranchService branchService;
 
 	@Autowired
-	private TaskService taskService;
-
-	@Autowired
 	private SnowstormRestClientFactory snowstormRestClientFactory;
 
 	@Autowired

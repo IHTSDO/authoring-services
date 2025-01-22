@@ -7,8 +7,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import net.rcarz.jiraclient.Issue;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
+import org.ihtsdo.authoringservices.entity.CrsTask;
+import org.ihtsdo.authoringservices.entity.Task;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -17,6 +20,8 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
 
     public static final String JIRA_CREATED_FIELD = "created";
     public static final String JIRA_UPDATED_FIELD = "updated";
+
+    private final SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
 
     private String key;
     private String projectKey;
@@ -28,7 +33,9 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
     private Long latestCodeSystemVersionTimestamp;
     private String description;
     private User assignee;
+    private User reporter;
     private List<User> reviewers;
+    private List<CrsTask> crsTasks;
     private String created;
     private String updated;
     private String latestClassificationJson;
@@ -38,6 +45,7 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
     private Date viewDate;
     private String branchPath;
     private String labels;
+    private boolean internalAuthoringTask;
 
     public AuthoringTask() {
     }
@@ -51,6 +59,10 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
         net.rcarz.jiraclient.User user = issue.getAssignee();
         if (user != null) {
             this.assignee = new User(user);
+        }
+        net.rcarz.jiraclient.User issueReporter = issue.getReporter();
+        if (issueReporter != null) {
+            this.reporter = new User(issueReporter);
         }
         created = (String) issue.getField(JIRA_CREATED_FIELD);
         updated = (String) issue.getField(JIRA_UPDATED_FIELD);
@@ -78,6 +90,17 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
         }
 
         branchPath = PathHelper.getTaskPath(extensionBase, projectKey, key);
+    }
+
+    public AuthoringTask(Task task) {
+        key = task.getKey();
+        projectKey = task.getProject().getKey();
+        summary = task.getName();
+        status = task.getStatus();
+        description = task.getDescription();
+        created = formatter.format(new Date(task.getCreated()));
+        updated = formatter.format(new Date(task.getUpdated()));
+        branchPath = task.getBranchPath();
     }
 
     public String getKey() {
@@ -137,6 +160,14 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
     @Override
     public void setAssignee(User assignee) {
         this.assignee = assignee;
+    }
+
+    public User getReporter() {
+        return reporter;
+    }
+
+    public void setReporter(User reporter) {
+        this.reporter = reporter;
     }
 
     public String getCreated() {
@@ -232,6 +263,14 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
         this.feedbackMessageDate = feedbackMessageDate;
     }
 
+    public void setCrsTasks(List<CrsTask> crsTasks) {
+        this.crsTasks = crsTasks;
+    }
+
+    public List<CrsTask> getCrsTasks() {
+        return crsTasks;
+    }
+
     public Date getViewDate() {
         return viewDate;
     }
@@ -250,5 +289,11 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
         this.labels = labels;
     }
 
+    public boolean isInternalAuthoringTask() {
+        return internalAuthoringTask;
+    }
 
+    public void setInternalAuthoringTask(boolean internalAuthoringTask) {
+        this.internalAuthoringTask = internalAuthoringTask;
+    }
 }

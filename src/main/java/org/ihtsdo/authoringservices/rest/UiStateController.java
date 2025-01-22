@@ -4,10 +4,12 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.ihtsdo.authoringservices.domain.AuthoringTask;
 import org.ihtsdo.authoringservices.domain.TaskStatus;
-import org.ihtsdo.authoringservices.service.TaskService;
 import org.ihtsdo.authoringservices.service.UiStateService;
+import org.ihtsdo.authoringservices.service.factory.TaskServiceFactory;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
+import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
 import org.ihtsdo.sso.integration.SecurityUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -27,7 +29,7 @@ public class UiStateController {
 	private UiStateService uiStateService;
 
 	@Autowired
-	private TaskService taskService;
+	private TaskServiceFactory taskServiceFactory;
 
 	@Operation(summary = "Persist User UI panel state",
 			description = "This endpoint may be used to persist UI state using any json object. " +
@@ -40,7 +42,14 @@ public class UiStateController {
 	public void persistTaskUiPanelState(@PathVariable final String projectKey, @PathVariable final String taskKey, @PathVariable final String panelId,
 			@RequestBody final String jsonState) throws IOException, BusinessServiceException, JSONException {
 		// TODO - move this to an explicit "Start progress" endpoint.
-		taskService.conditionalStateTransition(projectKey, taskKey, TaskStatus.NEW, TaskStatus.IN_PROGRESS);
+		boolean useNew = false;
+		try {
+			AuthoringTask task = taskServiceFactory.getInstance(true).retrieveTask(projectKey, taskKey, true);
+			useNew = task != null;
+		} catch (ResourceNotFoundException e) {
+			// Do nothing
+		}
+		taskServiceFactory.getInstance(useNew).conditionalStateTransition(projectKey, taskKey, TaskStatus.NEW, TaskStatus.IN_PROGRESS);
 		uiStateService.persistTaskPanelState(projectKey, taskKey, SecurityUtil.getUsername(), panelId, jsonState);
 	}
 

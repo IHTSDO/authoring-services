@@ -2,7 +2,7 @@ package org.ihtsdo.authoringservices.service;
 
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
-import org.ihtsdo.authoringservices.domain.TaskTransferRequest;
+import org.ihtsdo.authoringservices.domain.TaskChangeAssigneeRequest;
 import org.ihtsdo.authoringservices.service.dao.UiStateResourceService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -93,10 +93,10 @@ public class UiStateService {
 		resourceService.delete(getUserPanelPath(username, panelId));
 	}
 
-	public void transferTask(final String projectKey, final String taskKey, final TaskTransferRequest taskTransferRequest) throws BusinessServiceException {
+	public void transferTask(final String projectKey, final String taskKey, final TaskChangeAssigneeRequest taskChangeAssigneeRequest) throws BusinessServiceException {
 		try {
-			resourceService.move(getTaskUserPath(projectKey, taskKey, taskTransferRequest.getCurrentUser()),
-								 getTaskUserPath(projectKey, taskKey, taskTransferRequest.getNewUser()));
+			resourceService.move(getTaskUserPath(projectKey, taskKey, taskChangeAssigneeRequest.getCurrentAssignee().getUsername()),
+								 getTaskUserPath(projectKey, taskKey, taskChangeAssigneeRequest.getNewAssignee().getUsername()));
 		} catch (IOException e) {
 			throw new BusinessServiceException(e);
 		}

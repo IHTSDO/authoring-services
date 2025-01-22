@@ -5,7 +5,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.ihtsdo.authoringservices.domain.ConceptPromotionRequest;
 import org.ihtsdo.authoringservices.service.BranchService;
 import org.ihtsdo.authoringservices.service.PromotionService;
-import org.ihtsdo.authoringservices.service.TaskService;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
@@ -16,7 +15,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
@@ -27,9 +29,6 @@ public class ConceptPromotionController {
 
     @Value("${crs.url}")
     private String contentRequestServiceUrl;
-
-    @Autowired
-    private TaskService taskService;
 
     @Autowired
     private BranchService branchService;
