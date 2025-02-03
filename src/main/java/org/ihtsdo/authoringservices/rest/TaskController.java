@@ -55,9 +55,10 @@ public class TaskController {
     @Operation(summary = "List authenticated user's tasks across projects")
     @ApiResponse(responseCode = "200", description = "OK")
     @GetMapping(value = "/projects/my-tasks")
-    public List<AuthoringTask> listMyTasks(@RequestParam(value = "excludePromoted", required = false) String excludePromoted) throws BusinessServiceException {
-        List<AuthoringTask> results = new ArrayList<>(taskServiceFactory.getInstance(true).listMyTasks(SecurityUtil.getUsername(), excludePromoted));
-        List<AuthoringTask> jiraTasks = taskServiceFactory.getInstance(false).listMyTasks(SecurityUtil.getUsername(), excludePromoted);
+    public List<AuthoringTask> listMyTasks(@RequestParam(value = "excludePromoted", required = false) String excludePromoted,
+                                           @RequestParam(value = "type", required = false, defaultValue = "ALL") TaskType type) throws BusinessServiceException {
+        List<AuthoringTask> results = new ArrayList<>(taskServiceFactory.getInstance(true).listMyTasks(SecurityUtil.getUsername(), excludePromoted, type));
+        List<AuthoringTask> jiraTasks = taskServiceFactory.getInstance(false).listMyTasks(SecurityUtil.getUsername(), excludePromoted, type);
         return filterJiraTasks(jiraTasks, results);
     }
 
