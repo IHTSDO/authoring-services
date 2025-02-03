@@ -294,13 +294,16 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
     }
 
     @Override
-    public List<AuthoringTask> listMyTasks(String username, String excludePromoted) throws BusinessServiceException {
+    public List<AuthoringTask> listMyTasks(String username, String excludePromoted, TaskType type) throws BusinessServiceException {
         List<TaskStatus> excludedStatuses = new ArrayList<>(List.of(EXCLUDE_STATUSES));
         if (null != excludePromoted && excludePromoted.equalsIgnoreCase("TRUE")) {
             excludedStatuses.add(TaskStatus.PROMOTED);
         }
         List<Project> projects = permissionService.getProjectsForUser();
         List<Task> tasks = taskRepository.findByProjectInAndAssigneeAndStatusNotInOrderByUpdatedDateDesc(projects, username, excludedStatuses);
+        if (TaskType.CRS.equals(type)) {
+            tasks = tasks.stream().filter(task -> !CollectionUtils.isEmpty(task.getCrsTasks())).toList();
+        }
         return buildAuthoringTasks(tasks, false);
     }
 

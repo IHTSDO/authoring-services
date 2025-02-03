@@ -28,7 +28,7 @@ public interface TaskService {
 
     List<AuthoringTask> listTasksForProject(String projectKey, Boolean lightweight) throws BusinessServiceException;
 
-    List<AuthoringTask> listMyTasks(String username, String excludePromoted) throws BusinessServiceException;
+    List<AuthoringTask> listMyTasks(String username, String excludePromoted, TaskType type) throws BusinessServiceException;
 
     List<AuthoringTask> listMyOrUnassignedReviewTasks(String excludePromoted) throws BusinessServiceException;
 

@@ -324,7 +324,7 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
     }
 
     @Override
-    public List<AuthoringTask> listMyTasks(String username, String excludePromoted) throws BusinessServiceException {
+    public List<AuthoringTask> listMyTasks(String username, String excludePromoted, TaskType type) throws BusinessServiceException {
         String jql = "assignee = \"" + username + "\" AND type = \"" + AUTHORING_TASK_TYPE + "\" " + EXCLUDE_STATUSES;
         if (null != excludePromoted && excludePromoted.equalsIgnoreCase("TRUE")) {
             jql += " AND status != \"Promoted\"";
@@ -335,7 +335,11 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
         } catch (JiraException e) {
             throw new BusinessServiceException("Failed to list my tasks", e);
         }
-        return buildAuthoringTasks(issues, false);
+        List<AuthoringTask> tasks = buildAuthoringTasks(issues, false);
+        if (TaskType.CRS.equals(type)) {
+            tasks = tasks.stream().filter(task -> task.getLabels() != null && task.getLabels().contains(CRS_JIRA_LABEL)).toList();
+        }
+        return tasks;
     }
 
     @Override
