@@ -43,7 +43,15 @@ public class TaskController {
         this.promotionService = promotionService;
         this.rebaseService = rebaseService;
     }
-    
+
+    @Operation(summary = "Retrieve status information about the MAIN branch")
+    @ApiResponse(responseCode = "200", description = "OK")
+    @GetMapping(value = "/main")
+    public AuthoringMain retrieveMain() throws BusinessServiceException {
+        return taskServiceFactory.getInstance(true).retrieveMain();
+    }
+
+
     @Operation(summary = "List tasks within a project")
     @ApiResponse(responseCode = "200", description = "OK")
     @GetMapping(value = "/projects/{projectKey}/tasks")
