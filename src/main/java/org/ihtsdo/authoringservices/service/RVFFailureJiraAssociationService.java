@@ -56,9 +56,6 @@ public class RVFFailureJiraAssociationService {
 	@Value("${rvf.jira.ticket.watcher}")
 	private String watcher;
 
-	@Value("${rvf.jira.ticket.priority}")
-	private String priority;
-
 	@Autowired
 	private RVFFailureJiraAssociationRepository repository;
 
@@ -247,7 +244,6 @@ public class RVFFailureJiraAssociationService {
 			}
 
 			final Issue.FluentUpdate updateRequest = jiraIssue.update();
-			updateRequest.field(Field.PRIORITY, priority);
 			updateRequest.field(Field.ASSIGNEE, "");
 
 			updateRequest.execute();
