@@ -39,15 +39,13 @@ public class ReviewService {
 	private TaskServiceFactory taskServiceFactory;
 
 	@Transactional
-	public List<ReviewConcept> retrieveTaskReviewConceptDetails(String projectKey, String taskKey, String username)
-			throws BusinessServiceException {
+	public List<ReviewConcept> retrieveTaskReviewConceptDetails(String projectKey, String taskKey, String username) {
 		final Branch branch = branchRepository.findOneByProjectAndTask(projectKey, taskKey);
 		return getReviewConcepts(username, branch);
 	}
 
 	@Transactional
-	public List<ReviewConcept> retrieveProjectReviewConceptDetails(String projectKey, String username)
-			throws BusinessServiceException {
+	public List<ReviewConcept> retrieveProjectReviewConceptDetails(String projectKey, String username) {
 		final Branch branch = branchRepository.findOneByProjectAndTask(projectKey, null);
 		return getReviewConcepts(username, branch);
 	}
@@ -112,7 +110,7 @@ public class ReviewService {
 			listener.messageSent(message, createRequest.getEvent());
 		}
 		// Send email to Author
-		AuthoringTask authoringTask = taskServiceFactory.getInstanceByKey(taskKey).retrieveTask(projectKey, taskKey, true);
+		AuthoringTask authoringTask = taskServiceFactory.getInstanceByKey(taskKey).retrieveTask(projectKey, taskKey, true, true);
 		if (authoringTask.getAssignee() != null && !fromUsername.equals(authoringTask.getAssignee().getUsername())) {
 			emailService.sendCommentAddedNotification(projectKey, taskKey, authoringTask.getSummary(), createRequest.getMessageHtml(), Collections.singleton(authoringTask.getAssignee()));
 		}

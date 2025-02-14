@@ -162,7 +162,7 @@ public class ProjectController {
     @ApiResponse(responseCode = "200", description = "OK")
     @GetMapping(value = "/projects/{projectKey}/tasks/{taskKey}")
     public AuthoringTask retrieveTask(@PathVariable final String projectKey, @PathVariable final String taskKey) throws BusinessServiceException {
-        return taskServiceFactory.getInstanceByKey(taskKey).retrieveTask(requiredParam(projectKey, PROJECT_KEY), requiredParam(taskKey, TASK_KEY), false);
+        return taskServiceFactory.getInstanceByKey(taskKey).retrieveTask(requiredParam(projectKey, PROJECT_KEY), requiredParam(taskKey, TASK_KEY), false, false);
     }
 
     @Operation(summary = "Create a task within a project")

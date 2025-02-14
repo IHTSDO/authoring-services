@@ -12,6 +12,11 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.math.NumberUtils;
 import org.ihtsdo.authoringservices.domain.User;
 import org.ihtsdo.authoringservices.domain.*;
+import org.ihtsdo.authoringservices.entity.Project;
+import org.ihtsdo.authoringservices.entity.Task;
+import org.ihtsdo.authoringservices.entity.TaskReviewer;
+import org.ihtsdo.authoringservices.repository.ProjectRepository;
+import org.ihtsdo.authoringservices.repository.TaskRepository;
 import org.ihtsdo.authoringservices.service.*;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.authoringservices.service.jira.ImpersonatingJiraClientFactory;
@@ -34,6 +39,10 @@ import org.slf4j.event.Level;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 
+import java.sql.Timestamp;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 
@@ -42,8 +51,8 @@ import static org.ihtsdo.authoringservices.service.impl.JiraProjectServiceImpl.U
 
 public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService {
 
+    private final SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
     public static final String INCLUDE_ALL_FIELDS = "*all";
-
     private static final String AUTHORING_TASK_TYPE = "SCA Authoring Task";
     private static final String EXCLUDE_STATUSES = " AND (status != \"" + TaskStatus.COMPLETED.getLabel()
             + "\" AND status != \"" + TaskStatus.DELETED.getLabel() + "\") ";
@@ -75,6 +84,12 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
 
     @Value("${task-state-change.notification-queues}")
     private Set<String> taskStateChangeNotificationQueues;
+
+    @Autowired
+    private TaskRepository taskRepository;
+
+    @Autowired
+    private ProjectRepository projectRepository;
 
     private final ImpersonatingJiraClientFactory jiraClientFactory;
     private final Set<String> myTasksRequiredFields;
@@ -171,16 +186,57 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
     }
 
     @Override
-    public AuthoringTask retrieveTask(String projectKey, String taskKey, Boolean lightweight) throws BusinessServiceException {
+    public AuthoringTask retrieveTask(String projectKey, String taskKey, Boolean lightweight, boolean skipTaskMigration) throws BusinessServiceException {
         try {
             Issue issue = getIssue(taskKey);
             final List<AuthoringTask> authoringTasks = buildAuthoringTasks(new ArrayList<>(List.of(issue)), lightweight);
-            return !authoringTasks.isEmpty() ? authoringTasks.get(0) : null;
+            AuthoringTask authoringTask = !authoringTasks.isEmpty() ? authoringTasks.get(0) : null;
+
+            // Migrate JIRA task to internal authoring project
+            if (!skipTaskMigration && authoringTask != null && !TaskStatus.DELETED.equals(authoringTask.getStatus())) {
+                Optional<Task> existingTaskOptional = taskRepository.findById(issue.getKey());
+                Optional<Project> projectOptional = projectRepository.findById(projectKey);
+                if (projectOptional.isPresent() && existingTaskOptional.isEmpty()) {
+                    migrateJiraTaskToInternalProject(authoringTask, projectOptional.get());
+                    authoringTask.setInternalAuthoringTask(true);
+                }
+            }
+
+            return authoringTask;
         } catch (JiraException e) {
             if (e.getCause() instanceof RestException restException && restException.getHttpStatusCode() == 404) {
                 throw new ResourceNotFoundException(TASK_NOT_FOUND_MSG + toString(projectKey, taskKey), e);
             }
             throw new BusinessServiceException("Failed to retrieve task " + toString(projectKey, taskKey), e);
+        }
+    }
+
+    private void migrateJiraTaskToInternalProject(AuthoringTask authoringTask, Project project) throws BusinessServiceException {
+        Task task = new Task();
+        task.setKey(authoringTask.getKey());
+        task.setProject(project);
+        task.setName(authoringTask.getSummary());
+        task.setAssignee(authoringTask.getAssignee() != null ? authoringTask.getAssignee().getUsername() : null);
+        task.setReporter(authoringTask.getReporter().getUsername());
+        task.setDescription(authoringTask.getDescription());
+        task.setStatus(authoringTask.getStatus());
+        if (authoringTask.getReviewers() != null) {
+            List<TaskReviewer> reviewers = new ArrayList<>();
+            authoringTask.getReviewers().forEach(item ->
+                reviewers.add(new TaskReviewer(task, item.getUsername()))
+            );
+            task.setReviewers(reviewers);
+        }
+        task.setCreatedDate(getTimestamp(authoringTask.getCreated()));
+        task.setUpdatedDate(getTimestamp(authoringTask.getUpdated()));
+        taskRepository.save(task);
+    }
+
+    private Timestamp getTimestamp(String date) throws BusinessServiceException {
+        try {
+            return Timestamp.from(Instant.ofEpochMilli(formatter.parse(date).getTime()));
+        } catch (ParseException e) {
+            throw new BusinessServiceException("Failed to parse date", e);
         }
     }
 
@@ -512,7 +568,7 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
         }
 
         // Pick up those changes in a new Task object
-        return retrieveTask(projectKey, taskKey, false);
+        return retrieveTask(projectKey, taskKey, false, true);
     }
 
     private TaskChangeAssigneeRequest updateTaskAssigneeAndReturnTaskTransferRequestIfAny(org.ihtsdo.authoringservices.domain.User assignee, Issue.FluentUpdate updateRequest, Issue issue, TaskChangeAssigneeRequest taskChangeAssigneeRequest) throws BusinessServiceException {

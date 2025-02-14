@@ -39,7 +39,7 @@ public class ReviewMessageSentHandler implements ReviewMessageSentListener {
             final String project = branch.getProject();
             final String task = branch.getTask();
             if (StringUtils.hasLength(task)) {
-                AuthoringTask authoringTask = taskServiceFactory.getInstanceByKey(task).retrieveTask(project, task, true);
+                AuthoringTask authoringTask = taskServiceFactory.getInstanceByKey(task).retrieveTask(project, task, true, true);
                 addIfNotNull(usersToNotify, authoringTask.getAssignee());
                 if (authoringTask.getReviewers() != null) {
                     authoringTask.getReviewers().forEach(reviewer -> addIfNotNull(usersToNotify, reviewer));

@@ -150,7 +150,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
     }
 
     @Override
-    public AuthoringTask retrieveTask(String projectKey, String taskKey, Boolean lightweight) throws BusinessServiceException {
+    public AuthoringTask retrieveTask(String projectKey, String taskKey, Boolean lightweight, boolean skipTaskMigration) throws BusinessServiceException {
         Optional<Task> taskOptional = taskRepository.findById(taskKey);
         if (taskOptional.isPresent()) {
             return buildAuthoringTasks(new ArrayList<>(List.of(taskOptional.get())), lightweight).get(0);

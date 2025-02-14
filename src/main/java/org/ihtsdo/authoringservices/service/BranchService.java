@@ -108,7 +108,7 @@ public class BranchService {
     private AuthoringTask getAuthoringTask(String taskKey, String projectKey) throws BusinessServiceException {
         AuthoringTask task = null;
         if (taskKey != null) {
-            task = taskServiceFactory.getInstanceByKey(taskKey).retrieveTask(projectKey, taskKey, true);
+            task = taskServiceFactory.getInstanceByKey(taskKey).retrieveTask(projectKey, taskKey, true, true);
         }
         return task;
     }

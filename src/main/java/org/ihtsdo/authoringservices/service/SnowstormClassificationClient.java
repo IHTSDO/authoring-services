@@ -149,7 +149,7 @@ public class SnowstormClassificationClient {
 			if (request.getTaskKey() != null && ClassificationStatus.COMPLETED.equals(status)) {
 				try {
 					boolean useNew = taskServiceFactory.getInstance(true).isUseNew(request.getTaskKey());
-					AuthoringTask task = taskServiceFactory.getInstance(useNew).retrieveTask(request.getProjectKey(), request.getTaskKey(), true);
+					AuthoringTask task = taskServiceFactory.getInstance(useNew).retrieveTask(request.getProjectKey(), request.getTaskKey(), true, true);
 					if (TaskStatus.REVIEW_COMPLETED.equals(task.getStatus())) {
 						String jsonStr = snowstormRestClientFactory.getClient().getLatestClassificationOnBranch(request.getBranchPath());
 						JSONObject jsonObject = new JSONObject(jsonStr);
