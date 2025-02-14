@@ -14,7 +14,7 @@ public interface TaskService {
 
     AuthoringTask createTask(String projectKey, String username, AuthoringTaskCreateRequest taskCreateRequest) throws BusinessServiceException;
 
-    AuthoringTask retrieveTask(String projectKey, String taskKey, Boolean lightweight) throws BusinessServiceException;
+    AuthoringTask retrieveTask(String projectKey, String taskKey, Boolean lightweight, boolean skipTaskMigration) throws BusinessServiceException;
 
     AuthoringTask updateTask(String projectKey, String taskKey, AuthoringTaskUpdateRequest taskUpdateRequest) throws BusinessServiceException;
 

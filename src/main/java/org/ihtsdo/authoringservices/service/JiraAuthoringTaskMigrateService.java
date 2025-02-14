@@ -4,14 +4,13 @@ import jakarta.transaction.Transactional;
 import net.rcarz.jiraclient.Issue;
 import net.rcarz.jiraclient.JiraException;
 import org.ihtsdo.authoringservices.domain.AuthoringTask;
+import org.ihtsdo.authoringservices.domain.TaskStatus;
 import org.ihtsdo.authoringservices.domain.User;
 import org.ihtsdo.authoringservices.entity.Project;
 import org.ihtsdo.authoringservices.entity.Task;
 import org.ihtsdo.authoringservices.entity.TaskReviewer;
-import org.ihtsdo.authoringservices.entity.TaskSequence;
 import org.ihtsdo.authoringservices.repository.ProjectRepository;
 import org.ihtsdo.authoringservices.repository.TaskRepository;
-import org.ihtsdo.authoringservices.repository.TaskSequenceRepository;
 import org.ihtsdo.authoringservices.service.jira.ImpersonatingJiraClientFactory;
 import org.ihtsdo.authoringservices.service.util.TimerUtil;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
@@ -46,9 +45,6 @@ public class JiraAuthoringTaskMigrateService {
     private ProjectRepository projectRepository;
 
     @Autowired
-    private TaskSequenceRepository taskSequenceRepository;
-
-    @Autowired
     private TaskService jiraTaskService;
 
     @Autowired
@@ -61,13 +57,12 @@ public class JiraAuthoringTaskMigrateService {
     public void migrateJiraTasks(Set<String> projectKeys) {
         Iterable<Project> projectIterable = CollectionUtils.isEmpty(projectKeys) ? projectRepository.findAll() : projectRepository.findAllById(projectKeys);
         Set<Task> tasks = new HashSet<>();
-        Map<Project, Integer> projectToSequenceMap = new HashMap<>();
         for (Project project : projectIterable) {
             try {
                 TimerUtil timer = new TimerUtil("Migrate Jira Task for project " + project.getKey(), Level.INFO);
                 List<Issue> issues = listAllJiraTasksForProject(project.getKey());
                 for (Issue issue : issues) {
-                    migrateJiraTask(project, issue, tasks, projectToSequenceMap);
+                    migrateJiraTask(project, issue, tasks);
                 }
                 timer.finish();
             } catch (Exception e) {
@@ -76,21 +71,16 @@ public class JiraAuthoringTaskMigrateService {
         }
 
         taskRepository.saveAll(tasks);
-        updateTaskSequence(projectToSequenceMap);
     }
 
-    private void migrateJiraTask(Project project, Issue issue, Set<Task> tasks, Map<Project, Integer> projectToSequenceMap) {
+    private void migrateJiraTask(Project project, Issue issue, Set<Task> tasks) {
         try {
             Optional<Task> existingTaskOptional = taskRepository.findById(issue.getKey());
-            if (existingTaskOptional.isPresent()) return;
+            if (existingTaskOptional.isPresent() || TaskStatus.DELETED.equals(TaskStatus.fromLabel(issue.getStatus().getName()))) return;
 
-            AuthoringTask jiraTaskWithDetails = jiraTaskService.retrieveTask(project.getKey(), issue.getKey(), true);
+            AuthoringTask jiraTaskWithDetails = jiraTaskService.retrieveTask(project.getKey(), issue.getKey(), true, true);
             Task task = getNewTask(project, jiraTaskWithDetails);
             tasks.add(task);
-            int taskSequence = getTaskSequence(jiraTaskWithDetails.getKey());
-            if (!(projectToSequenceMap.containsKey(project) && projectToSequenceMap.get(project) >= taskSequence)) {
-                projectToSequenceMap.put(project, taskSequence);
-            }
         } catch (BusinessServiceException e) {
             logger.error(e.getMessage());
         } catch (ParseException e) {
@@ -106,6 +96,7 @@ public class JiraAuthoringTaskMigrateService {
         task.setName(jiraTaskWithDetails.getSummary());
         task.setAssignee(jiraTaskWithDetails.getAssignee() != null ? jiraTaskWithDetails.getAssignee().getUsername() : null);
         task.setReporter(jiraTaskWithDetails.getReporter().getUsername());
+        task.setDescription(jiraTaskWithDetails.getDescription());
         task.setStatus(jiraTaskWithDetails.getStatus());
         if (jiraTaskWithDetails.getReviewers() != null) {
             List<TaskReviewer> existing = getTaskReviewers(jiraTaskWithDetails, task);
@@ -131,31 +122,6 @@ public class JiraAuthoringTaskMigrateService {
         });
         existing.removeIf(item -> !reviewers.contains(item.getUsername()));
         return existing;
-    }
-
-    private void updateTaskSequence(Map<Project, Integer> projectToSequenceMap) {
-        if (!projectToSequenceMap.isEmpty()) {
-            Set<TaskSequence> sequences = new HashSet<>();
-            projectToSequenceMap.forEach((key, value) -> {
-                TaskSequence existing = taskSequenceRepository.findOneByProject(key);
-                if (existing != null) {
-                    existing.setSequence(value);
-                    sequences.add(existing);
-                } else {
-                    sequences.add(new TaskSequence(key, value));
-                }
-            });
-            taskSequenceRepository.saveAll(sequences);
-        }
-    }
-
-    private int getTaskSequence(String key) throws BusinessServiceException {
-        String[] split = key.split("-");
-        if (split.length != 0) {
-            return Integer.parseInt(split[split.length - 1]);
-        }
-
-        throw new BusinessServiceException("Could not determine the task sequence from key: " + key);
     }
 
     private List<Issue> listAllJiraTasksForProject(String projectKey) throws BusinessServiceException {

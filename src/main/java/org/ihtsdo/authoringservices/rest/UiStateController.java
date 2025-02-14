@@ -44,7 +44,7 @@ public class UiStateController {
 		// TODO - move this to an explicit "Start progress" endpoint.
 		boolean useNew = false;
 		try {
-			AuthoringTask task = taskServiceFactory.getInstance(true).retrieveTask(projectKey, taskKey, true);
+			AuthoringTask task = taskServiceFactory.getInstance(true).retrieveTask(projectKey, taskKey, true, true);
 			useNew = task != null;
 		} catch (ResourceNotFoundException e) {
 			// Do nothing
