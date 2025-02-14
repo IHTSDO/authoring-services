@@ -184,6 +184,22 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
         }
     }
 
+    @Override
+    public Integer getLatestTaskNumberForProject(String projectKey) {
+        try {
+            List<Issue> issues = searchIssues(getProjectTaskJQL(projectKey, null), LIMIT_UNLIMITED);
+            List<Integer> taskNumbers = new ArrayList<>();
+            for (Issue issue : issues) {
+                String[] arr = issue.getKey().split("-");
+                taskNumbers.add(Integer.parseInt(arr[arr.length - 1]));
+            }
+            OptionalInt maxNumber = taskNumbers.stream().mapToInt(Integer::intValue).max();
+            return maxNumber.orElse(0);
+        } catch (JiraException e) {
+            return null;
+        }
+    }
+
     private Issue getIssue(String taskKey) throws JiraException {
         return getIssue(taskKey, false);
     }

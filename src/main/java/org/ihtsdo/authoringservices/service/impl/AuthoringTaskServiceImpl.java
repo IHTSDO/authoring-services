@@ -219,6 +219,11 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         return buildAuthoringTasks(new ArrayList<>(List.of(task)), false).get(0);
     }
 
+    @Override
+    public Integer getLatestTaskNumberForProject(String projectKey) {
+        return null;
+    }
+
     @Nullable
     private TaskChangeAssigneeRequest updateTaskAssignee(User assignee, Task task) {
         TaskChangeAssigneeRequest taskChangeAssigneeRequest = null;

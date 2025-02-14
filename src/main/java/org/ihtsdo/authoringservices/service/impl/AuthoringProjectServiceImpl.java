@@ -5,9 +5,11 @@ import jakarta.transaction.Transactional;
 import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.entity.Project;
 import org.ihtsdo.authoringservices.entity.ProjectUserGroup;
+import org.ihtsdo.authoringservices.entity.TaskSequence;
 import org.ihtsdo.authoringservices.repository.ProjectRepository;
 import org.ihtsdo.authoringservices.repository.ProjectUserGroupRepository;
 import org.ihtsdo.authoringservices.repository.TaskRepository;
+import org.ihtsdo.authoringservices.repository.TaskSequenceRepository;
 import org.ihtsdo.authoringservices.service.*;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.otf.rest.client.RestClientException;
@@ -76,6 +78,12 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
     @Qualifier(value = "authoringTaskService")
     private TaskService authoringTaskService;
 
+    @Autowired
+    private TaskSequenceRepository taskSequenceRepository;
+
+    @Autowired
+    private TaskService jiraTaskService;
+
     @Override
     public boolean isUseNew(String projectKey) {
         Optional<Project> projectOptional = projectRepository.findById(projectKey);
@@ -112,6 +120,12 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
         project.setCreatedDate(Timestamp.from(Instant.now()));
         project.setUpdatedDate(Timestamp.from(Instant.now()));
         project = projectRepository.save(project);
+
+        // Set latest task number from JIRA if the same JIRA project exists
+        Integer latestJiraTaskNumber = jiraTaskService.getLatestTaskNumberForProject(request.key());
+        if (latestJiraTaskNumber != null) {
+            taskSequenceRepository.save(new TaskSequence(project, latestJiraTaskNumber));
+        }
 
         try {
             branchService.createBranchIfNeeded(project.getBranchPath());

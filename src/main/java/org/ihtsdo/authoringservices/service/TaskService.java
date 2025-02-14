@@ -18,6 +18,8 @@ public interface TaskService {
 
     AuthoringTask updateTask(String projectKey, String taskKey, AuthoringTaskUpdateRequest taskUpdateRequest) throws BusinessServiceException;
 
+    Integer getLatestTaskNumberForProject(String projectKey);
+
     void deleteTask(String taskKey) throws BusinessServiceException;
 
     void deleteTasks(Set<String> taskKeys) throws BusinessServiceException;
