@@ -220,6 +220,7 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
         task.setReporter(authoringTask.getReporter().getUsername());
         task.setDescription(authoringTask.getDescription());
         task.setStatus(authoringTask.getStatus());
+        task.setBranchPath(project.getBranchPath() + "/" + authoringTask.getKey());
         if (authoringTask.getReviewers() != null) {
             List<TaskReviewer> reviewers = new ArrayList<>();
             authoringTask.getReviewers().forEach(item ->
