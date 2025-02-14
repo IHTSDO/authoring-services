@@ -28,7 +28,7 @@ public class ReviewMessagesController {
 	@Operation(summary = "Retrieve a list of stored details for a task review concept, including last view date for the user and a list of messages.")
 	@ApiResponse(responseCode = "200", description = "OK")
 	@RequestMapping(value="/projects/{projectKey}/tasks/{taskKey}/review", method= RequestMethod.GET)
-	public List<ReviewConcept> retrieveTaskReview(@PathVariable final String projectKey, @PathVariable final String taskKey) throws BusinessServiceException {
+	public List<ReviewConcept> retrieveTaskReview(@PathVariable final String projectKey, @PathVariable final String taskKey) {
 
 		return reviewService.retrieveTaskReviewConceptDetails(requiredParam(projectKey, PROJECT_KEY), requiredParam(taskKey, TASK_KEY), SecurityUtil.getUsername());
 	}
@@ -36,7 +36,7 @@ public class ReviewMessagesController {
 	@Operation(summary = "Retrieve a list of stored details for a project review concept, including last view date for the user and a list of messages.")
 	@ApiResponse(responseCode = "200",description = "OK")
 	@RequestMapping(value="/projects/{projectKey}/review", method= RequestMethod.GET)
-	public List<ReviewConcept> retrieveProjectReview(@PathVariable final String projectKey) throws BusinessServiceException {
+	public List<ReviewConcept> retrieveProjectReview(@PathVariable final String projectKey) {
 
 		return reviewService.retrieveProjectReviewConceptDetails(requiredParam(projectKey, PROJECT_KEY), SecurityUtil.getUsername());
 	}
