@@ -98,6 +98,7 @@ public class JiraAuthoringTaskMigrateService {
         task.setReporter(jiraTaskWithDetails.getReporter().getUsername());
         task.setDescription(jiraTaskWithDetails.getDescription());
         task.setStatus(jiraTaskWithDetails.getStatus());
+        task.setBranchPath(project.getBranchPath() + "/" + jiraTaskWithDetails.getKey());
         if (jiraTaskWithDetails.getReviewers() != null) {
             List<TaskReviewer> existing = getTaskReviewers(jiraTaskWithDetails, task);
             task.setReviewers(existing);
