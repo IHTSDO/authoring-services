@@ -549,10 +549,10 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         }
     }
 
-    private Project getProjectOrThrow(String projectKey) throws BusinessServiceException {
+    private Project getProjectOrThrow(String projectKey) {
         Optional<Project> projectOptional = projectRepository.findById(projectKey);
         if (projectOptional.isEmpty()) {
-            throw new BusinessServiceException("Project with key " + projectKey + " not found");
+            throw new ResourceNotFoundException("Project with key " + projectKey + " not found");
         }
         return projectOptional.get();
     }

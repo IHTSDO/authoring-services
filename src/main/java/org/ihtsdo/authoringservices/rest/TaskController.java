@@ -9,6 +9,7 @@ import org.ihtsdo.authoringservices.service.*;
 import org.ihtsdo.authoringservices.service.factory.ProjectServiceFactory;
 import org.ihtsdo.authoringservices.service.factory.TaskServiceFactory;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
+import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
 import org.ihtsdo.sso.integration.SecurityUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -56,8 +57,19 @@ public class TaskController {
     @ApiResponse(responseCode = "200", description = "OK")
     @GetMapping(value = "/projects/{projectKey}/tasks")
     public List<AuthoringTask> listTasks(@PathVariable final String projectKey, @RequestParam(value = "lightweight", required = false) Boolean lightweight) throws BusinessServiceException {
-        boolean useNew = projectServiceFactory.getInstance(true).isUseNew(projectKey);
-        return taskServiceFactory.getInstance(useNew).listTasksForProject(requiredParam(projectKey, PROJECT_KEY), lightweight);
+        List<AuthoringTask> results = new ArrayList<>();
+        try {
+            results = taskServiceFactory.getInstance(true).listTasksForProject(requiredParam(projectKey, PROJECT_KEY), lightweight);
+        } catch (ResourceNotFoundException e) {
+            // do nothing
+        }
+        List<AuthoringTask> jiraTasks = new ArrayList<>();
+        try {
+            jiraTasks = taskServiceFactory.getInstance(false).listTasksForProject(requiredParam(projectKey, PROJECT_KEY), lightweight);
+        } catch (ResourceNotFoundException e) {
+            // do nothing
+        }
+        return filterJiraTasks(jiraTasks, results);
     }
 
     @Operation(summary = "List authenticated user's tasks across projects")
