@@ -244,7 +244,7 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
     @Override
     public Integer getLatestTaskNumberForProject(String projectKey) {
         try {
-            List<Issue> issues = searchIssues(getProjectTaskJQL(projectKey, null), LIMIT_UNLIMITED);
+            List<Issue> issues = searchIssues("project = " + projectKey + " AND type = \"" + AUTHORING_TASK_TYPE + "\" ORDER BY created DESC", 1);
             List<Integer> taskNumbers = new ArrayList<>();
             for (Issue issue : issues) {
                 String[] arr = issue.getKey().split("-");
@@ -252,7 +252,8 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
             }
             OptionalInt maxNumber = taskNumbers.stream().mapToInt(Integer::intValue).max();
             return maxNumber.orElse(0);
-        } catch (JiraException e) {
+        } catch (Exception e) {
+            logger.warn("Failed to get the latest JIRA ticket for project {}", projectKey, e);
             return null;
         }
     }
