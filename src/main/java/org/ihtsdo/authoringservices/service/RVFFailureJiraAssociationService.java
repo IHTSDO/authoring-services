@@ -42,6 +42,8 @@ public class RVFFailureJiraAssociationService {
 
 	private static Logger logger = LoggerFactory.getLogger(RVFFailureJiraAssociationService.class);
 
+	private static final int JIRA_SUMMARY_MAX_LENGTH = 255;
+
 	@Value("${rvf.jira.url}")
 	private String jiraUrl;
 
@@ -192,7 +194,11 @@ public class RVFFailureJiraAssociationService {
 	}
 
 	private String generateSummary(ValidationReport.RvfValidationResult.TestResult.TestRunItem testRunItem, String productName) {
-		return productName  + ", " + testRunItem.getAssertionText().replaceAll("\\.+$", "") + ", " + testRunItem.getTestType().replace("DROOL_RULES", "DROOLS") + ", " + testRunItem.getAssertionUuid();
+		String summary = productName  + ", " + testRunItem.getAssertionText().replaceAll("\\.+$", "") + ", " + testRunItem.getTestType().replace("DROOL_RULES", "DROOLS") + ", " + testRunItem.getAssertionUuid();
+		if (summary.length() > JIRA_SUMMARY_MAX_LENGTH) {
+			summary = summary.substring(0, JIRA_SUMMARY_MAX_LENGTH - 1);
+		}
+		return summary;
 	}
 
 	private String generateDescription(ValidationReport.RvfValidationResult.TestResult.TestRunItem testRunItem, String reportUrl) {
@@ -200,10 +206,12 @@ public class RVFFailureJiraAssociationService {
 		result.append(testRunItem.getAssertionText()).append("\n")
 				.append("Total number of failures: ").append(testRunItem.getFailureCount()).append("\n")
 				.append("Report URL: ").append("[").append(reportUrl).append("|").append(reportUrl).append("]").append("\n");
-		List<ValidationReport.RvfValidationResult.TestResult.TestRunItem.FailureDetail> firstNInstances = getFirstNInstances(testRunItem.getFirstNInstances());
-		result.append("First ").append(firstNInstances.size()).append(" failures: \n");
-		for (ValidationReport.RvfValidationResult.TestResult.TestRunItem.FailureDetail failureDetail: firstNInstances) {
-			result.append("* ").append(failureDetail.toString()).append("\n");
+		if (testRunItem.getFirstNInstances() != null) {
+			List<ValidationReport.RvfValidationResult.TestResult.TestRunItem.FailureDetail> firstNInstances = getFirstNInstances(testRunItem.getFirstNInstances());
+			result.append("First ").append(firstNInstances.size()).append(" failures: \n");
+			for (ValidationReport.RvfValidationResult.TestResult.TestRunItem.FailureDetail failureDetail: firstNInstances) {
+				result.append("* ").append(failureDetail.toString()).append("\n");
+			}
 		}
 
 		return result.toString();
