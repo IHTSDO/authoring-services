@@ -129,23 +129,25 @@ public class ValidationRunner implements Runnable {
 
     private String resolveEffectiveTime(ValidationConfiguration config) throws ParseException {
         String exportEffectiveDate = config.getReleaseDate();
+        Calendar calendar = new GregorianCalendar();
+        SimpleDateFormat formatter = new SimpleDateFormat(DateUtils.YYYYMMDD);
         String mostRecentRelease = null;
         if (config.getDependencyRelease() != null) {
-            mostRecentRelease = config.getDependencyRelease();
-        } else if (config.getPreviousRelease() != null) {
-            mostRecentRelease = config.getPreviousRelease();
+            String[] splits = config.getDependencyRelease().split("_");
+            mostRecentRelease = (splits.length == 2) ? splits[1] : splits[0];
         }
-        if (mostRecentRelease != null) {
-            String[] splits = mostRecentRelease.split("_");
+        if (config.getPreviousRelease() != null) {
+            String[] splits = config.getPreviousRelease().split("_");
             String dateStr = (splits.length == 2) ? splits[1] : splits[0];
-            Calendar calendar = new GregorianCalendar();
-            SimpleDateFormat formatter = new SimpleDateFormat(DateUtils.YYYYMMDD);
-            if (!formatter.parse(config.getReleaseDate()).after(formatter.parse(dateStr))) {
-                calendar.setTime(formatter.parse(dateStr));
-                calendar.add(Calendar.DAY_OF_YEAR, 1);
-                exportEffectiveDate = formatter.format(calendar.getTime());
-                logger.debug("The effective date for termServer exporting is set to {} one day after the most recent release {}", exportEffectiveDate, mostRecentRelease);
+            if (mostRecentRelease == null || formatter.parse(dateStr).after(formatter.parse(mostRecentRelease))) {
+                mostRecentRelease = dateStr;
             }
+        }
+        if (mostRecentRelease != null && (formatter.parse(config.getReleaseDate()).before(formatter.parse(mostRecentRelease)))) {
+            calendar.setTime(formatter.parse(mostRecentRelease));
+            calendar.add(Calendar.DAY_OF_YEAR, 1);
+            exportEffectiveDate = formatter.format(calendar.getTime());
+            logger.debug("The effective date for termServer exporting is set to {} one day after the most recent release {}", exportEffectiveDate, mostRecentRelease);
         }
         return exportEffectiveDate;
     }
