@@ -57,13 +57,13 @@ public class TaskController {
     @ApiResponse(responseCode = "200", description = "OK")
     @GetMapping(value = "/projects/{projectKey}/tasks")
     public List<AuthoringTask> listTasks(@PathVariable final String projectKey, @RequestParam(value = "lightweight", required = false) Boolean lightweight) throws BusinessServiceException {
-        List<AuthoringTask> results = new ArrayList<>();
+        List<AuthoringTask> results = null;
         try {
             results = taskServiceFactory.getInstance(true).listTasksForProject(requiredParam(projectKey, PROJECT_KEY), lightweight);
         } catch (ResourceNotFoundException e) {
             // do nothing
         }
-        List<AuthoringTask> jiraTasks = new ArrayList<>();
+        List<AuthoringTask> jiraTasks = null;
         try {
             jiraTasks = taskServiceFactory.getInstance(false).listTasksForProject(requiredParam(projectKey, PROJECT_KEY), lightweight);
         } catch (ResourceNotFoundException e) {
@@ -218,6 +218,9 @@ public class TaskController {
     }
 
     private List<AuthoringTask> filterJiraTasks(List<AuthoringTask> jiraTasks, List<AuthoringTask> results) {
+        if (results == null || results.isEmpty()) results = new ArrayList<>();
+        if (jiraTasks == null || jiraTasks.isEmpty()) jiraTasks = new ArrayList<>();
+
         if (!jiraTasks.isEmpty()) {
             List<String> authoringTaskKeys = results.stream().map(AuthoringTask::getKey).toList();
             Map<String, AuthoringTask> keyToJiraTask = jiraTasks.stream().collect(
