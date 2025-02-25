@@ -9,7 +9,6 @@ import net.rcarz.jiraclient.Field;
 import net.rcarz.jiraclient.Issue;
 import net.rcarz.jiraclient.JiraClient;
 import net.rcarz.jiraclient.JiraException;
-import org.ihtsdo.authoringservices.domain.AuthoringProject;
 import org.ihtsdo.authoringservices.entity.RVFFailureJiraAssociation;
 import org.ihtsdo.authoringservices.entity.Validation;
 import org.ihtsdo.authoringservices.repository.RVFFailureJiraAssociationRepository;
@@ -176,7 +175,7 @@ public class RVFFailureJiraAssociationService {
 		}
 	}
 
-	private String getProductName(List<CodeSystem> codeSystems, Validation validation , String branchPath) throws BusinessServiceException {
+	private String getProductName(List<CodeSystem> codeSystems, Validation validation , String branchPath) {
 		for (CodeSystem cs : codeSystems) {
 			if (cs.getBranchPath().equals(branchPath)) {
 				return cs.getShortName();
@@ -194,7 +193,7 @@ public class RVFFailureJiraAssociationService {
 	}
 
 	private String generateSummary(ValidationReport.RvfValidationResult.TestResult.TestRunItem testRunItem, String productName) {
-		String summary = productName  + ", " + testRunItem.getAssertionText().replaceAll("\\.+$", "") + ", " + testRunItem.getTestType().replace("DROOL_RULES", "DROOLS") + ", " + testRunItem.getAssertionUuid();
+		String summary = productName  + ", " + testRunItem.getAssertionText().trim().replace("\\.+$", "") + ", " + testRunItem.getTestType().replace("DROOL_RULES", "DROOLS") + ", " + testRunItem.getAssertionUuid();
 		if (summary.length() > JIRA_SUMMARY_MAX_LENGTH) {
 			summary = summary.substring(0, JIRA_SUMMARY_MAX_LENGTH - 1);
 		}
@@ -235,7 +234,7 @@ public class RVFFailureJiraAssociationService {
 				return report.getRvfValidationResult().getTestResult().getAssertionsFailed();
 			}
 		}
-		return Collections.EMPTY_LIST;
+		return Collections.emptyList();
 	}
 
 	private Issue createJiraIssue(boolean isManagedServiceBranch, String summary, String description) throws BusinessServiceException {
