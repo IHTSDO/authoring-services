@@ -92,7 +92,7 @@ public class JiraAuthoringTaskMigrateService {
     }
 
     @NotNull
-    private Task getNewTask(Project project, AuthoringTask jiraTaskWithDetails) throws ParseException, BusinessServiceException {
+    private Task getNewTask(Project project, AuthoringTask jiraTaskWithDetails) throws ParseException {
         Task task = new Task();
         task.setKey(jiraTaskWithDetails.getKey());
         task.setProject(project);
