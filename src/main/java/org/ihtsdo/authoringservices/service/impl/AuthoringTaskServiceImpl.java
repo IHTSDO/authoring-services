@@ -303,10 +303,15 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
             excludedStatuses.add(TaskStatus.PROMOTED);
         }
         List<Project> projects = permissionService.getProjectsForUser();
-        List<Task> tasks = taskRepository.findByProjectInAndAssigneeAndStatusNotInOrderByUpdatedDateDesc(projects, username, excludedStatuses);
+        List<Task> tasks;
         if (TaskType.CRS.equals(type)) {
-            tasks = tasks.stream().filter(task -> !CollectionUtils.isEmpty(task.getCrsTasks())).toList();
+            tasks = taskRepository.findByProjectInAndAssigneeAndTypeAndStatusNotInOrderByUpdatedDateDesc(projects, username, TaskType.CRS, excludedStatuses);
+        } else if (TaskType.AUTHORING.equals(type)) {
+            tasks = taskRepository.findByProjectInAndAssigneeAndTypeNotInAndStatusNotInOrderByUpdatedDateDesc(projects, username, new ArrayList<>(List.of(TaskType.CRS)), excludedStatuses);
+        } else {
+            tasks = taskRepository.findByProjectInAndAssigneeAndStatusNotInOrderByUpdatedDateDesc(projects, username, excludedStatuses);
         }
+
         return buildAuthoringTasks(tasks, false);
     }
 
@@ -326,7 +331,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
     }
 
     @Override
-    public List<AuthoringTask> searchTasks(String criteria, Boolean lightweight) throws BusinessServiceException {
+    public List<AuthoringTask> searchTasks(String criteria, Boolean lightweight, TaskType type) throws BusinessServiceException {
         if (StringUtils.isEmpty(criteria)) {
             return Collections.emptyList();
         }
@@ -334,13 +339,19 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         boolean isTaskKey = arrayStr.length == 2 && NumberUtils.isNumber(arrayStr[1]);
         if (isTaskKey) {
             Optional<Task> taskOptional = taskRepository.findById(criteria);
-            if (taskOptional.isEmpty() || taskOptional.get().getStatus().equals(TaskStatus.DELETED)) {
+            if (taskOptional.isEmpty()
+                    || taskOptional.get().getStatus().equals(TaskStatus.DELETED)
+                    || (TaskType.CRS.equals(type) && !TaskType.CRS.equals(taskOptional.get().getType()))
+                    || (!TaskType.CRS.equals(type) && TaskType.CRS.equals(taskOptional.get().getType()))) {
                 return Collections.emptyList();
             }
             return buildAuthoringTasks(new ArrayList<>(List.of(taskOptional.get())), lightweight);
         } else {
             List<Task> tasks = taskRepository.findByNameContaining(criteria);
-            tasks = tasks.stream().filter(task -> !TaskStatus.DELETED.equals(task.getStatus())).toList();
+            tasks = tasks.stream().filter(task -> !TaskStatus.DELETED.equals(task.getStatus())
+                    && ((TaskType.CRS.equals(type) && TaskType.CRS.equals(task.getType()))
+                    || (!TaskType.CRS.equals(type) && !TaskType.CRS.equals(task.getType())))).toList();
+
             return buildAuthoringTasks(tasks, lightweight);
         }
     }
@@ -509,9 +520,11 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         AuthoringTask authoringTask = new AuthoringTask(task);
         authoringTask.setInternalAuthoringTask(true);
 
-        if (!CollectionUtils.isEmpty(task.getCrsTasks())) {
+        if (TaskType.CRS.equals(task.getType())) {
             authoringTask.setLabels(new Gson().toJson(List.of(CRS_JIRA_LABEL)));
-            authoringTask.setCrsTasks(task.getCrsTasks());
+            if (!CollectionUtils.isEmpty(task.getCrsTasks())) {
+                authoringTask.setCrsTasks(task.getCrsTasks());
+            }
         }
 
         // assignee, reporter, reviewers

@@ -94,9 +94,11 @@ public class TaskController {
     @Operation(summary = "Search tasks across projects")
     @ApiResponse(responseCode = "200", description = "OK")
     @GetMapping(value = "/projects/tasks/search")
-    public List<AuthoringTask> searchTasks(@RequestParam(value = "criteria") String criteria, @RequestParam(value = "lightweight", required = false) Boolean lightweight) throws BusinessServiceException {
-        List<AuthoringTask> results = new ArrayList<>(taskServiceFactory.getInstance(true).searchTasks(criteria, lightweight));
-        List<AuthoringTask> jiraTasks = taskServiceFactory.getInstance(false).searchTasks(criteria, lightweight);
+    public List<AuthoringTask> searchTasks(@RequestParam(value = "criteria") String criteria,
+                                           @RequestParam(value = "type", required = false) TaskType type,
+                                           @RequestParam(value = "lightweight", required = false) Boolean lightweight) throws BusinessServiceException {
+        List<AuthoringTask> results = new ArrayList<>(taskServiceFactory.getInstance(true).searchTasks(criteria, lightweight, type));
+        List<AuthoringTask> jiraTasks = taskServiceFactory.getInstance(false).searchTasks(criteria, lightweight, type);
         return filterJiraTasks(jiraTasks, results);
     }
 

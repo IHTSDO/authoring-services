@@ -9,6 +9,7 @@ import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.ihtsdo.authoringservices.entity.CrsTask;
 import org.ihtsdo.authoringservices.entity.Task;
+import org.ihtsdo.authoringservices.service.impl.TaskServiceBase;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
 
 import java.text.SimpleDateFormat;
@@ -27,6 +28,7 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
     private String projectKey;
     private String summary;
     private TaskStatus status;
+    private TaskType type;
     private String branchState;
     private Long branchHeadTimestamp;
     private Long branchBaseTimestamp;
@@ -73,6 +75,9 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
         // set the labels
         try {
             labels = mapper.writeValueAsString(issue.getLabels());
+            if (labels != null && labels.contains(TaskServiceBase.CRS_JIRA_LABEL)) {
+                type = TaskType.CRS;
+            }
         } catch (JsonProcessingException e) {
             labels = "Failed to convert Jira labels into json string";
         }
@@ -97,6 +102,7 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
         projectKey = task.getProject().getKey();
         summary = task.getName();
         status = task.getStatus();
+        type = task.getType();
         description = task.getDescription();
         created = formatter.format(new Date(task.getCreated()));
         updated = formatter.format(new Date(task.getUpdated()));
@@ -140,6 +146,14 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
 
     public void setStatus(TaskStatus status) {
         this.status = status;
+    }
+
+    public TaskType getType() {
+        return type;
+    }
+
+    public void setType(TaskType type) {
+        this.type = type;
     }
 
     @Override

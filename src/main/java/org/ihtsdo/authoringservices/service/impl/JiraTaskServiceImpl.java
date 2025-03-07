@@ -234,7 +234,7 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
         if (authoringTask.getReviewers() != null) {
             List<TaskReviewer> reviewers = new ArrayList<>();
             authoringTask.getReviewers().forEach(item ->
-                reviewers.add(new TaskReviewer(task, item.getUsername()))
+                    reviewers.add(new TaskReviewer(task, item.getUsername()))
             );
             task.setReviewers(reviewers);
         }
@@ -313,7 +313,7 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
      * Search issues based on Jira Summary or ID field
      */
     @Override
-    public List<AuthoringTask> searchTasks(String criteria, Boolean lightweight) throws BusinessServiceException {
+    public List<AuthoringTask> searchTasks(String criteria, Boolean lightweight, TaskType type) throws BusinessServiceException {
         if (StringUtils.isEmpty(criteria)) {
             return Collections.emptyList();
         }
@@ -330,7 +330,10 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
                 throw new BusinessServiceException("Failed to search tasks", exception);
             }
         }
-        return buildAuthoringTasks(issues, lightweight != null && lightweight);
+        List<AuthoringTask> authoringTasks = buildAuthoringTasks(issues, lightweight != null && lightweight);
+        authoringTasks = authoringTasks.stream().filter(task -> (TaskType.CRS.equals(type) && TaskType.CRS.equals(task.getType()))
+                || (!TaskType.CRS.equals(type) && !TaskType.CRS.equals(task.getType()))).toList();
+        return authoringTasks;
     }
 
     @Override
@@ -347,7 +350,9 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
         }
         List<AuthoringTask> tasks = buildAuthoringTasks(issues, false);
         if (TaskType.CRS.equals(type)) {
-            tasks = tasks.stream().filter(task -> task.getLabels() != null && task.getLabels().contains(CRS_JIRA_LABEL)).toList();
+            tasks = tasks.stream().filter(task -> TaskType.CRS.equals(task.getType())).toList();
+        } else if (TaskType.AUTHORING.equals(type)) {
+            tasks = tasks.stream().filter(task -> !TaskType.CRS.equals(task.getType())).toList();
         }
         return tasks;
     }
