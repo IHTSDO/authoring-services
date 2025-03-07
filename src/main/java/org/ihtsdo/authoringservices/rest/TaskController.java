@@ -76,7 +76,7 @@ public class TaskController {
     @ApiResponse(responseCode = "200", description = "OK")
     @GetMapping(value = "/projects/my-tasks")
     public List<AuthoringTask> listMyTasks(@RequestParam(value = "excludePromoted", required = false) String excludePromoted,
-                                           @RequestParam(value = "type", required = false, defaultValue = "ALL") TaskType type) throws BusinessServiceException {
+                                           @RequestParam(value = "type", required = false) TaskType type) throws BusinessServiceException {
         List<AuthoringTask> results = new ArrayList<>(taskServiceFactory.getInstance(true).listMyTasks(SecurityUtil.getUsername(), excludePromoted, type));
         List<AuthoringTask> jiraTasks = taskServiceFactory.getInstance(false).listMyTasks(SecurityUtil.getUsername(), excludePromoted, type);
         return filterJiraTasks(jiraTasks, results);
@@ -110,10 +110,10 @@ public class TaskController {
     @Operation(summary = "Create a task within a project")
     @ApiResponse(responseCode = "200", description = "OK")
     @PostMapping(value = "/projects/{projectKey}/tasks")
-    public AuthoringTask createTask(@PathVariable final String projectKey, @RequestBody final AuthoringTaskCreateRequest taskCreateRequest) throws BusinessServiceException {
+    public AuthoringTask createTask(@PathVariable final String projectKey, @RequestParam(value = "type", required = false, defaultValue = "AUTHORING") TaskType type, @RequestBody final AuthoringTaskCreateRequest taskCreateRequest) throws BusinessServiceException {
         boolean useNew = projectServiceFactory.getInstance(true).isUseNew(projectKey);
         String assignee = taskCreateRequest.getAssignee() != null ? taskCreateRequest.getAssignee().getUsername() : SecurityUtil.getUsername();
-        return taskServiceFactory.getInstance(useNew).createTask(requiredParam(projectKey, PROJECT_KEY), assignee, taskCreateRequest);
+        return taskServiceFactory.getInstance(useNew).createTask(requiredParam(projectKey, PROJECT_KEY), assignee, taskCreateRequest, type);
     }
 
     @Operation(summary = "Update a task")

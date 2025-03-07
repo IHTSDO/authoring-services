@@ -2,6 +2,7 @@ package org.ihtsdo.authoringservices.entity;
 
 import jakarta.persistence.*;
 import org.ihtsdo.authoringservices.domain.TaskStatus;
+import org.ihtsdo.authoringservices.domain.TaskType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,6 +25,10 @@ public class  Task extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     private TaskStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type")
+    private TaskType type;
 
     @ManyToOne
     @JoinColumn(name = "project_key", nullable = false)
@@ -78,6 +83,14 @@ public class  Task extends BaseEntity {
 
     public void setStatus(TaskStatus status) {
         this.status = status;
+    }
+
+    public TaskType getType() {
+        return type;
+    }
+
+    public void setType(TaskType type) {
+        this.type = type;
     }
 
     public Project getProject() {

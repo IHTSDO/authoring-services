@@ -12,7 +12,7 @@ public interface TaskService {
 
     AuthoringMain retrieveMain() throws BusinessServiceException;
 
-    AuthoringTask createTask(String projectKey, String username, AuthoringTaskCreateRequest taskCreateRequest) throws BusinessServiceException;
+    AuthoringTask createTask(String projectKey, String username, AuthoringTaskCreateRequest taskCreateRequest, TaskType type) throws BusinessServiceException;
 
     AuthoringTask retrieveTask(String projectKey, String taskKey, Boolean lightweight, boolean skipTaskMigration) throws BusinessServiceException;
 

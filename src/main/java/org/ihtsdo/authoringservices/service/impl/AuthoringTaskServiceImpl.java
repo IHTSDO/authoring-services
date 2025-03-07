@@ -107,7 +107,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
     }
 
     @Override
-    public AuthoringTask createTask(String projectKey, String username, AuthoringTaskCreateRequest taskCreateRequest) throws BusinessServiceException {
+    public AuthoringTask createTask(String projectKey, String username, AuthoringTaskCreateRequest taskCreateRequest, TaskType type) throws BusinessServiceException {
         permissionService.checkUserPermissionOnProjectOrThrow(projectKey);
 
         Project project = getProjectOrThrow(projectKey);
@@ -121,8 +121,8 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         task.setDescription(taskCreateRequest.getDescription());
         task.setReporter(username);
         task.setAssignee(taskCreateRequest.getAssignee() != null ? taskCreateRequest.getAssignee().getUsername() : username);
-
-        if (taskCreateRequest.getCrsTasks() != null) {
+        task.setType(type);
+        if (TaskType.CRS.equals(type) && taskCreateRequest.getCrsTasks() != null) {
             List<CrsTask> crsTasks = new ArrayList<>();
             for (CrsTask crsRequest : taskCreateRequest.getCrsTasks()) {
                 CrsTask crsTask = new CrsTask();

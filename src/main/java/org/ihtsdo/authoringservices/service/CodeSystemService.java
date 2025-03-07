@@ -233,7 +233,7 @@ public class CodeSystemService {
 				taskCreateRequest.setSummary("en-GB Import " + newDependantVersionISOFormat);
 
 				boolean useNew = projectServiceFactory.getInstance(true).isUseNew(projectKey);
-				AuthoringTask task = taskServiceFactory.getInstance(useNew).createTask(projectKey, SecurityUtil.getUsername(), taskCreateRequest);
+				AuthoringTask task = taskServiceFactory.getInstance(useNew).createTask(projectKey, SecurityUtil.getUsername(), taskCreateRequest, TaskType.AUTHORING);
 				if (client.getBranch(task.getBranchPath()) == null) {
 					client.createBranch(task.getBranchPath());
 				}

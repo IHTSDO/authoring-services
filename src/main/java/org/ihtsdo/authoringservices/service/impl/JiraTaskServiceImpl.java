@@ -379,7 +379,7 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
     }
 
     @Override
-    public AuthoringTask createTask(String projectKey, String username, AuthoringTaskCreateRequest taskCreateRequest)
+    public AuthoringTask createTask(String projectKey, String username, AuthoringTaskCreateRequest taskCreateRequest, TaskType type)
             throws BusinessServiceException {
         Issue jiraIssue;
         try {

@@ -50,9 +50,11 @@ public class AdminController {
 
     @Operation(summary = "Create a task within a project")
     @PostMapping(value = "/projects/{projectKey}/tasks")
-    public AuthoringTask createTask(@PathVariable final String projectKey, @RequestParam(value = "useNew", required = false) Boolean useNew, @RequestBody final AuthoringTaskCreateRequest taskCreateRequest) throws BusinessServiceException {
+    public AuthoringTask createTask(@PathVariable final String projectKey, @RequestParam(value = "useNew", required = false) Boolean useNew,
+                                    @RequestParam(value = "type", required = false, defaultValue = "AUTHORING") TaskType type,
+                                    @RequestBody final AuthoringTaskCreateRequest taskCreateRequest) throws BusinessServiceException {
         AuthoringProject project = projectServiceFactory.getInstance(useNew).retrieveProject(projectKey, true);
-        return adminService.createTask(project, taskCreateRequest, useNew);
+        return adminService.createTask(project, taskCreateRequest, useNew, type);
     }
 
     @Operation(summary = "Delete a given task key", description = "-")

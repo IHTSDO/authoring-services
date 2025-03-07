@@ -32,9 +32,9 @@ public class AdminService {
     private TaskServiceFactory taskServiceFactory;
 
     @PreAuthorize("hasPermission('ADMIN', 'global') || hasPermission('ADMIN', #project.codeSystem.branchPath)")
-    public AuthoringTask createTask(AuthoringProject project, AuthoringTaskCreateRequest taskCreateRequest, Boolean useNew) throws BusinessServiceException {
+    public AuthoringTask createTask(AuthoringProject project, AuthoringTaskCreateRequest taskCreateRequest, Boolean useNew, TaskType type) throws BusinessServiceException {
         String assignee = taskCreateRequest.getAssignee() != null ? taskCreateRequest.getAssignee().getUsername() : SecurityUtil.getUsername();
-        return taskServiceFactory.getInstance(useNew).createTask(project.getKey(), assignee, taskCreateRequest);
+        return taskServiceFactory.getInstance(useNew).createTask(project.getKey(), assignee, taskCreateRequest, type);
     }
 
     @PreAuthorize("hasPermission('ADMIN', 'global') || hasPermission('ADMIN', #project.codeSystem.branchPath)")
