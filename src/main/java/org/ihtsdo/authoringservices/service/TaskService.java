@@ -46,9 +46,11 @@ public interface TaskService {
 
     List<TaskAttachment> getTaskAttachments(String projectKey, String taskKey) throws BusinessServiceException;
 
-    void getCrsTaskAttachment(String issueLinkKey, List<TaskAttachment> attachments, String issueKey) throws BusinessServiceException;
+    void getCrsJiraAttachment(String issueLinkKey, List<TaskAttachment> attachments, String issueKey) throws BusinessServiceException;
 
     void leaveCommentForTask(String projectKey, String taskKey, String comment) throws BusinessServiceException;
 
-    void deleteIssueLink(String issueKey, String linkId) throws BusinessServiceException;
+    void removeCrsTaskForGivenRequestJiraKey(String issueKey, String linkId) throws BusinessServiceException;
+
+    void removeCrsTaskForGivenRequestId(String projectKey, String taskKey, String crsId) throws BusinessServiceException;
 }

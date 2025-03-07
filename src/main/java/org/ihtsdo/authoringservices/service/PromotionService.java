@@ -76,6 +76,9 @@ public class PromotionService {
     @Autowired
     private SnowstormClassificationClient classificationService;
 
+    @Autowired
+    private UiConfiguration uiConfiguration;
+
     private final Map<String, ProcessStatus> automateTaskPromotionStatus;
 
     private final Map<String, ProcessStatus> taskPromotionStatus;
@@ -96,7 +99,7 @@ public class PromotionService {
     }
 
     public String requestConceptPromotion(String conceptId, boolean includeDependencies, String branchPath, CodeSystem codeSystem) throws BusinessServiceException {
-        ContentRequestServiceClient contentRequestServiceClient = contentRequestServiceClientFactory.getClient();
+        ContentRequestServiceClient contentRequestServiceClient = contentRequestServiceClientFactory.getClient(uiConfiguration.getEndpoints().get("crsEndpoint"));
         JSONObject request = constructCRSRequestBody(conceptId, branchPath, codeSystem, includeDependencies);
         try {
             return contentRequestServiceClient.createRequest(request);

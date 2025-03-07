@@ -18,6 +18,8 @@ import org.ihtsdo.authoringservices.entity.TaskReviewer;
 import org.ihtsdo.authoringservices.repository.ProjectRepository;
 import org.ihtsdo.authoringservices.repository.TaskRepository;
 import org.ihtsdo.authoringservices.service.*;
+import org.ihtsdo.authoringservices.service.client.ContentRequestServiceClient;
+import org.ihtsdo.authoringservices.service.client.ContentRequestServiceClientFactory;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.authoringservices.service.jira.ImpersonatingJiraClientFactory;
 import org.ihtsdo.authoringservices.service.jira.JiraHelper;
@@ -90,6 +92,12 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
 
     @Autowired
     private ProjectRepository projectRepository;
+
+    @Autowired
+    private ContentRequestServiceClientFactory contentRequestServiceClientFactory;
+
+    @Autowired
+    private UiConfiguration uiConfiguration;
 
     private final ImpersonatingJiraClientFactory jiraClientFactory;
     private final Set<String> myTasksRequiredFields;
@@ -212,6 +220,8 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
     }
 
     private void migrateJiraTaskToInternalProject(AuthoringTask authoringTask, Project project) throws BusinessServiceException {
+        if (authoringTask.getLabels() != null && authoringTask.getLabels().contains(CRS_JIRA_LABEL)) return;
+
         Task task = new Task();
         task.setKey(authoringTask.getKey());
         task.setProject(project);
@@ -718,7 +728,7 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
         }
     }
 
-    private void sendJMSTaskStateChangeNotification(String taskKey, TaskStatus newState, String projectKey, String key, String newStateLabel, Issue issue) {
+    private void sendJMSTaskStateChangeNotification(String taskKey, TaskStatus newState, String projectKey, String key, String newStateLabel, Issue issue) throws BusinessServiceException {
         try {
             Map<String, String> properties = new HashMap<>();
             properties.put("key", key);
@@ -734,8 +744,8 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
 
             if (labelsString.contains(CRS_JIRA_LABEL)) {
                 for (String queue : taskStateChangeNotificationQueues) {
-                    if ((isIntAuthoringTask(issue) && isIntTaskStateChangeQueue(queue))
-                            || (!isIntAuthoringTask(issue) && !isIntTaskStateChangeQueue(queue))) {
+                    if ((isIntAuthoringTask(projectKey, taskKey) && isIntTaskStateChangeQueue(queue))
+                            || (!isIntAuthoringTask(projectKey, taskKey) && !isIntTaskStateChangeQueue(queue))) {
                         messagingHelper.send(new ActiveMQQueue(queue), properties);
                     }
                 }
@@ -743,11 +753,6 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
         } catch (JsonProcessingException | JMSException e) {
             logger.error("Failed to send task state change notification for {} {}.", key, newStateLabel, e);
         }
-    }
-
-    private boolean isIntAuthoringTask(Issue issue) {
-        List<IssueLink> issueLinks = issue.getIssueLinks();
-        return issueLinks.stream().anyMatch(issueLink -> issueLink.getOutwardIssue().getKey().startsWith(intCrsIssueKeyPrefix));
     }
 
     private Transition getTransitionToOrThrow(Issue issue, TaskStatus newState)
@@ -766,9 +771,20 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
         List<TaskAttachment> attachments = new ArrayList<>();
         try {
             Issue issue = getIssue(taskKey);
-
-            for (IssueLink issueLink : issue.getIssueLinks()) {
-                getCrsTaskAttachment(issueLink.getOutwardIssue().getKey(), attachments, issue.getKey());
+            if (issue.getIssueLinks().isEmpty()) {
+                boolean isIntTask = isIntAuthoringTask(projectKey, taskKey);
+                ContentRequestServiceClient crsClient = contentRequestServiceClientFactory.getClient(uiConfiguration.getEndpoints().get(isIntTask ? "crsEndpoint" : "crsEndpoint.US"));
+                List<Long> crsRequestIds = crsClient.findAcceptedRequestsByAuthoringTaskKey(taskKey);
+                for (Long requestId : crsRequestIds) {
+                    ContentRequestServiceClient.ContentRequestDto contentRequestDto = crsClient.getRequestDetails(String.valueOf(requestId));
+                    String organization = contentRequestDto.getRequestHeader() != null ? contentRequestDto.getRequestHeader().getOrganization() : null;
+                    TaskAttachment taskAttachment = new TaskAttachment(null, String.valueOf(requestId), contentRequestDto.getConcept().toString(), organization);
+                    attachments.add(taskAttachment);
+                }
+            } else {
+                for (IssueLink issueLink : issue.getIssueLinks()) {
+                    getCrsJiraAttachment(issueLink.getOutwardIssue().getKey(), attachments, issue.getKey());
+                }
             }
         } catch (JiraException e) {
             if (e.getCause() instanceof RestException restException && restException.getHttpStatusCode() == 404) {
@@ -781,7 +797,7 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
     }
 
     @Override
-    public void getCrsTaskAttachment(String issueLinkKey, List<TaskAttachment> attachments, String issueKey) throws BusinessServiceException {
+    public void getCrsJiraAttachment(String issueLinkKey, List<TaskAttachment> attachments, String issueKey) throws BusinessServiceException {
         // need to forcibly retrieve the issue in order to get
         // attachments
 
@@ -844,11 +860,16 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
     }
 
     @Override
-    public void deleteIssueLink(String issueKey, String linkId) throws BusinessServiceException {
+    public void removeCrsTaskForGivenRequestJiraKey(String issueKey, String linkId) throws BusinessServiceException {
         try {
             JiraHelper.deleteIssueLink(getJiraClient(), issueKey, linkId);
         } catch (JiraException e) {
             throw new BusinessServiceException(e);
         }
+    }
+
+    @Override
+    public void removeCrsTaskForGivenRequestId(String projectKey, String taskKey, String crsId) {
+        // do nothing
     }
 }

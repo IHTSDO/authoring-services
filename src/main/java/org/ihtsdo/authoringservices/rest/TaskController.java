@@ -214,7 +214,16 @@ public class TaskController {
     public void deleteIssueLink(
             @Parameter(description = "Task key. Example: TESTINT2-XXX") @PathVariable final String issueKey,
             @Parameter(description = "Issue ID. Example: CRT-XXX") @PathVariable final String linkId) throws BusinessServiceException {
-        taskServiceFactory.getInstanceByKey(issueKey).deleteIssueLink(issueKey, linkId);
+        taskServiceFactory.getInstanceByKey(issueKey).removeCrsTaskForGivenRequestJiraKey(issueKey, linkId);
+    }
+
+    @Operation(summary = "Remove a CRS request from an internal authoring task", description = "This endpoint may be used to remove a CRS request which came from CRS.")
+    @ApiResponse(responseCode = "200", description = "OK")
+    @DeleteMapping(value = "/projects/{projectKey}/tasks/{taskKey}/crs-request/{crsId}")
+    public void removeCrsRequestFromTask(
+            @PathVariable final String projectKey, @PathVariable final String taskKey,
+            @Parameter(description = "CRS request ID") @PathVariable final String crsId) throws BusinessServiceException {
+        taskServiceFactory.getInstanceByKey(taskKey).removeCrsTaskForGivenRequestId(projectKey, taskKey, crsId);
     }
 
     private List<AuthoringTask> filterJiraTasks(List<AuthoringTask> jiraTasks, List<AuthoringTask> results) {

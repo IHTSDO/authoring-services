@@ -24,7 +24,7 @@ public abstract class TaskServiceBase {
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
-    protected static final String CRS_JIRA_LABEL = "CRS";
+    public static final String CRS_JIRA_LABEL = "CRS";
 
     protected static final String TASK_NOT_FOUND_MSG = "Task not found ";
 
@@ -73,6 +73,11 @@ public abstract class TaskServiceBase {
 
     protected boolean isIntTaskStateChangeQueue(String queue) {
         return queue.contains(INT_TASK_STATE_CHANGE_QUEUE);
+    }
+
+    protected boolean isIntAuthoringTask(String projectKey, String taskKey) throws BusinessServiceException {
+        String taskBranch = branchService.getTaskBranchPathUsingCache(projectKey, taskKey);
+        return !taskBranch.startsWith("MAIN/SNOMEDCT-");
     }
 
     protected void transferTaskToNewAuthor(String projectKey, String taskKey, TaskChangeAssigneeRequest taskChangeAssigneeRequest) {

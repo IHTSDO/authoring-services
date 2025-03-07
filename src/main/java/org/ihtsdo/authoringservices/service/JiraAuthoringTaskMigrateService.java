@@ -11,6 +11,7 @@ import org.ihtsdo.authoringservices.entity.Task;
 import org.ihtsdo.authoringservices.entity.TaskReviewer;
 import org.ihtsdo.authoringservices.repository.ProjectRepository;
 import org.ihtsdo.authoringservices.repository.TaskRepository;
+import org.ihtsdo.authoringservices.service.impl.TaskServiceBase;
 import org.ihtsdo.authoringservices.service.jira.ImpersonatingJiraClientFactory;
 import org.ihtsdo.authoringservices.service.util.TimerUtil;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
@@ -79,6 +80,8 @@ public class JiraAuthoringTaskMigrateService {
             if (existingTaskOptional.isPresent() || TaskStatus.DELETED.equals(TaskStatus.fromLabel(issue.getStatus().getName()))) return;
 
             AuthoringTask jiraTaskWithDetails = jiraTaskService.retrieveTask(project.getKey(), issue.getKey(), true, true);
+            if (jiraTaskWithDetails.getLabels() != null && jiraTaskWithDetails.getLabels().contains(TaskServiceBase.CRS_JIRA_LABEL)) return;
+
             Task task = getNewTask(project, jiraTaskWithDetails);
             tasks.add(task);
         } catch (BusinessServiceException e) {
@@ -89,7 +92,7 @@ public class JiraAuthoringTaskMigrateService {
     }
 
     @NotNull
-    private Task getNewTask(Project project, AuthoringTask jiraTaskWithDetails) throws ParseException {
+    private Task getNewTask(Project project, AuthoringTask jiraTaskWithDetails) throws ParseException, BusinessServiceException {
         Task task = new Task();
         task.setKey(jiraTaskWithDetails.getKey());
         task.setProject(project);

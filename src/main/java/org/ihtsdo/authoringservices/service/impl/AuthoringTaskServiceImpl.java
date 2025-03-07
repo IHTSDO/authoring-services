@@ -92,6 +92,9 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
     @Autowired
     private TaskService jiraTaskService;
 
+    @Autowired
+    private UiConfiguration uiConfiguration;
+
     @Override
     public boolean isUseNew(String taskKey) {
         Optional<Task> taskOptional = taskRepository.findById(taskKey);
@@ -353,7 +356,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
     }
 
     @Override
-    public void conditionalStateTransition(String projectKey, String taskKey, TaskStatus requiredState, TaskStatus newState) {
+    public void conditionalStateTransition(String projectKey, String taskKey, TaskStatus requiredState, TaskStatus newState) throws BusinessServiceException {
         Optional<Task> taskOptional = taskRepository.findById(taskKey);
         if (taskOptional.isEmpty()) {
             throw new ResourceNotFoundException(TASK_NOT_FOUND_MSG + toString(projectKey, taskKey));
@@ -385,7 +388,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         }
     }
 
-    private void stateTransition(TaskStatus newState, String taskKey, String projectKey) {
+    private void stateTransition(TaskStatus newState, String taskKey, String projectKey) throws BusinessServiceException {
         permissionService.checkUserPermissionOnProjectOrThrow(projectKey);
         Optional<Task> taskOptional = taskRepository.findById(taskKey);
         if (taskOptional.isPresent()) {
@@ -411,14 +414,23 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
 
         Task task = taskOptional.get();
         for (CrsTask crsTask : task.getCrsTasks()) {
-            jiraTaskService.getCrsTaskAttachment(crsTask.getCrsJiraKey(), attachments, taskKey);
+            if (crsTask.getCrsJiraKey() != null) {
+                jiraTaskService.getCrsJiraAttachment(crsTask.getCrsJiraKey(), attachments, taskKey);
+            } else {
+                boolean isIntTask = isIntAuthoringTask(projectKey, taskKey);
+                ContentRequestServiceClient crsClient = contentRequestServiceClientFactory.getClient(uiConfiguration.getEndpoints().get(isIntTask ? "crsEndpoint" : "crsEndpoint.US"));
+                ContentRequestServiceClient.ContentRequestDto contentRequestDto = crsClient.getRequestDetails(crsTask.getCrsTaskKey());
+                String organization = contentRequestDto.getRequestHeader() != null ? contentRequestDto.getRequestHeader().getOrganization() : null;
+                TaskAttachment taskAttachment = new TaskAttachment(null, crsTask.getCrsTaskKey(), contentRequestDto.getConcept().toString(), organization);
+                attachments.add(taskAttachment);
+            }
         }
 
         return attachments;
     }
 
     @Override
-    public void getCrsTaskAttachment(String issueLinkKey, List<TaskAttachment> attachments, String issueKey) {
+    public void getCrsJiraAttachment(String issueLinkKey, List<TaskAttachment> attachments, String issueKey) {
         // Do nothing
     }
 
@@ -428,7 +440,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
     }
 
     @Override
-    public void deleteIssueLink(String issueKey, String linkId) throws BusinessServiceException {
+    public void removeCrsTaskForGivenRequestJiraKey(String issueKey, String linkId) throws BusinessServiceException {
         Optional<Task> taskOptional = taskRepository.findById(issueKey);
         if (taskOptional.isEmpty()) {
             throw new ResourceNotFoundException(TASK_NOT_FOUND_MSG + issueKey);
@@ -437,8 +449,25 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         CrsTask crsTask = task.getCrsTasks().stream().filter(item -> item.getCrsJiraKey().equals(linkId)).findFirst().orElse(null);
         if (crsTask != null) {
             try {
-                ContentRequestServiceClient crsClient = contentRequestServiceClientFactory.getClient();
-                crsClient.unAssignAuthoringTask(crsTask.getCrsTaskKey());
+                task.getCrsTasks().remove(crsTask);
+                taskRepository.save(task);
+            } catch (Exception e) {
+                String errorMessage = String.format("Failed to un-assign the authoring task from CRS request. Error message: %s", e.getMessage());
+                throw new BusinessServiceException(errorMessage, e);
+            }
+        }
+    }
+
+    @Override
+    public void removeCrsTaskForGivenRequestId(String projectKey, String taskKey, String crsId) throws BusinessServiceException {
+        Optional<Task> taskOptional = taskRepository.findById(taskKey);
+        if (taskOptional.isEmpty()) {
+            throw new ResourceNotFoundException(TASK_NOT_FOUND_MSG + taskKey);
+        }
+        Task task = taskOptional.get();
+        CrsTask crsTask = task.getCrsTasks().stream().filter(item -> item.getCrsTaskKey().equals(crsId)).findFirst().orElse(null);
+        if (crsTask != null) {
+            try {
                 task.getCrsTasks().remove(crsTask);
                 taskRepository.save(task);
             } catch (Exception e) {
@@ -482,6 +511,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
 
         if (!CollectionUtils.isEmpty(task.getCrsTasks())) {
             authoringTask.setLabels(new Gson().toJson(List.of(CRS_JIRA_LABEL)));
+            authoringTask.setCrsTasks(task.getCrsTasks());
         }
 
         // assignee, reporter, reviewers
@@ -557,7 +587,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         return projectOptional.get();
     }
 
-    private void sendJMSTaskStateChangeNotification(Task task, TaskStatus newState) {
+    private void sendJMSTaskStateChangeNotification(Task task, TaskStatus newState) throws BusinessServiceException {
         try {
             Map<String, String> properties = new HashMap<>();
             properties.put("key", task.getKey());
@@ -570,10 +600,10 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
             if (task.getCrsTasks() != null) {
                 properties.put("labels", CRS_JIRA_LABEL);
                 properties.put("internalAuthoringTask", Boolean.TRUE.toString());
-                properties.put("crsJiraKeys", task.getCrsTasks().stream().map(CrsTask::getCrsJiraKey).collect(Collectors.joining(",")));
+                properties.put("crsRequestIds", task.getCrsTasks().stream().map(CrsTask::getCrsTaskKey).collect(Collectors.joining(",")));
                 for (String queue : taskStateChangeNotificationQueues) {
-                    if ((isIntAuthoringTask(task) && isIntTaskStateChangeQueue(queue))
-                            || (!isIntAuthoringTask(task) && !isIntTaskStateChangeQueue(queue))) {
+                    if ((isIntAuthoringTask(task.getProject().getKey(), task.getKey()) && isIntTaskStateChangeQueue(queue))
+                            || (!isIntAuthoringTask(task.getProject().getKey(), task.getKey()) && !isIntTaskStateChangeQueue(queue))) {
                         messagingHelper.send(new ActiveMQQueue(queue), properties);
                     }
                 }
@@ -582,10 +612,6 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         } catch (JsonProcessingException | JMSException e) {
             logger.error("Failed to send task state change notification for {} {}.", task.getKey(), newState.getLabel(), e);
         }
-    }
-
-    private boolean isIntAuthoringTask(Task task) {
-        return task.getCrsTasks().stream().anyMatch(crsTask -> crsTask.getCrsJiraKey().startsWith(intCrsIssueKeyPrefix));
     }
 
     private List<TaskReviewer> getTaskReviewers(Task task, List<String> reviewers) {

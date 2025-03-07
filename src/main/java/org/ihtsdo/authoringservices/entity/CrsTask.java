@@ -7,9 +7,13 @@ import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
 @Entity(name = "crs_task")
+@Table(uniqueConstraints = {@UniqueConstraint(name = "UniqueCrsIdAndTask", columnNames = {"crsTaskKey", "task"})})
 public class CrsTask {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private long id;
+
     @Column(name = "crs_task_key")
     private String crsTaskKey;
 
@@ -20,6 +24,11 @@ public class CrsTask {
     @JoinColumn(name = "task_key")
     @OnDelete(action = OnDeleteAction.CASCADE)
     private Task task;
+
+    @JsonIgnore
+    public long getId() {
+        return id;
+    }
 
     public String getCrsTaskKey() {
         return crsTaskKey;
