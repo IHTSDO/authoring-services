@@ -48,6 +48,13 @@ public class AdminController {
         jiraAuthoringTaskMigrateService.migrateJiraTasks(projectKeys);
     }
 
+    @PreAuthorize("hasPermission('ADMIN', 'global')")
+    @Operation(summary = "Migrate jira CRS tasks")
+    @PostMapping(value = "/migrate-jira-crs-tasks")
+    public void migrateJiraCrsTasksManual(@RequestParam(required = false) Set<String> projectKeys) {
+        jiraAuthoringTaskMigrateService.migrateJiraCrsTasks(projectKeys);
+    }
+
     @Operation(summary = "Create a task within a project")
     @PostMapping(value = "/projects/{projectKey}/tasks")
     public AuthoringTask createTask(@PathVariable final String projectKey, @RequestParam(value = "useNew", required = false) Boolean useNew,
