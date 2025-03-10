@@ -129,7 +129,7 @@ public class CodeSystemService {
 			throw new BusinessServiceException(String.format(CODE_SYSTEM_NOT_FOUND_MSG, codeSystemShortname));
 		}
 		List<AuthoringProject> authoringProjects = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(true, false));
-		List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(true).listProjects(true, false);
+		List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(true, false);
 		filterJiraProjects(jiraProjects, authoringProjects);
 
 		authoringProjects = authoringProjects.stream().filter(project -> project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/")).equals(cs.getBranchPath())).toList();
@@ -154,7 +154,7 @@ public class CodeSystemService {
 			throw new BusinessServiceException(String.format(CODE_SYSTEM_NOT_FOUND_MSG, codeSystemShortname));
 		}
 		List<AuthoringProject> authoringProjects = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(true, false));
-		List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(true).listProjects(true, false);
+		List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(true, false);
 		filterJiraProjects(jiraProjects, authoringProjects);
 
 		authoringProjects = authoringProjects.stream().filter(project -> project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/")).equals(cs.getBranchPath())).toList();
