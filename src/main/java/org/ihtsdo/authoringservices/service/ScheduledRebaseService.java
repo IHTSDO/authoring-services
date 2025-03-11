@@ -64,7 +64,7 @@ public class ScheduledRebaseService {
         try {
             loginToIMSAndSetSecurityContext();
             logger.info("Starting scheduled rebase for all configured projects.");
-            List<AuthoringProject> projects = jiraProjectService.listProjects(false, false);
+            List<AuthoringProject> projects = jiraProjectService.listProjects(false, false, null);
             projects = projects.stream().filter(project -> !Boolean.TRUE.equals(project.isProjectScheduledRebaseDisabled())
                             && !Boolean.TRUE.equals(project.isProjectRebaseDisabled())
                             && !Boolean.TRUE.equals(project.isProjectLocked()))

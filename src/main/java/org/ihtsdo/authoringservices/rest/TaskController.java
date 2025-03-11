@@ -5,7 +5,8 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.ihtsdo.authoringservices.domain.*;
-import org.ihtsdo.authoringservices.service.*;
+import org.ihtsdo.authoringservices.service.PromotionService;
+import org.ihtsdo.authoringservices.service.RebaseService;
 import org.ihtsdo.authoringservices.service.factory.ProjectServiceFactory;
 import org.ihtsdo.authoringservices.service.factory.TaskServiceFactory;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
@@ -56,16 +57,18 @@ public class TaskController {
     @Operation(summary = "List tasks within a project")
     @ApiResponse(responseCode = "200", description = "OK")
     @GetMapping(value = "/projects/{projectKey}/tasks")
-    public List<AuthoringTask> listTasks(@PathVariable final String projectKey, @RequestParam(value = "lightweight", required = false) Boolean lightweight) throws BusinessServiceException {
+    public List<AuthoringTask> listTasks(@PathVariable final String projectKey,
+                                         @RequestParam(value = "lightweight", required = false) Boolean lightweight,
+                                         @Parameter(description = "Task type (Possible values are: <b>CRS, ALL</b>)") @RequestParam(value = "taskType", required = false) String taskType) throws BusinessServiceException {
         List<AuthoringTask> results = null;
         try {
-            results = taskServiceFactory.getInstance(true).listTasksForProject(requiredParam(projectKey, PROJECT_KEY), lightweight);
+            results = taskServiceFactory.getInstance(true).listTasksForProject(requiredParam(projectKey, PROJECT_KEY), lightweight, taskType);
         } catch (ResourceNotFoundException e) {
             // do nothing
         }
         List<AuthoringTask> jiraTasks = null;
         try {
-            jiraTasks = taskServiceFactory.getInstance(false).listTasksForProject(requiredParam(projectKey, PROJECT_KEY), lightweight);
+            jiraTasks = taskServiceFactory.getInstance(false).listTasksForProject(requiredParam(projectKey, PROJECT_KEY), lightweight, taskType);
         } catch (ResourceNotFoundException e) {
             // do nothing
         }
@@ -75,10 +78,9 @@ public class TaskController {
     @Operation(summary = "List authenticated user's tasks across projects")
     @ApiResponse(responseCode = "200", description = "OK")
     @GetMapping(value = "/projects/my-tasks")
-    public List<AuthoringTask> listMyTasks(@RequestParam(value = "excludePromoted", required = false) String excludePromoted,
-                                           @RequestParam(value = "type", required = false) TaskType type) throws BusinessServiceException {
-        List<AuthoringTask> results = new ArrayList<>(taskServiceFactory.getInstance(true).listMyTasks(SecurityUtil.getUsername(), excludePromoted, type));
-        List<AuthoringTask> jiraTasks = taskServiceFactory.getInstance(false).listMyTasks(SecurityUtil.getUsername(), excludePromoted, type);
+    public List<AuthoringTask> listMyTasks(@RequestParam(value = "excludePromoted", required = false) String excludePromoted) throws BusinessServiceException {
+        List<AuthoringTask> results = new ArrayList<>(taskServiceFactory.getInstance(true).listMyTasks(SecurityUtil.getUsername(), excludePromoted));
+        List<AuthoringTask> jiraTasks = taskServiceFactory.getInstance(false).listMyTasks(SecurityUtil.getUsername(), excludePromoted);
         return filterJiraTasks(jiraTasks, results);
     }
 
@@ -95,10 +97,9 @@ public class TaskController {
     @ApiResponse(responseCode = "200", description = "OK")
     @GetMapping(value = "/projects/tasks/search")
     public List<AuthoringTask> searchTasks(@RequestParam(value = "criteria") String criteria,
-                                           @RequestParam(value = "type", required = false) TaskType type,
                                            @RequestParam(value = "lightweight", required = false) Boolean lightweight) throws BusinessServiceException {
-        List<AuthoringTask> results = new ArrayList<>(taskServiceFactory.getInstance(true).searchTasks(criteria, lightweight, type));
-        List<AuthoringTask> jiraTasks = taskServiceFactory.getInstance(false).searchTasks(criteria, lightweight, type);
+        List<AuthoringTask> results = new ArrayList<>(taskServiceFactory.getInstance(true).searchTasks(criteria, lightweight));
+        List<AuthoringTask> jiraTasks = taskServiceFactory.getInstance(false).searchTasks(criteria, lightweight);
         return filterJiraTasks(jiraTasks, results);
     }
 

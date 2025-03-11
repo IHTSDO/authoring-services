@@ -5,6 +5,7 @@ import jakarta.transaction.Transactional;
 import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.entity.Project;
 import org.ihtsdo.authoringservices.entity.ProjectUserGroup;
+import org.ihtsdo.authoringservices.entity.Task;
 import org.ihtsdo.authoringservices.entity.TaskSequence;
 import org.ihtsdo.authoringservices.repository.ProjectRepository;
 import org.ihtsdo.authoringservices.repository.ProjectUserGroupRepository;
@@ -33,6 +34,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @Transactional
 public class AuthoringProjectServiceImpl extends ProjectServiceBase implements ProjectService {
@@ -179,7 +181,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
     }
 
     @Override
-    public List<AuthoringProject> listProjects(Boolean lightweight, Boolean ignoreProductCodeFilter) {
+    public List<AuthoringProject> listProjects(Boolean lightweight, Boolean ignoreProductCodeFilter, String type) {
         List<String> loggedInUserRoles = permissionService.getUserRoles();
         if (loggedInUserRoles.isEmpty()) return Collections.emptyList();
 
@@ -187,6 +189,12 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
         if(projectUserGroups.isEmpty())  return Collections.emptyList();
 
         List<Project> result = projectUserGroups.stream().map(ProjectUserGroup::getProject).distinct().toList();
+        if (TaskServiceBase.CRS_JIRA_LABEL.equals(type)) {
+            List<Task> tasks = taskRepository.findByType(TaskType.CRS);
+            List<String> projectKeys = new ArrayList<>();
+            tasks.forEach(item -> projectKeys.add(item.getProject().getKey()));
+            result = result.stream().filter(item -> projectKeys.contains(item.getKey())).collect(Collectors.toList());
+        }
         return buildAuthoringProjects(result, lightweight);
     }
 

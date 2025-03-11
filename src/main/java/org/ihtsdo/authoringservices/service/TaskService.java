@@ -26,13 +26,13 @@ public interface TaskService {
 
     List<AuthoringTask> getTasksByStatus(String projectKey, TaskStatus taskStatus) throws BusinessServiceException;
 
-    List<AuthoringTask> listTasksForProject(String projectKey, Boolean lightweight) throws BusinessServiceException;
+    List<AuthoringTask> listTasksForProject(String projectKey, Boolean lightweight, String taskType) throws BusinessServiceException;
 
-    List<AuthoringTask> listMyTasks(String username, String excludePromoted, TaskType type) throws BusinessServiceException;
+    List<AuthoringTask> listMyTasks(String username, String excludePromoted) throws BusinessServiceException;
 
     List<AuthoringTask> listMyOrUnassignedReviewTasks(String excludePromoted) throws BusinessServiceException;
 
-    List<AuthoringTask> searchTasks(String criteria, Boolean lightweight, TaskType type) throws BusinessServiceException;
+    List<AuthoringTask> searchTasks(String criteria, Boolean lightweight) throws BusinessServiceException;
 
     void addCommentLogErrors(String projectKey, String taskKey, String commentString);
 

@@ -291,27 +291,24 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
     }
 
     @Override
-    public List<AuthoringTask> listTasksForProject(String projectKey, Boolean lightweight) throws BusinessServiceException {
-        List<Task> tasks = taskRepository.findByProjectAndStatusNotInOrderByUpdatedDateDesc(getProjectOrThrow(projectKey), Arrays.asList(EXCLUDE_STATUSES));
+    public List<AuthoringTask> listTasksForProject(String projectKey, Boolean lightweight, String taskType) throws BusinessServiceException {
+        List<Task> tasks;
+        if (CRS_JIRA_LABEL.equals(taskType)) {
+            tasks= taskRepository.findByProjectAndStatusNotInAndTypeOrderByUpdatedDateDesc(getProjectOrThrow(projectKey), Arrays.asList(EXCLUDE_STATUSES), TaskType.CRS);
+        } else {
+            tasks = taskRepository.findByProjectAndStatusNotInOrderByUpdatedDateDesc(getProjectOrThrow(projectKey), Arrays.asList(EXCLUDE_STATUSES));
+        }
         return buildAuthoringTasks(tasks, lightweight);
     }
 
     @Override
-    public List<AuthoringTask> listMyTasks(String username, String excludePromoted, TaskType type) throws BusinessServiceException {
+    public List<AuthoringTask> listMyTasks(String username, String excludePromoted) throws BusinessServiceException {
         List<TaskStatus> excludedStatuses = new ArrayList<>(List.of(EXCLUDE_STATUSES));
         if (null != excludePromoted && excludePromoted.equalsIgnoreCase("TRUE")) {
             excludedStatuses.add(TaskStatus.PROMOTED);
         }
         List<Project> projects = permissionService.getProjectsForUser();
-        List<Task> tasks;
-        if (TaskType.CRS.equals(type)) {
-            tasks = taskRepository.findByProjectInAndAssigneeAndTypeAndStatusNotInOrderByUpdatedDateDesc(projects, username, TaskType.CRS, excludedStatuses);
-        } else if (TaskType.AUTHORING.equals(type)) {
-            tasks = taskRepository.findByProjectInAndAssigneeAndTypeNotInAndStatusNotInOrderByUpdatedDateDesc(projects, username, new ArrayList<>(List.of(TaskType.CRS)), excludedStatuses);
-        } else {
-            tasks = taskRepository.findByProjectInAndAssigneeAndStatusNotInOrderByUpdatedDateDesc(projects, username, excludedStatuses);
-        }
-
+        List<Task> tasks = taskRepository.findByProjectInAndAssigneeAndStatusNotInOrderByUpdatedDateDesc(projects, username, excludedStatuses);
         return buildAuthoringTasks(tasks, false);
     }
 
@@ -331,7 +328,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
     }
 
     @Override
-    public List<AuthoringTask> searchTasks(String criteria, Boolean lightweight, TaskType type) throws BusinessServiceException {
+    public List<AuthoringTask> searchTasks(String criteria, Boolean lightweight) throws BusinessServiceException {
         if (StringUtils.isEmpty(criteria)) {
             return Collections.emptyList();
         }
@@ -339,18 +336,13 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         boolean isTaskKey = arrayStr.length == 2 && NumberUtils.isNumber(arrayStr[1]);
         if (isTaskKey) {
             Optional<Task> taskOptional = taskRepository.findById(criteria);
-            if (taskOptional.isEmpty()
-                    || taskOptional.get().getStatus().equals(TaskStatus.DELETED)
-                    || (TaskType.CRS.equals(type) && !TaskType.CRS.equals(taskOptional.get().getType()))
-                    || (!TaskType.CRS.equals(type) && TaskType.CRS.equals(taskOptional.get().getType()))) {
+            if (taskOptional.isEmpty() || taskOptional.get().getStatus().equals(TaskStatus.DELETED)) {
                 return Collections.emptyList();
             }
             return buildAuthoringTasks(new ArrayList<>(List.of(taskOptional.get())), lightweight);
         } else {
             List<Task> tasks = taskRepository.findByNameContaining(criteria);
-            tasks = tasks.stream().filter(task -> !TaskStatus.DELETED.equals(task.getStatus())
-                    && ((TaskType.CRS.equals(type) && TaskType.CRS.equals(task.getType()))
-                    || (!TaskType.CRS.equals(type) && !TaskType.CRS.equals(task.getType())))).toList();
+            tasks = tasks.stream().filter(task -> !TaskStatus.DELETED.equals(task.getStatus())).toList();
 
             return buildAuthoringTasks(tasks, lightweight);
         }

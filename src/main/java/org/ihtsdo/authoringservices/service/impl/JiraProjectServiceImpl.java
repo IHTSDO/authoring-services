@@ -49,6 +49,7 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
     public static final int LIMIT_UNLIMITED = -1;
 
     private static final String AUTHORING_PROJECT_TYPE = "SCA Authoring Project";
+    private static final String AUTHORING_TASK_TYPE = "SCA Authoring Task";
     private static final String ENABLED_TEXT = "Enabled";
     private static final String DISABLED_TEXT = "Disabled";
     private static final String VALUE = "value";
@@ -250,13 +251,30 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
     }
 
     @Override
-    public List<AuthoringProject> listProjects(Boolean lightweight, Boolean ignoreProductCodeFilter) throws BusinessServiceException {
+    public List<AuthoringProject> listProjects(Boolean lightweight, Boolean ignoreProductCodeFilter, String type) throws BusinessServiceException {
         final TimerUtil timer = new TimerUtil("ProjectsList");
         List<Issue> projectTickets = new ArrayList<>();
+        Set<String> requireProjectKeys = new HashSet<>();
+        if (TaskServiceBase.CRS_JIRA_LABEL.equals(type)) {
+            try {
+                List<Issue> crsIssues = searchIssues("type = \""+ AUTHORING_TASK_TYPE +"\" AND labels = CRS AND (status != Completed AND status != Deleted AND status != Promoted)" , LIMIT_UNLIMITED, null);
+                if (!crsIssues.isEmpty()) {
+                    crsIssues.forEach(item -> requireProjectKeys.add(item.getProject().getKey()));
+                    logger.info("CRS project: {}", requireProjectKeys);
+                }
+            } catch (JiraException e) {
+                throw new BusinessServiceException("Failed to search CRS tickets", e);
+            }
+        }
+
         // Search for authoring project tickets this user has visibility of
         List<Issue> issues;
         try {
-            issues = searchIssues("type = \"SCA Authoring Project\"", LIMIT_UNLIMITED, projectJiraFetchFields);
+            String jql = "type = \"SCA Authoring Project\"";
+            if (!requireProjectKeys.isEmpty()) {
+                jql += " AND project in (" + requireProjectKeys.stream().map(s -> "\"" + s + "\"").collect(Collectors.joining(", "))+ ")";
+            }
+            issues = searchIssues(jql, LIMIT_UNLIMITED, projectJiraFetchFields);
         } catch (JiraException e) {
             throw new BusinessServiceException("Failed to list projects", e);
         }

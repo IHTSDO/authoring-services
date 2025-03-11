@@ -182,11 +182,15 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
     }
 
     @Override
-    public List<AuthoringTask> listTasksForProject(String projectKey, Boolean lightweight) throws BusinessServiceException {
+    public List<AuthoringTask> listTasksForProject(String projectKey, Boolean lightweight, String taskType) throws BusinessServiceException {
         getProjectOrThrow(projectKey);
         List<Issue> issues;
         try {
-            issues = searchIssues(getProjectTaskJQL(projectKey, null), LIMIT_UNLIMITED);
+            String jql = getProjectTaskJQL(projectKey, null);
+            if (CRS_JIRA_LABEL.equals(taskType)) {
+                jql += (" AND labels = " + CRS_JIRA_LABEL);
+            }
+            issues = searchIssues(jql, LIMIT_UNLIMITED);
         } catch (JiraException e) {
             throw new BusinessServiceException("Failed to list tasks.", e);
         }
@@ -313,7 +317,7 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
      * Search issues based on Jira Summary or ID field
      */
     @Override
-    public List<AuthoringTask> searchTasks(String criteria, Boolean lightweight, TaskType type) throws BusinessServiceException {
+    public List<AuthoringTask> searchTasks(String criteria, Boolean lightweight) throws BusinessServiceException {
         if (StringUtils.isEmpty(criteria)) {
             return Collections.emptyList();
         }
@@ -330,14 +334,11 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
                 throw new BusinessServiceException("Failed to search tasks", exception);
             }
         }
-        List<AuthoringTask> authoringTasks = buildAuthoringTasks(issues, lightweight != null && lightweight);
-        authoringTasks = authoringTasks.stream().filter(task -> (TaskType.CRS.equals(type) && TaskType.CRS.equals(task.getType()))
-                || (!TaskType.CRS.equals(type) && !TaskType.CRS.equals(task.getType()))).toList();
-        return authoringTasks;
+        return buildAuthoringTasks(issues, lightweight != null && lightweight);
     }
 
     @Override
-    public List<AuthoringTask> listMyTasks(String username, String excludePromoted, TaskType type) throws BusinessServiceException {
+    public List<AuthoringTask> listMyTasks(String username, String excludePromoted) throws BusinessServiceException {
         String jql = "assignee = \"" + username + "\" AND type = \"" + AUTHORING_TASK_TYPE + "\" " + EXCLUDE_STATUSES;
         if (null != excludePromoted && excludePromoted.equalsIgnoreCase("TRUE")) {
             jql += " AND status != \"Promoted\"";
@@ -348,13 +349,7 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
         } catch (JiraException e) {
             throw new BusinessServiceException("Failed to list my tasks", e);
         }
-        List<AuthoringTask> tasks = buildAuthoringTasks(issues, false);
-        if (TaskType.CRS.equals(type)) {
-            tasks = tasks.stream().filter(task -> TaskType.CRS.equals(task.getType())).toList();
-        } else if (TaskType.AUTHORING.equals(type)) {
-            tasks = tasks.stream().filter(task -> !TaskType.CRS.equals(task.getType())).toList();
-        }
-        return tasks;
+        return buildAuthoringTasks(issues, false);
     }
 
     @Override

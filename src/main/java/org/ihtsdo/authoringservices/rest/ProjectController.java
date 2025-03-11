@@ -2,6 +2,7 @@ package org.ihtsdo.authoringservices.rest;
 
 import io.kaicode.rest.util.branchpathrewrite.BranchPathUriUtil;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.ihtsdo.authoringservices.domain.*;
@@ -55,9 +56,10 @@ public class ProjectController {
     @ApiResponse(responseCode = "200", description = "OK")
     @GetMapping(value = "/projects")
     public List<AuthoringProject> listProjects(@RequestParam(value = "lightweight", required = false) Boolean lightweight,
-                                               @RequestParam(value = "ignoreProductCodeFilter", required = false) Boolean ignoreProductCodeFilter) throws BusinessServiceException {
-        List<AuthoringProject> results = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(lightweight, ignoreProductCodeFilter));
-        List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(lightweight, ignoreProductCodeFilter);
+                                               @RequestParam(value = "ignoreProductCodeFilter", required = false) Boolean ignoreProductCodeFilter,
+                                               @Parameter(description = "Project type (Possible values are: <b>CRS, ALL</b>)") @RequestParam(value = "type", required = false) String type) throws BusinessServiceException {
+        List<AuthoringProject> results = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(lightweight, ignoreProductCodeFilter, type));
+        List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(lightweight, ignoreProductCodeFilter, type);
         return filterJiraProjects(jiraProjects, results);
     }
 
