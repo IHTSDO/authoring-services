@@ -106,4 +106,16 @@ public class CodeSystemController {
 	public void unlockProjects(@PathVariable final String shortName, final HttpServletResponse response) throws BusinessServiceException {
 		codeSystemService.unlockProjects(shortName);
 	}
+
+	@Operation(summary = "Rebase all projects for a given code system")
+	@ApiResponse(responseCode = "200", description = "OK")
+	@PostMapping(value = "/{shortName}/projects/rebase")
+	public ResponseEntity<List<String>> rebaseProjects(@PathVariable final String shortName, final HttpServletResponse response) throws BusinessServiceException, RestClientException {
+		AuthoringCodeSystem codeSystem = codeSystemService.findOne(shortName);
+		if (codeSystem != null) {
+			return new ResponseEntity<>(codeSystemService.rebaseProjects(codeSystem), HttpStatus.OK);
+		} else {
+			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+	}
 }

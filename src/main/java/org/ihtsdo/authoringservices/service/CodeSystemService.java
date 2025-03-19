@@ -24,6 +24,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -76,6 +77,9 @@ public class CodeSystemService {
 
 	@Autowired
 	private ValidationService validationService;
+
+	@Autowired
+	private RebaseService rebaseService;
 
 	@Autowired
 	@Qualifier("validationTicketOAuthJiraClient")
@@ -382,5 +386,28 @@ public class CodeSystemService {
 			throw new BusinessServiceException("Failed to build code system list.", e);
 		}
 		return allCodeSystems;
+	}
+
+	@PreAuthorize("hasPermission('ADMIN', 'global') || hasPermission('ADMIN', #codeSystem.branchPath)")
+	public List<String> rebaseProjects(AuthoringCodeSystem codeSystem) throws BusinessServiceException {
+		List<String> projectsToRebase = new ArrayList<>();
+		List<AuthoringProject> authoringProjects = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(true, false, null));
+		List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(true, false, null);
+		filterJiraProjects(jiraProjects, authoringProjects);
+
+		authoringProjects = authoringProjects.stream().filter(project -> project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/")).equals(codeSystem.getBranchPath())).toList();
+		for (AuthoringProject project : authoringProjects) {
+			try {
+				ProcessStatus status = rebaseService.getProjectRebaseStatus(project.getKey());
+				if (status == null || !"Rebasing".equals(status.getStatus())) {
+					rebaseService.doProjectRebase(project.getKey());
+					projectsToRebase.add(project.getKey());
+				}
+			} catch (Exception e) {
+				logger.error("Failed to rebase for the project " + project.getKey(), e);
+			}
+		}
+
+		return projectsToRebase;
 	}
 }
