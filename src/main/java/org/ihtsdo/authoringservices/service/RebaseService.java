@@ -155,12 +155,13 @@ public class RebaseService {
 	}
 
 	private boolean skipProjectRebaseIfDisabled(String jobId, AuthoringProject project, String key) throws BusinessServiceException {
-		if (Boolean.TRUE.equals(project.isProjectRebaseDisabled())|| Boolean.TRUE.equals(project.isProjectLocked())) {
+		if (Boolean.TRUE.equals(project.isProjectRebaseDisabled()) || Boolean.TRUE.equals(project.isProjectLocked())) {
+			String message = "Project rebase is disabled" + (!Boolean.TRUE.equals(project.isProjectRebaseDisabled()) ? " due to project being locked" : "");
 			if (jobId != null) {
-				updateRebaseStatus(RebaseStatus.SKIPPED, "Project rebase is disabled", key);
+				updateRebaseStatus(RebaseStatus.SKIPPED, message, key);
 				return true;
 			}
-			throw new BusinessServiceException("Project rebase is disabled");
+			throw new BusinessServiceException(message);
 		}
 		return false;
 	}

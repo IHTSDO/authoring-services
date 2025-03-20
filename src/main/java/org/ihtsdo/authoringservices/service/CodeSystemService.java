@@ -388,8 +388,8 @@ public class CodeSystemService {
 	@PreAuthorize("hasPermission('ADMIN', 'global') || hasPermission('ADMIN', #codeSystem.branchPath)")
 	public String rebaseProjects(AuthoringCodeSystem codeSystem) throws BusinessServiceException {
 		String jobId = UUID.randomUUID().toString();
-		List<AuthoringProject> authoringProjects = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(true, false, null));
-		List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(true, false, null);
+		List<AuthoringProject> authoringProjects = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(true, true, null));
+		List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(true, true, null);
 		filterJiraProjects(jiraProjects, authoringProjects);
 
 		authoringProjects = authoringProjects.stream().filter(project -> project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/")).equals(codeSystem.getBranchPath())).toList();
