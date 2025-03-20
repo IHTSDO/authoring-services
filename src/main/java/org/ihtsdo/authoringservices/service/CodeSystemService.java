@@ -32,10 +32,7 @@ import org.springframework.util.StringUtils;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 
 import static org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystemUpgradeJob.UpgradeStatus.*;
@@ -50,7 +47,7 @@ public class CodeSystemService {
 	private static final String DEFAULT_JIRA_PROJECT = "MSSP";
 	private static final String DEFAULT_ISSUE_TYPE = "Service Request";
 	private static final String SHARED = "SHARED";
-	private static final String UPGRADE_JOB_PANEL_ID = "code-system-upgrade-job";
+	private static final String UPGRADE_JOB_PANEL_ID = "code-system-upgrade-job"; // this panel ID will be persisted by the frontend
 
 	private static final String AUTHORING_FREEZE = "authoringFreeze";
 
@@ -389,25 +386,21 @@ public class CodeSystemService {
 	}
 
 	@PreAuthorize("hasPermission('ADMIN', 'global') || hasPermission('ADMIN', #codeSystem.branchPath)")
-	public List<String> rebaseProjects(AuthoringCodeSystem codeSystem) throws BusinessServiceException {
-		List<String> projectsToRebase = new ArrayList<>();
+	public String rebaseProjects(AuthoringCodeSystem codeSystem) throws BusinessServiceException {
+		String jobId = UUID.randomUUID().toString();
 		List<AuthoringProject> authoringProjects = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(true, false, null));
 		List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(true, false, null);
 		filterJiraProjects(jiraProjects, authoringProjects);
 
 		authoringProjects = authoringProjects.stream().filter(project -> project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/")).equals(codeSystem.getBranchPath())).toList();
 		for (AuthoringProject project : authoringProjects) {
-			try {
-				ProcessStatus status = rebaseService.getProjectRebaseStatus(project.getKey());
-				if (status == null || !"Rebasing".equals(status.getStatus())) {
-					rebaseService.doProjectRebase(project.getKey());
-					projectsToRebase.add(project.getKey());
-				}
-			} catch (Exception e) {
-				logger.error("Failed to rebase for the project " + project.getKey(), e);
-			}
+			rebaseService.doProjectRebase(jobId, project.getKey());
 		}
 
-		return projectsToRebase;
+		return jobId;
+	}
+
+	public Map<String, ProcessStatus> getProjectRebaseStatuses(String jobId) {
+		return rebaseService.getRebaseStatusByJobId(jobId);
 	}
 }

@@ -7,12 +7,14 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.ihtsdo.authoringservices.domain.AuthoringCodeSystem;
+import org.ihtsdo.authoringservices.domain.ProcessStatus;
 import org.ihtsdo.authoringservices.service.CodeSystemService;
 import org.ihtsdo.authoringservices.service.DailyBuildService;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystemUpgradeJob;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
+import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -28,6 +30,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
+import java.util.Map;
 
 @Tag(name = "Code Systems")
 @RestController
@@ -107,15 +110,27 @@ public class CodeSystemController {
 		codeSystemService.unlockProjects(shortName);
 	}
 
-	@Operation(summary = "Rebase all projects for a given code system")
-	@ApiResponse(responseCode = "200", description = "OK")
-	@PostMapping(value = "/{shortName}/projects/rebase")
-	public ResponseEntity<List<String>> rebaseProjects(@PathVariable final String shortName, final HttpServletResponse response) throws BusinessServiceException, RestClientException {
-		AuthoringCodeSystem codeSystem = codeSystemService.findOne(shortName);
-		if (codeSystem != null) {
-			return new ResponseEntity<>(codeSystemService.rebaseProjects(codeSystem), HttpStatus.OK);
-		} else {
-			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-		}
-	}
+    @Operation(summary = "Rebase all projects for a given code system")
+    @ApiResponse(responseCode = "200", description = "OK")
+    @PostMapping(value = "/{shortName}/projects/rebase")
+    public ResponseEntity<Void> rebaseProjects(@PathVariable final String shortName, final HttpServletResponse response) throws BusinessServiceException, RestClientException {
+        AuthoringCodeSystem codeSystem = codeSystemService.findOne(shortName);
+        if (codeSystem != null) {
+            RequestAttributes attrs = RequestContextHolder.getRequestAttributes();
+            Assert.state(attrs instanceof ServletRequestAttributes, "No current ServletRequestAttributes");
+            HttpServletRequest request = ((ServletRequestAttributes) attrs).getRequest();
+
+            String requestUrl = request.getRequestURL().toString();
+            return new ResponseEntity<>(ControllerHelper.getCreatedLocationHeaders(requestUrl + "/", codeSystemService.rebaseProjects(codeSystem), null), HttpStatus.CREATED);
+        } else {
+            throw new ResourceNotFoundException(String.format("Code system %s not found", shortName));
+        }
+    }
+
+    @Operation(summary = "Retrieve the project rebase statuses for a give jobId")
+    @ApiResponse(responseCode = "200", description = "OK")
+    @GetMapping(value = "/projects/rebase/{jobId}")
+    public ResponseEntity<Map<String, ProcessStatus>> getProjectRebaseStatus(@PathVariable final String jobId, final HttpServletResponse response) {
+        return new ResponseEntity<>(codeSystemService.getProjectRebaseStatuses(jobId), HttpStatus.OK);
+    }
 }

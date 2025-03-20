@@ -76,7 +76,7 @@ public class ProjectController {
     public ResponseEntity<String> rebaseProject(@PathVariable final String projectKey) throws BusinessServiceException {
         ProcessStatus processStatus = rebaseService.getProjectRebaseStatus(requiredParam(projectKey, PROJECT_KEY));
         if (processStatus == null || !REBASING_STATUS.equals(processStatus.getStatus())) {
-            rebaseService.doProjectRebase(projectKey);
+            rebaseService.doProjectRebase(null, projectKey);
         }
         return new ResponseEntity<>(HttpStatus.OK);
     }
