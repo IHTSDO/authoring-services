@@ -158,7 +158,9 @@ public class RebaseService {
 		if (Boolean.TRUE.equals(project.isProjectRebaseDisabled()) || Boolean.TRUE.equals(project.isProjectLocked())) {
 			String message = "Project rebase is disabled" + (!Boolean.TRUE.equals(project.isProjectRebaseDisabled()) ? " due to project being locked" : "");
 			if (jobId != null) {
-				updateRebaseStatus(RebaseStatus.SKIPPED, message, key);
+				if (!Boolean.TRUE.equals(project.isProjectRebaseDisabled())) {
+					updateRebaseStatus(RebaseStatus.SKIPPED, message, key);
+				}
 				return true;
 			}
 			throw new BusinessServiceException(message);
@@ -170,11 +172,12 @@ public class RebaseService {
 		for (Map.Entry<String, ProcessStatus> entry : rebaseStatusCache.asMap().entrySet()) {
 			String k = entry.getKey();
 			if ((k.equals(projectKey) || k.endsWith(UNDERSCORE + projectKey)) && RebaseStatus.REBASING.getLabel().equals(entry.getValue().getStatus())) {
+				String message = "Project is being rebased";
 				if (jobId != null) {
-					updateRebaseStatus(RebaseStatus.SKIPPED, "Project is being rebased", key);
+					updateRebaseStatus(RebaseStatus.SKIPPED, message, key);
 					return true;
 				}
-				throw new BusinessServiceException("Project is being rebased");
+				throw new BusinessServiceException(message);
 			}
 		}
 		return false;
