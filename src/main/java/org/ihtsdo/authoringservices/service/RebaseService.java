@@ -9,9 +9,13 @@ import org.ihtsdo.authoringservices.domain.AuthoringProject;
 import org.ihtsdo.authoringservices.domain.BranchState;
 import org.ihtsdo.authoringservices.domain.ProcessStatus;
 import org.ihtsdo.authoringservices.service.factory.ProjectServiceFactory;
+import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
+import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
+import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ApiError;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Merge;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.MergeReviewsResults;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,9 +26,13 @@ import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+
+import static org.ihtsdo.otf.rest.client.terminologyserver.pojo.MergeReviewsResults.MergeReviewStatus.CURRENT;
+import static org.ihtsdo.otf.rest.client.terminologyserver.pojo.MergeReviewsResults.MergeReviewStatus.PENDING;
 
 @Service
 public class RebaseService {
@@ -51,6 +59,9 @@ public class RebaseService {
 	}
 
 	@Autowired
+	private SnowstormRestClientFactory snowstormRestClientFactory;
+
+	@Autowired
 	private ProjectServiceFactory projectServiceFactory;
 
 	@Autowired
@@ -72,53 +83,87 @@ public class RebaseService {
 			try {
 				updateRebaseStatus(RebaseStatus.REBASING, null, parseKey(projectKey, taskKey));
 				String taskBranchPath = branchService.getTaskBranchPathUsingCache(projectKey, taskKey);
-				Merge merge = branchService.mergeBranchSync(PathHelper.getParentPath(taskBranchPath), taskBranchPath,
-						null);
-				if (merge.getStatus() == Merge.Status.COMPLETED) {
-					updateRebaseStatus(RebaseStatus.REBASE_COMPLETE, null, parseKey(projectKey, taskKey));
-				} else if (merge.getStatus().equals(Merge.Status.CONFLICTS)) {
-					processRebaseConflicts(merge, parseKey(projectKey, taskKey));
-				} else {
-					ApiError apiError = merge.getApiError();
-					String message = apiError != null ? apiError.getMessage() : null;
-					updateRebaseStatus(RebaseStatus.REBASE_ERROR, message, parseKey(projectKey, taskKey));
-				}
+				mergeBranch(PathHelper.getParentPath(taskBranchPath), taskBranchPath, null, parseKey(projectKey, taskKey));
 			} catch (Exception e) {
 				logger.error(e.getMessage(), e);
 				updateRebaseStatus(RebaseStatus.REBASE_ERROR, e.getMessage(), parseKey(projectKey, taskKey));
 			}
 		});
 	}
-
-
-	public void doProjectRebase(final String jobId, final String projectKey) throws BusinessServiceException {
-		String key = jobId != null ? jobId + UNDERSCORE + projectKey : projectKey;
-		AuthoringProject project = retrieveProject(projectKey);
+	public void doProjectRebase(String jobId, final AuthoringProject project) throws BusinessServiceException {
+		String key = jobId != null ? jobId + UNDERSCORE + project.getKey() : project.getKey();
 		if (skipProjectRebaseIfDisabled(jobId, project, key)) return;
 		if (skipProjectRebaseIfBranchStateNotValid(jobId, project, key)) return;
-		if (skipProjectRebaseIfRunning(jobId, projectKey, key)) return;
-
+		if (skipProjectRebaseIfRunning(jobId, project.getKey(), key)) return;
 		final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		executorService.submit(() -> {
 			SecurityContextHolder.getContext().setAuthentication(authentication);
 			try {
 				updateRebaseStatus(RebaseStatus.REBASING, null, key);
-				String projectBranchPath = branchService.getProjectBranchPathUsingCache(projectKey);
-				Merge merge = branchService.mergeBranchSync(PathHelper.getParentPath(projectBranchPath), projectBranchPath, null);
-				if (merge.getStatus() == Merge.Status.COMPLETED) {
-					updateRebaseStatus(RebaseStatus.REBASE_COMPLETE, null, key);
-				} else if (merge.getStatus().equals(Merge.Status.CONFLICTS)) {
-					processRebaseConflicts(merge, key);
+				String targetBranch = branchService.getProjectBranchPathUsingCache(project.getKey());
+				String sourceBranch = PathHelper.getParentPath(targetBranch);
+				if (BranchState.BEHIND.name().equals(project.getBranchState())) {
+					mergeBranch(sourceBranch, targetBranch, null, key);
+					return;
+				}
+
+				SnowstormRestClient client = snowstormRestClientFactory.getClient();
+				String mergeReviewsId = client.createBranchMergeReviews(sourceBranch, targetBranch);
+				MergeReviewsResults mergeReviewsResults = waitToMergeReviewsComplete(client, mergeReviewsId);
+				if (CURRENT.equals(mergeReviewsResults.getStatus())) {
+					Set mergeReviewsDetails = client.getMergeReviewsDetails(mergeReviewsId);
+					if (mergeReviewsDetails.isEmpty()) {
+						mergeBranch(sourceBranch, targetBranch, mergeReviewsId, key);
+					} else {
+						updateRebaseStatus(RebaseStatus.REBASE_CONFLICTS, null, key);
+					}
 				} else {
-					ApiError apiError = merge.getApiError();
-					String message = apiError != null ? apiError.getMessage() : null;
-					updateRebaseStatus(RebaseStatus.REBASE_ERROR, message, key);
+					updateRebaseStatus(RebaseStatus.REBASE_ERROR, "Failed to generate the merge-review.", key);
 				}
 			} catch (Exception e) {
 				logger.error(e.getMessage(), e);
 				updateRebaseStatus(RebaseStatus.REBASE_ERROR, e.getMessage(), key);
 			}
 		});
+	}
+
+	private void mergeBranch(String sourceBranch, String targetBranch, String mergeReviewsId, String key) throws BusinessServiceException {
+		Merge merge = branchService.mergeBranchSync(sourceBranch, targetBranch, mergeReviewsId);
+		if (merge.getStatus() == Merge.Status.COMPLETED) {
+			updateRebaseStatus(RebaseStatus.REBASE_COMPLETE, null, key);
+		} else if (merge.getStatus().equals(Merge.Status.CONFLICTS)) {
+			processRebaseConflicts(merge, key);
+		} else {
+			ApiError apiError = merge.getApiError();
+			String message = apiError != null ? apiError.getMessage() : null;
+			updateRebaseStatus(RebaseStatus.REBASE_ERROR, message, key);
+		}
+	}
+
+	private MergeReviewsResults waitToMergeReviewsComplete(SnowstormRestClient client, String mergeReviewsId) throws RestClientException {
+		int sleepSeconds = 4;
+		int totalWait = 0;
+		int maxTotalWait = 60 * 60;
+		MergeReviewsResults mergeReviewsResults;
+		do {
+            try {
+                Thread.sleep(1000L * sleepSeconds);
+            } catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+            }
+            totalWait += sleepSeconds;
+			mergeReviewsResults = client.getMergeReviewsResult(mergeReviewsId);
+			if (sleepSeconds < 10) {
+				sleepSeconds += 2;
+			}
+		} while (totalWait < maxTotalWait && mergeReviewsResults.getStatus() == PENDING);
+
+		return mergeReviewsResults;
+	}
+
+	public void doProjectRebase(final String jobId, final String projectKey) throws BusinessServiceException {
+		AuthoringProject project = retrieveProject(projectKey);
+		this.doProjectRebase(jobId, project);
 	}
 
 	private boolean skipProjectRebaseIfBranchStateNotValid(String jobId, AuthoringProject project, String key) throws BusinessServiceException {

@@ -394,7 +394,7 @@ public class CodeSystemService {
 
 		authoringProjects = authoringProjects.stream().filter(project -> project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/")).equals(codeSystem.getBranchPath())).toList();
 		for (AuthoringProject project : authoringProjects) {
-			rebaseService.doProjectRebase(jobId, project.getKey());
+			rebaseService.doProjectRebase(jobId, project);
 		}
 
 		return jobId;
