@@ -88,9 +88,7 @@ public class ReviewService {
 		Map<String, List<ReviewMessage>> conceptMessagesMap = new HashMap<>();
 		for (ReviewMessage reviewMessage : reviewMessages) {
 			for (String conceptId : reviewMessage.getSubjectConceptIds()) {
-				if (!conceptMessagesMap.containsKey(conceptId)) {
-					conceptMessagesMap.put(conceptId, new ArrayList<>());
-				}
+				conceptMessagesMap.computeIfAbsent(conceptId, k -> new ArrayList<>());
 				conceptMessagesMap.get(conceptId).add(reviewMessage);
 			}
 		}
@@ -109,10 +107,20 @@ public class ReviewService {
 		for (ReviewMessageSentListener listener : getReviewMessageSentListeners()) {
 			listener.messageSent(message, createRequest.getEvent());
 		}
-		// Send email to Author
-		AuthoringTask authoringTask = taskServiceFactory.getInstanceByKey(taskKey).retrieveTask(projectKey, taskKey, true, true);
-		if (authoringTask.getAssignee() != null && !fromUsername.equals(authoringTask.getAssignee().getUsername())) {
-			emailService.sendCommentAddedNotification(projectKey, taskKey, authoringTask.getSummary(), createRequest.getMessageHtml(), Collections.singleton(authoringTask.getAssignee()));
+		// Send email to Author/Reviewers
+		if (taskKey != null) {
+			AuthoringTask authoringTask = taskServiceFactory.getInstanceByKey(taskKey).retrieveTask(projectKey, taskKey, true, true);
+			if (authoringTask.getAssignee() != null || authoringTask.getReviewers() != null) {
+				List<User> recipients = new ArrayList<>();
+				boolean isTaskAuthor = authoringTask.getAssignee() != null && fromUsername.equals(authoringTask.getAssignee().getUsername());
+				if (isTaskAuthor && authoringTask.getReviewers() != null) {
+					recipients.addAll(authoringTask.getReviewers());
+				} else if (!isTaskAuthor && authoringTask.getAssignee() != null) {
+					recipients.add(authoringTask.getAssignee());
+				}
+				recipients = recipients.stream().filter(item -> !item.getUsername().equals(fromUsername)).toList();
+				emailService.sendCommentAddedNotification(projectKey, taskKey, authoringTask.getSummary(), createRequest.getMessageHtml(), recipients);
+			}
 		}
 
 		return message;
@@ -166,7 +174,7 @@ public class ReviewService {
 					}
 
 					// if another user left message after view date, mark unread
-					if (!username.equals(reviewMessage.getFromUsername()) && (viewDate == null || messageDate.after(viewDate))) {
+					if (!username.equals(reviewMessage.getFromUsername()) && (viewDate == null || (messageDate != null && messageDate.after(viewDate)))) {
 						detail.setTaskMessagesStatus(TaskMessagesStatus.unread);
 					}
 
