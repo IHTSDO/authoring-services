@@ -774,7 +774,7 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
             if (issue.getIssueLinks().isEmpty()) {
                 boolean isIntTask = isIntAuthoringTask(projectKey, taskKey);
                 ContentRequestServiceClient crsClient = contentRequestServiceClientFactory.getClient(uiConfiguration.getEndpoints().get(isIntTask ? "crsEndpoint" : "crsEndpoint.US"));
-                List<Long> crsRequestIds = crsClient.findAcceptedRequestsByAuthoringTaskKey(taskKey);
+                List<Long> crsRequestIds = crsClient.findRequestsByAuthoringTask(taskKey);
                 for (Long requestId : crsRequestIds) {
                     ContentRequestServiceClient.ContentRequestDto contentRequestDto = crsClient.getRequestDetails(String.valueOf(requestId));
                     String organization = contentRequestDto.getRequestHeader() != null ? contentRequestDto.getRequestHeader().getOrganization() : null;

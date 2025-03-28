@@ -13,7 +13,6 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -64,18 +63,29 @@ public class ContentRequestServiceClient {
         return restTemplate.getForObject(this.contentRequestServiceUrl + REQUEST_ENDPOINT + "/" + requestId, ContentRequestDto.class);
     }
 
-    public List<Long> findAcceptedRequestsByAuthoringTaskKey(String taskKey) {
+    public List<Long> findRequestsByAuthoringTask(String taskKey) {
         JSONObject body = new JSONObject();
-        body.put("type", "ACCEPTED");
         body.put("authoringTaskTicket", taskKey);
         body.put("sortDirections", List.of("desc"));
         body.put("sortFields", List.of("id"));
         body.put("limit", 1000);
-        ContentRequestDto[] contentRequestDtos = restTemplate.postForObject(this.contentRequestServiceUrl + REQUEST_ENDPOINT + "/list", body, ContentRequestDto[].class);
-        if (contentRequestDtos != null) {
-            return Arrays.stream(contentRequestDtos).map(ContentRequestDto::getId).toList();
+        ContentRequestSearchResponseDto contentRequestSearchResponseDto = restTemplate.postForObject(this.contentRequestServiceUrl + REQUEST_ENDPOINT + "/list", body, ContentRequestSearchResponseDto.class);
+        if (contentRequestSearchResponseDto != null) {
+            return contentRequestSearchResponseDto.getItems().stream().map(ContentRequestDto::getId).toList();
         }
         return Collections.emptyList();
+    }
+
+    public class ContentRequestSearchResponseDto {
+        private List<ContentRequestDto> items;
+
+        public List<ContentRequestDto> getItems() {
+            return items;
+        }
+
+        public void setItems(List<ContentRequestDto> items) {
+            this.items = items;
+        }
     }
 
     public class ContentRequestDto {
