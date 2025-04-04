@@ -95,6 +95,9 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
     @Autowired
     private UiConfiguration uiConfiguration;
 
+    @Autowired
+    private AuditStatusChangeSender auditStatusChangeSender;
+
     @Override
     public boolean isUseNew(String taskKey) {
         Optional<Task> taskOptional = taskRepository.findById(taskKey);
@@ -252,6 +255,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
                 }
                 task.setStatus(status);
                 isTaskStatusChanged = true;
+                auditStatusChangeSender.sendMessage(task.getKey(), SecurityUtil.getUsername(), currentStatus.getLabel().toUpperCase(), status.getLabel().toUpperCase(), new Date().getTime());
             }
         }
         return isTaskStatusChanged;
@@ -396,10 +400,12 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         Optional<Task> taskOptional = taskRepository.findById(taskKey);
         if (taskOptional.isPresent()) {
             Task task = taskOptional.get();
+            TaskStatus currentState = task.getStatus();
             task.setStatus(newState);
             task.setUpdatedDate(Timestamp.from(Instant.now()));
             logger.info("Transition task {} to {}", taskKey, newState.getLabel());
             taskRepository.save(task);
+            auditStatusChangeSender.sendMessage(task.getKey(), SecurityUtil.getUsername(), currentState.getLabel().toUpperCase(), newState.getLabel().toUpperCase(), new Date().getTime());
             if (!taskStateChangeNotificationQueues.isEmpty()) {
                 // Send JMS Task State Notification
                 sendJMSTaskStateChangeNotification(task, newState);

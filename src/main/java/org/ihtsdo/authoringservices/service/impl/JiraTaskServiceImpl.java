@@ -99,6 +99,9 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
     @Autowired
     private UiConfiguration uiConfiguration;
 
+    @Autowired
+    private AuditStatusChangeSender auditStatusChangeSender;
+
     private final ImpersonatingJiraClientFactory jiraClientFactory;
     private final Set<String> myTasksRequiredFields;
     private final String jiraCrsIdField;
@@ -715,13 +718,14 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
 
     private void stateTransition(String taskKey, TaskStatus newState, String projectKey) throws JiraException, BusinessServiceException {
         final Issue issue = getIssue(taskKey);
+        String currentState = issue.getStatus().getName();
         final Transition transition = getTransitionToOrThrow(issue, newState);
         final String key = issue.getKey();
         final String newStateLabel = newState.getLabel();
         logger.info("Transition issue {} to {}", key, newStateLabel);
         issue.transition().execute(transition);
         issue.refresh();
-
+        auditStatusChangeSender.sendMessage(taskKey, SecurityUtil.getUsername(), currentState.toUpperCase(), newStateLabel.toUpperCase(), new Date().getTime());
         if (!taskStateChangeNotificationQueues.isEmpty()) {
             // Send JMS Task State Notification
             sendJMSTaskStateChangeNotification(taskKey, newState, projectKey, key, newStateLabel, issue);
