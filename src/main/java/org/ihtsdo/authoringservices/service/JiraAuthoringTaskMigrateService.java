@@ -70,26 +70,6 @@ public class JiraAuthoringTaskMigrateService {
     }
 
     @Transactional
-    public void migrateJiraTasks(Set<String> projectKeys) {
-        Iterable<Project> projectIterable = CollectionUtils.isEmpty(projectKeys) ? projectRepository.findAll() : projectRepository.findAllById(projectKeys);
-        Set<Task> tasks = new HashSet<>();
-        for (Project project : projectIterable) {
-            try {
-                TimerUtil timer = new TimerUtil("Migrate Jira Task for project " + project.getKey(), Level.INFO);
-                List<Issue> issues = listAllJiraTasksForProject(project.getKey());
-                for (Issue issue : issues) {
-                    migrateJiraTask(project, issue, tasks, false);
-                }
-                timer.finish();
-            } catch (Exception e) {
-                logger.error(e.getMessage());
-            }
-        }
-
-        taskRepository.saveAll(tasks);
-    }
-
-    @Transactional
     public void migrateJiraCrsTasks(Set<String> projectKeys) {
         Iterable<Project> projectIterable = CollectionUtils.isEmpty(projectKeys) ? projectRepository.findAll() : projectRepository.findAllById(projectKeys);
         Set<Task> tasks = new HashSet<>();
