@@ -725,7 +725,7 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
         logger.info("Transition issue {} to {}", key, newStateLabel);
         issue.transition().execute(transition);
         issue.refresh();
-        auditStatusChangeSender.sendMessage(taskKey, SecurityUtil.getUsername(), currentState.toUpperCase(), newStateLabel.toUpperCase(), new Date().getTime());
+        auditStatusChangeSender.sendMessage(taskKey, branchService.getTaskBranchPathUsingCache(projectKey, key), SecurityUtil.getUsername(), currentState.toUpperCase(), newStateLabel.toUpperCase(), new Date().getTime());
         if (!taskStateChangeNotificationQueues.isEmpty()) {
             // Send JMS Task State Notification
             sendJMSTaskStateChangeNotification(taskKey, newState, projectKey, key, newStateLabel, issue);

@@ -255,7 +255,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
                 }
                 task.setStatus(status);
                 isTaskStatusChanged = true;
-                auditStatusChangeSender.sendMessage(task.getKey(), SecurityUtil.getUsername(), currentStatus.getLabel().toUpperCase(), status.getLabel().toUpperCase(), new Date().getTime());
+                auditStatusChangeSender.sendMessage(task.getKey(), task.getBranchPath(), SecurityUtil.getUsername(), currentStatus.getLabel().toUpperCase(), status.getLabel().toUpperCase(), new Date().getTime());
             }
         }
         return isTaskStatusChanged;
@@ -405,7 +405,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
             task.setUpdatedDate(Timestamp.from(Instant.now()));
             logger.info("Transition task {} to {}", taskKey, newState.getLabel());
             taskRepository.save(task);
-            auditStatusChangeSender.sendMessage(task.getKey(), SecurityUtil.getUsername(), currentState.getLabel().toUpperCase(), newState.getLabel().toUpperCase(), new Date().getTime());
+            auditStatusChangeSender.sendMessage(task.getKey(), task.getBranchPath(), SecurityUtil.getUsername(), currentState.getLabel().toUpperCase(), newState.getLabel().toUpperCase(), new Date().getTime());
             if (!taskStateChangeNotificationQueues.isEmpty()) {
                 // Send JMS Task State Notification
                 sendJMSTaskStateChangeNotification(task, newState);

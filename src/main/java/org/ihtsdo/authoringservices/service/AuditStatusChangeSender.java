@@ -27,16 +27,18 @@ public class AuditStatusChangeSender {
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
-    public void sendMessage(final String taskKey, final String username, final String statusFrom, final String statusTo, Long timestamp) {
+    public void sendMessage(final String taskKey, final String branchPath, final String username, final String statusFrom, final String statusTo, Long timestamp) {
         String queueName = jmsQueuePrefix + QUEUE_SUFFIX;
         logger.info("RequestStatusChangeSender - Send message to queue {} ", queueName);
         Message mapMessage = new ActiveMQTextMessage();
         try {
             mapMessage.setStringProperty("recordId", String.valueOf(taskKey));
             mapMessage.setStringProperty("userId", username);
-            mapMessage.setStringProperty("applicationType", "AUTHORING");
-            mapMessage.setStringProperty("statusFrom", statusFrom);
-            mapMessage.setStringProperty("statusTo", statusTo);
+            mapMessage.setStringProperty("location", branchPath);
+            mapMessage.setStringProperty("sourceApplication", "AUTHORING");
+            mapMessage.setStringProperty("eventType", "STATUS_CHANGE");
+            mapMessage.setStringProperty("propertyBeforeChange", statusFrom);
+            mapMessage.setStringProperty("propertyAfterChange", statusTo);
             mapMessage.setStringProperty("timestamp", String.valueOf(timestamp));
             jmsTemplate.convertAndSend(queueName, mapMessage);
         } catch (JMSException e) {
