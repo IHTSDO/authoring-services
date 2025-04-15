@@ -58,17 +58,16 @@ public class TaskController {
     @ApiResponse(responseCode = "200", description = "OK")
     @GetMapping(value = "/projects/{projectKey}/tasks")
     public List<AuthoringTask> listTasks(@PathVariable final String projectKey,
-                                         @RequestParam(value = "lightweight", required = false) Boolean lightweight,
-                                         @Parameter(description = "Task type (Possible values are: <b>CRS, ALL</b>)") @RequestParam(value = "taskType", required = false) String taskType) throws BusinessServiceException {
+                                         @RequestParam(value = "lightweight", required = false) Boolean lightweight) throws BusinessServiceException {
         List<AuthoringTask> results = null;
         try {
-            results = taskServiceFactory.getInstance(true).listTasksForProject(requiredParam(projectKey, PROJECT_KEY), lightweight, taskType);
+            results = taskServiceFactory.getInstance(true).listTasksForProject(requiredParam(projectKey, PROJECT_KEY), lightweight);
         } catch (ResourceNotFoundException e) {
             // do nothing
         }
         List<AuthoringTask> jiraTasks = null;
         try {
-            jiraTasks = taskServiceFactory.getInstance(false).listTasksForProject(requiredParam(projectKey, PROJECT_KEY), lightweight, taskType);
+            jiraTasks = taskServiceFactory.getInstance(false).listTasksForProject(requiredParam(projectKey, PROJECT_KEY), lightweight);
         } catch (ResourceNotFoundException e) {
             // do nothing
         }

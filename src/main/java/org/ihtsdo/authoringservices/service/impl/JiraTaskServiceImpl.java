@@ -185,14 +185,11 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
     }
 
     @Override
-    public List<AuthoringTask> listTasksForProject(String projectKey, Boolean lightweight, String taskType) throws BusinessServiceException {
+    public List<AuthoringTask> listTasksForProject(String projectKey, Boolean lightweight) throws BusinessServiceException {
         getProjectOrThrow(projectKey);
         List<Issue> issues;
         try {
             String jql = getProjectTaskJQL(projectKey, null);
-            if (CRS_JIRA_LABEL.equals(taskType)) {
-                jql += (" AND labels = " + CRS_JIRA_LABEL);
-            }
             issues = searchIssues(jql, LIMIT_UNLIMITED);
         } catch (JiraException e) {
             throw new BusinessServiceException("Failed to list tasks.", e);

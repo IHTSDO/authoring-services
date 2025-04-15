@@ -2,11 +2,16 @@ package org.ihtsdo.authoringservices.rest;
 
 import io.kaicode.rest.util.branchpathrewrite.BranchPathUriUtil;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.ihtsdo.authoringservices.domain.*;
-import org.ihtsdo.authoringservices.service.*;
+import org.ihtsdo.authoringservices.domain.AuthoringInfoWrapper;
+import org.ihtsdo.authoringservices.domain.AuthoringProject;
+import org.ihtsdo.authoringservices.domain.MergeRequest;
+import org.ihtsdo.authoringservices.domain.ProcessStatus;
+import org.ihtsdo.authoringservices.service.BranchService;
+import org.ihtsdo.authoringservices.service.PromotionService;
+import org.ihtsdo.authoringservices.service.RebaseService;
+import org.ihtsdo.authoringservices.service.ScheduledRebaseService;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.authoringservices.service.factory.ProjectServiceFactory;
 import org.ihtsdo.otf.rest.client.RestClientException;
@@ -20,7 +25,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.ihtsdo.authoringservices.rest.ControllerHelper.*;
+import static org.ihtsdo.authoringservices.rest.ControllerHelper.PROJECT_KEY;
+import static org.ihtsdo.authoringservices.rest.ControllerHelper.requiredParam;
 
 @Tag(name = "Authoring Projects")
 @RestController
@@ -56,10 +62,9 @@ public class ProjectController {
     @ApiResponse(responseCode = "200", description = "OK")
     @GetMapping(value = "/projects")
     public List<AuthoringProject> listProjects(@RequestParam(value = "lightweight", required = false) Boolean lightweight,
-                                               @RequestParam(value = "ignoreProductCodeFilter", required = false) Boolean ignoreProductCodeFilter,
-                                               @Parameter(description = "Project type (Possible values are: <b>CRS, ALL</b>)") @RequestParam(value = "type", required = false) String type) throws BusinessServiceException {
-        List<AuthoringProject> results = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(lightweight, ignoreProductCodeFilter, type));
-        List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(lightweight, ignoreProductCodeFilter, type);
+                                               @RequestParam(value = "ignoreProductCodeFilter", required = false) Boolean ignoreProductCodeFilter) throws BusinessServiceException {
+        List<AuthoringProject> results = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(lightweight, ignoreProductCodeFilter));
+        List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(lightweight, ignoreProductCodeFilter);
         return filterJiraProjects(jiraProjects, results);
     }
 

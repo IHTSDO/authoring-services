@@ -295,13 +295,8 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
     }
 
     @Override
-    public List<AuthoringTask> listTasksForProject(String projectKey, Boolean lightweight, String taskType) throws BusinessServiceException {
-        List<Task> tasks;
-        if (CRS_JIRA_LABEL.equals(taskType)) {
-            tasks= taskRepository.findByProjectAndStatusNotInAndTypeOrderByUpdatedDateDesc(getProjectOrThrow(projectKey), Arrays.asList(EXCLUDE_STATUSES), TaskType.CRS);
-        } else {
-            tasks = taskRepository.findByProjectAndStatusNotInOrderByUpdatedDateDesc(getProjectOrThrow(projectKey), Arrays.asList(EXCLUDE_STATUSES));
-        }
+    public List<AuthoringTask> listTasksForProject(String projectKey, Boolean lightweight) throws BusinessServiceException {
+        List<Task> tasks = taskRepository.findByProjectAndStatusNotInOrderByUpdatedDateDesc(getProjectOrThrow(projectKey), Arrays.asList(EXCLUDE_STATUSES));
         return buildAuthoringTasks(tasks, lightweight);
     }
 
