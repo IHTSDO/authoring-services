@@ -35,7 +35,7 @@ public class AuditStatusChangeSender {
             mapMessage.setStringProperty("recordId", String.valueOf(taskKey));
             mapMessage.setStringProperty("userId", username);
             mapMessage.setStringProperty("location", branchPath);
-            mapMessage.setStringProperty("sourceApplication", "AUTHORING");
+            mapMessage.setStringProperty("sourceApplication", "AUTHORING_SERVICES");
             mapMessage.setStringProperty("eventType", "STATUS_CHANGE");
             mapMessage.setStringProperty("propertyBeforeChange", statusFrom);
             mapMessage.setStringProperty("propertyAfterChange", statusTo);
