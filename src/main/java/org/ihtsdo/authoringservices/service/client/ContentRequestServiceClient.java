@@ -91,6 +91,8 @@ public class ContentRequestServiceClient {
     public class ContentRequestDto {
         private Long id;
 
+        private String organization;
+
         private RequestHeader requestHeader;
 
         private JSONObject concept;
@@ -101,6 +103,23 @@ public class ContentRequestServiceClient {
 
         public void setId(Long id) {
             this.id = id;
+        }
+
+
+        public String getOrganization() {
+            return organization;
+        }
+
+        public void setOrganization(String organization) {
+            this.organization = organization;
+        }
+
+        public String getOrganizationOrNull() {
+            if (this.getOrganization() != null) {
+                return this.getOrganization();
+            } else {
+                return this.getRequestHeader() != null ? this.getRequestHeader().getOrganization() : null;
+            }
         }
 
         public RequestHeader getRequestHeader() {

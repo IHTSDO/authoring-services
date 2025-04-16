@@ -2,6 +2,7 @@ package org.ihtsdo.authoringservices.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import jakarta.jms.JMSException;
 import jakarta.transaction.Transactional;
 import org.apache.activemq.command.ActiveMQQueue;
@@ -424,8 +425,13 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
                 boolean isIntTask = isIntAuthoringTask(projectKey, taskKey);
                 ContentRequestServiceClient crsClient = contentRequestServiceClientFactory.getClient(uiConfiguration.getEndpoints().get(isIntTask ? "crsEndpoint" : "crsEndpoint.US"));
                 ContentRequestServiceClient.ContentRequestDto contentRequestDto = crsClient.getRequestDetails(crsTask.getCrsTaskKey());
-                String organization = contentRequestDto.getRequestHeader() != null ? contentRequestDto.getRequestHeader().getOrganization() : null;
-                TaskAttachment taskAttachment = new TaskAttachment(null, crsTask.getCrsTaskKey(), contentRequestDto.getConcept().toString(), organization);
+
+                // Workaround to simulate a JSON string for Organization, then the FE does't need tweaking
+                String organization = contentRequestDto.getOrganizationOrNull();
+                JsonObject jsonObject = new JsonObject();
+                jsonObject.addProperty("value", organization);
+
+                TaskAttachment taskAttachment = new TaskAttachment(null, crsTask.getCrsTaskKey(), contentRequestDto.getConcept().toString(), jsonObject.toString());
                 attachments.add(taskAttachment);
             }
         }
