@@ -143,7 +143,7 @@ public class ValidationRunner implements Runnable {
                 mostRecentRelease = dateStr;
             }
         }
-        if (mostRecentRelease != null && (formatter.parse(config.getReleaseDate()).before(formatter.parse(mostRecentRelease)))) {
+        if (mostRecentRelease != null && (formatter.parse(config.getReleaseDate()).compareTo(formatter.parse(mostRecentRelease)) <= 0)) {
             calendar.setTime(formatter.parse(mostRecentRelease));
             calendar.add(Calendar.DAY_OF_YEAR, 1);
             exportEffectiveDate = formatter.format(calendar.getTime());
