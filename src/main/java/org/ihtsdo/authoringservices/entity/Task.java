@@ -4,12 +4,13 @@ import jakarta.persistence.*;
 import org.ihtsdo.authoringservices.domain.TaskStatus;
 import org.ihtsdo.authoringservices.domain.TaskType;
 
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
 @Entity(name = "task")
-public class  Task extends BaseEntity {
+public class  Task {
 
     @Id
     @Column(name = "task_key", nullable = false)
@@ -45,6 +46,18 @@ public class  Task extends BaseEntity {
 
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<TaskReviewer> reviewers = new ArrayList<>();
+
+    @Column(name = "created_timestamp")
+    @Temporal(TemporalType.TIMESTAMP)
+    // Cannot use this annotation @CreationTimestamp for now as we need to sync the jira tasks due to migration.
+    //@CreationTimestamp
+    private Timestamp createdDate;
+
+    @Column(name = "updated_timestamp")
+    @Temporal(TemporalType.TIMESTAMP)
+    // Cannot use this annotation  @UpdateTimestamp for now as we need to sync the jira tasks due to migration.
+    // @UpdateTimestamp
+    private Timestamp updatedDate;
 
     public String getKey() {
         return key;
@@ -132,6 +145,22 @@ public class  Task extends BaseEntity {
 
     public void setReviewers(List<TaskReviewer> reviewers) {
         this.reviewers = reviewers;
+    }
+
+    public long getCreated() {
+        return createdDate.getTime();
+    }
+
+    public long getUpdated() {
+        return updatedDate.getTime();
+    }
+
+    public void setCreatedDate(Timestamp createdDate) {
+        this.createdDate = createdDate;
+    }
+
+    public void setUpdatedDate(Timestamp updatedDate) {
+        this.updatedDate = updatedDate;
     }
 
     @Override

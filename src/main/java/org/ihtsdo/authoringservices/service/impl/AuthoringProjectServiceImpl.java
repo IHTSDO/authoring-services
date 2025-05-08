@@ -29,8 +29,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-import java.sql.Timestamp;
-import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -117,8 +115,6 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
         projectCustomFieldConfiguration.getCustomFields().forEach((key, value) -> customFields.put(key, !PROJECT_LOCKED_FILED.equals(key)));
         project.setCustomFields(customFields);
         project.setUserGroups(groups);
-        project.setCreatedDate(Timestamp.from(Instant.now()));
-        project.setUpdatedDate(Timestamp.from(Instant.now()));
         project = projectRepository.save(project);
 
         // Set latest task number from JIRA if the same JIRA project exists
@@ -146,7 +142,6 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
         if (updatedProject.isProjectScheduledRebaseDisabled() != null) {
             customFields.put("projectScheduledRebase", !updatedProject.isProjectScheduledRebaseDisabled());
         }
-        project.setUpdatedDate(Timestamp.from(Instant.now()));
         projectRepository.save(project);
         return buildAuthoringProjects(List.of(project), false).get(0);
     }
@@ -210,7 +205,6 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
         Map<String, Boolean> customFields = Optional.ofNullable(project.getCustomFields()).orElse(new HashMap<>());
         customFields.put(PROJECT_LOCKED_FILED, true);
         project.setCustomFields(customFields);
-        project.setUpdatedDate(Timestamp.from(Instant.now()));
         projectRepository.save(project);
     }
 
@@ -221,7 +215,6 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
         Map<String, Boolean> customFields = Optional.ofNullable(project.getCustomFields()).orElse(new HashMap<>());
         customFields.put(PROJECT_LOCKED_FILED, false);
         project.setCustomFields(customFields);
-        project.setUpdatedDate(Timestamp.from(Instant.now()));
         projectRepository.save(project);
     }
 
@@ -250,7 +243,6 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
             customFields.put(item.getId(), ENABLED_TEXT.equals(item.getValue()));
         }
         project.setCustomFields(customFields);
-        project.setUpdatedDate(Timestamp.from(Instant.now()));
         projectRepository.save(project);
     }
 
@@ -277,7 +269,6 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
         });
         existing.removeIf(item -> !request.roles().contains(item.getName()));
         project.setUserGroups(existing);
-        project.setUpdatedDate(Timestamp.from(Instant.now()));
         projectRepository.save(project);
 
     }
