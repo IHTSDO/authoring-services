@@ -20,7 +20,6 @@ import org.thymeleaf.spring6.SpringTemplateEngine;
 import us.monoid.json.JSONException;
 import us.monoid.json.JSONObject;
 
-import javax.mail.internet.AddressException;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.text.DateFormat;
@@ -94,6 +93,44 @@ public class EmailService {
         params.setVariable("date", SIMPLE_DATE_FORMAT.format(new Date()));
         String url = rootURL + "/#/tasks/task/" + projectKey + "/" + taskKey + "/feedback";
         params.setVariable("requestUrl", url);
+        doSendMail(subject, templateFile, params, emails);
+    }
+
+    public void sendRMPTaskStatusChangeNotification(long rmpTaskId, String summary, String status, Collection<User> recipients) {
+        StringBuilder receiverNames = new StringBuilder();
+        Collection <String> emails = new ArrayList <>();
+        for (User user : recipients) {
+            receiverNames.append(!receiverNames.isEmpty() ? ", " + user.getDisplayName() : user.getDisplayName());
+            emails.add(user.getEmail());
+        }
+        Context params = new Context();
+        params.setVariable("receiverNames", receiverNames.toString());
+        params.setVariable("taskId", rmpTaskId);
+        params.setVariable("summary", summary);
+        params.setVariable("status", status);
+        params.setVariable("date", SIMPLE_DATE_FORMAT.format(new Date()));
+
+        String subject = "Status change";
+        String templateFile = "Notify-Status-Template";
+        doSendMail(subject, templateFile, params, emails);
+    }
+
+    public void sendRMPTaskCommentAddNotification(long rmpTaskId, String summary, String comment, Collection<User> recipients) {
+        StringBuilder receiverNames = new StringBuilder();
+        Collection <String> emails = new ArrayList <>();
+        for (User user : recipients) {
+            receiverNames.append(!receiverNames.isEmpty() ? ", " + user.getDisplayName() : user.getDisplayName());
+            emails.add(user.getEmail());
+        }
+        Context params = new Context();
+        params.setVariable("receiverNames", receiverNames.toString());
+        params.setVariable("taskId", rmpTaskId);
+        params.setVariable("summary", summary);
+        params.setVariable("comment", comment);
+        params.setVariable("date", SIMPLE_DATE_FORMAT.format(new Date()));
+
+        String subject = "Comment added";
+        String templateFile = "Notify-Comment-Template-RMP";
         doSendMail(subject, templateFile, params, emails);
     }
 

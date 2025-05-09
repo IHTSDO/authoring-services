@@ -1,12 +1,24 @@
 package org.ihtsdo.authoringservices.rest;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.ihtsdo.authoringservices.domain.User;
+import org.ihtsdo.authoringservices.entity.Comment;
 import org.ihtsdo.authoringservices.entity.RMPTask;
+import org.ihtsdo.authoringservices.service.CommentService;
+import org.ihtsdo.authoringservices.service.EmailService;
 import org.ihtsdo.authoringservices.service.RMPTaskService;
+import org.ihtsdo.authoringservices.service.client.IMSClientFactory;
+import org.ihtsdo.otf.rest.exception.BusinessServiceException;
+import org.ihtsdo.sso.integration.SecurityUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
 
 @Tag(name = "RMP Tasks")
 @RestController
@@ -15,9 +27,18 @@ public class RMPTaskController {
 
     private final RMPTaskService rmpTaskService;
 
+    private final CommentService commentService;
+
+    private final EmailService emailService;
+
+    private final IMSClientFactory imsClientFactory;
+
     @Autowired
-    public RMPTaskController(RMPTaskService rmpTaskService) {
+    public RMPTaskController(RMPTaskService rmpTaskService, CommentService commentService, EmailService emailService, IMSClientFactory imsClientFactory) {
         this.rmpTaskService = rmpTaskService;
+        this.commentService = commentService;
+        this.emailService = emailService;
+        this.imsClientFactory = imsClientFactory;
     }
 
     @GetMapping("/{id}")
@@ -35,11 +56,50 @@ public class RMPTaskController {
         return ResponseEntity.of(rmpTaskService.updateTask(id, rmpTask));
     }
 
+    @PutMapping("/{id}/status")
+    public ResponseEntity<RMPTask> updateRMPTaskStatus(@PathVariable long id, @RequestParam String status) throws BusinessServiceException {
+        return ResponseEntity.of(rmpTaskService.updateTaskStatus(id, status));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteRMPTask(@PathVariable long id) {
         if (rmpTaskService.deleteTask(id)) {
             return ResponseEntity.noContent().build();
         }
         return ResponseEntity.notFound().build();
+    }
+
+    @GetMapping("/{id}/comment")
+    public ResponseEntity<List<Comment>> findCommentByRmpTask(@PathVariable long id) {
+        RMPTask rmpTask = new RMPTask();
+        rmpTask.setId(id);
+        List<Comment> comments = commentService.findCommentByRmpTask(rmpTask);
+        return ResponseEntity.ok(comments);
+    }
+
+    @PostMapping("/{id}/comment")
+    public ResponseEntity<Comment> addCommentToRmpTask(@PathVariable long id, @RequestBody Comment comment) {
+        Optional<RMPTask> rmpTaskOptional = rmpTaskService.getTaskById(id);
+        if (rmpTaskOptional.isPresent()) {
+            RMPTask rmpTask = rmpTaskOptional.get();
+            comment.setRmpTask(rmpTask);
+            comment.setUser(SecurityUtil.getUsername());
+            Comment savedComment = commentService.saveComment(comment);
+            notifyCommentAdd(comment, rmpTask);
+            return ResponseEntity.ok(savedComment);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    private void notifyCommentAdd(Comment comment, RMPTask rmpTask) {
+        String currentUser = SecurityUtil.getUsername();
+        Collection<User> recipients = new ArrayList<>();
+        if (!currentUser.equals(rmpTask.getAssignee())) {
+            recipients.add(imsClientFactory.getClient().getUserDetails(rmpTask.getAssignee()));
+        }
+        if (!currentUser.equals(rmpTask.getReporter())) {
+            recipients.add(imsClientFactory.getClient().getUserDetails(rmpTask.getReporter()));
+        }
+        this.emailService.sendRMPTaskCommentAddNotification(rmpTask.getId(), rmpTask.getSummary(), comment.getBody(), recipients);
     }
 }
