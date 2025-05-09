@@ -8,7 +8,6 @@ import org.ihtsdo.authoringservices.service.CommentService;
 import org.ihtsdo.authoringservices.service.EmailService;
 import org.ihtsdo.authoringservices.service.RMPTaskService;
 import org.ihtsdo.authoringservices.service.client.IMSClientFactory;
-import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.sso.integration.SecurityUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -57,7 +56,7 @@ public class RMPTaskController {
     }
 
     @PutMapping("/{id}/status")
-    public ResponseEntity<RMPTask> updateRMPTaskStatus(@PathVariable long id, @RequestParam String status) throws BusinessServiceException {
+    public ResponseEntity<RMPTask> updateRMPTaskStatus(@PathVariable long id, @RequestParam String status) {
         return ResponseEntity.of(rmpTaskService.updateTaskStatus(id, status));
     }
 
