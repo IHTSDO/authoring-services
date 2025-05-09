@@ -3,25 +3,27 @@ package org.ihtsdo.authoringservices.service;
 import org.ihtsdo.authoringservices.domain.RMPTaskStatus;
 import org.ihtsdo.authoringservices.domain.User;
 import org.ihtsdo.authoringservices.entity.RMPTask;
-import org.ihtsdo.authoringservices.repository.RMPTaskRepository;
+import org.ihtsdo.authoringservices.repository.RMPTaskCrudRepository;
+import org.ihtsdo.authoringservices.repository.RMPTaskPagingAndSortingRepository;
 import org.ihtsdo.authoringservices.service.client.IMSClientFactory;
 import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
 import org.ihtsdo.sso.integration.SecurityUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 @Service
 public class RMPTaskService {
 
-    private final RMPTaskRepository rmpTaskRepository;
+    private final RMPTaskCrudRepository rmpTaskCrudRepository;
+
+    private final RMPTaskPagingAndSortingRepository rmpTaskPagingAndSortingRepository;
 
     private final EmailService emailService;
 
@@ -30,30 +32,30 @@ public class RMPTaskService {
     private final CommentService commentService;
 
     @Autowired
-    public RMPTaskService(RMPTaskRepository rmpTaskRepository, EmailService emailService, IMSClientFactory imsClientFactory, CommentService commentService) {
-        this.rmpTaskRepository = rmpTaskRepository;
+    public RMPTaskService(RMPTaskCrudRepository rmpTaskCrudRepository, EmailService emailService, IMSClientFactory imsClientFactory, CommentService commentService, RMPTaskPagingAndSortingRepository rmpTaskPagingAndSortingRepository) {
+        this.rmpTaskCrudRepository = rmpTaskCrudRepository;
         this.emailService = emailService;
         this.imsClientFactory = imsClientFactory;
         this.commentService = commentService;
+        this.rmpTaskPagingAndSortingRepository = rmpTaskPagingAndSortingRepository;
     }
 
-    public List<RMPTask> getAllTasks() {
-        Iterable<RMPTask> iterable = rmpTaskRepository.findAll();
-        return StreamSupport.stream(iterable.spliterator(), false).collect(Collectors.toList());
+    public Page<RMPTask> getAllTasks(Pageable pageable) {
+        return rmpTaskPagingAndSortingRepository.findAll(pageable);
     }
 
     public Optional<RMPTask> getTaskById(long id) {
-        return rmpTaskRepository.findById(id);
+        return rmpTaskCrudRepository.findById(id);
     }
 
     public RMPTask createTask(RMPTask rmpTask) {
         rmpTask.setStatus(RMPTaskStatus.NEW);
         rmpTask.setReporter(SecurityUtil.getUsername());
-        return rmpTaskRepository.save(rmpTask);
+        return rmpTaskCrudRepository.save(rmpTask);
     }
 
     public Optional<RMPTask> updateTask(long id, RMPTask updatedTask) {
-        Optional<RMPTask> taskOptional = rmpTaskRepository.findById(id);
+        Optional<RMPTask> taskOptional = rmpTaskCrudRepository.findById(id);
         if (taskOptional.isEmpty()) throw new ResourceNotFoundException(String.format("RMP task %s not found", id));
 
         RMPTask existingTask = taskOptional.get();
@@ -86,7 +88,7 @@ public class RMPTaskService {
         existingTask.setJustification(updatedTask.getJustification());
         existingTask.setReference(updatedTask.getReference());
 
-        RMPTask savedRmpTask = rmpTaskRepository.save(existingTask);
+        RMPTask savedRmpTask = rmpTaskCrudRepository.save(existingTask);
         if (statusChanged) {
             notifyStatusChange(savedRmpTask, updatedTaskStatus.getLabel());
         }
@@ -95,29 +97,29 @@ public class RMPTaskService {
 
     @Transactional
     public boolean deleteTask(long id) {
-        Optional<RMPTask> rmpTaskOptional = rmpTaskRepository.findById(id);
+        Optional<RMPTask> rmpTaskOptional = rmpTaskCrudRepository.findById(id);
         if (rmpTaskOptional.isPresent()) {
             commentService.deleteCommentsByRmpTask(rmpTaskOptional.get());
-            rmpTaskRepository.delete(rmpTaskOptional.get());
+            rmpTaskCrudRepository.delete(rmpTaskOptional.get());
             return true;
         }
         return false;
     }
 
     public Optional<RMPTask> updateTaskStatus(long id, String newStatus) {
-        Optional<RMPTask> taskOptional = rmpTaskRepository.findById(id);
+        Optional<RMPTask> taskOptional = rmpTaskCrudRepository.findById(id);
         if (taskOptional.isPresent()) {
             RMPTask rmpTask = taskOptional.get();
             RMPTaskStatus currentStatus = rmpTask.getStatus();
             if (currentStatus.equals(RMPTaskStatus.valueOf(newStatus))) {
                 throw new IllegalStateException(String.format("Unable to update the RMP task status. The status has already been %s", newStatus));
             }
-            if (! validTaskStatusTransition(currentStatus, RMPTaskStatus.valueOf(newStatus))) {
+            if (!validTaskStatusTransition(currentStatus, RMPTaskStatus.valueOf(newStatus))) {
                 throw new IllegalStateException(String.format("Unable to transition status from %s to %s", currentStatus.name(), newStatus));
             }
 
             rmpTask.setStatus(RMPTaskStatus.valueOf(newStatus));
-            RMPTask savedRmpTask = rmpTaskRepository.save(rmpTask);
+            RMPTask savedRmpTask = rmpTaskCrudRepository.save(rmpTask);
             notifyStatusChange(savedRmpTask, newStatus);
             return Optional.of(savedRmpTask);
         }

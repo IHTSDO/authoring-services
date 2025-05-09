@@ -1,6 +1,9 @@
 package org.ihtsdo.authoringservices.rest;
 
 import com.google.common.base.Strings;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -72,5 +75,17 @@ class ControllerHelper {
 		HttpHeaders httpHeaders = new HttpHeaders();
 		httpHeaders.setLocation(ServletUriComponentsBuilder.fromHttpUrl(requestUrl).path("/{id}").buildAndExpand(id).toUri());
 		return httpHeaders;
+	}
+
+	static Pageable setPageDefaults(Pageable page) {
+		if (page == null) {
+			page = PageRequest.of(0, 10);
+		} else {
+			page = PageRequest.of(page.getPageNumber(), Math.min(page.getPageSize(), 500), page.getSort());
+		}
+		if (Sort.unsorted() == page.getSort()) {
+			page = PageRequest.of(page.getPageNumber(), page.getPageSize());
+		}
+		return page;
 	}
 }
