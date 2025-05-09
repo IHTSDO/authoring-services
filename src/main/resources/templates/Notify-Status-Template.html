@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Authoring Platform  - RMP Request status change</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <style>
+        .dummy {
+            xtext-decoration: line-through;
+        }
+
+        .dummy:before {
+            content: "${";
+        }
+
+        .dummy:after {
+            content: "}";
+        }
+    </style>
+</head>
+<body>
+<p>Dear<span th:text="${receiverNames}"></span></p>
+This is an automated notification for a change of status for the following request:<br/>
+<strong>Request ID:</strong> <span th:text="${requestId}"></span><br/>
+<strong>Request Summary:</strong> <span th:text="${summary}"></span><br/>
+
+<p>The new status is now <strong><span th:text="${status}"></span></strong><br/>
+<strong>Date:</strong> <span th:text="${date}"></span><br/></p>
+
+<p>
+Please do not respond to this message.<br/>
+</p>
+<p>Best Regards<br/>
+    SNOMED International Team</p>
+</body>
+</html>
