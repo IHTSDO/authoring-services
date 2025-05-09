@@ -5,7 +5,6 @@ import org.ihtsdo.authoringservices.domain.User;
 import org.ihtsdo.authoringservices.entity.RMPTask;
 import org.ihtsdo.authoringservices.repository.RMPTaskRepository;
 import org.ihtsdo.authoringservices.service.client.IMSClientFactory;
-import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
 import org.ihtsdo.sso.integration.SecurityUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,67 +53,90 @@ public class RMPTaskService {
     }
 
     public Optional<RMPTask> updateTask(long id, RMPTask updatedTask) {
-        return rmpTaskRepository.findById(id).map(existingTask -> {
-            RMPTaskStatus updatedTaskStatus = updatedTask.getStatus();
-            boolean statusChanged = !updatedTask.getStatus().equals(existingTask.getStatus());
+        Optional<RMPTask> taskOptional = rmpTaskRepository.findById(id);
+        if (taskOptional.isEmpty()) throw new ResourceNotFoundException(String.format("RMP task %s not found", id));
 
-            existingTask.setStatus(updatedTask.getStatus());
-            existingTask.setReporter(updatedTask.getReporter());
-            existingTask.setAssignee(updatedTask.getAssignee());
-            existingTask.setSummary(updatedTask.getSummary());
-            existingTask.setLanguageRefset(updatedTask.getLanguageRefset());
-            existingTask.setContextRefset(updatedTask.getContextRefset());
-            existingTask.setConcept(updatedTask.getConcept());
-            existingTask.setConceptId(updatedTask.getConceptId());
-            existingTask.setConceptName(updatedTask.getConceptName());
-            existingTask.setRelationshipType(updatedTask.getRelationshipType());
-            existingTask.setRelationshipTarget(updatedTask.getRelationshipTarget());
-            existingTask.setExistingRelationship(updatedTask.getExistingRelationship());
-            existingTask.setMemberConceptIds(updatedTask.getMemberConceptIds());
-            existingTask.setEclQuery(updatedTask.getEclQuery());
-            existingTask.setExistingDescription(updatedTask.getExistingDescription());
-            existingTask.setNewDescription(updatedTask.getNewDescription());
-            existingTask.setNewFSN(updatedTask.getNewFSN());
-            existingTask.setNewPT(updatedTask.getNewPT());
-            existingTask.setNewSynonyms(updatedTask.getNewSynonyms());
-            existingTask.setParentConcept(updatedTask.getParentConcept());
-            existingTask.setJustification(updatedTask.getJustification());
-            existingTask.setReference(updatedTask.getReference());
+        RMPTask existingTask = taskOptional.get();
+        RMPTaskStatus updatedTaskStatus = updatedTask.getStatus();
+        boolean statusChanged = !updatedTask.getStatus().equals(existingTask.getStatus());
+        if (statusChanged && !validTaskStatusTransition(existingTask.getStatus(), updatedTaskStatus)) {
+            throw new IllegalStateException(String.format("Unable to transition status from %s to %s", existingTask.getStatus().name(), updatedTaskStatus.name()));
+        }
 
-            RMPTask savedRmpTask = rmpTaskRepository.save(updatedTask);
-            if (statusChanged) {
-                notifyStatusChange(savedRmpTask, updatedTaskStatus.getLabel());
-            }
-            return savedRmpTask;
-        });
+        existingTask.setStatus(updatedTask.getStatus());
+        existingTask.setReporter(updatedTask.getReporter());
+        existingTask.setAssignee(updatedTask.getAssignee());
+        existingTask.setSummary(updatedTask.getSummary());
+        existingTask.setLanguageRefset(updatedTask.getLanguageRefset());
+        existingTask.setContextRefset(updatedTask.getContextRefset());
+        existingTask.setConcept(updatedTask.getConcept());
+        existingTask.setConceptId(updatedTask.getConceptId());
+        existingTask.setConceptName(updatedTask.getConceptName());
+        existingTask.setRelationshipType(updatedTask.getRelationshipType());
+        existingTask.setRelationshipTarget(updatedTask.getRelationshipTarget());
+        existingTask.setExistingRelationship(updatedTask.getExistingRelationship());
+        existingTask.setMemberConceptIds(updatedTask.getMemberConceptIds());
+        existingTask.setEclQuery(updatedTask.getEclQuery());
+        existingTask.setExistingDescription(updatedTask.getExistingDescription());
+        existingTask.setNewDescription(updatedTask.getNewDescription());
+        existingTask.setNewFSN(updatedTask.getNewFSN());
+        existingTask.setNewPT(updatedTask.getNewPT());
+        existingTask.setNewSynonyms(updatedTask.getNewSynonyms());
+        existingTask.setParentConcept(updatedTask.getParentConcept());
+        existingTask.setJustification(updatedTask.getJustification());
+        existingTask.setReference(updatedTask.getReference());
+
+        RMPTask savedRmpTask = rmpTaskRepository.save(existingTask);
+        if (statusChanged) {
+            notifyStatusChange(savedRmpTask, updatedTaskStatus.getLabel());
+        }
+        return Optional.of(savedRmpTask);
     }
 
     @Transactional
     public boolean deleteTask(long id) {
-        if (rmpTaskRepository.existsById(id)) {
-            RMPTask rmpTask = new RMPTask();
-            rmpTask.setId(id);
-            commentService.deleteCommentsByRmpTask(rmpTask);
-            rmpTaskRepository.deleteById(id);
+        Optional<RMPTask> rmpTaskOptional = rmpTaskRepository.findById(id);
+        if (rmpTaskOptional.isPresent()) {
+            commentService.deleteCommentsByRmpTask(rmpTaskOptional.get());
+            rmpTaskRepository.delete(rmpTaskOptional.get());
             return true;
         }
         return false;
     }
 
-    public Optional<RMPTask> updateTaskStatus(long id, String newStatus) throws BusinessServiceException {
+    public Optional<RMPTask> updateTaskStatus(long id, String newStatus) {
         Optional<RMPTask> taskOptional = rmpTaskRepository.findById(id);
         if (taskOptional.isPresent()) {
             RMPTask rmpTask = taskOptional.get();
             RMPTaskStatus currentStatus = rmpTask.getStatus();
             if (currentStatus.equals(RMPTaskStatus.valueOf(newStatus))) {
-                throw new BusinessServiceException(String.format("Unable to update the RMP task status. The status has already been %s", newStatus));
+                throw new IllegalStateException(String.format("Unable to update the RMP task status. The status has already been %s", newStatus));
             }
-            rmpTask.setStatus(RMPTaskStatus.fromLabel(newStatus));
+            if (! validTaskStatusTransition(currentStatus, RMPTaskStatus.valueOf(newStatus))) {
+                throw new IllegalStateException(String.format("Unable to transition status from %s to %s", currentStatus.name(), newStatus));
+            }
+
+            rmpTask.setStatus(RMPTaskStatus.valueOf(newStatus));
             RMPTask savedRmpTask = rmpTaskRepository.save(rmpTask);
             notifyStatusChange(savedRmpTask, newStatus);
             return Optional.of(savedRmpTask);
         }
         throw new ResourceNotFoundException(String.format("RMP task %s not found", id));
+    }
+
+    private boolean validTaskStatusTransition(RMPTaskStatus currentStatus, RMPTaskStatus newStatus) {
+        return switch (newStatus) {
+            case ACCEPTED -> currentStatus.equals(RMPTaskStatus.NEW);
+            case IN_PROGRESS -> currentStatus.equals(RMPTaskStatus.ACCEPTED) || currentStatus.equals(RMPTaskStatus.ON_HOLD) || currentStatus.equals(RMPTaskStatus.CLARIFICATION_REQUESTED)
+                    || currentStatus.equals(RMPTaskStatus.UNDER_APPEAL) || currentStatus.equals(RMPTaskStatus.APPEAL_CLARIFICATION_REQUESTED);
+            case READY_FOR_RELEASE -> currentStatus.equals(RMPTaskStatus.IN_PROGRESS) || currentStatus.equals(RMPTaskStatus.PUBLISHED);
+            case PUBLISHED ->  currentStatus.equals(RMPTaskStatus.READY_FOR_RELEASE);
+            case ON_HOLD, CLOSED ->  currentStatus.equals(RMPTaskStatus.IN_PROGRESS);
+            case CLARIFICATION_REQUESTED -> currentStatus.equals(RMPTaskStatus.ACCEPTED);
+            case APPEAL_CLARIFICATION_REQUESTED, APPEAL_REJECTED -> currentStatus.equals(RMPTaskStatus.UNDER_APPEAL);
+            case UNDER_APPEAL -> currentStatus.equals(RMPTaskStatus.REJECTED) || currentStatus.equals(RMPTaskStatus.APPEAL_CLARIFICATION_REQUESTED);
+            default -> true;
+        };
     }
 
     private void notifyStatusChange(RMPTask task, String newStatus) {
