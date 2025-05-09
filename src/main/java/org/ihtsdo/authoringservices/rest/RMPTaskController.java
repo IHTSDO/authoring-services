@@ -10,6 +10,8 @@ import org.ihtsdo.authoringservices.service.RMPTaskService;
 import org.ihtsdo.authoringservices.service.client.IMSClientFactory;
 import org.ihtsdo.sso.integration.SecurityUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -38,6 +40,11 @@ public class RMPTaskController {
         this.commentService = commentService;
         this.emailService = emailService;
         this.imsClientFactory = imsClientFactory;
+    }
+
+    @GetMapping
+    public Page<RMPTask> getRmpTasks(Pageable page) {
+        return rmpTaskService.getAllTasks(ControllerHelper.setPageDefaults(page));
     }
 
     @GetMapping("/{id}")
