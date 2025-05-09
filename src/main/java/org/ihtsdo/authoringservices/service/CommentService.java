@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class CommentService {
@@ -26,5 +25,9 @@ public class CommentService {
 
     public List<Comment> findCommentByRmpTask(RMPTask rmpTask) {
         return commentRepository.findByRmpTaskOrderByCreatedDateAsc(rmpTask);
+    }
+
+    public void deleteCommentsByRmpTask(RMPTask rmpTask) {
+        commentRepository.deleteAll(commentRepository.findByRmpTaskOrderByCreatedDateAsc(rmpTask));
     }
 }

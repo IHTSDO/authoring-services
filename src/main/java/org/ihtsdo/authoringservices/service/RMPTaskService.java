@@ -10,6 +10,7 @@ import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
 import org.ihtsdo.sso.integration.SecurityUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -27,11 +28,14 @@ public class RMPTaskService {
 
     private final IMSClientFactory imsClientFactory;
 
+    private final CommentService commentService;
+
     @Autowired
-    public RMPTaskService(RMPTaskRepository rmpTaskRepository, EmailService emailService, IMSClientFactory imsClientFactory) {
+    public RMPTaskService(RMPTaskRepository rmpTaskRepository, EmailService emailService, IMSClientFactory imsClientFactory, CommentService commentService) {
         this.rmpTaskRepository = rmpTaskRepository;
         this.emailService = emailService;
         this.imsClientFactory = imsClientFactory;
+        this.commentService = commentService;
     }
 
     public List<RMPTask> getAllTasks() {
@@ -51,19 +55,46 @@ public class RMPTaskService {
 
     public Optional<RMPTask> updateTask(long id, RMPTask updatedTask) {
         return rmpTaskRepository.findById(id).map(existingTask -> {
-            updatedTask.setId(existingTask.getId());
             RMPTaskStatus updatedTaskStatus = updatedTask.getStatus();
             boolean statusChanged = !updatedTask.getStatus().equals(existingTask.getStatus());
-            RMPTask savedTask = rmpTaskRepository.save(updatedTask);
+
+            existingTask.setStatus(updatedTask.getStatus());
+            existingTask.setReporter(updatedTask.getReporter());
+            existingTask.setAssignee(updatedTask.getAssignee());
+            existingTask.setSummary(updatedTask.getSummary());
+            existingTask.setLanguageRefset(updatedTask.getLanguageRefset());
+            existingTask.setContextRefset(updatedTask.getContextRefset());
+            existingTask.setConcept(updatedTask.getConcept());
+            existingTask.setConceptId(updatedTask.getConceptId());
+            existingTask.setConceptName(updatedTask.getConceptName());
+            existingTask.setRelationshipType(updatedTask.getRelationshipType());
+            existingTask.setRelationshipTarget(updatedTask.getRelationshipTarget());
+            existingTask.setExistingRelationship(updatedTask.getExistingRelationship());
+            existingTask.setMemberConceptIds(updatedTask.getMemberConceptIds());
+            existingTask.setEclQuery(updatedTask.getEclQuery());
+            existingTask.setExistingDescription(updatedTask.getExistingDescription());
+            existingTask.setNewDescription(updatedTask.getNewDescription());
+            existingTask.setNewFSN(updatedTask.getNewFSN());
+            existingTask.setNewPT(updatedTask.getNewPT());
+            existingTask.setNewSynonyms(updatedTask.getNewSynonyms());
+            existingTask.setParentConcept(updatedTask.getParentConcept());
+            existingTask.setJustification(updatedTask.getJustification());
+            existingTask.setReference(updatedTask.getReference());
+
+            RMPTask savedRmpTask = rmpTaskRepository.save(updatedTask);
             if (statusChanged) {
-                notifyStatusChange(savedTask, updatedTaskStatus.getLabel());
+                notifyStatusChange(savedRmpTask, updatedTaskStatus.getLabel());
             }
-            return savedTask;
+            return savedRmpTask;
         });
     }
 
+    @Transactional
     public boolean deleteTask(long id) {
         if (rmpTaskRepository.existsById(id)) {
+            RMPTask rmpTask = new RMPTask();
+            rmpTask.setId(id);
+            commentService.deleteCommentsByRmpTask(rmpTask);
             rmpTaskRepository.deleteById(id);
             return true;
         }
@@ -73,15 +104,15 @@ public class RMPTaskService {
     public Optional<RMPTask> updateTaskStatus(long id, String newStatus) throws BusinessServiceException {
         Optional<RMPTask> taskOptional = rmpTaskRepository.findById(id);
         if (taskOptional.isPresent()) {
-            RMPTask task = taskOptional.get();
-            RMPTaskStatus currentStatus = task.getStatus();
+            RMPTask rmpTask = taskOptional.get();
+            RMPTaskStatus currentStatus = rmpTask.getStatus();
             if (currentStatus.equals(RMPTaskStatus.valueOf(newStatus))) {
                 throw new BusinessServiceException(String.format("Unable to update the RMP task status. The status has already been %s", newStatus));
             }
-            task.setStatus(RMPTaskStatus.fromLabel(newStatus));
-            RMPTask savedTask = rmpTaskRepository.save(task);
-            notifyStatusChange(savedTask, newStatus);
-            return Optional.of(savedTask);
+            rmpTask.setStatus(RMPTaskStatus.fromLabel(newStatus));
+            RMPTask savedRmpTask = rmpTaskRepository.save(rmpTask);
+            notifyStatusChange(savedRmpTask, newStatus);
+            return Optional.of(savedRmpTask);
         }
         throw new ResourceNotFoundException(String.format("RMP task %s not found", id));
     }
@@ -89,10 +120,10 @@ public class RMPTaskService {
     private void notifyStatusChange(RMPTask task, String newStatus) {
         String currentUser = SecurityUtil.getUsername();
         Collection<User> recipients = new ArrayList<>();
-        if (!currentUser.equals(task.getAssignee())) {
+        if (task.getAssignee() != null && !currentUser.equals(task.getAssignee())) {
             recipients.add(imsClientFactory.getClient().getUserDetails(task.getAssignee()));
         }
-        if (!currentUser.equals(task.getReporter())) {
+        if (task.getReporter() != null && !currentUser.equals(task.getReporter())) {
             recipients.add(imsClientFactory.getClient().getUserDetails(task.getReporter()));
         }
         emailService.sendRMPTaskStatusChangeNotification(task.getId(), task.getSummary(), newStatus, recipients);

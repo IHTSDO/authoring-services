@@ -94,10 +94,10 @@ public class RMPTaskController {
     private void notifyCommentAdd(Comment comment, RMPTask rmpTask) {
         String currentUser = SecurityUtil.getUsername();
         Collection<User> recipients = new ArrayList<>();
-        if (!currentUser.equals(rmpTask.getAssignee())) {
+        if (rmpTask.getAssignee() != null && !currentUser.equals(rmpTask.getAssignee())) {
             recipients.add(imsClientFactory.getClient().getUserDetails(rmpTask.getAssignee()));
         }
-        if (!currentUser.equals(rmpTask.getReporter())) {
+        if (rmpTask.getReporter() != null && !currentUser.equals(rmpTask.getReporter())) {
             recipients.add(imsClientFactory.getClient().getUserDetails(rmpTask.getReporter()));
         }
         this.emailService.sendRMPTaskCommentAddNotification(rmpTask.getId(), rmpTask.getSummary(), comment.getBody(), recipients);
