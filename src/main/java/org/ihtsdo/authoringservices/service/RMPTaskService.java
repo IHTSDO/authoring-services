@@ -29,14 +29,11 @@ public class RMPTaskService {
 
     private final IMSClientFactory imsClientFactory;
 
-    private final CommentService commentService;
-
     @Autowired
-    public RMPTaskService(RMPTaskCrudRepository rmpTaskCrudRepository, EmailService emailService, IMSClientFactory imsClientFactory, CommentService commentService, RMPTaskPagingAndSortingRepository rmpTaskPagingAndSortingRepository) {
+    public RMPTaskService(RMPTaskCrudRepository rmpTaskCrudRepository, EmailService emailService, IMSClientFactory imsClientFactory, RMPTaskPagingAndSortingRepository rmpTaskPagingAndSortingRepository) {
         this.rmpTaskCrudRepository = rmpTaskCrudRepository;
         this.emailService = emailService;
         this.imsClientFactory = imsClientFactory;
-        this.commentService = commentService;
         this.rmpTaskPagingAndSortingRepository = rmpTaskPagingAndSortingRepository;
     }
 
@@ -99,7 +96,6 @@ public class RMPTaskService {
     public boolean deleteTask(long id) {
         Optional<RMPTask> rmpTaskOptional = rmpTaskCrudRepository.findById(id);
         if (rmpTaskOptional.isPresent()) {
-            commentService.deleteCommentsByRmpTask(rmpTaskOptional.get());
             rmpTaskCrudRepository.delete(rmpTaskOptional.get());
             return true;
         }
@@ -129,14 +125,17 @@ public class RMPTaskService {
     private boolean validTaskStatusTransition(RMPTaskStatus currentStatus, RMPTaskStatus newStatus) {
         return switch (newStatus) {
             case ACCEPTED -> currentStatus.equals(RMPTaskStatus.NEW);
-            case IN_PROGRESS -> currentStatus.equals(RMPTaskStatus.ACCEPTED) || currentStatus.equals(RMPTaskStatus.ON_HOLD) || currentStatus.equals(RMPTaskStatus.CLARIFICATION_REQUESTED)
-                    || currentStatus.equals(RMPTaskStatus.UNDER_APPEAL) || currentStatus.equals(RMPTaskStatus.APPEAL_CLARIFICATION_REQUESTED);
-            case READY_FOR_RELEASE -> currentStatus.equals(RMPTaskStatus.IN_PROGRESS) || currentStatus.equals(RMPTaskStatus.PUBLISHED);
-            case PUBLISHED ->  currentStatus.equals(RMPTaskStatus.READY_FOR_RELEASE);
-            case ON_HOLD, CLOSED ->  currentStatus.equals(RMPTaskStatus.IN_PROGRESS);
+            case IN_PROGRESS ->
+                    currentStatus.equals(RMPTaskStatus.ACCEPTED) || currentStatus.equals(RMPTaskStatus.ON_HOLD) || currentStatus.equals(RMPTaskStatus.CLARIFICATION_REQUESTED)
+                            || currentStatus.equals(RMPTaskStatus.UNDER_APPEAL) || currentStatus.equals(RMPTaskStatus.APPEAL_CLARIFICATION_REQUESTED);
+            case READY_FOR_RELEASE ->
+                    currentStatus.equals(RMPTaskStatus.IN_PROGRESS) || currentStatus.equals(RMPTaskStatus.PUBLISHED);
+            case PUBLISHED -> currentStatus.equals(RMPTaskStatus.READY_FOR_RELEASE);
+            case ON_HOLD, CLOSED -> currentStatus.equals(RMPTaskStatus.IN_PROGRESS);
             case CLARIFICATION_REQUESTED -> currentStatus.equals(RMPTaskStatus.ACCEPTED);
             case APPEAL_CLARIFICATION_REQUESTED, APPEAL_REJECTED -> currentStatus.equals(RMPTaskStatus.UNDER_APPEAL);
-            case UNDER_APPEAL -> currentStatus.equals(RMPTaskStatus.REJECTED) || currentStatus.equals(RMPTaskStatus.APPEAL_CLARIFICATION_REQUESTED);
+            case UNDER_APPEAL ->
+                    currentStatus.equals(RMPTaskStatus.REJECTED) || currentStatus.equals(RMPTaskStatus.APPEAL_CLARIFICATION_REQUESTED);
             default -> true;
         };
     }
