@@ -116,7 +116,7 @@ public class RMPTaskService {
 
             rmpTask.setStatus(RMPTaskStatus.valueOf(newStatus));
             RMPTask savedRmpTask = rmpTaskCrudRepository.save(rmpTask);
-            notifyStatusChange(savedRmpTask, newStatus);
+            notifyStatusChange(savedRmpTask, RMPTaskStatus.valueOf(newStatus).getLabel());
             return Optional.of(savedRmpTask);
         }
         throw new ResourceNotFoundException(String.format("RMP task %s not found", id));
