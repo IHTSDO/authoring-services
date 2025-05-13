@@ -18,9 +18,9 @@
     </style>
 </head>
 <body>
-<p>Dear<span th:text="${receiverNames}"></span></p>
-This is an automated notification for a change of status for the following request:<br/>
-<strong>Request ID:</strong> <span th:text="${requestId}"></span><br/>
+<p>Dear <span th:text="${receiverNames}"></span></p>
+This is an automated notification for a change of status for the following RMP request:<br/>
+<strong>Request ID:</strong> <span th:text="${taskId}"></span><br/>
 <strong>Request Summary:</strong> <span th:text="${summary}"></span><br/>
 
 <p>The new status is now <strong><span th:text="${status}"></span></strong><br/>

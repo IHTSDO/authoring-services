@@ -111,7 +111,7 @@ public class EmailService {
         params.setVariable("date", SIMPLE_DATE_FORMAT.format(new Date()));
 
         String subject = "Status change";
-        String templateFile = "Notify-Status-Template";
+        String templateFile = "Notify-Status-Template-RMP";
         doSendMail(subject, templateFile, params, emails);
     }
 
