@@ -13,6 +13,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -37,7 +38,16 @@ public class RMPTaskService {
         this.rmpTaskPagingAndSortingRepository = rmpTaskPagingAndSortingRepository;
     }
 
-    public Page<RMPTask> getAllTasks(Pageable pageable) {
+    public Page<RMPTask> findTasks(String country, String reporter, Pageable pageable) {
+        if (StringUtils.hasLength(country) || StringUtils.hasLength(reporter)) {
+            if (StringUtils.hasLength(country) && StringUtils.hasLength(reporter)) {
+                return rmpTaskPagingAndSortingRepository.findAllByCountryAndReporter(country, reporter, pageable);
+            } else if (StringUtils.hasLength(country)) {
+                return rmpTaskPagingAndSortingRepository.findAllByCountry(country, pageable);
+            } else {
+                return rmpTaskPagingAndSortingRepository.findAllByReporter(reporter, pageable);
+            }
+        }
         return rmpTaskPagingAndSortingRepository.findAll(pageable);
     }
 
@@ -63,6 +73,7 @@ public class RMPTaskService {
         }
 
         existingTask.setStatus(updatedTask.getStatus());
+        existingTask.setCountry(updatedTask.getCountry());
         existingTask.setReporter(updatedTask.getReporter());
         existingTask.setAssignee(updatedTask.getAssignee());
         existingTask.setSummary(updatedTask.getSummary());

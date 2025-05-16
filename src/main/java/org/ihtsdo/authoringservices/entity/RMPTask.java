@@ -13,6 +13,8 @@ public class RMPTask extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private RMPTaskStatus status;
 
+    private String country;
+
     private String reporter;
 
     private String assignee;
@@ -84,6 +86,14 @@ public class RMPTask extends BaseEntity {
 
     public void setStatus(RMPTaskStatus status) {
         this.status = status;
+    }
+
+    public String getCountry() {
+        return country;
+    }
+
+    public void setCountry(String country) {
+        this.country = country;
     }
 
     public String getReporter() {
