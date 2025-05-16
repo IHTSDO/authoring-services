@@ -43,8 +43,10 @@ public class RMPTaskController {
     }
 
     @GetMapping
-    public Page<RMPTask> getRmpTasks(Pageable page) {
-        return rmpTaskService.getAllTasks(ControllerHelper.setPageDefaults(page));
+    public Page<RMPTask> getRmpTasks(@RequestParam(value = "country", required = false) String country,
+                                     @RequestParam(value = "reporter", required = false) String reporter,
+                                     Pageable page) {
+        return rmpTaskService.findTasks(country, reporter, ControllerHelper.setPageDefaults(page));
     }
 
     @GetMapping("/{id}")
