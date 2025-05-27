@@ -49,6 +49,13 @@ public class RMPTaskController {
         return rmpTaskService.findTasks(country, reporter, ControllerHelper.setPageDefaults(page));
     }
 
+    @GetMapping("/search")
+    public Page<RMPTask> searchRmpTasks(@RequestParam(value = "country", required = false) String country,
+                                     @RequestParam(value = "criteria", required = false) String criteria,
+                                     Pageable page) {
+        return rmpTaskService.searchTasks(country, criteria, ControllerHelper.setPageDefaults(page));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<RMPTask> getRMPTaskById(@PathVariable long id) {
         return ResponseEntity.of(rmpTaskService.getTaskById(id));
