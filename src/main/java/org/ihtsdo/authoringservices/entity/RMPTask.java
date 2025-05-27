@@ -10,6 +10,8 @@ public class RMPTask extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
 
+    private String type;
+
     @Enumerated(EnumType.STRING)
     private RMPTaskStatus status;
 
@@ -78,6 +80,14 @@ public class RMPTask extends BaseEntity {
 
     public long getId() {
         return id;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public String getType() {
+        return type;
     }
 
     public RMPTaskStatus getStatus() {

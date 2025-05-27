@@ -1,10 +1,12 @@
 package org.ihtsdo.authoringservices.service;
 
+import com.querydsl.core.types.Predicate;
+import com.querydsl.core.types.dsl.BooleanExpression;
 import org.ihtsdo.authoringservices.domain.RMPTaskStatus;
 import org.ihtsdo.authoringservices.domain.User;
+import org.ihtsdo.authoringservices.entity.QRMPTask;
 import org.ihtsdo.authoringservices.entity.RMPTask;
-import org.ihtsdo.authoringservices.repository.RMPTaskCrudRepository;
-import org.ihtsdo.authoringservices.repository.RMPTaskPagingAndSortingRepository;
+import org.ihtsdo.authoringservices.repository.RMPTaskRepository;
 import org.ihtsdo.authoringservices.service.client.IMSClientFactory;
 import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
 import org.ihtsdo.sso.integration.SecurityUtil;
@@ -22,47 +24,62 @@ import java.util.Optional;
 @Service
 public class RMPTaskService {
 
-    private final RMPTaskCrudRepository rmpTaskCrudRepository;
-
-    private final RMPTaskPagingAndSortingRepository rmpTaskPagingAndSortingRepository;
+    private final RMPTaskRepository rmpTaskRepository;
 
     private final EmailService emailService;
 
     private final IMSClientFactory imsClientFactory;
 
     @Autowired
-    public RMPTaskService(RMPTaskCrudRepository rmpTaskCrudRepository, EmailService emailService, IMSClientFactory imsClientFactory, RMPTaskPagingAndSortingRepository rmpTaskPagingAndSortingRepository) {
-        this.rmpTaskCrudRepository = rmpTaskCrudRepository;
+    public RMPTaskService(RMPTaskRepository rmpTaskRepository, EmailService emailService, IMSClientFactory imsClientFactory) {
+        this.rmpTaskRepository = rmpTaskRepository;
         this.emailService = emailService;
         this.imsClientFactory = imsClientFactory;
-        this.rmpTaskPagingAndSortingRepository = rmpTaskPagingAndSortingRepository;
     }
 
     public Page<RMPTask> findTasks(String country, String reporter, Pageable pageable) {
         if (StringUtils.hasLength(country) || StringUtils.hasLength(reporter)) {
             if (StringUtils.hasLength(country) && StringUtils.hasLength(reporter)) {
-                return rmpTaskPagingAndSortingRepository.findAllByCountryAndReporter(country, reporter, pageable);
+                return rmpTaskRepository.findAllByCountryAndReporter(country, reporter, pageable);
             } else if (StringUtils.hasLength(country)) {
-                return rmpTaskPagingAndSortingRepository.findAllByCountry(country, pageable);
+                return rmpTaskRepository.findAllByCountry(country, pageable);
             } else {
-                return rmpTaskPagingAndSortingRepository.findAllByReporter(reporter, pageable);
+                return rmpTaskRepository.findAllByReporter(reporter, pageable);
             }
         }
-        return rmpTaskPagingAndSortingRepository.findAll(pageable);
+        return rmpTaskRepository.findAll(pageable);
+    }
+
+    public Page<RMPTask> searchTasks(String country, String criteria, Pageable pageable) {
+        QRMPTask qRequest = QRMPTask.rMPTask;
+        BooleanExpression predicate = qRequest.country.eq(country);
+        predicate = predicate.andAnyOf(buildSearchPredicate(criteria));
+        return rmpTaskRepository.findAll(predicate, pageable);
+    }
+
+    private static Predicate[] buildSearchPredicate(String searchString) {
+        QRMPTask qRequest = QRMPTask.rMPTask;
+        BooleanExpression searchRequestId = org.apache.commons.lang3.StringUtils.isNumeric(searchString) ? qRequest.id.eq(Long.parseLong(searchString)) : null;
+        BooleanExpression searchSummary = qRequest.summary.containsIgnoreCase(searchString);
+        BooleanExpression searchType = qRequest.type.containsIgnoreCase(searchString);
+        BooleanExpression searchStatus = qRequest.status.stringValue().containsIgnoreCase(searchString);
+        BooleanExpression searchReporter = qRequest.reporter.containsIgnoreCase(searchString);
+
+        return new Predicate[]{searchRequestId, searchSummary, searchType, searchStatus, searchReporter};
     }
 
     public Optional<RMPTask> getTaskById(long id) {
-        return rmpTaskCrudRepository.findById(id);
+        return rmpTaskRepository.findById(id);
     }
 
     public RMPTask createTask(RMPTask rmpTask) {
         rmpTask.setStatus(RMPTaskStatus.NEW);
         rmpTask.setReporter(SecurityUtil.getUsername());
-        return rmpTaskCrudRepository.save(rmpTask);
+        return rmpTaskRepository.save(rmpTask);
     }
 
     public Optional<RMPTask> updateTask(long id, RMPTask updatedTask) {
-        Optional<RMPTask> taskOptional = rmpTaskCrudRepository.findById(id);
+        Optional<RMPTask> taskOptional = rmpTaskRepository.findById(id);
         if (taskOptional.isEmpty()) throw new ResourceNotFoundException(String.format("RMP task %s not found", id));
 
         RMPTask existingTask = taskOptional.get();
@@ -73,6 +90,7 @@ public class RMPTaskService {
         }
 
         existingTask.setStatus(updatedTask.getStatus());
+        existingTask.setType(updatedTask.getType());
         existingTask.setCountry(updatedTask.getCountry());
         existingTask.setReporter(updatedTask.getReporter());
         existingTask.setAssignee(updatedTask.getAssignee());
@@ -96,7 +114,7 @@ public class RMPTaskService {
         existingTask.setJustification(updatedTask.getJustification());
         existingTask.setReference(updatedTask.getReference());
 
-        RMPTask savedRmpTask = rmpTaskCrudRepository.save(existingTask);
+        RMPTask savedRmpTask = rmpTaskRepository.save(existingTask);
         if (statusChanged) {
             notifyStatusChange(savedRmpTask, updatedTaskStatus.getLabel());
         }
@@ -105,16 +123,16 @@ public class RMPTaskService {
 
     @Transactional
     public boolean deleteTask(long id) {
-        Optional<RMPTask> rmpTaskOptional = rmpTaskCrudRepository.findById(id);
+        Optional<RMPTask> rmpTaskOptional = rmpTaskRepository.findById(id);
         if (rmpTaskOptional.isPresent()) {
-            rmpTaskCrudRepository.delete(rmpTaskOptional.get());
+            rmpTaskRepository.delete(rmpTaskOptional.get());
             return true;
         }
         return false;
     }
 
     public Optional<RMPTask> updateTaskStatus(long id, String newStatus) {
-        Optional<RMPTask> taskOptional = rmpTaskCrudRepository.findById(id);
+        Optional<RMPTask> taskOptional = rmpTaskRepository.findById(id);
         if (taskOptional.isPresent()) {
             RMPTask rmpTask = taskOptional.get();
             RMPTaskStatus currentStatus = rmpTask.getStatus();
@@ -126,7 +144,7 @@ public class RMPTaskService {
             }
 
             rmpTask.setStatus(RMPTaskStatus.valueOf(newStatus));
-            RMPTask savedRmpTask = rmpTaskCrudRepository.save(rmpTask);
+            RMPTask savedRmpTask = rmpTaskRepository.save(rmpTask);
             notifyStatusChange(savedRmpTask, RMPTaskStatus.valueOf(newStatus).getLabel());
             return Optional.of(savedRmpTask);
         }
