@@ -115,6 +115,13 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         permissionService.checkUserPermissionOnProjectOrThrow(projectKey);
 
         Project project = getProjectOrThrow(projectKey);
+        // Create project branch if needed
+        try {
+            branchService.createBranchIfNeeded(project.getBranchPath());
+        } catch (ServiceException e) {
+            throw new BusinessServiceException("Failed to create project branch.", e);
+        }
+
         if (Boolean.FALSE.equals(project.getActive())) {
             throw new BusinessServiceException("Unable to create task on an inactive project");
         }
