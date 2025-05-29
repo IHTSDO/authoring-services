@@ -6,6 +6,7 @@ import org.ihtsdo.authoringservices.domain.EntityType;
 import org.ihtsdo.authoringservices.domain.Notification;
 import org.ihtsdo.authoringservices.domain.ValidationConfiguration;
 import org.ihtsdo.authoringservices.domain.ValidationJobStatus;
+import org.ihtsdo.authoringservices.service.client.RVFClient;
 import org.ihtsdo.authoringservices.service.dao.SRSFileDAO;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
@@ -16,7 +17,6 @@ import org.ihtsdo.otf.utils.DateUtils;
 import org.ihtsdo.otf.utils.ZipFileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -24,7 +24,6 @@ import org.springframework.http.MediaType;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestTemplate;
 
 import java.io.File;
 import java.io.IOException;
@@ -48,13 +47,13 @@ public class ValidationRunner implements Runnable {
 
     private final SnowstormRestClient snowstormRestClient;
 
+    private final RVFClient rvfClient;
+
     private final ValidationService validationService;
 
     private final NotificationService notificationService;
 
     protected SRSFileDAO srsDAO;
-
-    private final RestTemplate restTemplate;
 
     private final ValidationConfiguration config;
 
@@ -69,7 +68,7 @@ public class ValidationRunner implements Runnable {
                             SRSFileDAO srsDAO,
                             ValidationService validationService,
                             NotificationService notificationService,
-                            String rvfUrl,
+                            RVFClient rvfClient,
                             String scaQueuePrefix,
                             String username,
                             String authenticationToken) {
@@ -80,7 +79,7 @@ public class ValidationRunner implements Runnable {
         this.notificationService = notificationService;
         this.username = username;
         this.authenticationToken = authenticationToken;
-        this.restTemplate = new RestTemplateBuilder().rootUri(rvfUrl).build();
+        this.rvfClient = rvfClient;
         this.scaQueuePrefix = scaQueuePrefix;
     }
 
@@ -253,12 +252,7 @@ public class ValidationRunner implements Runnable {
         validationService.updateValidationCache(config.getBranchPath(), newPropertyValues);
 
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
-
-            HttpEntity<MultiValueMap<String, Object>> entity = new HttpEntity<>(body, headers);
-
-            URI location = restTemplate.postForLocation("/run-post", entity);
+            URI location = rvfClient.triggerValidation(body);
 			if (location == null) {
 				throw new ServiceException("RVF did not return a location header for new validation.");
 			}

@@ -10,6 +10,7 @@ import org.apache.commons.io.FileUtils;
 import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.entity.Validation;
 import org.ihtsdo.authoringservices.repository.ValidationRepository;
+import org.ihtsdo.authoringservices.service.client.RVFClientFactory;
 import org.ihtsdo.authoringservices.service.dao.SRSFileDAO;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.otf.dao.s3.S3ClientImpl;
@@ -27,7 +28,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import org.springframework.web.client.RestTemplate;
 import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.services.s3.S3Client;
 
@@ -93,9 +93,6 @@ public class ValidationService {
 	@Value("${aws.s3.semantic-tag-items.path}")
 	private String semanticTagItemsPath;
 
-	@Value("${rvf.url}")
-	private String rvfUrl;
-
 	@Value("${sca.jms.queue.prefix}")
 	private String scaQueuePrefix;
 
@@ -114,15 +111,12 @@ public class ValidationService {
 	@Autowired
 	protected SRSFileDAO srsDAO;
 
-	private final RestTemplate rvfRestTemplate;
+	@Autowired
+	private RVFClientFactory rvfClientFactory;
 
 	private LoadingCache<String, Validation> validationLoadingCache;
 
 	private Set<String> technicalItems;
-
-	public ValidationService() {
-		this.rvfRestTemplate = new RestTemplate();
-	}
 
 	@PostConstruct
 	public void init() {
@@ -248,7 +242,7 @@ public class ValidationService {
 			if (validation.getStatus() != null && !ValidationJobStatus.isAllowedTriggeringState(validation.getStatus())) {
 				throw new EntityAlreadyExistsException("An in-progress validation has been detected for " + branchPath + " at state " + validation.getStatus());
 			}
-			new Thread(new ValidationRunner(validationConfig, snowstormRestClientFactory.getClient(), srsDAO, this, notificationService, rvfUrl, scaQueuePrefix, username, authToken)).start();
+			new Thread(new ValidationRunner(validationConfig, snowstormRestClientFactory.getClient(), srsDAO, this, notificationService, rvfClientFactory.getClient(), scaQueuePrefix, username, authToken)).start();
 
 			Map<String, String> newPropertyValues = new HashMap<>();
 			newPropertyValues.put(VALIDATION_STATUS, ValidationJobStatus.SCHEDULED.name());
@@ -364,7 +358,7 @@ public class ValidationService {
 				}
 				if (validation.getDailyBuildReportUrl() != null) {
 					jsonObj.put(DAILY_BUILD_RVF_URL, validation.getDailyBuildReportUrl());
-					jsonObj.put(DAILY_BUILD_REPORT, rvfRestTemplate.getForObject(validation.getDailyBuildReportUrl(), String.class));
+					jsonObj.put(DAILY_BUILD_REPORT, rvfClientFactory.getClient().getValidationReport(validation.getDailyBuildReportUrl()));
 				}
 				if (validation.getStatus() != null) {
 					jsonObj.put(EXECUTION_STATUS, validation.getStatus());
@@ -392,7 +386,7 @@ public class ValidationService {
 			logger.info(validation.toString());
 			throw new BusinessServiceException("Validation was completed but the report URL is not found");
 		}
-		String report = rvfRestTemplate.getForObject(validation.getReportUrl(), String.class);
+		String report = rvfClientFactory.getClient().getValidationReport(validation.getReportUrl());
 		jsonObj.put(VALIDATION_REPORT, report);
 		if (StringUtils.hasLength(report) && validation.getContentHeadTimestamp() != null) {
 			Branch branch = branchService.getBranch(path);
