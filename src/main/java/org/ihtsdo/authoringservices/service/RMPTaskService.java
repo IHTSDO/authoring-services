@@ -75,6 +75,7 @@ public class RMPTaskService {
     public RMPTask createTask(RMPTask rmpTask) {
         rmpTask.setStatus(RMPTaskStatus.NEW);
         rmpTask.setReporter(SecurityUtil.getUsername());
+        rmpTask.setAssignee(null);
         return rmpTaskRepository.save(rmpTask);
     }
 
