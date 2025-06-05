@@ -14,6 +14,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
@@ -109,10 +110,10 @@ public class RMPTaskController {
     private void notifyCommentAdd(Comment comment, RMPTask rmpTask) {
         String currentUser = SecurityUtil.getUsername();
         Collection<User> recipients = new ArrayList<>();
-        if (rmpTask.getAssignee() != null && !currentUser.equals(rmpTask.getAssignee())) {
+        if (StringUtils.hasLength(rmpTask.getAssignee()) && !currentUser.equals(rmpTask.getAssignee())) {
             recipients.add(imsClientFactory.getClient().getUserDetails(rmpTask.getAssignee()));
         }
-        if (rmpTask.getReporter() != null && !currentUser.equals(rmpTask.getReporter())) {
+        if (StringUtils.hasLength(rmpTask.getReporter()) && !currentUser.equals(rmpTask.getReporter())) {
             recipients.add(imsClientFactory.getClient().getUserDetails(rmpTask.getReporter()));
         }
         this.emailService.sendRMPTaskCommentAddNotification(rmpTask.getId(), rmpTask.getSummary(), comment.getBody(), recipients);
