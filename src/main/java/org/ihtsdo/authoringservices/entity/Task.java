@@ -18,6 +18,7 @@ public class  Task extends BaseEntity {
     @Column(name = "task_name", nullable = false)
     private String name;
 
+    @Column(columnDefinition = "TEXT DEFAULT NULL")
     private String description;
 
     @Column(name = "branch_path")
