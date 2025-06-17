@@ -70,15 +70,15 @@ public class JiraAuthoringTaskMigrateService {
     }
 
     @Transactional
-    public void migrateJiraCrsTasks(Set<String> projectKeys) {
+    public void migrateJiraTasks(Set<String> projectKeys) {
         Iterable<Project> projectIterable = CollectionUtils.isEmpty(projectKeys) ? projectRepository.findAll() : projectRepository.findAllById(projectKeys);
         Set<Task> tasks = new HashSet<>();
         for (Project project : projectIterable) {
             try {
-                TimerUtil timer = new TimerUtil("Migrate Jira CRS Task for project " + project.getKey(), Level.INFO);
+                TimerUtil timer = new TimerUtil("Migrate Jira Task for project " + project.getKey(), Level.INFO);
                 List<Issue> issues = listAllJiraTasksForProject(project.getKey());
                 for (Issue issue : issues) {
-                    migrateJiraTask(project, issue, tasks, true);
+                    migrateJiraTask(project, issue, tasks);
                 }
                 timer.finish();
             } catch (Exception e) {
@@ -89,16 +89,15 @@ public class JiraAuthoringTaskMigrateService {
         taskRepository.saveAll(tasks);
     }
 
-    private void migrateJiraTask(Project project, Issue issue, Set<Task> tasks, boolean isCrsTaskMigration) {
+
+    private void migrateJiraTask(Project project, Issue issue, Set<Task> tasks) {
         try {
             Optional<Task> existingTaskOptional = taskRepository.findById(issue.getKey());
             if (existingTaskOptional.isPresent() || TaskStatus.DELETED.equals(TaskStatus.fromLabel(issue.getStatus().getName()))) return;
 
             AuthoringTask jiraTaskWithDetails = jiraTaskService.retrieveTask(project.getKey(), issue.getKey(), true, true);
-            Task task = getNewTask(project, issue, jiraTaskWithDetails, isCrsTaskMigration);
-            if (task != null) {
-                tasks.add(task);
-            }
+            Task task = getNewTask(project, issue, jiraTaskWithDetails);
+            tasks.add(task);
         } catch (BusinessServiceException e) {
             logger.error(e.getMessage());
         } catch (ParseException e) {
@@ -106,7 +105,7 @@ public class JiraAuthoringTaskMigrateService {
         }
     }
 
-    private Task getNewTask(Project project, Issue issue, AuthoringTask jiraTaskWithDetails, boolean isCrsTaskMigration) throws ParseException, BusinessServiceException {
+    private Task getNewTask(Project project, Issue issue, AuthoringTask jiraTaskWithDetails) throws ParseException, BusinessServiceException {
         Task task = new Task();
         task.setKey(jiraTaskWithDetails.getKey());
         task.setProject(project);
@@ -122,11 +121,7 @@ public class JiraAuthoringTaskMigrateService {
             task.setReviewers(existing);
         }
 
-        if (isCrsTaskMigration && (jiraTaskWithDetails.getLabels() == null || !jiraTaskWithDetails.getLabels().contains(TaskServiceBase.CRS_JIRA_LABEL))) {
-            return null;
-        }
-
-        if (isCrsTaskMigration && jiraTaskWithDetails.getLabels() != null && jiraTaskWithDetails.getLabels().contains(TaskServiceBase.CRS_JIRA_LABEL)) {
+        if (jiraTaskWithDetails.getLabels() != null && jiraTaskWithDetails.getLabels().contains(TaskServiceBase.CRS_JIRA_LABEL)) {
             List<CrsTask> crsTasks = new ArrayList<>();
             for (IssueLink issueLink : issue.getIssueLinks()) {
                 Issue crsIssue;

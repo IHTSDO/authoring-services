@@ -42,10 +42,10 @@ public class AdminController {
     private JiraAuthoringTaskMigrateService jiraAuthoringTaskMigrateService;
 
     @PreAuthorize("hasPermission('ADMIN', 'global')")
-    @Operation(summary = "Migrate jira CRS tasks")
-    @PostMapping(value = "/migrate-jira-crs-tasks")
-    public void migrateJiraCrsTasksManual(@RequestParam(required = false) Set<String> projectKeys) {
-        jiraAuthoringTaskMigrateService.migrateJiraCrsTasks(projectKeys);
+    @Operation(summary = "Migrate jira tasks")
+    @PostMapping(value = "/migrate-jira-tasks")
+    public void migrateJiraTasksManual(@RequestParam(required = false) Set<String> projectKeys) {
+        jiraAuthoringTaskMigrateService.migrateJiraTasks(projectKeys);
     }
 
     @Operation(summary = "Create a task within a project")
