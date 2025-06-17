@@ -38,8 +38,10 @@ public class RMPTask extends BaseEntity {
     @Column(columnDefinition = "TEXT DEFAULT NULL")
     private String conceptName;
 
+    @Column(columnDefinition = "TEXT DEFAULT NULL")
     private String relationshipType;
 
+    @Column(columnDefinition = "TEXT DEFAULT NULL")
     private String relationshipTarget;
 
     @Column(columnDefinition = "TEXT DEFAULT NULL")
@@ -66,6 +68,7 @@ public class RMPTask extends BaseEntity {
     @Column(columnDefinition = "TEXT DEFAULT NULL")
     private String newSynonyms;
 
+    @Column(columnDefinition = "TEXT DEFAULT NULL")
     private String parentConcept;
 
     @Column(columnDefinition = "TEXT DEFAULT NULL")
