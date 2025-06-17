@@ -126,7 +126,7 @@ public class JiraAuthoringTaskMigrateService {
             for (IssueLink issueLink : issue.getIssueLinks()) {
                 Issue crsIssue;
                 try {
-                    crsIssue = jiraClientFactory.getAdminInstance().getIssue(issueLink.getId(), "*all");
+                    crsIssue = jiraClientFactory.getAdminInstance().getIssue(issueLink.getOutwardIssue().getKey(), "*all");
                 } catch (JiraException e) {
                     throw new BusinessServiceException(e);
                 }
