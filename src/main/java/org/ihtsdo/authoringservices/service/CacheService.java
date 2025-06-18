@@ -15,7 +15,7 @@ public class CacheService {
     private SnowstormClassificationClient classificationService;
 
     @Autowired
-    private BranchService branchService;
+    private BranchServiceCache branchServiceCache;
 
     @Autowired
     private CacheManager cacheManager;
@@ -25,7 +25,7 @@ public class CacheService {
     }
 
     public void clearBranchCache(String branchPath) {
-        branchService.evictBranchCache(branchPath);
+        branchServiceCache.evictBranchCache(branchPath);
     }
 
     public void clearBranchCacheStartWith(String branchStartWith) {
@@ -39,7 +39,7 @@ public class CacheService {
             keys = nativeCache.keySet();
         }
         if (keys != null) {
-            keys.stream().filter(key -> key.toString().startsWith(branchStartWith)).forEach(item -> branchService.evictBranchCache(item.toString()));
+            keys.stream().filter(key -> key.toString().startsWith(branchStartWith)).forEach(item -> branchServiceCache.evictBranchCache(item.toString()));
         }
     }
 }

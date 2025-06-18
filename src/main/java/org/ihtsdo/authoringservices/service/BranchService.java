@@ -22,8 +22,6 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -52,6 +50,9 @@ public class BranchService {
 
     @Autowired
     private TaskServiceFactory taskServiceFactory;
+
+    @Autowired
+    private BranchServiceCache branchServiceCache;
 
     public AuthoringInfoWrapper getBranchAuthoringInfoWrapper(String branchPath) throws BusinessServiceException, RestClientException, ServiceException {
         String[] parts = branchPath.split("/");
@@ -145,18 +146,8 @@ public class BranchService {
         }
     }
 
-    @Cacheable(value="branchCache", key="#branchPath", unless = "#result == null")
     public Branch getBranchOrNull(String branchPath) throws ServiceException {
-        try {
-            return snowstormRestClientFactory.getClient().getBranch(branchPath);
-        } catch (RestClientException e) {
-            throw new ServiceException("Failed to fetch branch " + branchPath, e);
-        }
-    }
-
-    @CacheEvict(value = "branchCache", key = "#branchPath")
-    public void evictBranchCache(String branchPath) {
-        logger.info("Cleared Branch cache for branch {}.", branchPath);
+        return branchServiceCache.getBranchOrNull(branchPath);
     }
 
     public String getBranchStateOrNull(String branchPath) throws ServiceException {
