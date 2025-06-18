@@ -22,6 +22,8 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -34,6 +36,8 @@ import static org.ihtsdo.otf.rest.client.terminologyserver.pojo.MergeReviewsResu
 
 @Service
 public class BranchService {
+
+    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private static final String SNOMEDCT = "SNOMEDCT";
 
@@ -141,12 +145,18 @@ public class BranchService {
         }
     }
 
+    @Cacheable(value="branchCache", key="#branchPath", unless = "#result == null")
     public Branch getBranchOrNull(String branchPath) throws ServiceException {
         try {
             return snowstormRestClientFactory.getClient().getBranch(branchPath);
         } catch (RestClientException e) {
             throw new ServiceException("Failed to fetch branch " + branchPath, e);
         }
+    }
+
+    @CacheEvict(value = "branchCache", key = "#branchPath")
+    public void evictBranchCache(String branchPath) {
+        logger.info("Cleared Branch cache for branch {}.", branchPath);
     }
 
     public String getBranchStateOrNull(String branchPath) throws ServiceException {
@@ -208,7 +218,6 @@ public class BranchService {
     }
 
     public Merge mergeBranchSync(String sourcePath, String targetPath, String reviewId) throws BusinessServiceException {
-        Logger logger = LoggerFactory.getLogger(getClass());
         logger.info("Attempting branch merge from '{}' to '{}'", sourcePath, targetPath);
         SnowstormRestClient client = snowstormRestClientFactory.getClient();
         String mergeId;
