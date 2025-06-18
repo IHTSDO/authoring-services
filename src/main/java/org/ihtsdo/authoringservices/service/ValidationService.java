@@ -389,8 +389,8 @@ public class ValidationService {
 		String report = rvfClientFactory.getClient().getValidationReport(validation.getReportUrl());
 		jsonObj.put(VALIDATION_REPORT, report);
 		if (StringUtils.hasLength(report) && validation.getContentHeadTimestamp() != null) {
-			Branch branch = branchService.getBranch(path);
-			if (!validation.getContentHeadTimestamp().equals(branch.getHeadTimestamp())) {
+			Branch branch = branchService.getBranchOrNull(path);
+			if (branch != null && !validation.getContentHeadTimestamp().equals(branch.getHeadTimestamp())) {
 				jsonObj.put(EXECUTION_STATUS, ValidationJobStatus.STALE.name());
 			}
 		}

@@ -39,6 +39,7 @@ public class BranchMonitor extends Monitor {
 			if (!newBranchState.equals(this.branchState)) {
 				logger.debug("Branch {} state {}, changed", branchPath, newBranchState);
 				this.branchState = newBranchState;
+				this.cacheService.clearBranchCache(branchPath);
 				return new Notification(projectId, taskId, EntityType.BranchState, newBranchState);
 			} else {
 				logger.debug("Branch {} state {}, no change", branchPath, newBranchState);
@@ -48,6 +49,7 @@ public class BranchMonitor extends Monitor {
 				logger.debug("Branch {} head {}, changed", branchPath, newBranchHead);
 				this.branchHead = newBranchHead;
 				this.cacheService.clearClassificationCache(branchPath);
+				this.cacheService.clearBranchCache(branchPath);
 				return new Notification(projectId, taskId, EntityType.BranchHead, Long.toString(newBranchHead));
 			} else {
 				logger.debug("Branch {} head {}, no change", taskId, newBranchHead);
