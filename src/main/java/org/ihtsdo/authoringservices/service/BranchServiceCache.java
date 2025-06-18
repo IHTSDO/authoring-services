@@ -21,7 +21,7 @@ public class BranchServiceCache {
         this.snowstormRestClientFactory = snowstormRestClientFactory;
     }
 
-    @Cacheable(value = "branchCache", key = "#branchPath", unless = "#result == null")
+    @Cacheable(value = "branchCache", key = "#branchPath")
     public Branch getBranchOrNull(String branchPath) throws ServiceException {
         try {
             return snowstormRestClientFactory.getClient().getBranch(branchPath);
