@@ -91,6 +91,10 @@
             <groupId>io.kaicode</groupId>
             <artifactId>branch-path-uri-rewrite-filter</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.kaicode</groupId>
+            <artifactId>elasticvc</artifactId>
+        </dependency>
 
         <!-- Jira -->
         <dependency>
