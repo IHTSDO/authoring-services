@@ -29,7 +29,6 @@ public class SnowstormBranchChangeListener {
 
     @JmsListener(destination = "${snowstorm.jms.queue.prefix}.branch.change")
     public void receiveBranchChangeMessage(String message) {
-        logger.info("Branch Change Message {}", message);
         try {
             Map<String, String> jsonObject = objectMapper.readValue(message, HashMap.class);
             if (jsonObject.containsKey(BRANCH)) {
@@ -45,7 +44,6 @@ public class SnowstormBranchChangeListener {
 
     @JmsListener(destination = "${snowstorm.jms.queue.prefix}.role.change")
     public void receiveRoleChangeMessage(String message) {
-        logger.info("Role Change Message {}", message);
         try {
             Map<String, String> jsonObject = objectMapper.readValue(message, HashMap.class);
             if (jsonObject.containsKey(BRANCH)) {

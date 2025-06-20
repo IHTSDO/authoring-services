@@ -32,7 +32,7 @@ public class BranchServiceCache {
 
     @CacheEvict(value = "branchCache", key = "#branchPath")
     public void evictBranchCache(String branchPath) {
-        logger.info("Cleared Branch cache for branch {}.", branchPath);
+        logger.debug("Cleared Branch cache for branch {}.", branchPath);
     }
 
 
