@@ -36,6 +36,9 @@ public class SnowstormBranchChangeListener {
             }
             if (jsonObject.containsKey(SOURCE_BRANCH)) {
                 cacheService.clearBranchCache(jsonObject.get(SOURCE_BRANCH));
+                if (jsonObject.containsKey(BRANCH)) {
+                    cacheService.clearBranchCacheStartWith(jsonObject.get(BRANCH));
+                }
             }
         } catch (Exception e) {
             logger.error("Error while processing message for branch changes. Message {}", e.getMessage(), e);
