@@ -102,6 +102,9 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
     @Autowired
     private AuditStatusChangeSender auditStatusChangeSender;
 
+    @Autowired
+    private CacheService cacheService;
+
     private final ImpersonatingJiraClientFactory jiraClientFactory;
     private final Set<String> myTasksRequiredFields;
     private final String jiraCrsIdField;
@@ -627,6 +630,11 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
             if (TaskStatus.REVIEW_COMPLETED.equals(status)) {
                 emailService.sendTaskReviewCompletedNotification(projectKey, taskKey, authoringTask.getSummary(), Collections.singleton(authoringTask.getAssignee()));
             }
+
+            // Clear branch cache for the deleted task
+            if (TaskStatus.DELETED.equals(status)) {
+                cacheService.clearBranchCache(branchService.getTaskBranchPathUsingCache(projectKey, taskKey));
+            }
         }
     }
 
@@ -726,6 +734,11 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
         if (!taskStateChangeNotificationQueues.isEmpty()) {
             // Send JMS Task State Notification
             sendJMSTaskStateChangeNotification(taskKey, newState, projectKey, key, newStateLabel, issue);
+        }
+
+        // Clear branch cache for the completed task
+        if (TaskStatus.COMPLETED.equals(newState)) {
+            cacheService.clearBranchCache(branchService.getTaskBranchPathUsingCache(projectKey, key));
         }
     }
 

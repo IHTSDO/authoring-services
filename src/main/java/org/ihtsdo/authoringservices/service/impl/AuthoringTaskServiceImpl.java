@@ -99,6 +99,9 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
     @Autowired
     private AuditStatusChangeSender auditStatusChangeSender;
 
+    @Autowired
+    private CacheService cacheService;
+
     @Override
     public boolean isUseNew(String taskKey) {
         Optional<Task> taskOptional = taskRepository.findById(taskKey);
@@ -184,7 +187,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
 
         // Act on each field received
         final TaskStatus status = taskUpdateRequest.getStatus();
-        boolean isTaskStatusChanged = updateTaskStatus(status, task);
+        boolean isTaskStatusChanged = shouldUpdateTaskStatus(status, task);
 
         final User assignee = taskUpdateRequest.getAssignee();
         TaskChangeAssigneeRequest taskChangeAssigneeRequest = updateTaskAssignee(assignee, task);
@@ -221,6 +224,11 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
                 User recipient = getUser(task.getAssignee());
                 emailService.sendTaskReviewCompletedNotification(projectKey, task.getKey(), task.getName(), Collections.singleton(recipient));
             }
+
+            // Clear branch cache for the deleted task
+            if (TaskStatus.DELETED.equals(status)) {
+                cacheService.clearBranchCache(task.getBranchPath());
+            }
         }
         if (taskChangeAssigneeRequest != null) {
             transferTaskToNewAuthor(projectKey, taskKey, taskChangeAssigneeRequest);
@@ -252,7 +260,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         return taskChangeAssigneeRequest;
     }
 
-    private boolean updateTaskStatus(TaskStatus status, Task task) throws BadRequestException {
+    private boolean shouldUpdateTaskStatus(TaskStatus status, Task task) throws BadRequestException {
         boolean isTaskStatusChanged = false;
         if (status != null) {
             TaskStatus currentStatus = task.getStatus();
@@ -412,6 +420,11 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
             if (!taskStateChangeNotificationQueues.isEmpty()) {
                 // Send JMS Task State Notification
                 sendJMSTaskStateChangeNotification(task, newState);
+            }
+
+            // Clear branch cache for the completed task
+            if (TaskStatus.COMPLETED.equals(newState)) {
+                cacheService.clearBranchCache(task.getBranchPath());
             }
         }
     }
