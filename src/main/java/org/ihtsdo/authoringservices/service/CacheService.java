@@ -5,6 +5,7 @@ import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.Nullable;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 
@@ -29,6 +30,14 @@ public class CacheService {
     }
 
     public void clearBranchCacheStartWith(String branchStartWith) {
+        Set<Object> keys = getBranchCaches();
+        if (keys != null) {
+            keys.stream().filter(key -> key.toString().startsWith(branchStartWith)).forEach(item -> branchServiceCache.evictBranchCache(item.toString()));
+        }
+    }
+
+    @Nullable
+    public Set<Object> getBranchCaches() {
         Cache cache = cacheManager.getCache("branchCache");
         Set<Object> keys = null;
         if (cache instanceof org.springframework.cache.caffeine.CaffeineCache caffeinecache) {
@@ -38,8 +47,6 @@ public class CacheService {
             ConcurrentMap<Object, Object> nativeCache = concurrentmapcache.getNativeCache();
             keys = nativeCache.keySet();
         }
-        if (keys != null) {
-            keys.stream().filter(key -> key.toString().startsWith(branchStartWith)).forEach(item -> branchServiceCache.evictBranchCache(item.toString()));
-        }
+        return keys;
     }
 }
