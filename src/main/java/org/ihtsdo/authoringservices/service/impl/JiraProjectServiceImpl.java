@@ -38,7 +38,10 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -594,7 +597,6 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
         List<Issue> projectTickets = (List<Issue>) collection;
         final List<AuthoringProject> authoringProjects = new ArrayList<>();
         final Set<String> branchPaths = new HashSet<>();
-        final Map<String, Branch> parentBranchCache = new ConcurrentHashMap<>();
         final SnowstormRestClient snowstormRestClient = snowstormRestClientFactory.getClient();
         List<CodeSystem> codeSystems = snowstormRestClient.getCodeSystems();
 
@@ -609,7 +611,6 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
                 final String extensionBase = getProjectDetailsPopulatingCache(projectTicket).baseBranchPath();
                 final String branchPath = PathHelper.getProjectPath(extensionBase, projectKey);
 
-
                 final boolean promotionDisabled = DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectPromotionField)));
                 final boolean projectLocked = !DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectLockedField)));
                 final boolean taskPromotionDisabled = DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraTaskPromotionField)));
@@ -621,12 +622,11 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
 
                 final Branch branchOrNull = branchService.getBranchOrNull(branchPath);
                 String parentPath = PathHelper.getParentPath(branchPath);
-                Branch parentBranchOrNull = getParentBranch(branchService, parentBranchCache, parentPath);
+                final Branch parentBranchOrNull = branchService.getBranchOrNull(parentPath);
                 if (parentBranchOrNull == null) {
                     logger.error("Project {} expected parent branch does not exist: {}", projectKey, parentPath);
                     return;
                 }
-                parentBranchCache.put(parentPath, parentBranchOrNull);
                 CodeSystem codeSystem = getCodeSystemForProject(codeSystems, parentPath);
                 String branchState = null;
                 Map<String, Object> metadata = new HashMap<>();

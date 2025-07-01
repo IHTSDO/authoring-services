@@ -30,7 +30,6 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Transactional
 public class AuthoringProjectServiceImpl extends ProjectServiceBase implements ProjectService {
@@ -290,7 +289,6 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
         List<Project> projects = (List<Project>) collection;
         final List<AuthoringProject> authoringProjects = new ArrayList<>();
         final Set<String> branchPaths = new HashSet<>();
-        final Map<String, Branch> parentBranchCache = new ConcurrentHashMap<>();
         final SnowstormRestClient snowstormRestClient = snowstormRestClientFactory.getClient();
         List<CodeSystem> codeSystems = snowstormRestClient.getCodeSystems();
 
@@ -313,12 +311,11 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
                 final Branch branchOrNull = branchService.getBranchOrNull(branchPath);
                 String parentPath = PathHelper.getParentPath(branchPath);
-                Branch parentBranchOrNull = getParentBranch(branchService, parentBranchCache, parentPath);
+                final Branch parentBranchOrNull = branchService.getBranchOrNull(parentPath);
                 if (parentBranchOrNull == null) {
                     logger.error("Project {} expected parent branch does not exist: {}", projectKey, parentPath);
                     return;
                 }
-                parentBranchCache.put(parentPath, parentBranchOrNull);
                 CodeSystem codeSystem = getCodeSystemForProject(codeSystems, parentPath);
                 String branchState = null;
                 Map<String, Object> metadata = new HashMap<>();
