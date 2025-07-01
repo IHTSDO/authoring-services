@@ -12,6 +12,7 @@ import net.rcarz.jiraclient.JiraException;
 import org.ihtsdo.authoringservices.entity.RVFFailureJiraAssociation;
 import org.ihtsdo.authoringservices.entity.Validation;
 import org.ihtsdo.authoringservices.repository.RVFFailureJiraAssociationRepository;
+import org.ihtsdo.authoringservices.service.client.RVFClientFactory;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.authoringservices.service.jira.ImpersonatingJiraClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
@@ -29,7 +30,6 @@ import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
-import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
 import java.util.*;
@@ -72,6 +72,9 @@ public class RVFFailureJiraAssociationService {
 	@Autowired
 	@Qualifier("validationTicketOAuthJiraClient")
 	private ImpersonatingJiraClientFactory jiraClientFactory;
+
+	@Autowired
+	private RVFClientFactory rvfClientFactory;
 
 	public List<RVFFailureJiraAssociation> findByReportRunId(Long reportRunId) {
 		return repository.findByReportRunId(reportRunId);
@@ -275,9 +278,8 @@ public class RVFFailureJiraAssociationService {
 	}
 
 	private ValidationReport getValidationReportOrThrow(String url) throws IOException, BusinessServiceException {
-		RestTemplate rvfRestTemplate = new RestTemplate();
 		ObjectMapper objectMapper = Jackson2ObjectMapperBuilder.json().failOnUnknownProperties(false).build();
-		String validationReportString = rvfRestTemplate.getForObject(url, String.class);
+		String validationReportString = rvfClientFactory.getClient().getValidationReport(url);
 		if (StringUtils.hasLength(validationReportString)) {
 			validationReportString = validationReportString.replace("\"TestResult\"", "\"testResult\"");
 		} else {
