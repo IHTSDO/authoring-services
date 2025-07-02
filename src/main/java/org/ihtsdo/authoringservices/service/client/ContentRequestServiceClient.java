@@ -65,6 +65,7 @@ public class ContentRequestServiceClient {
 
     public List<Long> findRequestsByAuthoringTask(String taskKey) {
         JSONObject body = new JSONObject();
+        body.put("type", "SUBMITTED");
         body.put("authoringTaskTicket", taskKey);
         body.put("sortDirections", List.of("desc"));
         body.put("sortFields", List.of("id"));

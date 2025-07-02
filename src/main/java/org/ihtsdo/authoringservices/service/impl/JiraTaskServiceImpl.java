@@ -2,6 +2,7 @@ package org.ihtsdo.authoringservices.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Sets;
+import com.google.gson.JsonObject;
 import jakarta.annotation.PostConstruct;
 import jakarta.jms.JMSException;
 import net.rcarz.jiraclient.Status;
@@ -791,8 +792,13 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
                 List<Long> crsRequestIds = crsClient.findRequestsByAuthoringTask(taskKey);
                 for (Long requestId : crsRequestIds) {
                     ContentRequestServiceClient.ContentRequestDto contentRequestDto = crsClient.getRequestDetails(String.valueOf(requestId));
-                    String organization = contentRequestDto.getRequestHeader() != null ? contentRequestDto.getRequestHeader().getOrganization() : null;
-                    TaskAttachment taskAttachment = new TaskAttachment(null, String.valueOf(requestId), contentRequestDto.getConcept().toString(), organization);
+
+                    // Workaround to simulate a JSON string for Organization, then the FE does't need tweaking
+                    String organization = contentRequestDto.getOrganizationOrNull();
+                    JsonObject jsonObject = new JsonObject();
+                    jsonObject.addProperty("value", organization);
+
+                    TaskAttachment taskAttachment = new TaskAttachment(null, String.valueOf(requestId), contentRequestDto.getConcept().toString(), jsonObject.toString());
                     attachments.add(taskAttachment);
                 }
             } else {
