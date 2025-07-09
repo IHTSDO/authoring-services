@@ -1,5 +1,6 @@
 package org.ihtsdo.authoringservices.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.Column;
 import jakarta.persistence.MappedSuperclass;
 import jakarta.persistence.Temporal;
@@ -10,6 +11,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.sql.Timestamp;
 
 @MappedSuperclass
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class BaseEntity {
     @Column(name = "created_timestamp")
     @Temporal(TemporalType.TIMESTAMP)
