@@ -44,7 +44,9 @@ public class CodeSystemService {
 
 	private static final String CODE_SYSTEM_NOT_FOUND_MSG = "Code system with shortname %s not found";
 
-	private static final String DEFAULT_JIRA_PROJECT = "MSSP";
+	private static final String MSSP_JIRA_PROJECT = "MSSP";
+	private static final String INFRA_JIRA_PROJECT = "INFRA";
+	private static final String MANAGED_SERVICE_MAINTAINER_TYPE = "Managed Service";
 	private static final String DEFAULT_ISSUE_TYPE = "Service Request";
 	private static final String SHARED = "SHARED";
 	private static final String UPGRADE_JOB_PANEL_ID = "code-system-upgrade-job"; // this panel ID will be persisted by the frontend
@@ -214,7 +216,7 @@ public class CodeSystemService {
 					}
 
 					// Raise an JIRA ticket for SI to update the daily build
-					createJiraIssue(codeSystem.getName().replace("Edition","Extension"), newDependantVersionISOFormat, generateDescription(codeSystem, codeSystemUpgradeJob, newDependantVersionISOFormat));
+					createJiraIssue(codeSystem.getName().replace("Edition","Extension"), codeSystem.getMaintainerType(), newDependantVersionISOFormat, generateDescription(codeSystem, codeSystemUpgradeJob, newDependantVersionISOFormat));
 				}
 
 				deleteUpgradeJobPanelState(codeSystemShortname);
@@ -274,11 +276,12 @@ public class CodeSystemService {
 		return merge;
 	}
 
-	private Issue createJiraIssue(String codeSystemName, String newDependantVersion, String description) throws BusinessServiceException {
+	private Issue createJiraIssue(String codeSystemName, String maintainerType, String newDependantVersion, String description) throws BusinessServiceException {
 		Issue jiraIssue;
 
 		try {
-			jiraIssue = getJiraClient().createIssue(DEFAULT_JIRA_PROJECT, DEFAULT_ISSUE_TYPE)
+			String project = StringUtils.hasLength(maintainerType) && MANAGED_SERVICE_MAINTAINER_TYPE.equals(maintainerType) ? MSSP_JIRA_PROJECT : INFRA_JIRA_PROJECT;
+			jiraIssue = getJiraClient().createIssue(project, DEFAULT_ISSUE_TYPE)
 					.field(Field.SUMMARY, "Upgraded " + codeSystemName + " to the new " + newDependantVersion + " International Edition")
 					.field(Field.DESCRIPTION, description)
 					.execute();
