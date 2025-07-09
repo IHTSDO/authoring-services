@@ -331,7 +331,7 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
         List<Issue> issues;
         try {
             issues = searchIssues(jql, LIMIT_UNLIMITED, myTasksRequiredFields);
-        } catch (JiraException exception) {
+        } catch (Exception exception) {
             if (isJiraId) {
                 return Collections.emptyList();
             } else {
