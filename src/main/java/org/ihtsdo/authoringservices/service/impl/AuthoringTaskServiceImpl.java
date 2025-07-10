@@ -37,6 +37,8 @@ import org.slf4j.event.Level;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.util.CollectionUtils;
+import org.springframework.web.client.RestClientResponseException;
+import software.amazon.awssdk.http.HttpStatusCode;
 
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -370,7 +372,16 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
 
     @Override
     public User getUser(String username) {
-        return imsClientFactory.getClient().getUserDetails(username);
+        try {
+            return imsClientFactory.getClient().getUserDetails(username);
+        } catch (RestClientResponseException e) {
+            if (HttpStatusCode.NOT_FOUND == e.getStatusCode().value()) {
+                User user = new User();
+                user.setUsername(username);
+                return user;
+            }
+            throw e;
+        }
     }
 
     @Override
