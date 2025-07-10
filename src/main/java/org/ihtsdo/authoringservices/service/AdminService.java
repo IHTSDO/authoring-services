@@ -5,6 +5,7 @@ import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.authoringservices.service.factory.ProjectServiceFactory;
 import org.ihtsdo.authoringservices.service.factory.TaskServiceFactory;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
+import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
 import org.ihtsdo.sso.integration.SecurityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,14 +23,18 @@ public class AdminService {
 
     private static final String SLASH = "/";
 
-    @Autowired
-    private BranchService branchService;
+    private final BranchService branchService;
+
+    private final ProjectServiceFactory projectServiceFactory;
+
+    private final TaskServiceFactory taskServiceFactory;
 
     @Autowired
-    private ProjectServiceFactory projectServiceFactory;
-
-    @Autowired
-    private TaskServiceFactory taskServiceFactory;
+    public AdminService(BranchService branchService, ProjectServiceFactory projectServiceFactory, TaskServiceFactory taskServiceFactory) {
+        this.branchService =branchService;
+        this.projectServiceFactory = projectServiceFactory;
+        this.taskServiceFactory = taskServiceFactory;
+    }
 
     @PreAuthorize("hasPermission('ADMIN', 'global') || hasPermission('ADMIN', #project.codeSystem.branchPath)")
     public AuthoringTask createTask(AuthoringProject project, AuthoringTaskCreateRequest taskCreateRequest, Boolean useNew, TaskType type) throws BusinessServiceException {
@@ -85,5 +90,26 @@ public class AdminService {
     public void updateProjectRoles(AuthoringProject project, ProjectRoleUpdateRequest request, Boolean useNew) throws BusinessServiceException {
         logger.info("Updating roles for project {}", project.getKey());
         projectServiceFactory.getInstance(useNew).updateProjectRoles(project.getKey(), request);
+    }
+
+    @PreAuthorize("hasPermission('ADMIN', 'global')")
+    public void markTasksAsDeleted(Set<String> taskKeys) {
+        final AuthoringTask request = new AuthoringTask();
+        request.setStatus(TaskStatus.DELETED);
+        taskKeys.forEach(key -> {
+            try {
+                AuthoringTask internalAuthoringTask = taskServiceFactory.getInstance(true).retrieveTask(null, key, true, true);
+                taskServiceFactory.getInstance(true).updateTask(internalAuthoringTask.getProjectKey(), internalAuthoringTask.getKey(), request);
+            } catch (ResourceNotFoundException | BusinessServiceException e) {
+                // Do nothing
+            }
+
+            try {
+                AuthoringTask jiraAuthoringTask = taskServiceFactory.getInstance(false).retrieveTask(null, key, true, true);
+                taskServiceFactory.getInstance(false).updateTask(jiraAuthoringTask.getProjectKey(), jiraAuthoringTask.getKey(), request);
+            } catch (ResourceNotFoundException | BusinessServiceException e) {
+                // Do nothing
+            }
+        });
     }
 }

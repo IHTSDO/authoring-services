@@ -75,6 +75,14 @@ public class AdminController {
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
+    @Operation(summary = "Bulk mark-as-deleted multiple task keys", description = "-")
+    @PutMapping(value = "/tasks/mark-as-deleted")
+    public ResponseEntity<Void> markTasksAsDeleted(
+                                            @Parameter(description = "Task keys") @RequestParam final List<String> taskKeys) {
+        adminService.markTasksAsDeleted(new HashSet<>(taskKeys));
+        return new ResponseEntity<>(HttpStatus.OK);
+    }
+
     @Operation(summary = "Create a new project", description = "-")
     @PostMapping(value = "/projects")
     public ResponseEntity<AuthoringProject> createProject(@RequestParam(value = "useNew", required = false) Boolean useNew, @RequestBody CreateProjectRequest request) throws BusinessServiceException, RestClientException, ServiceException {
