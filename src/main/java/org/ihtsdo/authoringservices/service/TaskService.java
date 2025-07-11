@@ -32,7 +32,7 @@ public interface TaskService {
 
     List<AuthoringTask> listMyOrUnassignedReviewTasks(String excludePromoted) throws BusinessServiceException;
 
-    List<AuthoringTask> searchTasks(String criteria, Boolean lightweight) throws BusinessServiceException;
+    List<AuthoringTask> searchTasks(String criteria, String projectKey, String status, String author, Boolean lightweight) throws BusinessServiceException;
 
     void addCommentLogErrors(String projectKey, String taskKey, String commentString);
 

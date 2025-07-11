@@ -321,22 +321,34 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
      * Search issues based on Jira Summary or ID field
      */
     @Override
-    public List<AuthoringTask> searchTasks(String criteria, Boolean lightweight) throws BusinessServiceException {
-        if (StringUtils.isEmpty(criteria)) {
+    public List<AuthoringTask> searchTasks(String criteria, String projectKey, String status, String author, Boolean lightweight) throws BusinessServiceException {
+        if (StringUtils.isEmpty(criteria) && StringUtils.isEmpty(projectKey) && StringUtils.isEmpty(status) && StringUtils.isEmpty(author)) {
             return Collections.emptyList();
         }
-        String[] arrayStr = criteria.split("-");
-        boolean isJiraId = arrayStr.length == 2 && NumberUtils.isNumber(arrayStr[1]);
-        String jql = "type = \"" + AUTHORING_TASK_TYPE + "\"" + " AND status != \"" + TaskStatus.DELETED.getLabel() + "\"" + (isJiraId ? " AND id = \"" + criteria + "\"" : " AND summary ~ \"" + criteria + "\"");
+
+        StringBuilder jqlBuilder = new StringBuilder();
+        jqlBuilder.append("type = \"").append(AUTHORING_TASK_TYPE).append("\"").append(" AND status != \"").append(TaskStatus.DELETED.getLabel()).append("\"");
+        if (!StringUtils.isEmpty(criteria)) {
+            String[] arrayStr = criteria.split("-");
+            boolean isJiraId = arrayStr.length == 2 && NumberUtils.isNumber(arrayStr[1]);
+            jqlBuilder.append(isJiraId ? " AND id = \"" + criteria + "\"" : " AND summary ~ \"" + criteria + "\"");
+        }
+        if (!StringUtils.isEmpty(projectKey)) {
+            jqlBuilder.append(" AND project = \"").append(projectKey).append("\"");
+        }
+        if (!StringUtils.isEmpty(status)) {
+            jqlBuilder.append(" AND status = \"").append(status).append("\"");
+        }
+        if (!StringUtils.isEmpty(author)) {
+            jqlBuilder.append(" AND assignee = \"").append(author).append("\"");
+        }
+
         List<Issue> issues;
         try {
-            issues = searchIssues(jql, LIMIT_UNLIMITED, myTasksRequiredFields);
+            issues = searchIssues(jqlBuilder.toString(), LIMIT_UNLIMITED, myTasksRequiredFields);
         } catch (Exception exception) {
-            if (isJiraId) {
-                return Collections.emptyList();
-            } else {
-                throw new BusinessServiceException("Failed to search tasks", exception);
-            }
+            logger.error("Failed to search tasks", exception);
+            return Collections.emptyList();
         }
         return buildAuthoringTasks(issues, lightweight != null && lightweight);
     }

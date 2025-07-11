@@ -3,6 +3,7 @@ package org.ihtsdo.authoringservices.service.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import com.querydsl.core.types.dsl.BooleanExpression;
 import jakarta.jms.JMSException;
 import jakarta.transaction.Transactional;
 import org.apache.activemq.command.ActiveMQQueue;
@@ -45,6 +46,7 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 @Transactional
 public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskService {
@@ -345,24 +347,55 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
     }
 
     @Override
-    public List<AuthoringTask> searchTasks(String criteria, Boolean lightweight) throws BusinessServiceException {
-        if (StringUtils.isEmpty(criteria)) {
+    public List<AuthoringTask> searchTasks(String criteria, String projectKey, String status, String author, Boolean lightweight) throws BusinessServiceException {
+        if (StringUtils.isEmpty(criteria) && StringUtils.isEmpty(projectKey) && StringUtils.isEmpty(status) && StringUtils.isEmpty(author)) {
             return Collections.emptyList();
         }
-        String[] arrayStr = criteria.split("-");
-        boolean isTaskKey = arrayStr.length == 2 && NumberUtils.isNumber(arrayStr[1]);
-        if (isTaskKey) {
-            Optional<Task> taskOptional = taskRepository.findById(criteria);
-            if (taskOptional.isEmpty() || taskOptional.get().getStatus().equals(TaskStatus.DELETED)) {
-                return Collections.emptyList();
-            }
-            return buildAuthoringTasks(new ArrayList<>(List.of(taskOptional.get())), lightweight);
-        } else {
-            List<Task> tasks = taskRepository.findByNameContaining(criteria);
-            tasks = tasks.stream().filter(task -> !TaskStatus.DELETED.equals(task.getStatus())).toList();
+        QTask qRequest = QTask.task;
 
-            return buildAuthoringTasks(tasks, lightweight);
+        BooleanExpression predicateTaskKey = null;
+        BooleanExpression predicateProjectKey = null;
+        BooleanExpression predicateStatus = null;
+        BooleanExpression predicateAuthor = null;
+        if (!StringUtils.isEmpty(criteria)) {
+            String[] arrayStr = criteria.split("-");
+            boolean isTaskKey = arrayStr.length == 2 && NumberUtils.isNumber(arrayStr[1]);
+            if (isTaskKey) {
+                predicateTaskKey = qRequest.key.eq(criteria);
+            } else {
+                predicateTaskKey = qRequest.key.containsIgnoreCase(criteria);
+            }
         }
+        if (!StringUtils.isEmpty(projectKey)) {
+            predicateProjectKey = qRequest.project.key.eq(projectKey);
+        }
+        if (!StringUtils.isEmpty(status)) {
+            predicateStatus = qRequest.status.eq(TaskStatus.fromLabel(status));
+        } else {
+            predicateStatus = qRequest.status.notIn(List.of(TaskStatus.DELETED));
+        }
+        if (!StringUtils.isEmpty(author)) {
+            predicateAuthor = qRequest.assignee.eq(author);
+        }
+
+        BooleanExpression finalPredicate = buildPredicate(predicateTaskKey, predicateProjectKey, predicateStatus, predicateAuthor);
+        Iterable<Task> tasks = taskRepository.findAll(finalPredicate);
+        return buildAuthoringTasks(StreamSupport.stream(tasks.spliterator(), false).toList(), lightweight);
+    }
+
+    private BooleanExpression buildPredicate(BooleanExpression... predicate) {
+        BooleanExpression expression = null;
+        for (BooleanExpression booleanExpression : predicate) {
+
+            if (booleanExpression != null) {
+                if (expression == null) {
+                    expression = booleanExpression;
+                } else {
+                    expression = expression.and(booleanExpression);
+                }
+            }
+        }
+        return expression;
     }
 
     @Override

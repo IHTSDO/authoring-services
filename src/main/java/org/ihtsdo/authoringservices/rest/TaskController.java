@@ -95,10 +95,13 @@ public class TaskController {
     @Operation(summary = "Search tasks across projects")
     @ApiResponse(responseCode = "200", description = "OK")
     @GetMapping(value = "/projects/tasks/search")
-    public List<AuthoringTask> searchTasks(@RequestParam(value = "criteria") String criteria,
+    public List<AuthoringTask> searchTasks(@RequestParam(value = "criteria", required = false) String criteria,
+                                           @RequestParam(value = "projectKey", required = false) String projectKey,
+                                           @RequestParam(value = "status", required = false) String status,
+                                           @RequestParam(value = "author", required = false) String author,
                                            @RequestParam(value = "lightweight", required = false) Boolean lightweight) throws BusinessServiceException {
-        List<AuthoringTask> results = new ArrayList<>(taskServiceFactory.getInstance(true).searchTasks(criteria, lightweight));
-        List<AuthoringTask> jiraTasks = taskServiceFactory.getInstance(false).searchTasks(criteria, lightweight);
+        List<AuthoringTask> results = new ArrayList<>(taskServiceFactory.getInstance(true).searchTasks(criteria, projectKey, status, author, lightweight));
+        List<AuthoringTask> jiraTasks = taskServiceFactory.getInstance(false).searchTasks(criteria, projectKey, status, author, lightweight);
         return filterJiraTasks(jiraTasks, results);
     }
 
