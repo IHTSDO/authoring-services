@@ -363,17 +363,17 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
             String[] arrayStr = criteria.split("-");
             boolean isTaskKey = arrayStr.length == 2 && NumberUtils.isNumber(arrayStr[1]);
             if (isTaskKey) {
-                predicate.and(qRequest.key.eq(criteria));
+                predicate = predicate.and(qRequest.key.eq(criteria));
             } else {
-                predicate.and(qRequest.key.containsIgnoreCase(criteria));
+                predicate = predicate.and(qRequest.key.containsIgnoreCase(criteria));
             }
         }
         if (!StringUtils.isEmpty(projectKey)) {
-            predicate.and(qRequest.project.key.eq(projectKey));
+            predicate = predicate.and(qRequest.project.key.eq(projectKey));
         }
 
         if (!StringUtils.isEmpty(author)) {
-            predicate.and(qRequest.assignee.eq(author));
+            predicate = predicate.and(qRequest.assignee.eq(author));
         }
 
         Iterable<Task> tasks = taskRepository.findAll(predicate);
