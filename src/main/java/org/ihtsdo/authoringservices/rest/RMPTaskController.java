@@ -85,6 +85,14 @@ public class RMPTaskController {
         return ResponseEntity.notFound().build();
     }
 
+    @DeleteMapping("comments/{id}/")
+    public ResponseEntity<Void> deleteRMPComment(@PathVariable long id) {
+        if (commentService.deleteCommentById(id)) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.notFound().build();
+    }
+
     @GetMapping("/{id}/comment")
     public ResponseEntity<List<Comment>> findCommentByRmpTask(@PathVariable long id) {
         RMPTask rmpTask = new RMPTask();
