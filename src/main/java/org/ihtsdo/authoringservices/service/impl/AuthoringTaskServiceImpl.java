@@ -353,49 +353,31 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         }
         QTask qRequest = QTask.task;
 
-        BooleanExpression predicateTaskKey = null;
-        BooleanExpression predicateProjectKey = null;
-        BooleanExpression predicateStatus = null;
-        BooleanExpression predicateAuthor = null;
+        BooleanExpression predicate;
+        if (!StringUtils.isEmpty(status)) {
+            predicate = qRequest.status.eq(TaskStatus.fromLabel(status));
+        } else {
+            predicate = qRequest.status.notIn(List.of(TaskStatus.DELETED));
+        }
         if (!StringUtils.isEmpty(criteria)) {
             String[] arrayStr = criteria.split("-");
             boolean isTaskKey = arrayStr.length == 2 && NumberUtils.isNumber(arrayStr[1]);
             if (isTaskKey) {
-                predicateTaskKey = qRequest.key.eq(criteria);
+                predicate.and(qRequest.key.eq(criteria));
             } else {
-                predicateTaskKey = qRequest.key.containsIgnoreCase(criteria);
+                predicate.and(qRequest.key.containsIgnoreCase(criteria));
             }
         }
         if (!StringUtils.isEmpty(projectKey)) {
-            predicateProjectKey = qRequest.project.key.eq(projectKey);
+            predicate.and(qRequest.project.key.eq(projectKey));
         }
-        if (!StringUtils.isEmpty(status)) {
-            predicateStatus = qRequest.status.eq(TaskStatus.fromLabel(status));
-        } else {
-            predicateStatus = qRequest.status.notIn(List.of(TaskStatus.DELETED));
-        }
+
         if (!StringUtils.isEmpty(author)) {
-            predicateAuthor = qRequest.assignee.eq(author);
+            predicate.and(qRequest.assignee.eq(author));
         }
 
-        BooleanExpression finalPredicate = buildPredicate(predicateTaskKey, predicateProjectKey, predicateStatus, predicateAuthor);
-        Iterable<Task> tasks = taskRepository.findAll(finalPredicate);
+        Iterable<Task> tasks = taskRepository.findAll(predicate);
         return buildAuthoringTasks(StreamSupport.stream(tasks.spliterator(), false).toList(), lightweight);
-    }
-
-    private BooleanExpression buildPredicate(BooleanExpression... predicate) {
-        BooleanExpression expression = null;
-        for (BooleanExpression booleanExpression : predicate) {
-
-            if (booleanExpression != null) {
-                if (expression == null) {
-                    expression = booleanExpression;
-                } else {
-                    expression = expression.and(booleanExpression);
-                }
-            }
-        }
-        return expression;
     }
 
     @Override
