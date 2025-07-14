@@ -41,6 +41,7 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.util.CollectionUtils;
 
 import java.sql.Timestamp;
 import java.text.ParseException;
@@ -48,6 +49,7 @@ import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import static org.ihtsdo.authoringservices.service.impl.JiraProjectServiceImpl.LIMIT_UNLIMITED;
 import static org.ihtsdo.authoringservices.service.impl.JiraProjectServiceImpl.UNIT_TEST;
@@ -321,8 +323,8 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
      * Search issues based on Jira Summary or ID field
      */
     @Override
-    public List<AuthoringTask> searchTasks(String criteria, String projectKey, String status, String author, Boolean lightweight) throws BusinessServiceException {
-        if (StringUtils.isEmpty(criteria) && StringUtils.isEmpty(projectKey) && StringUtils.isEmpty(status) && StringUtils.isEmpty(author)) {
+    public List<AuthoringTask> searchTasks(String criteria, Set<String> projectKeys, Set<String> statuses, String author, Boolean lightweight) throws BusinessServiceException {
+        if (StringUtils.isEmpty(criteria) && CollectionUtils.isEmpty(projectKeys) && CollectionUtils.isEmpty(statuses) && StringUtils.isEmpty(author)) {
             return Collections.emptyList();
         }
 
@@ -333,11 +335,15 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
             boolean isJiraId = arrayStr.length == 2 && NumberUtils.isNumber(arrayStr[1]);
             jqlBuilder.append(isJiraId ? " AND id = \"" + criteria + "\"" : " AND summary ~ \"" + criteria + "\"");
         }
-        if (!StringUtils.isEmpty(projectKey)) {
-            jqlBuilder.append(" AND project = \"").append(projectKey).append("\"");
+        if (!CollectionUtils.isEmpty(projectKeys)) {
+            jqlBuilder.append(" AND project in (").append(projectKeys.stream()
+                    .map(s -> "\"" + s + "\"")
+                    .collect(Collectors.joining(","))).append(")");
         }
-        if (!StringUtils.isEmpty(status)) {
-            jqlBuilder.append(" AND status = \"").append(status).append("\"");
+        if (!CollectionUtils.isEmpty(statuses)) {
+            jqlBuilder.append(" AND status in (").append(statuses.stream()
+                    .map(s -> "\"" + s + "\"")
+                    .collect(Collectors.joining(","))).append(")");
         }
         if (!StringUtils.isEmpty(author)) {
             jqlBuilder.append(" AND assignee = \"").append(author).append("\"");

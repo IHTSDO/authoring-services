@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -96,12 +97,12 @@ public class TaskController {
     @ApiResponse(responseCode = "200", description = "OK")
     @GetMapping(value = "/projects/tasks/search")
     public List<AuthoringTask> searchTasks(@RequestParam(value = "criteria", required = false) String criteria,
-                                           @RequestParam(value = "projectKey", required = false) String projectKey,
-                                           @RequestParam(value = "status", required = false) String status,
+                                           @RequestParam(value = "projectKeys", required = false) Set<String> projectKeys,
+                                           @RequestParam(value = "statuses", required = false) Set<String> statuses,
                                            @RequestParam(value = "author", required = false) String author,
                                            @RequestParam(value = "lightweight", required = false) Boolean lightweight) throws BusinessServiceException {
-        List<AuthoringTask> results = new ArrayList<>(taskServiceFactory.getInstance(true).searchTasks(criteria, projectKey, status, author, lightweight));
-        List<AuthoringTask> jiraTasks = taskServiceFactory.getInstance(false).searchTasks(criteria, projectKey, status, author, lightweight);
+        List<AuthoringTask> results = new ArrayList<>(taskServiceFactory.getInstance(true).searchTasks(criteria, projectKeys, statuses, author, lightweight));
+        List<AuthoringTask> jiraTasks = taskServiceFactory.getInstance(false).searchTasks(criteria, projectKeys, statuses, author, lightweight);
         return filterJiraTasks(jiraTasks, results);
     }
 

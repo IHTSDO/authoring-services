@@ -347,15 +347,17 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
     }
 
     @Override
-    public List<AuthoringTask> searchTasks(String criteria, String projectKey, String status, String author, Boolean lightweight) throws BusinessServiceException {
-        if (StringUtils.isEmpty(criteria) && StringUtils.isEmpty(projectKey) && StringUtils.isEmpty(status) && StringUtils.isEmpty(author)) {
+    public List<AuthoringTask> searchTasks(String criteria, Set<String> projectKeys, Set<String> statuses, String author, Boolean lightweight) throws BusinessServiceException {
+        if (StringUtils.isEmpty(criteria) && CollectionUtils.isEmpty(projectKeys) && CollectionUtils.isEmpty(statuses) && StringUtils.isEmpty(author)) {
             return Collections.emptyList();
         }
         QTask qRequest = QTask.task;
 
         BooleanExpression predicate;
-        if (!StringUtils.isEmpty(status)) {
-            predicate = qRequest.status.eq(TaskStatus.fromLabel(status));
+        if (!CollectionUtils.isEmpty(statuses)) {
+            Set<TaskStatus> requestedStatuses = new HashSet<>();
+            statuses.forEach(item -> requestedStatuses.add(TaskStatus.fromLabel(item)));
+            predicate = qRequest.status.in(requestedStatuses);
         } else {
             predicate = qRequest.status.notIn(List.of(TaskStatus.DELETED));
         }
@@ -368,8 +370,8 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
                 predicate = predicate.and(qRequest.key.containsIgnoreCase(criteria));
             }
         }
-        if (!StringUtils.isEmpty(projectKey)) {
-            predicate = predicate.and(qRequest.project.key.eq(projectKey));
+        if (!CollectionUtils.isEmpty(projectKeys)) {
+            predicate = predicate.and(qRequest.project.key.in(projectKeys));
         }
 
         if (!StringUtils.isEmpty(author)) {
