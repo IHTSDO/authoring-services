@@ -18,7 +18,7 @@ public interface ProjectService {
 
     List<AuthoringProjectField> retrieveProjectCustomFields(String projectKey) throws BusinessServiceException;
 
-    List<AuthoringProject> listProjects(Boolean lightweight, Boolean ignoreProductCodeFilter) throws BusinessServiceException;
+    List<AuthoringProject> listProjects(Boolean lightweight, Boolean ignoreProductCodeFilter, Boolean excludeArchived) throws BusinessServiceException;
 
     AuthoringProject retrieveProject(String projectKey) throws BusinessServiceException;
 

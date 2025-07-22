@@ -2,6 +2,7 @@ package org.ihtsdo.authoringservices.rest;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.service.AdminService;
@@ -9,6 +10,7 @@ import org.ihtsdo.authoringservices.service.CodeSystemService;
 import org.ihtsdo.authoringservices.service.JiraAuthoringTaskMigrateService;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.authoringservices.service.factory.ProjectServiceFactory;
+import org.ihtsdo.authoringservices.service.util.ProjectFilterUtil;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.otf.rest.exception.EntityAlreadyExistsException;
@@ -20,6 +22,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -81,6 +84,18 @@ public class AdminController {
                                             @Parameter(description = "Task keys") @RequestParam final List<String> taskKeys) {
         adminService.markTasksAsDeleted(new HashSet<>(taskKeys));
         return new ResponseEntity<>(HttpStatus.OK);
+    }
+
+    @PreAuthorize("hasPermission('ADMIN', 'global')")
+    @Operation(summary = "List authoring projects")
+    @ApiResponse(responseCode = "200", description = "OK")
+    @GetMapping(value = "/projects")
+    public ResponseEntity<List<AuthoringProject>> listProjects(@RequestParam(value = "lightweight", required = false) Boolean lightweight,
+                                               @RequestParam(value = "ignoreProductCodeFilter", required = false) Boolean ignoreProductCodeFilter,
+                                               @RequestParam(value = "excludeArchived", required = false) Boolean excludeArchived) throws BusinessServiceException {
+        List<AuthoringProject> results = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(lightweight, ignoreProductCodeFilter, excludeArchived));
+        List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(lightweight, ignoreProductCodeFilter, excludeArchived);
+        return new ResponseEntity<>(ProjectFilterUtil.joinJiraProjectsIfNotExists(jiraProjects, results), HttpStatus.OK);
     }
 
     @Operation(summary = "Create a new project", description = "-")

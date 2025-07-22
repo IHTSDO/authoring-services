@@ -173,14 +173,14 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
     }
 
     @Override
-    public List<AuthoringProject> listProjects(Boolean lightweight, Boolean ignoreProductCodeFilter) {
+    public List<AuthoringProject> listProjects(Boolean lightweight, Boolean ignoreProductCodeFilter, Boolean excludeArchived) {
         List<String> loggedInUserRoles = permissionService.getUserRoles();
         if (loggedInUserRoles.isEmpty()) return Collections.emptyList();
 
         List<ProjectUserGroup> projectUserGroups = projectUserGroupRepository.findByNameIn(loggedInUserRoles);
         if(projectUserGroups.isEmpty())  return Collections.emptyList();
 
-        List<Project> result = projectUserGroups.stream().map(ProjectUserGroup::getProject).distinct().toList();
+        List<Project> result = projectUserGroups.stream().map(ProjectUserGroup::getProject).distinct().filter(project -> Boolean.TRUE.equals(project.getActive())).toList();
         return buildAuthoringProjects(result, lightweight);
     }
 

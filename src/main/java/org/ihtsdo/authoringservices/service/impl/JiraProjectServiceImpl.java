@@ -33,6 +33,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.net.URI;
@@ -253,7 +254,7 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
     }
 
     @Override
-    public List<AuthoringProject> listProjects(Boolean lightweight, Boolean ignoreProductCodeFilter) throws BusinessServiceException {
+    public List<AuthoringProject> listProjects(Boolean lightweight, Boolean ignoreProductCodeFilter, Boolean excludeArchived) throws BusinessServiceException {
         final TimerUtil timer = new TimerUtil("ProjectsList");
         List<Issue> projectTickets = new ArrayList<>();
         // Search for authoring project tickets this user has visibility of
@@ -267,8 +268,19 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
 
         timer.checkpoint("First jira search");
         for (Issue projectMagicTicket : issues) {
-            final String productCode = getProjectDetailsPopulatingCache(projectMagicTicket).productCode();
-            if (instanceConfiguration.isJiraProjectVisible(productCode) || Boolean.TRUE.equals(ignoreProductCodeFilter)) {
+            final String productCode = JiraHelper.toStringOrNull(projectMagicTicket.getField(jiraProductCodeField));
+            boolean isVisible = StringUtils.hasLength(productCode) && instanceConfiguration.isJiraProjectVisible(productCode);
+            boolean shouldProcess = isVisible || Boolean.TRUE.equals(ignoreProductCodeFilter);
+
+            if (!shouldProcess) {
+                continue;
+            }
+
+            if (Boolean.TRUE.equals(excludeArchived)) {
+                if (!StringUtils.hasLength(productCode) || !productCode.toLowerCase().contains("archived")) {
+                    projectTickets.add(projectMagicTicket);
+                }
+            } else {
                 projectTickets.add(projectMagicTicket);
             }
         }
@@ -608,7 +620,7 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
             SecurityContextHolder.setContext(securityContext);
             try {
                 final String projectKey = projectTicket.getProject().getKey();
-                final String extensionBase = getProjectDetailsPopulatingCache(projectTicket).baseBranchPath();
+                final String extensionBase = JiraHelper.toStringOrNull(projectTicket.getField(jiraExtensionBaseField));
                 final String branchPath = PathHelper.getProjectPath(extensionBase, projectKey);
 
                 final boolean promotionDisabled = DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectPromotionField)));

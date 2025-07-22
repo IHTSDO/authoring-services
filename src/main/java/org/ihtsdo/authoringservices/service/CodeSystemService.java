@@ -10,6 +10,7 @@ import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.authoringservices.service.factory.ProjectServiceFactory;
 import org.ihtsdo.authoringservices.service.factory.TaskServiceFactory;
 import org.ihtsdo.authoringservices.service.jira.ImpersonatingJiraClientFactory;
+import org.ihtsdo.authoringservices.service.util.ProjectFilterUtil;
 import org.ihtsdo.otf.RF2Constants;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
@@ -131,9 +132,9 @@ public class CodeSystemService {
 		if (cs == null) {
 			throw new BusinessServiceException(String.format(CODE_SYSTEM_NOT_FOUND_MSG, codeSystemShortname));
 		}
-		List<AuthoringProject> authoringProjects = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(true, false));
-		List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(true, false);
-		filterJiraProjects(jiraProjects, authoringProjects);
+		List<AuthoringProject> authoringProjects = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(true, null, null));
+		List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(true, null, null);
+		ProjectFilterUtil.joinJiraProjectsIfNotExists(jiraProjects, authoringProjects);
 
 		authoringProjects = authoringProjects.stream().filter(project -> project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/")).equals(cs.getBranchPath())).toList();
 		List<String> failedToLockProjects = new ArrayList<>();
@@ -156,9 +157,9 @@ public class CodeSystemService {
 		if (cs == null) {
 			throw new BusinessServiceException(String.format(CODE_SYSTEM_NOT_FOUND_MSG, codeSystemShortname));
 		}
-		List<AuthoringProject> authoringProjects = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(true, false));
-		List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(true, false);
-		filterJiraProjects(jiraProjects, authoringProjects);
+		List<AuthoringProject> authoringProjects = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(true, null, null));
+		List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(true, null, null);
+		ProjectFilterUtil.joinJiraProjectsIfNotExists(jiraProjects, authoringProjects);
 
 		authoringProjects = authoringProjects.stream().filter(project -> project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/")).equals(cs.getBranchPath())).toList();
 		List<String> failedToUnlockProjects = new ArrayList<>();
@@ -172,17 +173,6 @@ public class CodeSystemService {
 		}
 		if (!failedToUnlockProjects.isEmpty()) {
 			throw new BusinessServiceException(String.format("The following projects %s failed to unlock. Please contact technical support to get help.", failedToUnlockProjects.toString()));
-		}
-	}
-
-	private void filterJiraProjects(List<AuthoringProject> jiraProjects, List<AuthoringProject> authoringProjects) {
-		if (jiraProjects.isEmpty()) return;
-		List<String> authoringProjectKeys = new ArrayList<>(authoringProjects.stream().map(AuthoringProject::getKey).toList());
-		for (AuthoringProject project : jiraProjects) {
-			if (!authoringProjectKeys.contains(project.getKey())) {
-				authoringProjects.add(project);
-				authoringProjectKeys.add(project.getKey());
-			}
 		}
 	}
 
@@ -391,9 +381,9 @@ public class CodeSystemService {
 	@PreAuthorize("hasPermission('ADMIN', 'global') || hasPermission('ADMIN', #codeSystem.branchPath)")
 	public String rebaseProjects(AuthoringCodeSystem codeSystem) throws BusinessServiceException {
 		String jobId = UUID.randomUUID().toString();
-		List<AuthoringProject> authoringProjects = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(true, true));
-		List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(true, true);
-		filterJiraProjects(jiraProjects, authoringProjects);
+		List<AuthoringProject> authoringProjects = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(true, true, true));
+		List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(true, true, true);
+		ProjectFilterUtil.joinJiraProjectsIfNotExists(jiraProjects, authoringProjects);
 
 		authoringProjects = authoringProjects.stream().filter(project -> project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/")).equals(codeSystem.getBranchPath())).toList();
 		for (AuthoringProject project : authoringProjects) {

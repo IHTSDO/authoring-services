@@ -14,6 +14,7 @@ import org.ihtsdo.authoringservices.service.RebaseService;
 import org.ihtsdo.authoringservices.service.ScheduledRebaseService;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.authoringservices.service.factory.ProjectServiceFactory;
+import org.ihtsdo.authoringservices.service.util.ProjectFilterUtil;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,11 +62,10 @@ public class ProjectController {
     @Operation(summary = "List authoring projects")
     @ApiResponse(responseCode = "200", description = "OK")
     @GetMapping(value = "/projects")
-    public List<AuthoringProject> listProjects(@RequestParam(value = "lightweight", required = false) Boolean lightweight,
-                                               @RequestParam(value = "ignoreProductCodeFilter", required = false) Boolean ignoreProductCodeFilter) throws BusinessServiceException {
-        List<AuthoringProject> results = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(lightweight, ignoreProductCodeFilter));
-        List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(lightweight, ignoreProductCodeFilter);
-        return filterJiraProjects(jiraProjects, results);
+    public List<AuthoringProject> listProjects(@RequestParam(value = "lightweight", required = false) Boolean lightweight) throws BusinessServiceException {
+        List<AuthoringProject> results = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(lightweight, null, null));
+        List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(lightweight, null, null);
+        return ProjectFilterUtil.joinJiraProjectsIfNotExists(jiraProjects, results);
     }
 
     @Operation(summary = "Retrieve an authoring project")
@@ -140,17 +140,5 @@ public class ProjectController {
     @PostMapping(value = "/projects/{projectKey}/unlock")
     public void unlockProject(@PathVariable final String projectKey) throws BusinessServiceException {
         projectServiceFactory.getInstanceByKey(projectKey).unlockProject(projectKey);
-    }
-
-    private List<AuthoringProject> filterJiraProjects(List<AuthoringProject> jiraProjects, List<AuthoringProject> authoringProjects) {
-        if (jiraProjects.isEmpty()) return authoringProjects;
-        List<String> authoringProjectKeys = new ArrayList<>(authoringProjects.stream().map(AuthoringProject::getKey).toList());
-        for (AuthoringProject project : jiraProjects) {
-            if (!authoringProjectKeys.contains(project.getKey())) {
-                authoringProjects.add(project);
-                authoringProjectKeys.add(project.getKey());
-            }
-        }
-        return authoringProjects;
     }
 }

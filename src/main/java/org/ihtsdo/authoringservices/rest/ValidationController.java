@@ -16,6 +16,7 @@ import org.ihtsdo.authoringservices.service.CodeSystemService;
 import org.ihtsdo.authoringservices.service.RVFFailureJiraAssociationService;
 import org.ihtsdo.authoringservices.service.ValidationService;
 import org.ihtsdo.authoringservices.service.factory.ProjectServiceFactory;
+import org.ihtsdo.authoringservices.service.util.ProjectFilterUtil;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -224,9 +225,9 @@ public class ValidationController {
 	private Set<String> doValidateForAllCodeSystems() throws BusinessServiceException {
 		SecurityContext context = SecurityContextHolder.getContext();
 		List<AuthoringCodeSystem> codeSystems = codeSystemService.findAll();
-		List<AuthoringProject> authoringProjects = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(true, false));
-		List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(true, false);
-		filterJiraProjects(jiraProjects, authoringProjects);
+		List<AuthoringProject> authoringProjects = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(true, null, null));
+		List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(true, null, false);
+		ProjectFilterUtil.joinJiraProjectsIfNotExists(jiraProjects, authoringProjects);
 
 		Set<AuthoringCodeSystem> filteredCodeSystems = new HashSet<>();
 		for(AuthoringCodeSystem codeSystem : codeSystems) {
@@ -250,15 +251,4 @@ public class ValidationController {
 		});
 		return codeSystemShortnames;
 	}
-
-    private void filterJiraProjects(List<AuthoringProject> jiraProjects, List<AuthoringProject> authoringProjects) {
-        if (jiraProjects.isEmpty()) return;
-        List<String> authoringProjectKeys = new ArrayList<>(authoringProjects.stream().map(AuthoringProject::getKey).toList());
-        for (AuthoringProject project : jiraProjects) {
-            if (!authoringProjectKeys.contains(project.getKey())) {
-                authoringProjects.add(project);
-                authoringProjectKeys.add(project.getKey());
-            }
-        }
-    }
 }

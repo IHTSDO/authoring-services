@@ -9,6 +9,7 @@ import org.ihtsdo.authoringservices.service.CacheService;
 import org.ihtsdo.authoringservices.service.CodeSystemService;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.authoringservices.service.factory.ProjectServiceFactory;
+import org.ihtsdo.authoringservices.service.util.ProjectFilterUtil;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.slf4j.Logger;
@@ -93,9 +94,9 @@ public class CacheController {
     }
 
     private void regenerateCacheForProjects() throws BusinessServiceException {
-        List<AuthoringProject> internalProjects = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(true, true));
-        List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(true, true);
-        List<AuthoringProject> projects = filterJiraProjects(jiraProjects, internalProjects);
+        List<AuthoringProject> internalProjects = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(true, true, false));
+        List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(true, true, false);
+        List<AuthoringProject> projects = ProjectFilterUtil.joinJiraProjectsIfNotExists(jiraProjects, internalProjects);
 
         if (!CollectionUtils.isEmpty(projects)) {
             projects.forEach(item -> cacheService.clearBranchCache(item.getBranchPath()));
@@ -110,17 +111,5 @@ public class CacheController {
             });
             logger.info("The cache for branch of {} projects have been re-generated.", branches.size());
         }
-    }
-
-    private List<AuthoringProject> filterJiraProjects(List<AuthoringProject> jiraProjects, List<AuthoringProject> authoringProjects) {
-        if (jiraProjects.isEmpty()) return authoringProjects;
-        List<String> authoringProjectKeys = new ArrayList<>(authoringProjects.stream().map(AuthoringProject::getKey).toList());
-        for (AuthoringProject project : jiraProjects) {
-            if (!authoringProjectKeys.contains(project.getKey())) {
-                authoringProjects.add(project);
-                authoringProjectKeys.add(project.getKey());
-            }
-        }
-        return authoringProjects;
     }
 }
