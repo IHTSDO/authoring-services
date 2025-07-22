@@ -162,7 +162,7 @@ public class RMPTaskService {
                     currentStatus.equals(RMPTaskStatus.IN_PROGRESS) || currentStatus.equals(RMPTaskStatus.PUBLISHED);
             case PUBLISHED -> currentStatus.equals(RMPTaskStatus.READY_FOR_RELEASE);
             case ON_HOLD, CLOSED -> currentStatus.equals(RMPTaskStatus.IN_PROGRESS);
-            case CLARIFICATION_REQUESTED -> currentStatus.equals(RMPTaskStatus.ACCEPTED);
+            case CLARIFICATION_REQUESTED -> currentStatus.equals(RMPTaskStatus.ACCEPTED) || currentStatus.equals(RMPTaskStatus.IN_PROGRESS);
             case APPEAL_CLARIFICATION_REQUESTED, APPEAL_REJECTED -> currentStatus.equals(RMPTaskStatus.UNDER_APPEAL);
             case UNDER_APPEAL ->
                     currentStatus.equals(RMPTaskStatus.REJECTED) || currentStatus.equals(RMPTaskStatus.APPEAL_CLARIFICATION_REQUESTED);
