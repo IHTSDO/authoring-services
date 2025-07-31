@@ -20,6 +20,7 @@ import org.springframework.util.StringUtils;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 public class RMPTaskService {
@@ -50,10 +51,16 @@ public class RMPTaskService {
         return rmpTaskRepository.findAll(pageable);
     }
 
-    public Page<RMPTask> searchTasks(String country, String criteria, Pageable pageable) {
+    public Page<RMPTask> searchTasks(String country, String criteria, Set<RMPTaskStatus> statuses, Pageable pageable) {
         QRMPTask qRequest = QRMPTask.rMPTask;
         BooleanExpression predicate = qRequest.country.eq(country);
-        predicate = predicate.andAnyOf(buildSearchPredicate(criteria));
+        if (statuses != null && !statuses.isEmpty()) {
+            predicate = predicate.and(qRequest.status.in(statuses));
+        }
+        if(criteria != null) {
+            predicate = predicate.andAnyOf(buildSearchPredicate(criteria));
+        }
+
         return rmpTaskRepository.findAll(predicate, pageable);
     }
 
@@ -62,10 +69,10 @@ public class RMPTaskService {
         BooleanExpression searchRequestId = org.apache.commons.lang3.StringUtils.isNumeric(searchString) ? qRequest.id.eq(Long.parseLong(searchString)) : null;
         BooleanExpression searchSummary = qRequest.summary.containsIgnoreCase(searchString);
         BooleanExpression searchType = qRequest.type.containsIgnoreCase(searchString);
-        BooleanExpression searchStatus = qRequest.status.stringValue().containsIgnoreCase(searchString);
+        BooleanExpression searchAssignee = qRequest.assignee.stringValue().containsIgnoreCase(searchString);
         BooleanExpression searchReporter = qRequest.reporter.containsIgnoreCase(searchString);
 
-        return new Predicate[]{searchRequestId, searchSummary, searchType, searchStatus, searchReporter};
+        return new Predicate[]{searchRequestId, searchSummary, searchType, searchAssignee, searchReporter};
     }
 
     public Optional<RMPTask> getTaskById(long id) {

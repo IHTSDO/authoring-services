@@ -1,6 +1,7 @@
 package org.ihtsdo.authoringservices.rest;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.ihtsdo.authoringservices.domain.RMPTaskStatus;
 import org.ihtsdo.authoringservices.domain.User;
 import org.ihtsdo.authoringservices.entity.Comment;
 import org.ihtsdo.authoringservices.entity.RMPTask;
@@ -14,13 +15,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Tag(name = "RMP Tasks")
 @RestController
@@ -51,10 +50,18 @@ public class RMPTaskController {
     }
 
     @GetMapping("/search")
-    public Page<RMPTask> searchRmpTasks(@RequestParam(value = "country", required = false) String country,
-                                     @RequestParam(value = "criteria", required = false) String criteria,
-                                     Pageable page) {
-        return rmpTaskService.searchTasks(country, criteria, ControllerHelper.setPageDefaults(page));
+    public Page<RMPTask> searchRmpTasks(@RequestParam(value = "country", required = true) String country,
+                                        @RequestParam(value = "criteria", required = false) String criteria,
+                                        @RequestParam(value = "statuses", required = false) Set<String> statuses,
+                                        Pageable page) {
+        Set<RMPTaskStatus> rmpTaskStatuses;
+        if (!CollectionUtils.isEmpty(statuses)) {
+            rmpTaskStatuses = new HashSet<>();
+            statuses.forEach(item -> rmpTaskStatuses.add(RMPTaskStatus.valueOf(item)));
+        } else {
+            rmpTaskStatuses = null;
+        }
+        return rmpTaskService.searchTasks(country, criteria, rmpTaskStatuses, ControllerHelper.setPageDefaults(page));
     }
 
     @GetMapping("/{id}")
