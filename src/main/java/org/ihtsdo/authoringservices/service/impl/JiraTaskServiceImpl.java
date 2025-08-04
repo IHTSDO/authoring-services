@@ -28,8 +28,6 @@ import org.ihtsdo.authoringservices.service.util.TimerUtil;
 import org.ihtsdo.otf.jms.MessagingHelper;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
-import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
-import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
 import org.ihtsdo.otf.rest.exception.BadRequestException;
@@ -68,9 +66,6 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
 
     @Autowired
     private SnowstormClassificationClient classificationService;
-
-    @Autowired
-    private SnowstormRestClientFactory snowstormRestClientFactory;
 
     @Autowired
     private ReviewService reviewService;
@@ -360,7 +355,7 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
     }
 
     @Override
-    public List<AuthoringTask> listMyTasks(String username, String excludePromoted) throws BusinessServiceException {
+    public List<AuthoringTask> listMyTasks(List<CodeSystem> codeSystems, String username, String excludePromoted) throws BusinessServiceException {
         String jql = "assignee = \"" + username + "\" AND type = \"" + AUTHORING_TASK_TYPE + "\" " + EXCLUDE_STATUSES;
         if (null != excludePromoted && excludePromoted.equalsIgnoreCase("TRUE")) {
             jql += " AND status != \"Promoted\"";
@@ -371,11 +366,11 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
         } catch (JiraException e) {
             throw new BusinessServiceException("Failed to list my tasks", e);
         }
-        return buildAuthoringTasks(issues, false);
+        return buildAuthoringTasks(issues, codeSystems, false);
     }
 
     @Override
-    public List<AuthoringTask> listMyOrUnassignedReviewTasks(String excludePromoted) throws BusinessServiceException {
+    public List<AuthoringTask> listMyOrUnassignedReviewTasks(List<CodeSystem> codeSystems, String excludePromoted) throws BusinessServiceException {
         String jql = "type = \"" + AUTHORING_TASK_TYPE + "\" " + "AND assignee != currentUser() AND "
                 + "(((Reviewer = null AND Reviewers = null) AND status = \"" + TaskStatus.IN_REVIEW.getLabel() + "\") OR ((Reviewer = currentUser() OR Reviewers = currentUser()) AND ";
         if (null != excludePromoted && excludePromoted.equalsIgnoreCase("TRUE")) {
@@ -389,7 +384,7 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
         } catch (JiraException e) {
             throw new BusinessServiceException("Failed to list my or unassigned review tasks", e);
         }
-        return buildAuthoringTasks(issues, false);
+        return buildAuthoringTasks(issues, codeSystems, false);
     }
 
     private String getProjectTaskJQL(String projectKey, TaskStatus taskStatus) {
@@ -426,12 +421,12 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
     }
 
     @Override
-    protected List<AuthoringTask> buildAuthoringTasks(Collection<?> collection, Boolean lightweight) throws BusinessServiceException {
+    protected List<AuthoringTask> buildAuthoringTasks(Collection<?> collection, List<CodeSystem> codeSystems, Boolean lightweight) throws BusinessServiceException {
+        if (collection.isEmpty()) return Collections.emptyList();
+
         final TimerUtil timer = new TimerUtil("BuildTaskList", Level.DEBUG);
         List<Issue> tasks = (List<Issue>) collection;
         List<AuthoringTask> allTasks = new ArrayList<>();
-        final SnowstormRestClient snowstormRestClient = snowstormRestClientFactory.getClient();
-        List<CodeSystem> codeSystems = snowstormRestClient.getCodeSystems();
         try {
             // Map of task paths to tasks
             Map<String, AuthoringTask> startedTasks = new HashMap<>();

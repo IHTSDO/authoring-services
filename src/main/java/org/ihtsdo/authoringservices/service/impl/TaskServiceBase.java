@@ -9,6 +9,9 @@ import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.authoringservices.service.util.TimerUtil;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
+import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
+import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.sso.integration.SecurityUtil;
 import org.slf4j.Logger;
@@ -53,8 +56,10 @@ public abstract class TaskServiceBase {
     @Autowired
     private SnowstormClassificationClient classificationService;
 
-    protected abstract List<AuthoringTask> buildAuthoringTasks(Collection<?> tasks, Boolean lightweight) throws BusinessServiceException;
+    @Autowired
+    private SnowstormRestClientFactory snowstormRestClientFactory;
 
+    protected abstract List<AuthoringTask> buildAuthoringTasks(Collection<?> tasks, List<CodeSystem> codeSystems, Boolean lightweight) throws BusinessServiceException;
 
     protected String toString(String projectKey, String taskKey) {
         return projectKey + "/" + taskKey;
@@ -167,5 +172,13 @@ public abstract class TaskServiceBase {
         } catch (ExecutionException | RestClientException | ServiceException e) {
             throw new BusinessServiceException("Failed to retrieve Main", e);
         }
+    }
+
+    protected List<AuthoringTask> buildAuthoringTasks(Collection<?> collection, Boolean lightweight) throws BusinessServiceException {
+        if (collection.isEmpty()) return Collections.emptyList();
+
+        final SnowstormRestClient snowstormRestClient = snowstormRestClientFactory.getClient();
+        List<CodeSystem> codeSystems = snowstormRestClient.getCodeSystems();
+        return buildAuthoringTasks(collection, codeSystems, lightweight);
     }
 }

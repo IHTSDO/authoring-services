@@ -1,6 +1,7 @@
 package org.ihtsdo.authoringservices.service;
 
 import org.ihtsdo.authoringservices.domain.*;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 
 import java.util.List;
@@ -28,9 +29,9 @@ public interface TaskService {
 
     List<AuthoringTask> listTasksForProject(String projectKey, Boolean lightweight) throws BusinessServiceException;
 
-    List<AuthoringTask> listMyTasks(String username, String excludePromoted) throws BusinessServiceException;
+    List<AuthoringTask> listMyTasks(List<CodeSystem> codeSystems, String username, String excludePromoted) throws BusinessServiceException;
 
-    List<AuthoringTask> listMyOrUnassignedReviewTasks(String excludePromoted) throws BusinessServiceException;
+    List<AuthoringTask> listMyOrUnassignedReviewTasks(List<CodeSystem> codeSystems, String excludePromoted) throws BusinessServiceException;
 
     List<AuthoringTask> searchTasks(String criteria, Set<String> projectKeys, Set<String> statuses, String author, Boolean lightweight) throws BusinessServiceException;
 

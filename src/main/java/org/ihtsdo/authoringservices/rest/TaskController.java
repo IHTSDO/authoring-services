@@ -9,6 +9,9 @@ import org.ihtsdo.authoringservices.service.PromotionService;
 import org.ihtsdo.authoringservices.service.RebaseService;
 import org.ihtsdo.authoringservices.service.factory.ProjectServiceFactory;
 import org.ihtsdo.authoringservices.service.factory.TaskServiceFactory;
+import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
+import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
 import org.ihtsdo.sso.integration.SecurityUtil;
@@ -39,12 +42,15 @@ public class TaskController {
     private final PromotionService promotionService;
     private final RebaseService rebaseService;
 
+    private final SnowstormRestClientFactory snowstormRestClientFactory;
+
     @Autowired
-    public TaskController(ProjectServiceFactory projectServiceFactory, TaskServiceFactory taskServiceFactory, PromotionService promotionService, RebaseService rebaseService) {
+    public TaskController(ProjectServiceFactory projectServiceFactory, TaskServiceFactory taskServiceFactory, PromotionService promotionService, RebaseService rebaseService, SnowstormRestClientFactory snowstormRestClientFactory) {
         this.projectServiceFactory = projectServiceFactory;
         this.taskServiceFactory = taskServiceFactory;
         this.promotionService = promotionService;
         this.rebaseService = rebaseService;
+        this.snowstormRestClientFactory = snowstormRestClientFactory;
     }
 
     @Operation(summary = "Retrieve status information about the MAIN branch")
@@ -79,8 +85,10 @@ public class TaskController {
     @ApiResponse(responseCode = "200", description = "OK")
     @GetMapping(value = "/projects/my-tasks")
     public List<AuthoringTask> listMyTasks(@RequestParam(value = "excludePromoted", required = false) String excludePromoted) throws BusinessServiceException {
-        List<AuthoringTask> results = new ArrayList<>(taskServiceFactory.getInstance(true).listMyTasks(SecurityUtil.getUsername(), excludePromoted));
-        List<AuthoringTask> jiraTasks = taskServiceFactory.getInstance(false).listMyTasks(SecurityUtil.getUsername(), excludePromoted);
+        List<CodeSystem> codeSystems = getCodeSystems();
+
+        List<AuthoringTask> results = new ArrayList<>(taskServiceFactory.getInstance(true).listMyTasks(codeSystems, SecurityUtil.getUsername(), excludePromoted));
+        List<AuthoringTask> jiraTasks = taskServiceFactory.getInstance(false).listMyTasks(codeSystems, SecurityUtil.getUsername(), excludePromoted);
         return filterJiraTasks(jiraTasks, results);
     }
 
@@ -88,8 +96,10 @@ public class TaskController {
     @ApiResponse(responseCode = "200", description = "OK")
     @GetMapping(value = "/projects/review-tasks")
     public List<AuthoringTask> listMyOrUnassignedReviewTasks(@RequestParam(value = "excludePromoted", required = false) String excludePromoted) throws BusinessServiceException {
-        List<AuthoringTask> results = new ArrayList<>(taskServiceFactory.getInstance(true).listMyOrUnassignedReviewTasks(excludePromoted));
-        List<AuthoringTask> jiraTasks = taskServiceFactory.getInstance(false).listMyOrUnassignedReviewTasks(excludePromoted);
+        List<CodeSystem> codeSystems = getCodeSystems();
+
+        List<AuthoringTask> results = new ArrayList<>(taskServiceFactory.getInstance(true).listMyOrUnassignedReviewTasks(codeSystems, excludePromoted));
+        List<AuthoringTask> jiraTasks = taskServiceFactory.getInstance(false).listMyOrUnassignedReviewTasks(codeSystems, excludePromoted);
         return filterJiraTasks(jiraTasks, results);
     }
 
@@ -230,6 +240,11 @@ public class TaskController {
             @PathVariable final String projectKey, @PathVariable final String taskKey,
             @Parameter(description = "CRS request ID") @PathVariable final String crsId) throws BusinessServiceException {
         taskServiceFactory.getInstanceByKey(taskKey).removeCrsTaskForGivenRequestId(projectKey, taskKey, crsId);
+    }
+
+    private List<CodeSystem> getCodeSystems() {
+        final SnowstormRestClient snowstormRestClient = snowstormRestClientFactory.getClient();
+        return snowstormRestClient.getCodeSystems();
     }
 
     private List<AuthoringTask> filterJiraTasks(List<AuthoringTask> jiraTasks, List<AuthoringTask> results) {

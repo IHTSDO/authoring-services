@@ -23,8 +23,6 @@ import org.ihtsdo.authoringservices.service.util.TimerUtil;
 import org.ihtsdo.otf.jms.MessagingHelper;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
-import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
-import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
 import org.ihtsdo.otf.rest.exception.BadRequestException;
@@ -75,9 +73,6 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
 
     @Autowired
     private MessagingHelper messagingHelper;
-
-    @Autowired
-    private SnowstormRestClientFactory snowstormRestClientFactory;
 
     @Autowired
     private SnowstormClassificationClient classificationService;
@@ -321,18 +316,18 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
     }
 
     @Override
-    public List<AuthoringTask> listMyTasks(String username, String excludePromoted) throws BusinessServiceException {
+    public List<AuthoringTask> listMyTasks(List<CodeSystem> codeSystems, String username, String excludePromoted) throws BusinessServiceException {
         List<TaskStatus> excludedStatuses = new ArrayList<>(List.of(EXCLUDE_STATUSES));
         if (null != excludePromoted && excludePromoted.equalsIgnoreCase("TRUE")) {
             excludedStatuses.add(TaskStatus.PROMOTED);
         }
         List<Project> projects = permissionService.getProjectsForUser();
         List<Task> tasks = taskRepository.findByProjectInAndAssigneeAndStatusNotInOrderByUpdatedDateDesc(projects, username, excludedStatuses);
-        return buildAuthoringTasks(tasks, false);
+        return buildAuthoringTasks(tasks, codeSystems, false);
     }
 
     @Override
-    public List<AuthoringTask> listMyOrUnassignedReviewTasks(String excludePromoted) throws BusinessServiceException {
+    public List<AuthoringTask> listMyOrUnassignedReviewTasks(List<CodeSystem> codeSystems, String excludePromoted) throws BusinessServiceException {
         String currentUser = SecurityUtil.getUsername();
         List<TaskStatus> statuses = new ArrayList<>(List.of(TaskStatus.IN_REVIEW, TaskStatus.REVIEW_COMPLETED));
         if (null == excludePromoted || !excludePromoted.equalsIgnoreCase("TRUE")) {
@@ -343,7 +338,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         tasks = tasks.stream().
                 filter(task -> (CollectionUtils.isEmpty(task.getReviewers()) && TaskStatus.IN_REVIEW.equals(task.getStatus()))
                         || task.getReviewers().stream().anyMatch(reviewer -> reviewer.getUsername().equals(currentUser))).toList();
-        return buildAuthoringTasks(tasks, false);
+        return buildAuthoringTasks(tasks, codeSystems, false);
     }
 
     @Override
@@ -536,14 +531,12 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
     }
 
     @Override
-    protected List<AuthoringTask> buildAuthoringTasks(Collection<?> collection, Boolean lightweight) throws BusinessServiceException {
-        final TimerUtil timer = new TimerUtil("BuildTaskList", Level.DEBUG);
+    protected List<AuthoringTask> buildAuthoringTasks(Collection<?> collection, List<CodeSystem> codeSystems, Boolean lightweight) throws BusinessServiceException {
         if (collection.isEmpty()) return Collections.emptyList();
 
+        final TimerUtil timer = new TimerUtil("BuildTaskList", Level.DEBUG);
         List<Task> tasks = (List<Task>) collection;
         List<AuthoringTask> allTasks = new ArrayList<>();
-        final SnowstormRestClient snowstormRestClient = snowstormRestClientFactory.getClient();
-        List<CodeSystem> codeSystems = snowstormRestClient.getCodeSystems();
         try {
             // Map of task paths to tasks
             Map<String, AuthoringTask> startedTasks = new HashMap<>();
