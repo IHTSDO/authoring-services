@@ -52,6 +52,8 @@ public class RMPTaskController {
     @GetMapping("/search")
     public Page<RMPTask> searchRmpTasks(@RequestParam(value = "country", required = true) String country,
                                         @RequestParam(value = "criteria", required = false) String criteria,
+                                        @RequestParam(value = "assignees", required = false) Set<String> assignees,
+                                        @RequestParam(value = "reporters", required = false) Set<String> reporters,
                                         @RequestParam(value = "statuses", required = false) Set<String> statuses,
                                         Pageable page) {
         Set<RMPTaskStatus> rmpTaskStatuses;
@@ -61,7 +63,7 @@ public class RMPTaskController {
         } else {
             rmpTaskStatuses = null;
         }
-        return rmpTaskService.searchTasks(country, criteria, rmpTaskStatuses, ControllerHelper.setPageDefaults(page));
+        return rmpTaskService.searchTasks(country, criteria, reporters, assignees, rmpTaskStatuses, ControllerHelper.setPageDefaults(page));
     }
 
     @GetMapping("/{id}")

@@ -51,26 +51,36 @@ public class RMPTaskService {
         return rmpTaskRepository.findAll(pageable);
     }
 
-    public Page<RMPTask> searchTasks(String country, String criteria, Set<RMPTaskStatus> statuses, Pageable pageable) {
+    public Page<RMPTask> searchTasks(String country, String criteria, Set<String> reporters, Set<String> assignees, Set<RMPTaskStatus> statuses, Pageable pageable) {
         QRMPTask qRequest = QRMPTask.rMPTask;
         BooleanExpression predicate = qRequest.country.eq(country);
         if (statuses != null && !statuses.isEmpty()) {
             predicate = predicate.and(qRequest.status.in(statuses));
         }
+        boolean ignoreReporterFilter = false;
+        if (reporters != null && !reporters.isEmpty()) {
+            predicate = predicate.and(qRequest.reporter.in(reporters));
+            ignoreReporterFilter = true;
+        }
+        boolean ignoreAssigneeFilter = false;
+        if (assignees != null && !assignees.isEmpty()) {
+            predicate = predicate.and(qRequest.assignee.in(assignees));
+            ignoreAssigneeFilter = true;
+        }
         if(criteria != null) {
-            predicate = predicate.andAnyOf(buildSearchPredicate(criteria));
+            predicate = predicate.andAnyOf(buildSearchPredicate(criteria, ignoreReporterFilter, ignoreAssigneeFilter));
         }
 
         return rmpTaskRepository.findAll(predicate, pageable);
     }
 
-    private static Predicate[] buildSearchPredicate(String searchString) {
+    private static Predicate[] buildSearchPredicate(String searchString, boolean ignoreReporterFilter, boolean ignoreAssigneeFilter) {
         QRMPTask qRequest = QRMPTask.rMPTask;
         BooleanExpression searchRequestId = org.apache.commons.lang3.StringUtils.isNumeric(searchString) ? qRequest.id.eq(Long.parseLong(searchString)) : null;
         BooleanExpression searchSummary = qRequest.summary.containsIgnoreCase(searchString);
         BooleanExpression searchType = qRequest.type.containsIgnoreCase(searchString);
-        BooleanExpression searchAssignee = qRequest.assignee.stringValue().containsIgnoreCase(searchString);
-        BooleanExpression searchReporter = qRequest.reporter.containsIgnoreCase(searchString);
+        BooleanExpression searchAssignee = ignoreAssigneeFilter ? null : qRequest.assignee.stringValue().containsIgnoreCase(searchString);
+        BooleanExpression searchReporter = ignoreReporterFilter ? null : qRequest.reporter.containsIgnoreCase(searchString);
 
         return new Predicate[]{searchRequestId, searchSummary, searchType, searchAssignee, searchReporter};
     }
