@@ -14,10 +14,7 @@ import jakarta.jms.ConnectionFactory;
 import net.rcarz.jiraclient.JiraException;
 import org.ihtsdo.authoringservices.service.ProjectService;
 import org.ihtsdo.authoringservices.service.TaskService;
-import org.ihtsdo.authoringservices.service.impl.AuthoringProjectServiceImpl;
-import org.ihtsdo.authoringservices.service.impl.AuthoringTaskServiceImpl;
-import org.ihtsdo.authoringservices.service.impl.JiraProjectServiceImpl;
-import org.ihtsdo.authoringservices.service.impl.JiraTaskServiceImpl;
+import org.ihtsdo.authoringservices.service.impl.*;
 import org.ihtsdo.authoringservices.service.jira.ImpersonatingJiraClientFactory;
 import org.ihtsdo.otf.jms.MessagingHelper;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
@@ -67,6 +64,11 @@ public abstract class Configuration {
 		return new AuthoringTaskServiceImpl();
 	}
 
+	@Bean(name = "defaultTaskService")
+	public TaskService defaultTaskService() {
+		return new DefaultTaskServiceImpl();
+	}
+
 	@Bean
 	@Primary
 	public ProjectService projectService(@Autowired @Qualifier("authoringTaskOAuthJiraClient") ImpersonatingJiraClientFactory jiraClientFactory, @Value("${jira.username}") String jiraUsername) throws JiraException {
@@ -76,6 +78,11 @@ public abstract class Configuration {
 	@Bean(name = "authoringProjectService")
 	public ProjectService authoringProjectService() {
 		return new AuthoringProjectServiceImpl();
+	}
+
+	@Bean(name = "defaultProjectService")
+	public ProjectService defaultProjectService() {
+		return new DefaultProjectServiceImpl();
 	}
 
 	@Bean

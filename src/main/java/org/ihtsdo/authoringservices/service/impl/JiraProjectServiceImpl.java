@@ -71,6 +71,9 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
     @Value("${jira.project.creation.defaultProjectTemplateKey}")
     private String defaultProjectTemplateKey;
 
+    @Value("${jira.enabled}")
+    private boolean jiraEnabled;
+
     private LoadingCache<String, ProjectDetails> projectDetailsCache;
 
     private final ImpersonatingJiraClientFactory jiraClientFactory;
@@ -110,7 +113,7 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
     public JiraProjectServiceImpl(ImpersonatingJiraClientFactory jiraClientFactory, String jiraUsername) throws JiraException {
         this.jiraClientFactory = jiraClientFactory;
         executorService = Executors.newCachedThreadPool();
-        if (!jiraUsername.equals(UNIT_TEST)) {
+        if (!jiraUsername.equals(UNIT_TEST) && jiraEnabled) {
             logger.info("Fetching Jira custom field names.");
             final JiraClient jiraClientForFieldLookup = jiraClientFactory.getAdminInstance();
 

@@ -107,7 +107,7 @@ public class AdminService {
             try {
                 AuthoringTask jiraAuthoringTask = taskServiceFactory.getInstance(false).retrieveTask(null, key, true, true);
                 taskServiceFactory.getInstance(false).updateTask(jiraAuthoringTask.getProjectKey(), jiraAuthoringTask.getKey(), request);
-            } catch (ResourceNotFoundException | BusinessServiceException e) {
+            } catch (ResourceNotFoundException | BusinessServiceException | UnsupportedOperationException e) {
                 // Do nothing
             }
         });

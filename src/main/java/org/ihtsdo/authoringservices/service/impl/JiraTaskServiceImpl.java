@@ -61,6 +61,9 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
             + "\" AND status != \"" + TaskStatus.DELETED.getLabel() + "\") ";
     private static final String OR_STATUS_CLAUSE = "\" OR status = \"";
 
+    @Value("${jira.enabled}")
+    private boolean jiraEnabled;
+
     @Autowired
     private BranchService branchService;
 
@@ -114,7 +117,7 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
 
     public JiraTaskServiceImpl(ImpersonatingJiraClientFactory jiraClientFactory, String jiraUsername) throws JiraException {
         this.jiraClientFactory = jiraClientFactory;
-        if (!jiraUsername.equals(UNIT_TEST)) {
+        if (!jiraUsername.equals(UNIT_TEST) && jiraEnabled) {
             final JiraClient jiraClientForFieldLookup = jiraClientFactory.getAdminInstance();
 
             jiraReviewerField = JiraHelper.fieldIdLookup("Reviewer", jiraClientForFieldLookup, null);

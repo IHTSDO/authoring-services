@@ -45,6 +45,9 @@ public class JiraAuthoringTaskMigrateService {
 
     private static final String AUTHORING_TASK_TYPE = "SCA Authoring Task";
 
+    @Value("${jira.enabled}")
+    private boolean jiraEnabled;
+
     @Autowired
     private TaskRepository taskRepository;
 
@@ -61,7 +64,7 @@ public class JiraAuthoringTaskMigrateService {
     private final ImpersonatingJiraClientFactory jiraClientFactory;
     public JiraAuthoringTaskMigrateService(@Autowired @Qualifier("authoringTaskOAuthJiraClient") ImpersonatingJiraClientFactory jiraClientFactory, @Value("${jira.username}") String jiraUsername) throws JiraException {
         this.jiraClientFactory = jiraClientFactory;
-        if (!jiraUsername.equals(UNIT_TEST)) {
+        if (!jiraUsername.equals(UNIT_TEST) && jiraEnabled) {
             final JiraClient jiraClientForFieldLookup = jiraClientFactory.getAdminInstance();
             jiraCrsIdField = JiraHelper.fieldIdLookup("CRS-ID", jiraClientForFieldLookup, null);
         } else {
