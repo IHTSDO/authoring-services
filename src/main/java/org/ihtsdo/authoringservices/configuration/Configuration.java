@@ -55,8 +55,8 @@ public abstract class Configuration {
 
 	@Bean
 	@Primary
-	public TaskService taskService(@Autowired @Qualifier("authoringTaskOAuthJiraClient") ImpersonatingJiraClientFactory jiraClientFactory, @Value("${jira.username}") String jiraUsername) throws JiraException {
-        return new JiraTaskServiceImpl(jiraClientFactory, jiraUsername);
+	public TaskService taskService(@Autowired @Qualifier("authoringTaskOAuthJiraClient") ImpersonatingJiraClientFactory jiraClientFactory, @Value("${jira.username}") String jiraUsername, @Value("${jira.enabled}") boolean jiraEnabled) throws JiraException {
+        return new JiraTaskServiceImpl(jiraClientFactory, jiraUsername, jiraEnabled);
 	}
 
 	@Bean(name = "authoringTaskService")
@@ -71,8 +71,8 @@ public abstract class Configuration {
 
 	@Bean
 	@Primary
-	public ProjectService projectService(@Autowired @Qualifier("authoringTaskOAuthJiraClient") ImpersonatingJiraClientFactory jiraClientFactory, @Value("${jira.username}") String jiraUsername) throws JiraException {
-		return new JiraProjectServiceImpl(jiraClientFactory, jiraUsername);
+	public ProjectService projectService(@Autowired @Qualifier("authoringTaskOAuthJiraClient") ImpersonatingJiraClientFactory jiraClientFactory, @Value("${jira.username}") String jiraUsername, @Value("${jira.enabled}") boolean jiraEnabled) throws JiraException {
+		return new JiraProjectServiceImpl(jiraClientFactory, jiraUsername, jiraEnabled);
 	}
 
 	@Bean(name = "authoringProjectService")

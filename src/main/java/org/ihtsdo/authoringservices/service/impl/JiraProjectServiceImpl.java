@@ -71,9 +71,6 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
     @Value("${jira.project.creation.defaultProjectTemplateKey}")
     private String defaultProjectTemplateKey;
 
-    @Value("${jira.enabled}")
-    private boolean jiraEnabled;
-
     private LoadingCache<String, ProjectDetails> projectDetailsCache;
 
     private final ImpersonatingJiraClientFactory jiraClientFactory;
@@ -110,7 +107,7 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
     @Autowired
     private TaskService jiraTaskService;
 
-    public JiraProjectServiceImpl(ImpersonatingJiraClientFactory jiraClientFactory, String jiraUsername) throws JiraException {
+    public JiraProjectServiceImpl(ImpersonatingJiraClientFactory jiraClientFactory, String jiraUsername, boolean jiraEnabled) throws JiraException {
         this.jiraClientFactory = jiraClientFactory;
         executorService = Executors.newCachedThreadPool();
         if (!jiraUsername.equals(UNIT_TEST) && jiraEnabled) {

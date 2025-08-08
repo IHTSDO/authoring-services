@@ -45,9 +45,6 @@ public class JiraAuthoringTaskMigrateService {
 
     private static final String AUTHORING_TASK_TYPE = "SCA Authoring Task";
 
-    @Value("${jira.enabled}")
-    private boolean jiraEnabled;
-
     @Autowired
     private TaskRepository taskRepository;
 
@@ -62,18 +59,28 @@ public class JiraAuthoringTaskMigrateService {
     private final String jiraCrsIdField;
 
     private final ImpersonatingJiraClientFactory jiraClientFactory;
-    public JiraAuthoringTaskMigrateService(@Autowired @Qualifier("authoringTaskOAuthJiraClient") ImpersonatingJiraClientFactory jiraClientFactory, @Value("${jira.username}") String jiraUsername) throws JiraException {
-        this.jiraClientFactory = jiraClientFactory;
-        if (!jiraUsername.equals(UNIT_TEST) && jiraEnabled) {
-            final JiraClient jiraClientForFieldLookup = jiraClientFactory.getAdminInstance();
-            jiraCrsIdField = JiraHelper.fieldIdLookup("CRS-ID", jiraClientForFieldLookup, null);
+
+    private final boolean jiraEnabled;
+    public JiraAuthoringTaskMigrateService(@Autowired @Qualifier("authoringTaskOAuthJiraClient") ImpersonatingJiraClientFactory jiraClientFactory, @Value("${jira.username}") String jiraUsername, @Value("${jira.enabled}") boolean jiraEnabled) throws JiraException {
+        this.jiraEnabled = jiraEnabled;
+        if (!jiraEnabled) {
+            this.jiraCrsIdField =  null;
+            this.jiraClientFactory = null;
         } else {
-            jiraCrsIdField = null;
+            this.jiraClientFactory = jiraClientFactory;
+            if (!jiraUsername.equals(UNIT_TEST)) {
+                final JiraClient jiraClientForFieldLookup = jiraClientFactory.getAdminInstance();
+                this.jiraCrsIdField = JiraHelper.fieldIdLookup("CRS-ID", jiraClientForFieldLookup, null);
+            } else {
+                this.jiraCrsIdField = null;
+            }
         }
     }
 
     @Transactional
     public void migrateJiraTasks(Set<String> projectKeys) {
+        if (!this.jiraEnabled) throw new UnsupportedOperationException("Migrating JIRA tasks is not supported");
+
         Iterable<Project> projectIterable = CollectionUtils.isEmpty(projectKeys) ? projectRepository.findAll() : projectRepository.findAllById(projectKeys);
         Set<Task> tasks = new HashSet<>();
         for (Project project : projectIterable) {
