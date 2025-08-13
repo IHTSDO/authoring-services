@@ -2,10 +2,7 @@ package org.ihtsdo.authoringservices.service;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-import org.ihtsdo.authoringservices.domain.AuthoringCodeSystem;
-import org.ihtsdo.authoringservices.domain.AuthoringInfoWrapper;
-import org.ihtsdo.authoringservices.domain.AuthoringProject;
-import org.ihtsdo.authoringservices.domain.AuthoringTask;
+import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.authoringservices.service.factory.ProjectServiceFactory;
 import org.ihtsdo.authoringservices.service.factory.TaskServiceFactory;
@@ -13,7 +10,6 @@ import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
-import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Merge;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.MergeReviewsResults;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
@@ -138,7 +134,7 @@ public class BranchService {
         return codeSystem;
     }
 
-    public Branch getBranch(String branchPath) throws ServiceException {
+    public org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch getBranch(String branchPath) throws ServiceException {
         try {
             return snowstormRestClientFactory.getClient().getBranch(branchPath);
         } catch (RestClientException e) {
