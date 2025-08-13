@@ -9,8 +9,8 @@ import jakarta.transaction.Transactional;
 import org.apache.activemq.command.ActiveMQQueue;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.math.NumberUtils;
-import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.domain.Branch;
+import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.entity.*;
 import org.ihtsdo.authoringservices.repository.ProjectRepository;
 import org.ihtsdo.authoringservices.repository.TaskRepository;
@@ -369,11 +369,10 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
      * Builds the search predicate based on the provided criteria
      */
     private BooleanExpression buildSearchPredicate(QTask qRequest, String criteria, Set<String> projectKeys, Set<String> statuses, String author) {
-        BooleanExpression predicate = buildStatusPredicate(qRequest, statuses);
-        
-        predicate = addCriteriaPredicate(predicate, qRequest, criteria);
+        BooleanExpression predicate = addCriteriaPredicate(qRequest, criteria);
         predicate = addProjectKeysPredicate(predicate, qRequest, projectKeys);
         predicate = addAuthorPredicate(predicate, qRequest, author);
+        predicate = buildStatusPredicate(predicate, qRequest, statuses);
         
         return predicate;
     }
@@ -381,18 +380,19 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
     /**
      * Builds the status predicate with special handling for review statuses
      */
-    private BooleanExpression buildStatusPredicate(QTask qRequest, Set<String> statuses) {
+    private BooleanExpression buildStatusPredicate(BooleanExpression existingPredicate, QTask qRequest, Set<String> statuses) {
         if (CollectionUtils.isEmpty(statuses)) {
-            return qRequest.status.notIn(List.of(TaskStatus.DELETED));
+            BooleanExpression statusPredicate = qRequest.status.notIn(List.of(TaskStatus.DELETED));
+            existingPredicate = existingPredicate != null ? existingPredicate.and(statusPredicate) : statusPredicate;
+            return existingPredicate;
         }
 
         // Create a copy to avoid modifying the input parameter
         Set<String> statusesCopy = new HashSet<>(statuses);
         
         BooleanExpression predicate = buildReviewStatusPredicate(qRequest, statusesCopy);
-        predicate = addRemainingStatusPredicate(predicate, qRequest, statusesCopy);
+        return addRemainingStatusPredicate(existingPredicate, predicate, qRequest, statusesCopy);
         
-        return predicate;
     }
 
     /**
@@ -405,8 +405,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         if (readyForReviewStatusFound && inReviewStatusFound) {
             // Both statuses requested - return all IN_REVIEW tasks
             statuses.remove(READY_FOR_REVIEW);
-            statuses.remove(TaskStatus.IN_REVIEW.getLabel());
-            return qRequest.status.eq(TaskStatus.IN_REVIEW);
+            return null;
         } else if (readyForReviewStatusFound) {
             // Only "Ready For Review" - return IN_REVIEW tasks with no reviewers
             statuses.remove(READY_FOR_REVIEW);
@@ -423,8 +422,11 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
     /**
      * Adds predicate for remaining statuses after handling review statuses
      */
-    private BooleanExpression addRemainingStatusPredicate(BooleanExpression existingPredicate, QTask qRequest, Set<String> remainingStatuses) {
+    private BooleanExpression addRemainingStatusPredicate(BooleanExpression existingPredicate, BooleanExpression predicate, QTask qRequest, Set<String> remainingStatuses) {
         if (remainingStatuses.isEmpty()) {
+            if (predicate != null) {
+                existingPredicate =  existingPredicate != null ? existingPredicate.and(predicate) : predicate;
+            }
             return existingPredicate;
         }
 
@@ -433,23 +435,22 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
                 .collect(Collectors.toSet());
         
         BooleanExpression statusPredicate = qRequest.status.in(requestedStatuses);
-        
-        return existingPredicate != null ? existingPredicate.or(statusPredicate) : statusPredicate;
+        statusPredicate = predicate != null ? predicate.or(statusPredicate) : statusPredicate;
+        existingPredicate = existingPredicate != null ? existingPredicate.and(statusPredicate) : statusPredicate;
+
+        return existingPredicate;
     }
 
     /**
      * Adds criteria predicate for task key search
      */
-    private BooleanExpression addCriteriaPredicate(BooleanExpression existingPredicate, QTask qRequest, String criteria) {
+    private BooleanExpression addCriteriaPredicate(QTask qRequest, String criteria) {
         if (StringUtils.isEmpty(criteria)) {
-            return existingPredicate;
+            return null;
         }
-
-        BooleanExpression criteriaPredicate = isTaskKeyFormat(criteria) 
+        return isTaskKeyFormat(criteria)
             ? qRequest.key.eq(criteria) 
             : qRequest.key.containsIgnoreCase(criteria);
-        
-        return existingPredicate != null ? existingPredicate.and(criteriaPredicate) : criteriaPredicate;
     }
 
     /**
@@ -469,7 +470,8 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         }
 
         BooleanExpression projectPredicate = qRequest.project.key.in(projectKeys);
-        return existingPredicate != null ? existingPredicate.and(projectPredicate) : projectPredicate;
+        existingPredicate = existingPredicate != null ? existingPredicate.and(projectPredicate) : projectPredicate;
+        return existingPredicate;
     }
 
     /**
@@ -481,7 +483,8 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         }
 
         BooleanExpression authorPredicate = qRequest.assignee.eq(author);
-        return existingPredicate != null ? existingPredicate.and(authorPredicate) : authorPredicate;
+        existingPredicate = existingPredicate != null ? existingPredicate.and(authorPredicate) : authorPredicate;
+        return existingPredicate;
     }
 
     @Override

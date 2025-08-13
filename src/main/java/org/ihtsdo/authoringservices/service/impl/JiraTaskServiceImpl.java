@@ -344,21 +344,21 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
         StringBuilder jqlBuilder = new StringBuilder();
         
         // Base JQL with task type and exclude deleted status
-        jqlBuilder.append("type = \"").append(AUTHORING_TASK_TYPE).append("\"")
-                  .append(" AND status != \"").append(TaskStatus.DELETED.getLabel()).append("\"");
-        
+        jqlBuilder.append("type = \"").append(AUTHORING_TASK_TYPE).append("\"");
+
         // Add criteria filter
         addCriteriaToJQL(jqlBuilder, criteria);
         
         // Add project keys filter
         addProjectKeysToJQL(jqlBuilder, projectKeys);
+
+        // Add author filter
+        addAuthorToJQL(jqlBuilder, author);
         
         // Add status filter with special handling for review statuses
         addStatusFilterToJQL(jqlBuilder, statuses);
         
-        // Add author filter
-        addAuthorToJQL(jqlBuilder, author);
-        
+
         return jqlBuilder.toString();
     }
 
@@ -405,6 +405,7 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
      */
     private void addStatusFilterToJQL(StringBuilder jqlBuilder, Set<String> statuses) {
         if (CollectionUtils.isEmpty(statuses)) {
+            jqlBuilder.append(" AND status != \"").append(TaskStatus.DELETED.getLabel()).append("\"");
             return;
         }
 
@@ -413,7 +414,7 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
         
         String statusClause = buildStatusClause(statusesCopy);
         if (StringUtils.isNotEmpty(statusClause)) {
-            jqlBuilder.append(" AND ").append(statusClause);
+            jqlBuilder.append(" AND (").append(statusClause).append(")");
         }
     }
 
