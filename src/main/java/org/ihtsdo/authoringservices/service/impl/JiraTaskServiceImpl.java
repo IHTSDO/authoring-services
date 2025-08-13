@@ -59,6 +59,7 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
     private static final String EXCLUDE_STATUSES = " AND (status != \"" + TaskStatus.COMPLETED.getLabel()
             + "\" AND status != \"" + TaskStatus.DELETED.getLabel() + "\") ";
     private static final String OR_STATUS_CLAUSE = "\" OR status = \"";
+    private static final String STATUS_IN_CLAUSE = "status in";
 
     @Autowired
     private BranchService branchService;
@@ -313,44 +314,204 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
 
     }
 
-    /**
-     * Search issues based on Jira Summary or ID field
-     */
     @Override
     public List<AuthoringTask> searchTasks(String criteria, Set<String> projectKeys, Set<String> statuses, String author, Boolean lightweight) throws BusinessServiceException {
-        if (StringUtils.isEmpty(criteria) && CollectionUtils.isEmpty(projectKeys) && CollectionUtils.isEmpty(statuses) && StringUtils.isEmpty(author)) {
+        // Early return if no search criteria provided
+        if (isEmptySearchCriteria(criteria, projectKeys, statuses, author)) {
             return Collections.emptyList();
         }
 
-        StringBuilder jqlBuilder = new StringBuilder();
-        jqlBuilder.append("type = \"").append(AUTHORING_TASK_TYPE).append("\"").append(" AND status != \"").append(TaskStatus.DELETED.getLabel()).append("\"");
-        if (!StringUtils.isEmpty(criteria)) {
-            String[] arrayStr = criteria.split("-");
-            boolean isJiraId = arrayStr.length == 2 && NumberUtils.isNumber(arrayStr[1]);
-            jqlBuilder.append(isJiraId ? " AND id = \"" + criteria + "\"" : " AND summary ~ \"" + criteria + "\"");
-        }
-        if (!CollectionUtils.isEmpty(projectKeys)) {
-            jqlBuilder.append(" AND project in (").append(projectKeys.stream()
-                    .map(s -> "\"" + s + "\"")
-                    .collect(Collectors.joining(","))).append(")");
-        }
-        if (!CollectionUtils.isEmpty(statuses)) {
-            jqlBuilder.append(" AND status in (").append(statuses.stream()
-                    .map(s -> "\"" + s + "\"")
-                    .collect(Collectors.joining(","))).append(")");
-        }
-        if (!StringUtils.isEmpty(author)) {
-            jqlBuilder.append(" AND assignee = \"").append(author).append("\"");
-        }
-
-        List<Issue> issues;
-        try {
-            issues = searchIssues(jqlBuilder.toString(), LIMIT_UNLIMITED, myTasksRequiredFields);
-        } catch (Exception exception) {
-            logger.error("Failed to search tasks", exception);
-            return Collections.emptyList();
-        }
+        String jql = buildSearchJQL(criteria, projectKeys, statuses, author);
+        
+        List<Issue> issues = executeJiraSearch(jql);
         return buildAuthoringTasks(issues, lightweight != null && lightweight);
+    }
+
+    /**
+     * Checks if all search criteria are empty
+     */
+    private boolean isEmptySearchCriteria(String criteria, Set<String> projectKeys, Set<String> statuses, String author) {
+        return StringUtils.isEmpty(criteria) && 
+               CollectionUtils.isEmpty(projectKeys) && 
+               CollectionUtils.isEmpty(statuses) && 
+               StringUtils.isEmpty(author);
+    }
+
+    /**
+     * Builds the JQL query for searching tasks
+     */
+    private String buildSearchJQL(String criteria, Set<String> projectKeys, Set<String> statuses, String author) {
+        StringBuilder jqlBuilder = new StringBuilder();
+        
+        // Base JQL with task type and exclude deleted status
+        jqlBuilder.append("type = \"").append(AUTHORING_TASK_TYPE).append("\"")
+                  .append(" AND status != \"").append(TaskStatus.DELETED.getLabel()).append("\"");
+        
+        // Add criteria filter
+        addCriteriaToJQL(jqlBuilder, criteria);
+        
+        // Add project keys filter
+        addProjectKeysToJQL(jqlBuilder, projectKeys);
+        
+        // Add status filter with special handling for review statuses
+        addStatusFilterToJQL(jqlBuilder, statuses);
+        
+        // Add author filter
+        addAuthorToJQL(jqlBuilder, author);
+        
+        return jqlBuilder.toString();
+    }
+
+    /**
+     * Adds criteria filter to JQL query
+     */
+    private void addCriteriaToJQL(StringBuilder jqlBuilder, String criteria) {
+        if (StringUtils.isEmpty(criteria)) {
+            return;
+        }
+
+        if (isJiraIdFormat(criteria)) {
+            jqlBuilder.append(" AND id = \"").append(criteria).append("\"");
+        } else {
+            jqlBuilder.append(" AND summary ~ \"").append(criteria).append("\"");
+        }
+    }
+
+    /**
+     * Checks if the criteria matches Jira ID format (e.g., "PROJECT-123")
+     */
+    private boolean isJiraIdFormat(String criteria) {
+        String[] parts = criteria.split("-");
+        return parts.length == 2 && NumberUtils.isNumber(parts[1]);
+    }
+
+    /**
+     * Adds project keys filter to JQL query
+     */
+    private void addProjectKeysToJQL(StringBuilder jqlBuilder, Set<String> projectKeys) {
+        if (CollectionUtils.isEmpty(projectKeys)) {
+            return;
+        }
+
+        String projectKeysString = projectKeys.stream()
+                .map(s -> "\"" + s + "\"")
+                .collect(Collectors.joining(","));
+        
+        jqlBuilder.append(" AND project in (").append(projectKeysString).append(")");
+    }
+
+    /**
+     * Adds status filter to JQL query with special handling for review statuses
+     */
+    private void addStatusFilterToJQL(StringBuilder jqlBuilder, Set<String> statuses) {
+        if (CollectionUtils.isEmpty(statuses)) {
+            return;
+        }
+
+        // Create a copy to avoid modifying the input parameter
+        Set<String> statusesCopy = new HashSet<>(statuses);
+        
+        String statusClause = buildStatusClause(statusesCopy);
+        if (StringUtils.isNotEmpty(statusClause)) {
+            jqlBuilder.append(" AND ").append(statusClause);
+        }
+    }
+
+    /**
+     * Builds the status clause with special handling for review statuses
+     */
+    private String buildStatusClause(Set<String> statuses) {
+        boolean readyForReviewStatusFound = statuses.contains(READY_FOR_REVIEW);
+        boolean inReviewStatusFound = statuses.contains(TaskStatus.IN_REVIEW.getLabel());
+        
+        if (readyForReviewStatusFound && inReviewStatusFound) {
+            // Both statuses requested - return all IN_REVIEW tasks
+            statuses.remove(READY_FOR_REVIEW);
+            return buildSimpleStatusClause(statuses);
+        } else if (readyForReviewStatusFound) {
+            // Only "Ready For Review" - return IN_REVIEW tasks with no reviewers
+            statuses.remove(READY_FOR_REVIEW);
+            return buildReadyForReviewStatusClause(statuses);
+        } else if (inReviewStatusFound) {
+            // Only "In Review" - return IN_REVIEW tasks with reviewers
+            statuses.remove(TaskStatus.IN_REVIEW.getLabel());
+            return buildInReviewStatusClause(statuses);
+        } else {
+            // No special review statuses - simple status filter
+            return buildSimpleStatusClause(statuses);
+        }
+    }
+
+    /**
+     * Builds a simple status clause for regular statuses
+     */
+    private String buildSimpleStatusClause(Set<String> statuses) {
+        if (statuses.isEmpty()) {
+            return "";
+        }
+        
+        String statusesString = statuses.stream()
+                .map(s -> "\"" + s + "\"")
+                .collect(Collectors.joining(","));
+        
+        return STATUS_IN_CLAUSE + " (" + statusesString + ")";
+    }
+
+    /**
+     * Builds status clause for "Ready For Review" (IN_REVIEW with no reviewers)
+     */
+    private String buildReadyForReviewStatusClause(Set<String> remainingStatuses) {
+        String readyForReviewQuery = "status = \"In Review\" and Reviewers is EMPTY";
+        
+        if (remainingStatuses.isEmpty()) {
+            return readyForReviewQuery;
+        }
+        
+        String remainingStatusesString = remainingStatuses.stream()
+                .map(s -> "\"" + s + "\"")
+                .collect(Collectors.joining(","));
+        
+        return STATUS_IN_CLAUSE + " (" + remainingStatusesString + ") or (" + readyForReviewQuery + ")";
+    }
+
+    /**
+     * Builds status clause for "In Review" (IN_REVIEW with reviewers)
+     */
+    private String buildInReviewStatusClause(Set<String> remainingStatuses) {
+        String inReviewQuery = "status = \"In Review\" and Reviewers is not EMPTY";
+        
+        if (remainingStatuses.isEmpty()) {
+            return inReviewQuery;
+        }
+        
+        String remainingStatusesString = remainingStatuses.stream()
+                .map(s -> "\"" + s + "\"")
+                .collect(Collectors.joining(","));
+        
+        return STATUS_IN_CLAUSE + " (" + remainingStatusesString + ") or (" + inReviewQuery + ")";
+    }
+
+    /**
+     * Adds author filter to JQL query
+     */
+    private void addAuthorToJQL(StringBuilder jqlBuilder, String author) {
+        if (StringUtils.isEmpty(author)) {
+            return;
+        }
+        
+        jqlBuilder.append(" AND assignee = \"").append(author).append("\"");
+    }
+
+    /**
+     * Executes the Jira search with error handling
+     */
+    private List<Issue> executeJiraSearch(String jql) {
+        try {
+            return searchIssues(jql, LIMIT_UNLIMITED, myTasksRequiredFields);
+        } catch (Exception exception) {
+            logger.error("Failed to search tasks with JQL: {}", jql, exception);
+            return Collections.emptyList();
+        }
     }
 
     @Override

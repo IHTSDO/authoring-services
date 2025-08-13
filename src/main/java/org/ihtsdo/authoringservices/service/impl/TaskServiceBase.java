@@ -27,6 +27,7 @@ public abstract class TaskServiceBase {
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
+    public static final String READY_FOR_REVIEW = "Ready For Review";
     public static final String CRS_JIRA_LABEL = "CRS";
 
     protected static final String TASK_NOT_FOUND_MSG = "Task not found ";

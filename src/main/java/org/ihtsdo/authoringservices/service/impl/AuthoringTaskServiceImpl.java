@@ -343,38 +343,145 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
 
     @Override
     public List<AuthoringTask> searchTasks(String criteria, Set<String> projectKeys, Set<String> statuses, String author, Boolean lightweight) throws BusinessServiceException {
-        if (StringUtils.isEmpty(criteria) && CollectionUtils.isEmpty(projectKeys) && CollectionUtils.isEmpty(statuses) && StringUtils.isEmpty(author)) {
+        // Early return if no search criteria provided
+        if (isEmptySearchCriteria(criteria, projectKeys, statuses, author)) {
             return Collections.emptyList();
         }
+
         QTask qRequest = QTask.task;
-
-        BooleanExpression predicate;
-        if (!CollectionUtils.isEmpty(statuses)) {
-            Set<TaskStatus> requestedStatuses = new HashSet<>();
-            statuses.forEach(item -> requestedStatuses.add(TaskStatus.fromLabel(item)));
-            predicate = qRequest.status.in(requestedStatuses);
-        } else {
-            predicate = qRequest.status.notIn(List.of(TaskStatus.DELETED));
-        }
-        if (!StringUtils.isEmpty(criteria)) {
-            String[] arrayStr = criteria.split("-");
-            boolean isTaskKey = arrayStr.length == 2 && NumberUtils.isNumber(arrayStr[1]);
-            if (isTaskKey) {
-                predicate = predicate.and(qRequest.key.eq(criteria));
-            } else {
-                predicate = predicate.and(qRequest.key.containsIgnoreCase(criteria));
-            }
-        }
-        if (!CollectionUtils.isEmpty(projectKeys)) {
-            predicate = predicate.and(qRequest.project.key.in(projectKeys));
-        }
-
-        if (!StringUtils.isEmpty(author)) {
-            predicate = predicate.and(qRequest.assignee.eq(author));
-        }
-
+        BooleanExpression predicate = buildSearchPredicate(qRequest, criteria, projectKeys, statuses, author);
+        
         Iterable<Task> tasks = taskRepository.findAll(predicate);
         return buildAuthoringTasks(StreamSupport.stream(tasks.spliterator(), false).toList(), lightweight);
+    }
+
+    /**
+     * Checks if all search criteria are empty
+     */
+    private boolean isEmptySearchCriteria(String criteria, Set<String> projectKeys, Set<String> statuses, String author) {
+        return StringUtils.isEmpty(criteria) && 
+               CollectionUtils.isEmpty(projectKeys) && 
+               CollectionUtils.isEmpty(statuses) && 
+               StringUtils.isEmpty(author);
+    }
+
+    /**
+     * Builds the search predicate based on the provided criteria
+     */
+    private BooleanExpression buildSearchPredicate(QTask qRequest, String criteria, Set<String> projectKeys, Set<String> statuses, String author) {
+        BooleanExpression predicate = buildStatusPredicate(qRequest, statuses);
+        
+        predicate = addCriteriaPredicate(predicate, qRequest, criteria);
+        predicate = addProjectKeysPredicate(predicate, qRequest, projectKeys);
+        predicate = addAuthorPredicate(predicate, qRequest, author);
+        
+        return predicate;
+    }
+
+    /**
+     * Builds the status predicate with special handling for review statuses
+     */
+    private BooleanExpression buildStatusPredicate(QTask qRequest, Set<String> statuses) {
+        if (CollectionUtils.isEmpty(statuses)) {
+            return qRequest.status.notIn(List.of(TaskStatus.DELETED));
+        }
+
+        // Create a copy to avoid modifying the input parameter
+        Set<String> statusesCopy = new HashSet<>(statuses);
+        
+        BooleanExpression predicate = buildReviewStatusPredicate(qRequest, statusesCopy);
+        predicate = addRemainingStatusPredicate(predicate, qRequest, statusesCopy);
+        
+        return predicate;
+    }
+
+    /**
+     * Handles special logic for "Ready For Review" and "In Review" statuses
+     */
+    private BooleanExpression buildReviewStatusPredicate(QTask qRequest, Set<String> statuses) {
+        boolean readyForReviewStatusFound = statuses.contains(READY_FOR_REVIEW);
+        boolean inReviewStatusFound = statuses.contains(TaskStatus.IN_REVIEW.getLabel());
+        
+        if (readyForReviewStatusFound && inReviewStatusFound) {
+            // Both statuses requested - return all IN_REVIEW tasks
+            statuses.remove(READY_FOR_REVIEW);
+            statuses.remove(TaskStatus.IN_REVIEW.getLabel());
+            return qRequest.status.eq(TaskStatus.IN_REVIEW);
+        } else if (readyForReviewStatusFound) {
+            // Only "Ready For Review" - return IN_REVIEW tasks with no reviewers
+            statuses.remove(READY_FOR_REVIEW);
+            return qRequest.status.eq(TaskStatus.IN_REVIEW).and(qRequest.reviewers.isEmpty());
+        } else if (inReviewStatusFound) {
+            // Only "In Review" - return IN_REVIEW tasks with reviewers
+            statuses.remove(TaskStatus.IN_REVIEW.getLabel());
+            return qRequest.status.eq(TaskStatus.IN_REVIEW).and(qRequest.reviewers.isNotEmpty());
+        }
+        
+        return null;
+    }
+
+    /**
+     * Adds predicate for remaining statuses after handling review statuses
+     */
+    private BooleanExpression addRemainingStatusPredicate(BooleanExpression existingPredicate, QTask qRequest, Set<String> remainingStatuses) {
+        if (remainingStatuses.isEmpty()) {
+            return existingPredicate;
+        }
+
+        Set<TaskStatus> requestedStatuses = remainingStatuses.stream()
+                .map(TaskStatus::fromLabel)
+                .collect(Collectors.toSet());
+        
+        BooleanExpression statusPredicate = qRequest.status.in(requestedStatuses);
+        
+        return existingPredicate != null ? existingPredicate.or(statusPredicate) : statusPredicate;
+    }
+
+    /**
+     * Adds criteria predicate for task key search
+     */
+    private BooleanExpression addCriteriaPredicate(BooleanExpression existingPredicate, QTask qRequest, String criteria) {
+        if (StringUtils.isEmpty(criteria)) {
+            return existingPredicate;
+        }
+
+        BooleanExpression criteriaPredicate = isTaskKeyFormat(criteria) 
+            ? qRequest.key.eq(criteria) 
+            : qRequest.key.containsIgnoreCase(criteria);
+        
+        return existingPredicate != null ? existingPredicate.and(criteriaPredicate) : criteriaPredicate;
+    }
+
+    /**
+     * Checks if the criteria matches task key format (e.g., "PROJECT-123")
+     */
+    private boolean isTaskKeyFormat(String criteria) {
+        String[] parts = criteria.split("-");
+        return parts.length == 2 && NumberUtils.isNumber(parts[1]);
+    }
+
+    /**
+     * Adds project keys predicate
+     */
+    private BooleanExpression addProjectKeysPredicate(BooleanExpression existingPredicate, QTask qRequest, Set<String> projectKeys) {
+        if (CollectionUtils.isEmpty(projectKeys)) {
+            return existingPredicate;
+        }
+
+        BooleanExpression projectPredicate = qRequest.project.key.in(projectKeys);
+        return existingPredicate != null ? existingPredicate.and(projectPredicate) : projectPredicate;
+    }
+
+    /**
+     * Adds author predicate
+     */
+    private BooleanExpression addAuthorPredicate(BooleanExpression existingPredicate, QTask qRequest, String author) {
+        if (StringUtils.isEmpty(author)) {
+            return existingPredicate;
+        }
+
+        BooleanExpression authorPredicate = qRequest.assignee.eq(author);
+        return existingPredicate != null ? existingPredicate.and(authorPredicate) : authorPredicate;
     }
 
     @Override
