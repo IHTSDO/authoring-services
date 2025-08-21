@@ -9,7 +9,6 @@ import jakarta.transaction.Transactional;
 import org.apache.activemq.command.ActiveMQQueue;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.math.NumberUtils;
-import org.ihtsdo.authoringservices.domain.Branch;
 import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.entity.*;
 import org.ihtsdo.authoringservices.repository.ProjectRepository;
@@ -748,7 +747,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
 
         // Fetch the extra statuses for tasks that are not new and have a branch
         if (authoringTask.getStatus() != TaskStatus.NEW) {
-            Branch branch = branchService.getBranchOrNull(authoringTask.getBranchPath());
+            org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch branch = branchService.getBranchOrNull(authoringTask.getBranchPath());
             timer.checkpoint("Recovered branch state");
             if (branch != null) {
                 authoringTask.setBranchState(branch.getState());

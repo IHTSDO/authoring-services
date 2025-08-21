@@ -1,14 +1,18 @@
 package org.ihtsdo.authoringservices.service;
 
-import org.ihtsdo.authoringservices.domain.Branch;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 public class BranchServiceCache {
@@ -20,11 +24,10 @@ public class BranchServiceCache {
         this.snowstormRestClientFactory = snowstormRestClientFactory;
     }
 
-    // Temporary disable caching
-    // @Cacheable(value = "branchCache", key = "#branchPath", sync = true)
+    @Cacheable(value = "branchCache", key = "#branchPath", sync = true)
     public Branch getBranchOrNull(String branchPath) throws ServiceException {
         try {
-            return toBranch(snowstormRestClientFactory.getClient().getBranch(branchPath));
+            return toNewBranch(snowstormRestClientFactory.getClient().getBranch(branchPath));
         } catch (RestClientException e) {
             throw new ServiceException("Failed to fetch branch " + branchPath, e);
         }
@@ -35,7 +38,7 @@ public class BranchServiceCache {
         logger.debug("Cleared Branch cache for branch {}.", branchPath);
     }
 
-    private Branch toBranch(org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch snowstormBranch) {
+    private Branch toNewBranch(Branch snowstormBranch) {
         if (snowstormBranch == null) return null;
         Branch branch = new Branch();
         branch.setName(snowstormBranch.getName());
@@ -44,9 +47,12 @@ public class BranchServiceCache {
         branch.setDeleted(snowstormBranch.isDeleted());
         branch.setBaseTimestamp(snowstormBranch.getBaseTimestamp());
         branch.setHeadTimestamp(snowstormBranch.getHeadTimestamp());
-        branch.setMetadata(snowstormBranch.getMetadata());
         branch.setUserRoles(snowstormBranch.getUserRoles());
         branch.setGlobalUserRoles(snowstormBranch.getGlobalUserRoles());
+        if (snowstormBranch.getMetadata() != null) {
+            Map<String, Object> metadata = new HashMap<>(snowstormBranch.getMetadata());
+            branch.setMetadata(metadata);
+        }
 
         return branch;
     }
