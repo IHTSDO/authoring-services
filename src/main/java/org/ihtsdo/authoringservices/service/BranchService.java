@@ -22,6 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -190,7 +191,7 @@ public class BranchService {
         List<String> stackPaths = getBranchPathStack(path);
         for (String stackPath : stackPaths) {
             final Branch branch = getBranchOrNull(stackPath);
-            final Map<String, Object> metadata = branch.getMetadata();
+            final Map<String, Object> metadata = branch.getMetadata() != null ? new HashMap<>(branch.getMetadata()) : new HashMap<>();
             if (mergedMetadata == null) {
                 mergedMetadata = metadata;
             } else {

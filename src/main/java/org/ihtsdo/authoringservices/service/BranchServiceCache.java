@@ -11,10 +11,6 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
 @Service
 public class BranchServiceCache {
 
@@ -28,7 +24,7 @@ public class BranchServiceCache {
     @Cacheable(value = "branchCache", key = "#branchPath", sync = true)
     public Branch getBranchOrNull(String branchPath) throws ServiceException {
         try {
-            return toNewBranch(snowstormRestClientFactory.getClient().getBranch(branchPath));
+            return snowstormRestClientFactory.getClient().getBranch(branchPath);
         } catch (RestClientException e) {
             throw new ServiceException("Failed to fetch branch " + branchPath, e);
         }
@@ -37,24 +33,5 @@ public class BranchServiceCache {
     @CacheEvict(value = "branchCache", key = "#branchPath")
     public void evictBranchCache(String branchPath) {
         logger.debug("Cleared Branch cache for branch {}.", branchPath);
-    }
-
-    private Branch toNewBranch(Branch snowstormBranch) {
-        if (snowstormBranch == null) return null;
-        Branch branch = new Branch();
-        branch.setName(snowstormBranch.getName());
-        branch.setPath(snowstormBranch.getPath());
-        branch.setState(snowstormBranch.getState());
-        branch.setDeleted(snowstormBranch.isDeleted());
-        branch.setBaseTimestamp(snowstormBranch.getBaseTimestamp());
-        branch.setHeadTimestamp(snowstormBranch.getHeadTimestamp());
-        branch.setUserRoles(snowstormBranch.getUserRoles());
-        branch.setGlobalUserRoles(snowstormBranch.getGlobalUserRoles());
-        Map<String, Object> metadata = new ConcurrentHashMap<>();
-        if (snowstormBranch.getMetadata() != null) {
-            metadata.putAll(snowstormBranch.getMetadata());
-        }
-        branch.setMetadata(metadata);
-        return branch;
     }
 }
