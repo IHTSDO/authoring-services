@@ -7,7 +7,7 @@ import org.ihtsdo.authoringservices.domain.User;
 import org.ihtsdo.authoringservices.entity.QRMPTask;
 import org.ihtsdo.authoringservices.entity.RMPTask;
 import org.ihtsdo.authoringservices.repository.RMPTaskRepository;
-import org.ihtsdo.authoringservices.service.client.IMSClientFactory;
+
 import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
 import org.ihtsdo.sso.integration.SecurityUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,13 +29,13 @@ public class RMPTaskService {
 
     private final EmailService emailService;
 
-    private final IMSClientFactory imsClientFactory;
+    private final UserCacheService userCacheService;
 
     @Autowired
-    public RMPTaskService(RMPTaskRepository rmpTaskRepository, EmailService emailService, IMSClientFactory imsClientFactory) {
+    public RMPTaskService(RMPTaskRepository rmpTaskRepository, EmailService emailService, UserCacheService userCacheService) {
         this.rmpTaskRepository = rmpTaskRepository;
         this.emailService = emailService;
-        this.imsClientFactory = imsClientFactory;
+        this.userCacheService = userCacheService;
     }
 
     public Page<RMPTask> findTasks(String country, String reporter, Pageable pageable) {
@@ -191,10 +191,16 @@ public class RMPTaskService {
         String currentUser = SecurityUtil.getUsername();
         Collection<User> recipients = new ArrayList<>();
         if (task.getAssignee() != null && !currentUser.equals(task.getAssignee())) {
-            recipients.add(imsClientFactory.getClient().getUserDetails(task.getAssignee()));
+            User assignee = userCacheService.getUser(task.getAssignee());
+            if (assignee != null) {
+                recipients.add(assignee);
+            }
         }
         if (task.getReporter() != null && !currentUser.equals(task.getReporter())) {
-            recipients.add(imsClientFactory.getClient().getUserDetails(task.getReporter()));
+            User reporter = userCacheService.getUser(task.getReporter());
+            if (reporter != null) {
+                recipients.add(reporter);
+            }
         }
         emailService.sendRMPTaskStatusChangeNotification(task.getId(), task.getSummary(), newStatus, recipients);
     }

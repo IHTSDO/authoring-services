@@ -17,7 +17,7 @@ import org.ihtsdo.authoringservices.repository.TaskSequenceRepository;
 import org.ihtsdo.authoringservices.service.*;
 import org.ihtsdo.authoringservices.service.client.ContentRequestServiceClient;
 import org.ihtsdo.authoringservices.service.client.ContentRequestServiceClientFactory;
-import org.ihtsdo.authoringservices.service.client.IMSClientFactory;
+
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.authoringservices.service.util.TimerUtil;
 import org.ihtsdo.otf.jms.MessagingHelper;
@@ -35,8 +35,6 @@ import org.slf4j.event.Level;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.util.CollectionUtils;
-import org.springframework.web.client.RestClientResponseException;
-import software.amazon.awssdk.http.HttpStatusCode;
 
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -80,10 +78,10 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
     private ReviewService reviewService;
 
     @Autowired
-    private PermissionService permissionService;
+    private UserCacheService userCacheService;
 
     @Autowired
-    private IMSClientFactory imsClientFactory;
+    private PermissionService permissionService;
 
     @Autowired
     private ContentRequestServiceClientFactory contentRequestServiceClientFactory;
@@ -550,16 +548,8 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
 
     @Override
     public User getUser(String username) {
-        try {
-            return imsClientFactory.getClient().getUserDetails(username);
-        } catch (RestClientResponseException e) {
-            if (HttpStatusCode.NOT_FOUND == e.getStatusCode().value()) {
-                User user = new User();
-                user.setUsername(username);
-                return user;
-            }
-            throw e;
-        }
+        // Delegate to UserCacheService for caching
+        return userCacheService.getUser(username);
     }
 
     @Override
@@ -701,11 +691,37 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         if (collection.isEmpty()) return Collections.emptyList();
 
         final TimerUtil timer = new TimerUtil("BuildTaskList", Level.DEBUG);
+        @SuppressWarnings("unchecked")
         List<Task> tasks = (List<Task>) collection;
         List<AuthoringTask> allTasks = new ArrayList<>();
         try {
             // Map of task paths to tasks
             Map<String, AuthoringTask> startedTasks = new HashMap<>();
+
+            // Collect all unique usernames for batch loading
+            Set<String> allUsernames = new HashSet<>();
+            for (Task task : tasks) {
+                if (org.springframework.util.StringUtils.hasLength(task.getAssignee())) {
+                    allUsernames.add(task.getAssignee());
+                }
+                if (org.springframework.util.StringUtils.hasLength(task.getReporter())) {
+                    allUsernames.add(task.getReporter());
+                }
+                if (task.getReviewers() != null) {
+                    for (TaskReviewer reviewer : task.getReviewers()) {
+                        if (org.springframework.util.StringUtils.hasLength(reviewer.getUsername())) {
+                            allUsernames.add(reviewer.getUsername());
+                        }
+                    }
+                }
+            }
+
+            // Preload all users into cache
+            if (!allUsernames.isEmpty()) {
+                timer.checkpoint("Collected " + allUsernames.size() + " unique usernames");
+                userCacheService.preloadUsers(allUsernames);
+                timer.checkpoint("Preloaded users into cache");
+            }
 
             for (Task task : tasks) {
                 buildAuthoringTask(lightweight, task, allTasks, codeSystems, timer, startedTasks);
@@ -771,15 +787,18 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
 
     private void joinTaskUsers(Task task, AuthoringTask authoringTask) {
         if (org.springframework.util.StringUtils.hasLength(task.getAssignee())) {
-            authoringTask.setAssignee(getUser(task.getAssignee()));
+            authoringTask.setAssignee(userCacheService.getUser(task.getAssignee()));
         }
         if (org.springframework.util.StringUtils.hasLength(task.getReporter())) {
-            authoringTask.setReporter(getUser(task.getReporter()));
+            authoringTask.setReporter(userCacheService.getUser(task.getReporter()));
         }
         if (task.getReviewers() != null) {
             List<User> reviewers = new ArrayList<>();
             for (TaskReviewer reviewer : task.getReviewers()) {
-                reviewers.add(getUser(reviewer.getUsername()));
+                User user = userCacheService.getUser(reviewer.getUsername());
+                if (user != null) {
+                    reviewers.add(user);
+                }
             }
             authoringTask.setReviewers(reviewers);
         }

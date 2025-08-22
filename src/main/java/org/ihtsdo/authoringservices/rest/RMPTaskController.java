@@ -8,7 +8,8 @@ import org.ihtsdo.authoringservices.entity.RMPTask;
 import org.ihtsdo.authoringservices.service.CommentService;
 import org.ihtsdo.authoringservices.service.EmailService;
 import org.ihtsdo.authoringservices.service.RMPTaskService;
-import org.ihtsdo.authoringservices.service.client.IMSClientFactory;
+import org.ihtsdo.authoringservices.service.UserCacheService;
+
 import org.ihtsdo.sso.integration.SecurityUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -32,14 +33,14 @@ public class RMPTaskController {
 
     private final EmailService emailService;
 
-    private final IMSClientFactory imsClientFactory;
+    private final UserCacheService userCacheService;
 
     @Autowired
-    public RMPTaskController(RMPTaskService rmpTaskService, CommentService commentService, EmailService emailService, IMSClientFactory imsClientFactory) {
+    public RMPTaskController(RMPTaskService rmpTaskService, CommentService commentService, EmailService emailService, UserCacheService userCacheService) {
         this.rmpTaskService = rmpTaskService;
         this.commentService = commentService;
         this.emailService = emailService;
-        this.imsClientFactory = imsClientFactory;
+        this.userCacheService = userCacheService;
     }
 
     @GetMapping
@@ -128,10 +129,16 @@ public class RMPTaskController {
         String currentUser = SecurityUtil.getUsername();
         Collection<User> recipients = new ArrayList<>();
         if (StringUtils.hasLength(rmpTask.getAssignee()) && !currentUser.equals(rmpTask.getAssignee())) {
-            recipients.add(imsClientFactory.getClient().getUserDetails(rmpTask.getAssignee()));
+            User assignee = userCacheService.getUser(rmpTask.getAssignee());
+            if (assignee != null) {
+                recipients.add(assignee);
+            }
         }
         if (StringUtils.hasLength(rmpTask.getReporter()) && !currentUser.equals(rmpTask.getReporter())) {
-            recipients.add(imsClientFactory.getClient().getUserDetails(rmpTask.getReporter()));
+            User reporter = userCacheService.getUser(rmpTask.getReporter());
+            if (reporter != null) {
+                recipients.add(reporter);
+            }
         }
         this.emailService.sendRMPTaskCommentAddNotification(rmpTask.getId(), rmpTask.getSummary(), comment.getBody(), recipients);
     }
