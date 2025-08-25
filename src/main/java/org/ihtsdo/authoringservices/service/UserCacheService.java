@@ -2,16 +2,14 @@ package org.ihtsdo.authoringservices.service;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import jakarta.annotation.PostConstruct;
 import org.ihtsdo.authoringservices.domain.User;
 import org.ihtsdo.authoringservices.service.client.IMSClientFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClientResponseException;
 
-import jakarta.annotation.PostConstruct;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -196,15 +194,6 @@ public class UserCacheService {
     private User fetchUserFromIMS(String username) {
         try {
             return imsClientFactory.getClient().getUserDetails(username);
-        } catch (RestClientResponseException e) {
-            if (HttpStatusCode.valueOf(404).equals(e.getStatusCode())) {
-                logger.warn("User '{}' not found in IMS, returning minimal user object", username);
-                User user = new User();
-                user.setUsername(username);
-                return user;
-            }
-            logger.error("Error fetching user '{}' from IMS: {}", username, e.getMessage());
-            throw e;
         } catch (Exception e) {
             logger.error("Unexpected error fetching user '{}' from IMS: {}", username, e.getMessage(), e);
             // Return minimal user object as fallback

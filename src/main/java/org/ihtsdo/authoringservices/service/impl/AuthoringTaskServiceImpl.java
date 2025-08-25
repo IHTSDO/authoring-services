@@ -698,30 +698,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
             // Map of task paths to tasks
             Map<String, AuthoringTask> startedTasks = new HashMap<>();
 
-            // Collect all unique usernames for batch loading
-            Set<String> allUsernames = new HashSet<>();
-            for (Task task : tasks) {
-                if (org.springframework.util.StringUtils.hasLength(task.getAssignee())) {
-                    allUsernames.add(task.getAssignee());
-                }
-                if (org.springframework.util.StringUtils.hasLength(task.getReporter())) {
-                    allUsernames.add(task.getReporter());
-                }
-                if (task.getReviewers() != null) {
-                    for (TaskReviewer reviewer : task.getReviewers()) {
-                        if (org.springframework.util.StringUtils.hasLength(reviewer.getUsername())) {
-                            allUsernames.add(reviewer.getUsername());
-                        }
-                    }
-                }
-            }
-
-            // Preload all users into cache
-            if (!allUsernames.isEmpty()) {
-                timer.checkpoint("Collected " + allUsernames.size() + " unique usernames");
-                userCacheService.preloadUsers(allUsernames);
-                timer.checkpoint("Preloaded users into cache");
-            }
+            preloadUsers(tasks, timer);
 
             for (Task task : tasks) {
                 buildAuthoringTask(lightweight, task, allTasks, codeSystems, timer, startedTasks);
@@ -736,6 +713,33 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
             throw new BusinessServiceException("Failed to retrieve task list.", e);
         }
         return allTasks;
+    }
+
+    private void preloadUsers(List<Task> tasks, TimerUtil timer) {
+        // Collect all unique usernames for batch loading
+        Set<String> allUsernames = new HashSet<>();
+        for (Task task : tasks) {
+            if (org.springframework.util.StringUtils.hasLength(task.getAssignee())) {
+                allUsernames.add(task.getAssignee());
+            }
+            if (org.springframework.util.StringUtils.hasLength(task.getReporter())) {
+                allUsernames.add(task.getReporter());
+            }
+            if (task.getReviewers() != null) {
+                for (TaskReviewer reviewer : task.getReviewers()) {
+                    if (org.springframework.util.StringUtils.hasLength(reviewer.getUsername())) {
+                        allUsernames.add(reviewer.getUsername());
+                    }
+                }
+            }
+        }
+
+        // Preload all users into cache
+        if (!allUsernames.isEmpty()) {
+            timer.checkpoint("Collected " + allUsernames.size() + " unique usernames");
+            userCacheService.preloadUsers(allUsernames);
+            timer.checkpoint("Preloaded users into cache");
+        }
     }
 
     private void buildAuthoringTask(Boolean lightweight, Task task, List<AuthoringTask> allTasks, List<CodeSystem> codeSystems, TimerUtil timer, Map<String, AuthoringTask> startedTasks) throws ServiceException, RestClientException {

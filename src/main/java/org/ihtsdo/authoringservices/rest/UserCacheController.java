@@ -3,11 +3,13 @@ package org.ihtsdo.authoringservices.rest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.ihtsdo.authoringservices.service.UserCacheService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
@@ -20,8 +22,11 @@ import java.util.Map;
 @RequestMapping(value = "/admin/user-cache", produces = {MediaType.APPLICATION_JSON_VALUE})
 public class UserCacheController {
 
-    @Autowired
-    private UserCacheService userCacheService;
+    private final UserCacheService userCacheService;
+
+    public UserCacheController(UserCacheService userCacheService) {
+        this.userCacheService = userCacheService;
+    }
 
     @Operation(summary = "Get user cache statistics")
     @PreAuthorize("hasPermission('ADMIN', 'global')")
