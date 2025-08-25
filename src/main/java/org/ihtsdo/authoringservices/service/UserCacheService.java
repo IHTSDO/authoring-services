@@ -6,7 +6,6 @@ import org.ihtsdo.authoringservices.domain.User;
 import org.ihtsdo.authoringservices.service.client.IMSClientFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
@@ -24,10 +23,9 @@ import java.util.stream.Collectors;
 @Service
 public class UserCacheService {
 
-    private static final Logger logger = LoggerFactory.getLogger(UserCacheService.class);
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    @Autowired
-    private IMSClientFactory imsClientFactory;
+    private final IMSClientFactory imsClientFactory;
 
     @Value("${user.cache.expiry.minutes:30}")
     private int cacheExpiryMinutes;
@@ -35,10 +33,9 @@ public class UserCacheService {
     @Value("${user.cache.maximum.size:1000}")
     private int cacheMaximumSize;
 
-    @Value("${user.cache.batch.enabled:true}")
-    private boolean batchLoadingEnabled;
-
     private Cache<String, User> userCache;
+
+    private Cache<String, List<User>> userGroupCache;
 
     @PostConstruct
     public void init() {
@@ -47,9 +44,19 @@ public class UserCacheService {
                 .maximumSize(cacheMaximumSize)
                 .recordStats()
                 .build();
+
+        this.userGroupCache = CacheBuilder.newBuilder()
+                .expireAfterWrite(cacheExpiryMinutes, TimeUnit.MINUTES)
+                .maximumSize(cacheMaximumSize)
+                .recordStats()
+                .build();
         
-        logger.info("UserCacheService initialized with {} minute expiry, max size {}, batch loading {}", 
-                cacheExpiryMinutes, cacheMaximumSize, batchLoadingEnabled);
+        logger.info("UserCacheService initialized with {} minute expiry, max size {}",
+                cacheExpiryMinutes, cacheMaximumSize);
+    }
+
+    public UserCacheService(IMSClientFactory imsClientFactory) {
+        this.imsClientFactory = imsClientFactory;
     }
 
     /**
@@ -79,16 +86,11 @@ public class UserCacheService {
     }
 
     /**
-     * Get multiple users efficiently. Uses cache first, then batch loads missing users from IMS.
-     * 
+     * Load multiple users efficiently. Uses cache first, then loads missing users from IMS.
+     *
      * @param usernames Collection of usernames to look up
-     * @return Map of username to User object
      */
-    public Map<String, User> getUsers(Collection<String> usernames) {
-        if (usernames == null || usernames.isEmpty()) {
-            return Collections.emptyMap();
-        }
-
+    public void loadUsers(Collection<String> usernames) {
         // Normalize and deduplicate usernames
         Set<String> normalizedUsernames = usernames.stream()
                 .filter(Objects::nonNull)
@@ -97,7 +99,7 @@ public class UserCacheService {
                 .collect(Collectors.toSet());
 
         if (normalizedUsernames.isEmpty()) {
-            return Collections.emptyMap();
+            return;
         }
 
         Map<String, User> result = new HashMap<>();
@@ -117,28 +119,17 @@ public class UserCacheService {
         // Fetch uncached users
         if (!uncachedUsernames.isEmpty()) {
             logger.debug("Fetching {} uncached users from IMS: {}", uncachedUsernames.size(), uncachedUsernames);
-            
-            if (batchLoadingEnabled && uncachedUsernames.size() > 1) {
-                // Batch load uncached users
-                Map<String, User> fetchedUsers = batchFetchUsersFromIMS(uncachedUsernames);
-                result.putAll(fetchedUsers);
-                
-                // Cache the fetched users
-                fetchedUsers.forEach((username, user) -> userCache.put(username, user));
-            } else {
-                // Individual fetch for each uncached user
-                for (String username : uncachedUsernames) {
-                    User user = fetchUserFromIMS(username);
-                    result.put(username, user);
-                    userCache.put(username, user);
-                }
+            // Individual fetch for each uncached user
+            for (String username : uncachedUsernames) {
+                User user = fetchUserFromIMS(username);
+                result.put(username, user);
+                userCache.put(username, user);
             }
         }
 
         logger.debug("Returning {} users, {} from cache, {} fetched from IMS", 
                 result.size(), normalizedUsernames.size() - uncachedUsernames.size(), uncachedUsernames.size());
 
-        return result;
     }
 
     /**
@@ -152,7 +143,7 @@ public class UserCacheService {
         }
 
         logger.debug("Preloading {} users into cache", usernames.size());
-        getUsers(usernames); // This will populate the cache
+        loadUsers(usernames); // This will populate the cache
     }
 
     /**
@@ -160,6 +151,7 @@ public class UserCacheService {
      */
     public void clearCache() {
         userCache.invalidateAll();
+        userGroupCache.invalidateAll();
         logger.info("User cache cleared");
     }
 
@@ -178,6 +170,24 @@ public class UserCacheService {
         stats.put("loadCount", userCache.stats().loadCount());
         stats.put("averageLoadTimeNanos", userCache.stats().averageLoadPenalty());
         return stats;
+    }
+
+    public List<User> getAllUsersForGroup(String groupName) {
+        List<User> allUsers = userGroupCache.getIfPresent(groupName);
+        if (allUsers == null) {
+            allUsers = new ArrayList<>();
+            doGetUsersForGroup(groupName, 0, allUsers);
+            userGroupCache.put(groupName, allUsers);
+        }
+        return allUsers;
+    }
+
+    private void doGetUsersForGroup(String groupName, int offset, List<User> allUsers) {
+        List<User> users = imsClientFactory.getClient().searchUserByGroupname(groupName, offset, 1000);
+        allUsers.addAll(users.stream().filter(User::isActive).toList());
+        if (users.size() == 1000) {
+            doGetUsersForGroup(groupName, offset + 1000, allUsers);
+        }
     }
 
     /**
@@ -202,37 +212,5 @@ public class UserCacheService {
             user.setUsername(username);
             return user;
         }
-    }
-
-    /**
-     * Batch fetch multiple users from IMS.
-     * 
-     * Current implementation uses individual IMS calls since the IMS API does not provide
-     * a batch user lookup endpoint. This method optimizes error handling by ensuring
-     * failed lookups don't break the entire batch operation - partial failures return
-     * minimal user objects with just the username populated.
-     * 
-     * If IMS adds batch user lookup support in the future, this method can be updated
-     * to use a single API call instead of individual requests.
-     */
-    private Map<String, User> batchFetchUsersFromIMS(Set<String> usernames) {
-        Map<String, User> result = new HashMap<>();
-        
-        logger.debug("Fetching {} users individually (IMS has no batch endpoint)", usernames.size());
-        
-        for (String username : usernames) {
-            try {
-                User user = fetchUserFromIMS(username);
-                result.put(username, user);
-            } catch (Exception e) {
-                logger.warn("Failed to fetch user '{}' during batch operation: {}", username, e.getMessage());
-                // Still add a minimal user object so callers don't get null
-                User user = new User();
-                user.setUsername(username);
-                result.put(username, user);
-            }
-        }
-        
-        return result;
     }
 }
