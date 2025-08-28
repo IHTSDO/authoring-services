@@ -8,15 +8,21 @@ import org.ihtsdo.authoringservices.domain.JiraUserGroup;
 import org.ihtsdo.authoringservices.domain.User;
 import org.ihtsdo.authoringservices.domain.UserGroupItem;
 import org.ihtsdo.authoringservices.service.UserCacheService;
+import org.ihtsdo.otf.rest.client.ims.IMSRestClient;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.io.IOException;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -28,10 +34,27 @@ public class UserController {
     @Value("${jira.groupName:ihtsdo-sca-author}")
     private String defaultGroupName;
 
+    @Value("${auto.rebase.username}")
+    private String username;
+
+    @Value("${auto.rebase.password}")
+    private String password;
+
+    @Value("${ims.url}")
+    private String imsUrl;
+
     private final UserCacheService userCacheService;
 
     public UserController(UserCacheService userCacheService) {
         this.userCacheService = userCacheService;
+    }
+
+    @Scheduled(cron = "* 0/${user.cache.expiry.minutes} * * * *")
+    public void preloadUsersForDefaultGroup() throws URISyntaxException, IOException {
+        if (StringUtils.hasLength(defaultGroupName)) {
+            loginToIMSAndSetSecurityContext();
+            userCacheService.getAllUsersForGroup(defaultGroupName.trim());
+        }
     }
 
     @GetMapping(value = "/users")
@@ -82,5 +105,12 @@ public class UserController {
         jiraUser.setDisplayName(user.getDisplayName());
         jiraUser.setActive(user.isActive());
         return jiraUser;
+    }
+
+    private void loginToIMSAndSetSecurityContext() throws URISyntaxException, IOException {
+        IMSRestClient imsClient = new IMSRestClient(imsUrl);
+        String token = imsClient.loginForceNewSession(username, password);
+        PreAuthenticatedAuthenticationToken decoratedAuthentication = new PreAuthenticatedAuthenticationToken(username, token);
+        SecurityContextHolder.getContext().setAuthentication(decoratedAuthentication);
     }
 }

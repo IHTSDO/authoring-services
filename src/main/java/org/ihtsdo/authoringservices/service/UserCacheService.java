@@ -177,6 +177,10 @@ public class UserCacheService {
             doGetUsersForGroup(groupName, 0, allUsers);
             userGroupCache.put(groupName, allUsers);
         }
+
+        // Cache all users
+        allUsers.forEach(item -> userCache.put(item.getUsername(), item));
+
         return allUsers;
     }
 
