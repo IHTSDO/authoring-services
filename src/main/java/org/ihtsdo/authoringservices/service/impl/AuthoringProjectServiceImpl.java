@@ -141,6 +141,13 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
         if (updatedProject.isProjectScheduledRebaseDisabled() != null) {
             customFields.put("projectScheduledRebase", !updatedProject.isProjectScheduledRebaseDisabled());
         }
+        project.setCustomFields(customFields);
+        if (updatedProject.getProjectLead() != null) {
+            project.setLead(updatedProject.getProjectLead().getUsername());
+        }
+        if (updatedProject.getTitle() != null) {
+            project.setName(updatedProject.getTitle());
+        }
         projectRepository.save(project);
         return buildAuthoringProjects(List.of(project), false).get(0);
     }
