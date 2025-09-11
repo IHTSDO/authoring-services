@@ -3,6 +3,8 @@ package org.ihtsdo.authoringservices.service;
 
 import org.ihtsdo.authoringservices.domain.AuthoringProject;
 import org.ihtsdo.authoringservices.domain.BranchState;
+import org.ihtsdo.authoringservices.service.factory.ProjectServiceFactory;
+import org.ihtsdo.authoringservices.service.util.ProjectFilterUtil;
 import org.ihtsdo.otf.rest.client.ims.IMSRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
@@ -22,6 +24,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -41,7 +44,7 @@ public class ScheduledRebaseService {
     private String imsUrl;
 
     @Autowired
-    private ProjectService jiraProjectService;
+    private ProjectServiceFactory projectServiceFactory;
 
     @Autowired
     private BranchService branchService;
@@ -64,7 +67,10 @@ public class ScheduledRebaseService {
         try {
             loginToIMSAndSetSecurityContext();
             logger.info("Starting scheduled rebase for all configured projects.");
-            List<AuthoringProject> projects = jiraProjectService.listProjects(false, null, null);
+            List<AuthoringProject> projects = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(false, null, null));
+            List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(false, null, null);
+            ProjectFilterUtil.joinJiraProjectsIfNotExists(jiraProjects, projects);
+
             projects = projects.stream().filter(project -> !Boolean.TRUE.equals(project.isProjectScheduledRebaseDisabled())
                             && !Boolean.TRUE.equals(project.isProjectRebaseDisabled())
                             && !Boolean.TRUE.equals(project.isProjectLocked()))
