@@ -44,15 +44,21 @@ public class CodeSystemService {
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 
 	private static final String CODE_SYSTEM_NOT_FOUND_MSG = "Code system with shortname %s not found";
-
-	private static final String MSSP_JIRA_PROJECT = "MSSP";
-	private static final String INFRA_JIRA_PROJECT = "INFRA";
 	private static final String MANAGED_SERVICE_MAINTAINER_TYPE = "Managed Service";
-	private static final String DEFAULT_ISSUE_TYPE = "Service Request";
+
 	private static final String SHARED = "SHARED";
 	private static final String UPGRADE_JOB_PANEL_ID = "code-system-upgrade-job"; // this panel ID will be persisted by the frontend
 
 	private static final String AUTHORING_FREEZE = "authoringFreeze";
+
+	@Value("${jira.project.issue.type}")
+	private String jiraIssueType;
+
+	@Value("${jira.international.project.key}")
+	private String internationalJiraProjectKey;
+
+	@Value("${jira.managed-service.project.key}")
+	private String managedServiceJiraProjectKey;
 
 	@Value("${email.link.platform.url}")
 	private String platformUrl;
@@ -270,8 +276,8 @@ public class CodeSystemService {
 		Issue jiraIssue;
 
 		try {
-			String project = StringUtils.hasLength(maintainerType) && MANAGED_SERVICE_MAINTAINER_TYPE.equals(maintainerType) ? MSSP_JIRA_PROJECT : INFRA_JIRA_PROJECT;
-			jiraIssue = getJiraClient().createIssue(project, DEFAULT_ISSUE_TYPE)
+			String project = StringUtils.hasLength(maintainerType) && MANAGED_SERVICE_MAINTAINER_TYPE.equals(maintainerType) ? managedServiceJiraProjectKey : internationalJiraProjectKey;
+			jiraIssue = getJiraClient().createIssue(project, jiraIssueType)
 					.field(Field.SUMMARY, "Upgraded " + codeSystemName + " to the new " + newDependantVersion + " International Edition")
 					.field(Field.DESCRIPTION, description)
 					.execute();

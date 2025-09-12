@@ -46,11 +46,14 @@ public class RVFFailureJiraAssociationService {
 	@Value("${rvf.jira.url}")
 	private String jiraUrl;
 
-	private static final String DEFAULT_ISSUE_TYPE = "Service Request";
+	@Value("${jira.project.issue.type}")
+	private String jiraIssueType;
 
-	private static final String DEFAULT_INT_PROJECT = "INFRA";
+	@Value("${jira.international.project.key}")
+	private String internationalJiraProjectKey;
 
-	private static final String DEFAULT_MANAGED_SERVICE_PROJECT = "MSSP";
+	@Value("${jira.managed-service.project.key}")
+	private String managedServiceJiraProjectKey;
 
 	private static final String ENABLE_RVF_TICKET_GENERATION = "enableRvfTicketGeneration";
 
@@ -243,7 +246,7 @@ public class RVFFailureJiraAssociationService {
 	private Issue createJiraIssue(boolean isManagedServiceBranch, String summary, String description) throws BusinessServiceException {
 		Issue jiraIssue;
 		try {
-			jiraIssue = getJiraClient().createIssue(isManagedServiceBranch ? DEFAULT_MANAGED_SERVICE_PROJECT : DEFAULT_INT_PROJECT, DEFAULT_ISSUE_TYPE)
+			jiraIssue = getJiraClient().createIssue(isManagedServiceBranch ? managedServiceJiraProjectKey : internationalJiraProjectKey, jiraIssueType)
 					.field(Field.SUMMARY, summary)
 					.field(Field.DESCRIPTION, description)
 					.execute();
