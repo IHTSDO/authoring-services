@@ -6,7 +6,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import net.rcarz.jiraclient.JiraException;
 import org.ihtsdo.authoringservices.domain.AuthoringCodeSystem;
 import org.ihtsdo.authoringservices.domain.AuthoringProject;
 import org.ihtsdo.authoringservices.domain.ReleaseRequest;
@@ -209,7 +208,7 @@ public class ValidationController {
 	public ResponseEntity<Map<String, Object>> raiseJiraTickets(
 			@PathVariable final String branchPath,
 			@PathVariable final Long reportRunId,
-			@RequestBody String[] assertionIds) throws IOException, BusinessServiceException, JiraException {
+			@RequestBody String[] assertionIds) throws IOException, BusinessServiceException {
 		return new ResponseEntity<>(rvfFailureJiraAssociationService.createFailureJiraAssociations(BranchPathUriUtil.decodePath(branchPath), reportRunId, assertionIds), HttpStatus.CREATED);
 	}
 

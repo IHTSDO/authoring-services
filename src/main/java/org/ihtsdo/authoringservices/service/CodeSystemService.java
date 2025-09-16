@@ -42,8 +42,6 @@ public class CodeSystemService {
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 
 	private static final String CODE_SYSTEM_NOT_FOUND_MSG = "Code system with shortname %s not found";
-	private static final String MANAGED_SERVICE_MAINTAINER_TYPE = "Managed Service";
-
 	private static final String SHARED = "SHARED";
 	private static final String UPGRADE_JOB_PANEL_ID = "code-system-upgrade-job"; // this panel ID will be persisted by the frontend
 

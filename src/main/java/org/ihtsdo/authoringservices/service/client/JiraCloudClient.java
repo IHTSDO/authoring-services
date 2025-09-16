@@ -18,6 +18,8 @@ import java.util.Base64;
  * Simple Jira Cloud REST client for basic operations.
  */
 public class JiraCloudClient {
+    public static final String REST_API_LATEST_ISSUE = "rest/api/latest/issue/";
+    public static final String CONTENT_TYPE = "application/json";
     private final String baseUrl;
     private final String authHeader;
 
@@ -36,10 +38,10 @@ public class JiraCloudClient {
      * Get a Jira issue by key.
      */
     public JSONObject getIssue(String issueKey) throws IOException {
-        String url = baseUrl + "rest/api/latest/issue/" + issueKey;
+        String url = baseUrl + REST_API_LATEST_ISSUE + issueKey;
         HttpGet request = new HttpGet(url);
         request.setHeader(HttpHeaders.AUTHORIZATION, authHeader);
-        request.setHeader(HttpHeaders.ACCEPT, "application/json");
+        request.setHeader(HttpHeaders.ACCEPT, CONTENT_TYPE);
         try (CloseableHttpClient client = HttpClients.createDefault();
              CloseableHttpResponse response = client.execute(request)) {
             String json = EntityUtils.toString(response.getEntity());
@@ -54,8 +56,8 @@ public class JiraCloudClient {
         String url = baseUrl + "rest/api/latest/issue";
         HttpPost request = new HttpPost(url);
         request.setHeader(HttpHeaders.AUTHORIZATION, authHeader);
-        request.setHeader(HttpHeaders.ACCEPT, "application/json");
-        request.setHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+        request.setHeader(HttpHeaders.ACCEPT, CONTENT_TYPE);
+        request.setHeader(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE);
 
         // Construct JSON payload
         JSONObject issueFields = new JSONObject();
@@ -83,11 +85,11 @@ public class JiraCloudClient {
      * @return API response as JsonObject
      */
     public JSONObject updateIssue(String issueKey, JSONObject fields) throws IOException {
-        String url = baseUrl + "rest/api/latest/issue/" + issueKey;
+        String url = baseUrl + REST_API_LATEST_ISSUE + issueKey;
         org.apache.http.client.methods.HttpPut request = new org.apache.http.client.methods.HttpPut(url);
         request.setHeader(HttpHeaders.AUTHORIZATION, authHeader);
-        request.setHeader(HttpHeaders.ACCEPT, "application/json");
-        request.setHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+        request.setHeader(HttpHeaders.ACCEPT, CONTENT_TYPE);
+        request.setHeader(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE);
         JSONObject payload = new JSONObject();
         payload.put("fields", fields);
         request.setEntity(new StringEntity(payload.toString(), StandardCharsets.UTF_8));
@@ -113,10 +115,10 @@ public class JiraCloudClient {
      * @param fileBytes File content as byte array
      */
     public void addAttachment(String issueKey, String fileName, byte[] fileBytes) throws IOException {
-        String url = baseUrl + "rest/api/latest/issue/" + issueKey + "/attachments";
+        String url = baseUrl + REST_API_LATEST_ISSUE + issueKey + "/attachments";
         org.apache.http.client.methods.HttpPost request = new org.apache.http.client.methods.HttpPost(url);
         request.setHeader(HttpHeaders.AUTHORIZATION, authHeader);
-        request.setHeader(HttpHeaders.ACCEPT, "application/json");
+        request.setHeader(HttpHeaders.ACCEPT, CONTENT_TYPE);
         request.setHeader("X-Atlassian-Token", "no-check");
 
         org.apache.http.entity.mime.MultipartEntityBuilder builder = org.apache.http.entity.mime.MultipartEntityBuilder.create();
@@ -129,11 +131,11 @@ public class JiraCloudClient {
     }
 
     public void addWatcher(String issueKey, String accountId) throws IOException {
-        String url = baseUrl + "rest/api/latest/issue/" + issueKey + "/watchers";
+        String url = baseUrl + REST_API_LATEST_ISSUE + issueKey + "/watchers";
         HttpPost request = new HttpPost(url);
         request.setHeader(HttpHeaders.AUTHORIZATION, authHeader);
-        request.setHeader(HttpHeaders.ACCEPT, "application/json");
-        request.setHeader(HttpHeaders.CONTENT_TYPE, "application/json");
+        request.setHeader(HttpHeaders.ACCEPT, CONTENT_TYPE);
+        request.setHeader(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE);
         request.setEntity(new StringEntity("\"" + accountId + "\"", StandardCharsets.UTF_8));
         try (CloseableHttpClient client = HttpClients.createDefault()) {
             client.execute(request);

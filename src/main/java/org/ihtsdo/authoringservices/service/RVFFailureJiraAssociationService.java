@@ -234,25 +234,24 @@ public class RVFFailureJiraAssociationService {
 	}
 
 	private String createJiraIssue(boolean isManagedServiceBranch, String summary, String description) throws BusinessServiceException {
-		JSONObject response;
+		String issueKey;
 		try {
-			response = jiraCloudClient.createIssue(projectKey, summary, description, issueType);
-			logger.info("New INFRA ticket with key {} has been created", response.getString("key"));
+			JSONObject response = jiraCloudClient.createIssue(projectKey, summary, description, issueType);
+			issueKey = response.getString("key");
+			logger.info("New INFRA ticket with key {} has been created", issueKey);
 			if (!isManagedServiceBranch && !watcher.equalsIgnoreCase(getUsername())) {
-				jiraCloudClient.addWatcher(response.getString("key"), watcher);
+				jiraCloudClient.addWatcher(issueKey, watcher);
 			}
 
 			JSONObject issueFields = new JSONObject();
 			issueFields.put(Field.ASSIGNEE, "");
-			jiraCloudClient.updateIssue(response.getString("key"), issueFields);
+			jiraCloudClient.updateIssue(issueKey, issueFields);
 		} catch (IOException e) {
 			throw new BusinessServiceException("Failed to create Jira task. Error: " + (e.getCause() != null ? e.getCause().getMessage() : e.getMessage()), e);
 		}
 
-		return response.get("key").toString();
+		return issueKey;
 	}
-
-
 
 	private boolean isManagedServiceBranch(List<CodeSystem> codeSystems, String branchPath) {
 		for (CodeSystem cs : codeSystems) {
