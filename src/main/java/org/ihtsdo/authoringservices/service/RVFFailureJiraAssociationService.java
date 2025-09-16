@@ -6,15 +6,13 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import net.rcarz.jiraclient.Field;
-import net.rcarz.jiraclient.Issue;
-import net.rcarz.jiraclient.JiraClient;
-import net.rcarz.jiraclient.JiraException;
+import net.sf.json.JSONObject;
 import org.ihtsdo.authoringservices.entity.RVFFailureJiraAssociation;
 import org.ihtsdo.authoringservices.entity.Validation;
 import org.ihtsdo.authoringservices.repository.RVFFailureJiraAssociationRepository;
+import org.ihtsdo.authoringservices.service.client.JiraCloudClient;
 import org.ihtsdo.authoringservices.service.client.RVFClientFactory;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
-import org.ihtsdo.authoringservices.service.jira.ImpersonatingJiraClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch;
@@ -24,7 +22,6 @@ import org.ihtsdo.sso.integration.SecurityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.stereotype.Service;
@@ -43,19 +40,16 @@ public class RVFFailureJiraAssociationService {
 
 	private static final int JIRA_SUMMARY_MAX_LENGTH = 255;
 
-	@Value("${rvf.jira.url}")
-	private String jiraUrl;
+	private static final String ENABLE_RVF_TICKET_GENERATION = "enableRvfTicketGeneration";
+
+	@Value("${jira.cloud.base-url}")
+	private String jiraCloudUrl;
+
+	@Value("${jira.cloud.project-key}")
+	private String projectKey;
 
 	@Value("${jira.project.issue.type}")
-	private String jiraIssueType;
-
-	@Value("${jira.international.project.key}")
-	private String internationalJiraProjectKey;
-
-	@Value("${jira.managed-service.project.key}")
-	private String managedServiceJiraProjectKey;
-
-	private static final String ENABLE_RVF_TICKET_GENERATION = "enableRvfTicketGeneration";
+	private String issueType;
 
 	@Value("${rvf.jira.ticket.watcher}")
 	private String watcher;
@@ -73,17 +67,16 @@ public class RVFFailureJiraAssociationService {
 	private SnowstormRestClientFactory snowstormRestClientFactory;
 
 	@Autowired
-	@Qualifier("validationTicketOAuthJiraClient")
-	private ImpersonatingJiraClientFactory jiraClientFactory;
+	private RVFClientFactory rvfClientFactory;
 
 	@Autowired
-	private RVFClientFactory rvfClientFactory;
+	private JiraCloudClient jiraCloudClient;
 
 	public List<RVFFailureJiraAssociation> findByReportRunId(Long reportRunId) {
 		return repository.findByReportRunId(reportRunId);
 	}
 
-	public Map<String, Object> createFailureJiraAssociations(String branchPath, Long reportRunId, String[] assertionIds) throws BusinessServiceException, IOException, JiraException {
+	public Map<String, Object> createFailureJiraAssociations(String branchPath, Long reportRunId, String[] assertionIds) throws BusinessServiceException, IOException {
 		if (assertionIds.length == 0) {
 			throw new IllegalArgumentException("Assertion IDs must not be empty");
 		}
@@ -121,12 +114,9 @@ public class RVFFailureJiraAssociationService {
 		for (String assertionId : validAssertionIds) {
 			ValidationReport.RvfValidationResult.TestResult.TestRunItem found = assertionsFailed.stream().filter(item -> item.getAssertionUuid() != null && item.getAssertionUuid().equals(assertionId)).findAny().orElse(null);
 			if (found != null) {
-				Issue jiraIssue = createJiraIssue(isManagedServiceBranch, generateSummary(found, productName), generateDescription(found, rvfUrl));
-				Issue.NewAttachment[] attachments = new Issue.NewAttachment[1];
-				attachments[0] = new Issue.NewAttachment(found.getAssertionUuid() + ".json", parsePrettyString(found.toString()).getBytes());
-				jiraIssue.addAttachments(attachments);
-
-				final RVFFailureJiraAssociation association = new RVFFailureJiraAssociation(reportRunId,found.getAssertionUuid(), jiraUrl + "browse/" + jiraIssue.getKey());
+				String issueKey = createJiraIssue(isManagedServiceBranch, generateSummary(found, productName), generateDescription(found, rvfUrl));
+				jiraCloudClient.addAttachment(issueKey, found.getAssertionUuid() + ".json", parsePrettyString(found.toString()).getBytes());
+				final RVFFailureJiraAssociation association = new RVFFailureJiraAssociation(reportRunId,found.getAssertionUuid(), jiraCloudUrl + "browse/" + issueKey);
 				repository.save(association);
 				newAssociations.add(association);
 			} else {
@@ -243,30 +233,26 @@ public class RVFFailureJiraAssociationService {
 		return Collections.emptyList();
 	}
 
-	private Issue createJiraIssue(boolean isManagedServiceBranch, String summary, String description) throws BusinessServiceException {
-		Issue jiraIssue;
+	private String createJiraIssue(boolean isManagedServiceBranch, String summary, String description) throws BusinessServiceException {
+		JSONObject response;
 		try {
-			jiraIssue = getJiraClient().createIssue(isManagedServiceBranch ? managedServiceJiraProjectKey : internationalJiraProjectKey, jiraIssueType)
-					.field(Field.SUMMARY, summary)
-					.field(Field.DESCRIPTION, description)
-					.execute();
-
+			response = jiraCloudClient.createIssue(projectKey, summary, description, issueType);
+			logger.info("New INFRA ticket with key {} has been created", response.getString("key"));
 			if (!isManagedServiceBranch && !watcher.equalsIgnoreCase(getUsername())) {
-				jiraIssue.addWatcher(watcher);
-				jiraIssue.refresh();
+				jiraCloudClient.addWatcher(response.getString("key"), watcher);
 			}
 
-			final Issue.FluentUpdate updateRequest = jiraIssue.update();
-			updateRequest.field(Field.ASSIGNEE, "");
-
-			updateRequest.execute();
-		} catch (JiraException e) {
-			logger.error(e.getMessage());
+			JSONObject issueFields = new JSONObject();
+			issueFields.put(Field.ASSIGNEE, "");
+			jiraCloudClient.updateIssue(response.getString("key"), issueFields);
+		} catch (IOException e) {
 			throw new BusinessServiceException("Failed to create Jira task. Error: " + (e.getCause() != null ? e.getCause().getMessage() : e.getMessage()), e);
 		}
 
-		return jiraIssue;
+		return response.get("key").toString();
 	}
+
+
 
 	private boolean isManagedServiceBranch(List<CodeSystem> codeSystems, String branchPath) {
 		for (CodeSystem cs : codeSystems) {
@@ -297,9 +283,6 @@ public class RVFFailureJiraAssociationService {
 		return report;
 	}
 
-	private JiraClient getJiraClient() {
-		return jiraClientFactory.getImpersonatingInstance(getUsername());
-	}
 
 	private String getUsername() {
 		return SecurityUtil.getUsername();

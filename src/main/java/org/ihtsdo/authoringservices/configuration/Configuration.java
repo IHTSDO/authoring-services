@@ -14,6 +14,7 @@ import jakarta.jms.ConnectionFactory;
 import net.rcarz.jiraclient.JiraException;
 import org.ihtsdo.authoringservices.service.ProjectService;
 import org.ihtsdo.authoringservices.service.TaskService;
+import org.ihtsdo.authoringservices.service.client.JiraCloudClient;
 import org.ihtsdo.authoringservices.service.impl.*;
 import org.ihtsdo.authoringservices.service.jira.ImpersonatingJiraClientFactory;
 import org.ihtsdo.otf.jms.MessagingHelper;
@@ -52,6 +53,11 @@ public abstract class Configuration {
 
 	@Autowired
 	private ConnectionFactory connectionFactory;
+
+	@Bean
+	public JiraCloudClient jiraCloudClient(@Value("${jira.cloud.base-url}") String baseUrl, @Value("${jira.cloud.username}") String email, @Value("${jira.cloud.api-token}") String apiToken) {
+		return new JiraCloudClient(baseUrl, email, apiToken);
+	}
 
 	@Bean
 	@Primary

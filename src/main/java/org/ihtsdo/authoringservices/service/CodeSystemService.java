@@ -1,15 +1,13 @@
 package org.ihtsdo.authoringservices.service;
 
 import net.rcarz.jiraclient.Field;
-import net.rcarz.jiraclient.Issue;
-import net.rcarz.jiraclient.JiraClient;
-import net.rcarz.jiraclient.JiraException;
+import net.sf.json.JSONObject;
 import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.entity.Validation;
+import org.ihtsdo.authoringservices.service.client.JiraCloudClient;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.authoringservices.service.factory.ProjectServiceFactory;
 import org.ihtsdo.authoringservices.service.factory.TaskServiceFactory;
-import org.ihtsdo.authoringservices.service.jira.ImpersonatingJiraClientFactory;
 import org.ihtsdo.authoringservices.service.util.ProjectFilterUtil;
 import org.ihtsdo.otf.RF2Constants;
 import org.ihtsdo.otf.rest.client.RestClientException;
@@ -22,7 +20,6 @@ import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -31,6 +28,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.*;
@@ -54,11 +52,8 @@ public class CodeSystemService {
 	@Value("${jira.project.issue.type}")
 	private String jiraIssueType;
 
-	@Value("${jira.international.project.key}")
-	private String internationalJiraProjectKey;
-
-	@Value("${jira.managed-service.project.key}")
-	private String managedServiceJiraProjectKey;
+	@Value("${jira.cloud.project-key}")
+	private String projectKey;
 
 	@Value("${email.link.platform.url}")
 	private String platformUrl;
@@ -88,8 +83,7 @@ public class CodeSystemService {
 	private RebaseService rebaseService;
 
 	@Autowired
-	@Qualifier("validationTicketOAuthJiraClient")
-	private ImpersonatingJiraClientFactory jiraClientFactory;
+	private JiraCloudClient jiraCloudClient;
 
 	public AuthoringCodeSystem findOne(String shortname) throws BusinessServiceException, RestClientException {
 		CodeSystem codeSystem = snowstormRestClientFactory.getClient().getCodeSystem(shortname);
@@ -212,7 +206,7 @@ public class CodeSystemService {
 					}
 
 					// Raise an JIRA ticket for SI to update the daily build
-					createJiraIssue(codeSystem.getName().replace("Edition","Extension"), codeSystem.getMaintainerType(), newDependantVersionISOFormat, generateDescription(codeSystem, codeSystemUpgradeJob, newDependantVersionISOFormat));
+					createJiraIssue(codeSystem.getName().replace("Edition","Extension"), newDependantVersionISOFormat, generateDescription(codeSystem, codeSystemUpgradeJob, newDependantVersionISOFormat));
 				}
 
 				deleteUpgradeJobPanelState(codeSystemShortname);
@@ -272,27 +266,18 @@ public class CodeSystemService {
 		return merge;
 	}
 
-	private Issue createJiraIssue(String codeSystemName, String maintainerType, String newDependantVersion, String description) throws BusinessServiceException {
-		Issue jiraIssue;
-
+	private void createJiraIssue(String codeSystemName, String newDependantVersion, String description) throws BusinessServiceException {
 		try {
-			String project = StringUtils.hasLength(maintainerType) && MANAGED_SERVICE_MAINTAINER_TYPE.equals(maintainerType) ? managedServiceJiraProjectKey : internationalJiraProjectKey;
-			jiraIssue = getJiraClient().createIssue(project, jiraIssueType)
-					.field(Field.SUMMARY, "Upgraded " + codeSystemName + " to the new " + newDependantVersion + " International Edition")
-					.field(Field.DESCRIPTION, description)
-					.execute();
-
-			logger.info("New INFRA ticket with key {}", jiraIssue.getKey());
-			final Issue.FluentUpdate updateRequest = jiraIssue.update();
-			updateRequest.field(Field.ASSIGNEE, "");
-
-			updateRequest.execute();
-		} catch (JiraException e) {
+			JSONObject jiraIssue = jiraCloudClient.createIssue(projectKey, "Upgraded " + codeSystemName + " to the new " + newDependantVersion + " International Edition", description, jiraIssueType);
+			String issueKey = jiraIssue.getString("key");
+			logger.info("New INFRA ticket with key {} has been created", issueKey);
+			JSONObject issueFields = new JSONObject();
+			issueFields.put(Field.ASSIGNEE, "");
+			jiraCloudClient.updateIssue(issueKey, issueFields);
+		} catch (IOException e) {
 			throw new BusinessServiceException("Failed to create Jira task. Error: " + (e.getCause() != null ? e.getCause().getMessage() : e.getMessage()), e);
 		}
-
-		return jiraIssue;
-	}
+    }
 
 	private String generateDescription(CodeSystem codeSystem, CodeSystemUpgradeJob codeSystemUpgradeJob, String newDependantVersion) {
 		StringBuilder result = new StringBuilder();
@@ -333,10 +318,6 @@ public class CodeSystemService {
 		SnowstormRestClient client = snowstormRestClientFactory.getClient();
 		IntegrityIssueReport report = client.integrityCheck(branchPath);
 		return report.isEmpty();
-	}
-
-	private JiraClient getJiraClient() {
-		return jiraClientFactory.getImpersonatingInstance(getUsername());
 	}
 
 	private String getUsername() {
