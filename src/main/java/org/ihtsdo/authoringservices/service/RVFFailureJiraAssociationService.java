@@ -18,7 +18,6 @@ import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
-import org.ihtsdo.sso.integration.SecurityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,17 +41,17 @@ public class RVFFailureJiraAssociationService {
 
 	private static final String ENABLE_RVF_TICKET_GENERATION = "enableRvfTicketGeneration";
 
-	@Value("${jira.cloud.base-url}")
-	private String jiraCloudUrl;
-
 	@Value("${jira.cloud.project-key}")
 	private String projectKey;
 
 	@Value("${jira.project.issue.type}")
 	private String issueType;
 
-	@Value("${rvf.jira.ticket.watcher}")
+	@Value("${jira.cloud.watcher-accountid}")
 	private String watcher;
+
+	@Value("${jira.cloud.reporter-accountid}")
+	private String reporter;
 
 	@Autowired
 	private RVFFailureJiraAssociationRepository repository;
@@ -116,7 +115,7 @@ public class RVFFailureJiraAssociationService {
 			if (found != null) {
 				String issueKey = createJiraIssue(isManagedServiceBranch, generateSummary(found, productName), generateDescription(found, rvfUrl));
 				jiraCloudClient.addAttachment(issueKey, found.getAssertionUuid() + ".json", parsePrettyString(found.toString()).getBytes());
-				final RVFFailureJiraAssociation association = new RVFFailureJiraAssociation(reportRunId,found.getAssertionUuid(), jiraCloudUrl + "browse/" + issueKey);
+				final RVFFailureJiraAssociation association = new RVFFailureJiraAssociation(reportRunId,found.getAssertionUuid(), jiraCloudClient.getBaseUrl() + "browse/" + issueKey);
 				repository.save(association);
 				newAssociations.add(association);
 			} else {
@@ -236,10 +235,10 @@ public class RVFFailureJiraAssociationService {
 	private String createJiraIssue(boolean isManagedServiceBranch, String summary, String description) throws BusinessServiceException {
 		String issueKey;
 		try {
-			JSONObject response = jiraCloudClient.createIssue(projectKey, summary, description, issueType);
+			JSONObject response = jiraCloudClient.createIssue(projectKey, summary, description, issueType, reporter);
 			issueKey = response.getString("key");
-			logger.info("New INFRA ticket with key {} has been created", issueKey);
-			if (!isManagedServiceBranch && !watcher.equalsIgnoreCase(getUsername())) {
+			logger.info("New JIRA ticket with key {} has been created", issueKey);
+			if (!isManagedServiceBranch && StringUtils.hasLength(watcher)) {
 				jiraCloudClient.addWatcher(issueKey, watcher);
 			}
 
@@ -282,10 +281,6 @@ public class RVFFailureJiraAssociationService {
 		return report;
 	}
 
-
-	private String getUsername() {
-		return SecurityUtil.getUsername();
-	}
 
 	private static final class ValidationReport {
 

@@ -56,6 +56,9 @@ public class CodeSystemService {
 	@Value("${email.link.platform.url}")
 	private String platformUrl;
 
+	@Value("${jira.cloud.reporter-accountid}")
+	private String reporter;
+
 	@Autowired
 	private SnowstormRestClientFactory snowstormRestClientFactory;
 
@@ -266,9 +269,9 @@ public class CodeSystemService {
 
 	private void createJiraIssue(String codeSystemName, String newDependantVersion, String description) throws BusinessServiceException {
 		try {
-			JSONObject jiraIssue = jiraCloudClient.createIssue(projectKey, "Upgraded " + codeSystemName + " to the new " + newDependantVersion + " International Edition", description, jiraIssueType);
+			JSONObject jiraIssue = jiraCloudClient.createIssue(projectKey, "Upgraded " + codeSystemName + " to the new " + newDependantVersion + " International Edition", description, jiraIssueType, reporter);
 			String issueKey = jiraIssue.getString("key");
-			logger.info("New INFRA ticket with key {} has been created", issueKey);
+			logger.info("New JIRA ticket with key {} has been created", issueKey);
 			JSONObject issueFields = new JSONObject();
 			issueFields.put(Field.ASSIGNEE, "");
 			jiraCloudClient.updateIssue(issueKey, issueFields);
