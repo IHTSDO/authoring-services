@@ -9,9 +9,7 @@ import org.ihtsdo.authoringservices.domain.User;
 import org.ihtsdo.authoringservices.domain.UserGroupItem;
 import org.ihtsdo.authoringservices.service.UserCacheService;
 import org.jetbrains.annotations.NotNull;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
-import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -25,9 +23,6 @@ import java.util.List;
 @RequestMapping(produces = {MediaType.APPLICATION_JSON_VALUE})
 public class UserController {
 
-    @Value("${jira.groupName:ihtsdo-sca-author}")
-    private String defaultGroupName;
-
     private final UserCacheService userCacheService;
 
     public UserController(UserCacheService userCacheService) {
@@ -35,13 +30,12 @@ public class UserController {
     }
 
     @GetMapping(value = "/users")
-    @Operation(summary = "Returns authoring users from Jira")
+    @Operation(summary = "Returns authoring users from IMS")
     public JiraUserGroup getUsers(
             @RequestParam(required = false) String groupName,
             @RequestParam(required = false, defaultValue = "0") int offset,
             @RequestParam(required = false, defaultValue = "50") int limit) {
-        String groupNameToSearch = StringUtils.hasLength(groupName) ? groupName : defaultGroupName;
-        List<User> allUsers = userCacheService.getAllUsersForGroup(groupNameToSearch.trim());
+        List<User> allUsers = userCacheService.getAllUsersForGroup(groupName);
 
         JiraUserGroup result = new JiraUserGroup();
         result.setName(groupName);
@@ -59,12 +53,12 @@ public class UserController {
     }
 
     @GetMapping(value = "users/search")
-    @Operation(summary = "Returns authoring users from Jira by search conditions")
+    @Operation(summary = "Returns authoring users from IMS by search conditions")
     public List<JiraUser> findUsersByUsername(
             @Parameter(description = "A part of user name that to be searched") @RequestParam("username") String username,
             int maxResults,
             int startAt) {
-        List<User> allUsers = userCacheService.getAllUsersForGroup(defaultGroupName);
+        List<User> allUsers = userCacheService.getAllUsersForGroup(null);
         List<User> filteredUsers = allUsers.stream().filter(item -> item.getUsername().contains(username.toLowerCase()) || item.getDisplayName().toLowerCase().contains(username.toLowerCase())).toList();
         int to = Math.min((startAt + maxResults), filteredUsers.size());
         List<JiraUser> result = new ArrayList<>();

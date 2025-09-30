@@ -5,11 +5,18 @@ import com.google.common.cache.CacheBuilder;
 import jakarta.annotation.PostConstruct;
 import org.ihtsdo.authoringservices.domain.User;
 import org.ihtsdo.authoringservices.service.client.IMSClientFactory;
+import org.ihtsdo.otf.rest.client.ims.IMSRestClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
+import java.io.IOException;
+import java.net.URISyntaxException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -25,7 +32,19 @@ public class UserCacheService {
 
     private final IMSClientFactory imsClientFactory;
 
-    @Value("${user.cache.expiry.minutes:30}")
+    @Value("${jira.groupName}")
+    private String defaultGroupName;
+
+    @Value("${auto.rebase.username}")
+    private String imsUsername;
+
+    @Value("${auto.rebase.password}")
+    private String imsPassword;
+
+    @Value("${ims.url}")
+    private String imsUrl;
+
+    @Value("${user.cache.expiry.minutes}")
     private int cacheExpiryMinutes;
 
     @Value("${user.cache.maximum.size:1000}")
@@ -55,6 +74,14 @@ public class UserCacheService {
 
     public UserCacheService(IMSClientFactory imsClientFactory) {
         this.imsClientFactory = imsClientFactory;
+    }
+
+    @Scheduled(initialDelay = 1, fixedRateString = "${user.cache.expiry.minutes}", timeUnit = TimeUnit.MINUTES)
+    public void preloadUsersForDefaultGroup() throws URISyntaxException, IOException {
+        if (StringUtils.hasLength(defaultGroupName)) {
+            loginToIMSAndSetSecurityContext();
+            getAllUsersForGroup(defaultGroupName.trim());
+        }
     }
 
     /**
@@ -171,12 +198,14 @@ public class UserCacheService {
     }
 
     public List<User> getAllUsersForGroup(String groupName) {
-        List<User> allUsers = userGroupCache.getIfPresent(groupName);
+        String groupNameToSearch = (StringUtils.hasLength(groupName) ? groupName : defaultGroupName).trim();
+        List<User> allUsers = userGroupCache.getIfPresent(groupNameToSearch.trim());
         if (allUsers == null) {
             allUsers = new ArrayList<>();
-            doGetUsersForGroup(groupName, 0, allUsers);
-            userGroupCache.put(groupName, allUsers);
+            doGetUsersForGroup(groupNameToSearch, 0, allUsers);
+            userGroupCache.put(groupNameToSearch, allUsers);
         }
+
         return allUsers;
     }
 
@@ -201,5 +230,12 @@ public class UserCacheService {
             user.setUsername(username);
             return user;
         }
+    }
+
+    private void loginToIMSAndSetSecurityContext() throws URISyntaxException, IOException {
+        IMSRestClient imsClient = new IMSRestClient(imsUrl);
+        String token = imsClient.loginForceNewSession(imsUsername, imsPassword);
+        PreAuthenticatedAuthenticationToken decoratedAuthentication = new PreAuthenticatedAuthenticationToken(imsUsername, token);
+        SecurityContextHolder.getContext().setAuthentication(decoratedAuthentication);
     }
 }
