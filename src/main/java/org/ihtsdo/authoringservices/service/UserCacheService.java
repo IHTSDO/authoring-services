@@ -78,9 +78,13 @@ public class UserCacheService {
 
     @Scheduled(initialDelay = 1, fixedRateString = "${user.cache.expiry.minutes}", timeUnit = TimeUnit.MINUTES)
     public void preloadUsersForDefaultGroup() throws URISyntaxException, IOException {
-        if (StringUtils.hasLength(defaultGroupName)) {
-            loginToIMSAndSetSecurityContext();
-            getAllUsersForGroup(defaultGroupName.trim());
+        loginToIMSAndSetSecurityContext();
+        Set<String> keys = new HashSet<>(userGroupCache.asMap().keySet());
+        keys.add(defaultGroupName);
+        for (String key : keys) {
+            List<User> allUsers = new ArrayList<>();
+            doGetUsersForGroup(key, 0, allUsers);
+            userGroupCache.put(key, allUsers);
         }
     }
 
