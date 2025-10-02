@@ -41,6 +41,9 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
     private static final String ENABLED_TEXT = "Enabled";
     private static final String DISABLED_TEXT = "Disabled";
 
+    @Value("${jira.enabled}")
+    private boolean jiraEnabled;
+
     @Value("${authoring.project.required.rbac.groups}")
     private List<String> requiredRbacGroups;
 
@@ -117,9 +120,11 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
         project = projectRepository.save(project);
 
         // Set latest task number from JIRA if the same JIRA project exists
-        Integer latestJiraTaskNumber = jiraTaskService.getLatestTaskNumberForProject(request.key());
-        if (latestJiraTaskNumber != null) {
-            taskSequenceRepository.save(new TaskSequence(project, latestJiraTaskNumber));
+        if (jiraEnabled) {
+            Integer latestJiraTaskNumber = jiraTaskService.getLatestTaskNumberForProject(request.key());
+            if (latestJiraTaskNumber != null) {
+                taskSequenceRepository.save(new TaskSequence(project, latestJiraTaskNumber));
+            }
         }
 
         try {
