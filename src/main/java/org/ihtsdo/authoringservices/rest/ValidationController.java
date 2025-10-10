@@ -6,11 +6,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.ihtsdo.authoringservices.domain.AuthoringCodeSystem;
-import org.ihtsdo.authoringservices.domain.AuthoringProject;
-import org.ihtsdo.authoringservices.domain.ReleaseRequest;
-import org.ihtsdo.authoringservices.domain.Status;
+import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.entity.RVFFailureJiraAssociation;
+import org.ihtsdo.authoringservices.entity.Validation;
 import org.ihtsdo.authoringservices.service.CodeSystemService;
 import org.ihtsdo.authoringservices.service.RVFFailureJiraAssociationService;
 import org.ihtsdo.authoringservices.service.ValidationService;
@@ -29,6 +27,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import static org.ihtsdo.authoringservices.rest.ControllerHelper.*;
@@ -243,8 +242,11 @@ public class ValidationController {
 		filteredCodeSystems.stream().parallel().forEach(item -> {
 			try {
 				SecurityContextHolder.setContext(context);
-				startValidation(item.getBranchPath(), true);
-			} catch (BusinessServiceException e) {
+				Validation validation = validationService.getValidation(item.getBranchPath());
+				if (validation == null || validation.getStatus() == null || ValidationJobStatus.isAllowedTriggeringState(validation.getStatus())) {
+					startValidation(item.getBranchPath(), true);
+				}
+			} catch (BusinessServiceException | ExecutionException e) {
 				throw new RuntimeException(e);
 			}
 		});
