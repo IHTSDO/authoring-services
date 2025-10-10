@@ -2,6 +2,7 @@ package org.ihtsdo.authoringservices.service;
 
 import com.querydsl.core.types.Predicate;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.Expressions;
 import org.ihtsdo.authoringservices.domain.RMPTaskStatus;
 import org.ihtsdo.authoringservices.domain.User;
 import org.ihtsdo.authoringservices.entity.QRMPTask;
@@ -24,6 +25,8 @@ import java.util.Set;
 
 @Service
 public class RMPTaskService {
+
+    public static final String ACCENTED_CHARACTERS_CONVERSION_EXPRESSION = "lower(cast(replace({0}, 'âàãáÁÂÀÃéêÉÊíÍóôõÓÔÕüúÜÚÇç', 'AAAAAAAAEEEEIIOOOOOOUUUUCC') as string))";
 
     private final RMPTaskRepository rmpTaskRepository;
 
@@ -67,7 +70,7 @@ public class RMPTaskService {
             predicate = predicate.and(qRequest.assignee.in(assignees));
             ignoreAssigneeFilter = true;
         }
-        if(criteria != null) {
+        if(StringUtils.hasLength(criteria)) {
             predicate = predicate.andAnyOf(buildSearchPredicate(criteria, ignoreReporterFilter, ignoreAssigneeFilter));
         }
 
@@ -77,7 +80,7 @@ public class RMPTaskService {
     private static Predicate[] buildSearchPredicate(String searchString, boolean ignoreReporterFilter, boolean ignoreAssigneeFilter) {
         QRMPTask qRequest = QRMPTask.rMPTask;
         BooleanExpression searchRequestId = org.apache.commons.lang3.StringUtils.isNumeric(searchString) ? qRequest.id.eq(Long.parseLong(searchString)) : null;
-        BooleanExpression searchSummary = qRequest.summary.containsIgnoreCase(searchString);
+        BooleanExpression searchSummary = Expressions.stringTemplate(ACCENTED_CHARACTERS_CONVERSION_EXPRESSION, qRequest.summary) .contains(searchString.toLowerCase());
         BooleanExpression searchType = qRequest.type.containsIgnoreCase(searchString);
         BooleanExpression searchAssignee = ignoreAssigneeFilter ? null : qRequest.assignee.stringValue().containsIgnoreCase(searchString);
         BooleanExpression searchReporter = ignoreReporterFilter ? null : qRequest.reporter.containsIgnoreCase(searchString);
