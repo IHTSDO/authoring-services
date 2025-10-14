@@ -71,7 +71,7 @@ public class DefaultTaskServiceImpl implements TaskService {
     }
 
     @Override
-    public List<AuthoringTask> searchTasks(String criteria, Set<String> projectKeys, Set<String> statuses, String author, Boolean lightweight) throws BusinessServiceException {
+    public List<AuthoringTask> searchTasks(String criteria, Set<String> projectKeys, Set<String> statuses, String author, Long createdDateFrom, Long createdDateTo, Boolean lightweight) throws BusinessServiceException {
         return Collections.emptyList();
     }
 

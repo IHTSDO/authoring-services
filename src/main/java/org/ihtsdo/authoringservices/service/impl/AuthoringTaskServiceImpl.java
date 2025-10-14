@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.Expressions;
 import jakarta.jms.JMSException;
 import jakarta.transaction.Transactional;
 import org.apache.activemq.command.ActiveMQQueue;
@@ -17,7 +18,6 @@ import org.ihtsdo.authoringservices.repository.TaskSequenceRepository;
 import org.ihtsdo.authoringservices.service.*;
 import org.ihtsdo.authoringservices.service.client.ContentRequestServiceClient;
 import org.ihtsdo.authoringservices.service.client.ContentRequestServiceClientFactory;
-
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.authoringservices.service.util.TimerUtil;
 import org.ihtsdo.otf.jms.MessagingHelper;
@@ -339,9 +339,9 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
     }
 
     @Override
-    public List<AuthoringTask> searchTasks(String criteria, Set<String> projectKeys, Set<String> statuses, String author, Boolean lightweight) throws BusinessServiceException {
+    public List<AuthoringTask> searchTasks(String criteria, Set<String> projectKeys, Set<String> statuses, String author, Long createdDateFrom, Long createdDateTo, Boolean lightweight) throws BusinessServiceException {
         // Early return if no search criteria provided
-        if (isEmptySearchCriteria(criteria, projectKeys, statuses, author)) {
+        if (isEmptySearchCriteria(criteria, projectKeys, statuses, author, createdDateFrom, createdDateTo)) {
             return Collections.emptyList();
         }
 
@@ -353,7 +353,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
 
         // Build search predicate
         QTask qTask = QTask.task;
-        BooleanExpression predicate = buildSearchPredicate(qTask, criteria, accessibleProjectKeys, statuses, author);
+        BooleanExpression predicate = buildSearchPredicate(qTask, criteria, accessibleProjectKeys, statuses, author, createdDateFrom, createdDateTo);
         
         // Execute search and build results
         Iterable<Task> tasks = taskRepository.findAll(predicate);
@@ -386,17 +386,19 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
     /**
      * Checks if all search criteria are empty
      */
-    private boolean isEmptySearchCriteria(String criteria, Set<String> projectKeys, Set<String> statuses, String author) {
+    private boolean isEmptySearchCriteria(String criteria, Set<String> projectKeys, Set<String> statuses, String author, Long createdDateFrom, Long createdDateTo) {
         return StringUtils.isEmpty(criteria) && 
                CollectionUtils.isEmpty(projectKeys) && 
                CollectionUtils.isEmpty(statuses) && 
-               StringUtils.isEmpty(author);
+               StringUtils.isEmpty(author) &&
+                createdDateFrom == null &&
+                createdDateTo == null;
     }
 
     /**
      * Builds the complete search predicate by combining all criteria
      */
-    private BooleanExpression buildSearchPredicate(QTask qTask, String criteria, Set<String> projectKeys, Set<String> statuses, String author) {
+    private BooleanExpression buildSearchPredicate(QTask qTask, String criteria, Set<String> projectKeys, Set<String> statuses, String author, Long createdDateFrom, Long createdDateTo) {
         BooleanExpression predicate = null;
         
         // Add criteria predicate
@@ -415,11 +417,28 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
             BooleanExpression authorPredicate = qTask.assignee.eq(author);
             predicate = predicate != null ? predicate.and(authorPredicate) : authorPredicate;
         }
-        
+
         // Add status predicate
         BooleanExpression statusPredicate = buildStatusPredicate(qTask, statuses);
         predicate = predicate != null ? predicate.and(statusPredicate) : statusPredicate;
-        
+
+        if (createdDateFrom != null || createdDateTo != null) {
+            BooleanExpression createdDatePredicate = buildCreatedDatePredicate(qTask, createdDateFrom, createdDateTo);
+            predicate = predicate != null ? predicate.and(createdDatePredicate) : createdDatePredicate;
+        }
+        return predicate;
+    }
+
+    private BooleanExpression buildCreatedDatePredicate(QTask qTask, Long createdDateFrom, Long createdDateTo) {
+        BooleanExpression predicate = null;
+        if (createdDateFrom != null) {
+            predicate = qTask.createdDate.after(Timestamp.from(Instant.ofEpochMilli(createdDateFrom)));
+        }
+
+        if (createdDateTo != null) {
+            predicate = predicate != null ? predicate.and(qTask.createdDate.before(Timestamp.from(Instant.ofEpochMilli(createdDateTo)))) :
+                    qTask.createdDate.before(Timestamp.from(Instant.ofEpochMilli(createdDateTo)));
+        }
         return predicate;
     }
 
@@ -429,7 +448,9 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
     private BooleanExpression buildCriteriaPredicate(QTask qTask, String criteria) {
         return isTaskKeyFormat(criteria)
             ? qTask.key.eq(criteria) 
-            : qTask.key.containsIgnoreCase(criteria);
+            : qTask.key.containsIgnoreCase(criteria).
+            or(Expressions.stringTemplate(RMPTaskService.ACCENTED_CHARACTERS_CONVERSION_EXPRESSION, qTask.name) .contains(criteria.toLowerCase())).
+            or(Expressions.stringTemplate(RMPTaskService.ACCENTED_CHARACTERS_CONVERSION_EXPRESSION, qTask.description) .contains(criteria.toLowerCase()));
     }
 
     /**

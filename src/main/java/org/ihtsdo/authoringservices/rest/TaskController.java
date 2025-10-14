@@ -110,9 +110,11 @@ public class TaskController {
                                            @RequestParam(value = "projectKeys", required = false) Set<String> projectKeys,
                                            @RequestParam(value = "statuses", required = false) Set<String> statuses,
                                            @RequestParam(value = "author", required = false) String author,
+                                           @RequestParam(value = "createdDateFrom", required = false) Long createdDateFrom,
+                                           @RequestParam(value = "createdDateTo", required = false) Long createdDateTo,
                                            @RequestParam(value = "lightweight", required = false) Boolean lightweight) throws BusinessServiceException {
-        List<AuthoringTask> results = new ArrayList<>(taskServiceFactory.getInstance(true).searchTasks(criteria, projectKeys, statuses, author, lightweight));
-        List<AuthoringTask> jiraTasks = taskServiceFactory.getInstance(false).searchTasks(criteria, projectKeys, statuses, author, lightweight);
+        List<AuthoringTask> results = new ArrayList<>(taskServiceFactory.getInstance(true).searchTasks(criteria, projectKeys, statuses, author, createdDateFrom, createdDateTo, lightweight));
+        List<AuthoringTask> jiraTasks = taskServiceFactory.getInstance(false).searchTasks(criteria, projectKeys, statuses, author, createdDateFrom, createdDateTo, lightweight);
         return filterJiraTasks(jiraTasks, results);
     }
 
