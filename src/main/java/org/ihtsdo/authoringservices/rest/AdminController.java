@@ -87,6 +87,17 @@ public class AdminController {
     }
 
     @PreAuthorize("hasPermission('ADMIN', 'global')")
+    @Operation(summary = "Update project active status",
+               description = "Update the active status of a project. Send {\"active\": true} to activate or {\"active\": false} to deactivate the project.")
+    @PutMapping(value = "/projects/{projectKey}/toggle-status")
+    public ResponseEntity<Void> updateProjectStatus(@PathVariable final String projectKey,
+                                                   @RequestParam(value = "useNew", required = false) Boolean useNew,
+                                                   @RequestBody final ProjectStatusUpdateRequest request) throws BusinessServiceException {
+        adminService.updateProjectStatus(projectKey, useNew, request.active());
+        return new ResponseEntity<>(HttpStatus.OK);
+    }
+
+    @PreAuthorize("hasPermission('ADMIN', 'global')")
     @Operation(summary = "List authoring projects")
     @ApiResponse(responseCode = "200", description = "OK")
     @GetMapping(value = "/projects")

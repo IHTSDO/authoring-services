@@ -112,4 +112,17 @@ public class AdminService {
             }
         });
     }
+
+    public void updateProjectStatus(String projectKey, Boolean useNew, Boolean activeStatus) throws BusinessServiceException {
+        logger.info("Updating active status for project {} to {}", projectKey, activeStatus);
+        
+        // Create an updated project with the new active status
+        AuthoringProject updatedProject = new AuthoringProject();
+        updatedProject.setActive(activeStatus);
+        
+        // Update the project
+        projectServiceFactory.getInstance(useNew).updateProject(projectKey, updatedProject);
+        
+        logger.info("Project {} active status updated to {}", projectKey, activeStatus);
+    }
 }

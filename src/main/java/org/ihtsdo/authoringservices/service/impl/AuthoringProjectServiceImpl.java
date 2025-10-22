@@ -153,6 +153,9 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
         if (updatedProject.getTitle() != null) {
             project.setName(updatedProject.getTitle());
         }
+        if (updatedProject.getActive() != null) {
+            project.setActive(updatedProject.getActive());
+        }
         projectRepository.save(project);
         return buildAuthoringProjects(List.of(project), false).get(0);
     }
@@ -192,7 +195,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
         List<ProjectUserGroup> projectUserGroups = projectUserGroupRepository.findByNameIn(loggedInUserRoles);
         if(projectUserGroups.isEmpty())  return Collections.emptyList();
 
-        List<Project> result = projectUserGroups.stream().map(ProjectUserGroup::getProject).distinct().filter(project -> Boolean.TRUE.equals(project.getActive())).toList();
+        List<Project> result = projectUserGroups.stream().map(ProjectUserGroup::getProject).distinct().filter(project -> Boolean.FALSE.equals(excludeArchived) || Boolean.TRUE.equals(project.getActive())).toList();
         return buildAuthoringProjects(result, lightweight);
     }
 
@@ -349,7 +352,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
                 User lead = authoringTaskService.getUser(projectTicket.getLead());
                 final AuthoringProject authoringProject = new AuthoringProject(projectKey, projectTicket.getName(),
-                        lead, branchPath, branchState, baseTimeStamp, headTimeStamp, latestClassificationJson, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled, rebaseDisabled, scheduledRebaseDisabled, taskPromotionDisabled, projectLocked);
+                        lead, projectTicket.getActive(), branchPath, branchState, baseTimeStamp, headTimeStamp, latestClassificationJson, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled, rebaseDisabled, scheduledRebaseDisabled, taskPromotionDisabled, projectLocked);
                 authoringProject.setMetadata(metadata);
                 authoringProject.setCodeSystem(codeSystem);
                 authoringProject.setInternalAuthoringProject(true);

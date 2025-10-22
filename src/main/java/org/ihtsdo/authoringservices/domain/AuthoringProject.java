@@ -12,6 +12,7 @@ public class AuthoringProject {
 
     private String key;
     private String title;
+    private Boolean active;
     private User projectLead;
     private String branchPath;
     private String branchState;
@@ -34,7 +35,7 @@ public class AuthoringProject {
     public AuthoringProject() {
     }
 
-    public AuthoringProject(String key, String title, User leadUser, String branchPath, String branchState, Long baseTimeStamp, Long headTimeStamp,
+    public AuthoringProject(String key, String title, User leadUser, Boolean active, String branchPath, String branchState, Long baseTimeStamp, Long headTimeStamp,
                             String latestClassificationJson, boolean projectPromotionDisabled,
                             boolean projectMrcmDisabled, boolean projectTemplatesDisabled, boolean projectSpellCheckDisabled, boolean projectRebaseDisabled,
                             boolean projectScheduledRebaseDisabled,
@@ -43,6 +44,7 @@ public class AuthoringProject {
         this.key = key;
         this.title = title;
         this.projectLead = leadUser;
+        this.active = active;
         this.branchPath = branchPath;
         this.branchState = branchState;
         this.branchBaseTimestamp = baseTimeStamp;
@@ -64,6 +66,14 @@ public class AuthoringProject {
 
     public String getTitle() {
         return title;
+    }
+
+    public Boolean getActive() {
+        return active;
+    }
+
+    public void setActive(Boolean active) {
+        this.active = active;
     }
 
     public User getProjectLead() {

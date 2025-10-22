@@ -660,7 +660,7 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
                 Map<String, JiraProject> projectMap = unfilteredProjects.get();
                 JiraProject project = projectMap.get(projectKey);
                 final AuthoringProject authoringProject = new AuthoringProject(projectKey, project.name(),
-                        project.lead(), branchPath, branchState, baseTimeStamp, headTimeStamp, latestClassificationJson, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled, rebaseDisabled, scheduledRebaseDisabled, taskPromotionDisabled, projectLocked);
+                        project.lead(), true, branchPath, branchState, baseTimeStamp, headTimeStamp, latestClassificationJson, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled, rebaseDisabled, scheduledRebaseDisabled, taskPromotionDisabled, projectLocked);
                 authoringProject.setMetadata(metadata);
                 authoringProject.setCodeSystem(codeSystem);
                 synchronized (authoringProjects) {
