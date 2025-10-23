@@ -8,11 +8,13 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.ihtsdo.authoringservices.domain.AuthoringCodeSystem;
 import org.ihtsdo.authoringservices.domain.ProcessStatus;
+import org.ihtsdo.authoringservices.domain.ProjectRebaseRequest;
 import org.ihtsdo.authoringservices.service.CodeSystemService;
 import org.ihtsdo.authoringservices.service.DailyBuildService;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystemUpgradeJob;
+import org.ihtsdo.otf.rest.exception.BadRequestException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -110,18 +112,25 @@ public class CodeSystemController {
 		codeSystemService.unlockProjects(shortName);
 	}
 
-    @Operation(summary = "Rebase all projects for a given code system")
+    @Operation(summary = "Rebase projects for a given code system", 
+               description = "Rebase specific projects for a given code system. Provide a list of project keys in the request body.")
     @ApiResponse(responseCode = "200", description = "OK")
     @PostMapping(value = "/{shortName}/projects/rebase")
-    public ResponseEntity<Void> rebaseProjects(@PathVariable final String shortName, final HttpServletResponse response) throws BusinessServiceException, RestClientException {
-        AuthoringCodeSystem codeSystem = codeSystemService.findOne(shortName);
+    public ResponseEntity<Void> rebaseProjects(@PathVariable final String shortName, 
+                                               @RequestBody final ProjectRebaseRequest request,
+                                               final HttpServletResponse response) throws BusinessServiceException, RestClientException {
+		// If no project keys provided
+		if (request.projectKeys() == null || request.projectKeys().isEmpty()) {
+			throw new BadRequestException("No project keys provided");
+		}
+		AuthoringCodeSystem codeSystem = codeSystemService.findOne(shortName);
         if (codeSystem != null) {
             RequestAttributes attrs = RequestContextHolder.getRequestAttributes();
             Assert.state(attrs instanceof ServletRequestAttributes, "No current ServletRequestAttributes");
-            HttpServletRequest request = ((ServletRequestAttributes) attrs).getRequest();
+            HttpServletRequest httpRequest = ((ServletRequestAttributes) attrs).getRequest();
 
-            String requestUrl = request.getRequestURL().toString();
-            return new ResponseEntity<>(ControllerHelper.getCreatedLocationHeaders(requestUrl + "/", codeSystemService.rebaseProjects(codeSystem), null), HttpStatus.CREATED);
+            String requestUrl = httpRequest.getRequestURL().toString();
+            return new ResponseEntity<>(ControllerHelper.getCreatedLocationHeaders(requestUrl + "/", codeSystemService.rebaseProjects(codeSystem, request.projectKeys()), null), HttpStatus.CREATED);
         } else {
             throw new ResourceNotFoundException(String.format("Code system %s not found", shortName));
         }

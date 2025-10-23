@@ -367,13 +367,20 @@ public class CodeSystemService {
 	}
 
 	@PreAuthorize("hasPermission('ADMIN', 'global') || hasPermission('ADMIN', #codeSystem.branchPath)")
-	public String rebaseProjects(AuthoringCodeSystem codeSystem) throws BusinessServiceException {
+	public String rebaseProjects(AuthoringCodeSystem codeSystem, List<String> projectKeys) throws BusinessServiceException {
 		String jobId = UUID.randomUUID().toString();
-		List<AuthoringProject> authoringProjects = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(true, true, true));
-		List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(true, true, true);
+		
+		// Get all projects and filter by the provided project keys
+		List<AuthoringProject> authoringProjects = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(true, true, null));
+		List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(true, true, null);
 		ProjectFilterUtil.joinJiraProjectsIfNotExists(jiraProjects, authoringProjects);
 
-		authoringProjects = authoringProjects.stream().filter(project -> project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/")).equals(codeSystem.getBranchPath())).toList();
+		// Filter by code system branch path and provided project keys
+		authoringProjects = authoringProjects.stream()
+			.filter(project -> project.getBranchPath().substring(0, project.getBranchPath().lastIndexOf("/")).equals(codeSystem.getBranchPath()))
+			.filter(project -> projectKeys.contains(project.getKey()))
+			.toList();
+			
 		for (AuthoringProject project : authoringProjects) {
 			rebaseService.doProjectRebase(jobId, project);
 		}
