@@ -50,7 +50,7 @@ public class CodeSystemService {
 	@Value("${jira.project.issue.type}")
 	private String jiraIssueType;
 
-	@Value("${jira.cloud.managed-service.upgrade.project-key}")
+	@Value("${jira.cloud.project-key}")
 	private String projectKey;
 
 	@Value("${email.link.platform.url}")
