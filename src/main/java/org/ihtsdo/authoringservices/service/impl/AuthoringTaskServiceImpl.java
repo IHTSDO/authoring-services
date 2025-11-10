@@ -651,7 +651,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
                 JsonObject jsonObject = new JsonObject();
                 jsonObject.addProperty("value", organization);
 
-                TaskAttachment taskAttachment = new TaskAttachment(null, crsTask.getCrsTaskKey(), contentRequestDto.getConcept().toString(), jsonObject.toString());
+                TaskAttachment taskAttachment = new TaskAttachment(null, crsTask.getCrsTaskKey(), contentRequestDto.getConcept() != null ? contentRequestDto.getConcept().toString() : null, jsonObject.toString());
                 attachments.add(taskAttachment);
             }
         }
