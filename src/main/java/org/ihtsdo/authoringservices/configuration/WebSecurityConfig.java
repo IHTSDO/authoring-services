@@ -1,5 +1,6 @@
 package org.ihtsdo.authoringservices.configuration;
 
+import jakarta.servlet.http.HttpServletResponse;
 import org.ihtsdo.authoringservices.rest.security.RequestHeaderAuthenticationDecoratorWithOverride;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -10,8 +11,6 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
-
-import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration
 @EnableWebSecurity
@@ -46,12 +45,25 @@ public class WebSecurityConfig {
 		for (String excludedPath : excludedUrlPatterns) {
 			http.authorizeHttpRequests(auth -> auth.requestMatchers(new AntPathRequestMatcher(excludedPath)).permitAll());
 		}
+
 		if (requiredRole != null && !requiredRole.isEmpty()) {
-			http.authorizeHttpRequests(auth -> auth.anyRequest().hasAuthority(requiredRole)).httpBasic(withDefaults());
+			http.authorizeHttpRequests(auth -> auth.anyRequest().hasAuthority(requiredRole));
 		} else {
-			http.authorizeHttpRequests(auth -> auth.anyRequest().authenticated()).httpBasic(withDefaults());
+			http.authorizeHttpRequests(auth -> auth.anyRequest().authenticated());
 		}
-		http.securityContext((securityContext) -> securityContext
+		
+		// Configure exception handling to prevent Basic Auth popup
+		// Returns JSON response instead of triggering browser Basic Auth popup
+		http.exceptionHandling(exceptions -> exceptions
+			.authenticationEntryPoint((request, response, authException) -> {
+				response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+				response.setContentType("application/json;charset=UTF-8");
+				String message = authException.getMessage() != null ? authException.getMessage().replace("\"", "\\\"") : "Authentication required";
+				response.getWriter().write("{\"error\":\"Unauthorized\",\"message\":\"" + message + "\"}");
+			})
+		);
+		
+		http.securityContext(securityContext -> securityContext
 				.requireExplicitSave(false));
 		return http.build();
 	}
