@@ -37,6 +37,9 @@ public abstract class TaskServiceBase {
     @Value("${crs.int.jira.issueKey}")
     protected String intCrsIssueKeyPrefix;
 
+    @Value("${branch.prefix.us}")
+    private List<String> usBranchPrefixes;
+
     private static final String SHARED = "SHARED";
 
     @Autowired
@@ -83,7 +86,7 @@ public abstract class TaskServiceBase {
 
     protected boolean isIntAuthoringTask(String projectKey, String taskKey) throws BusinessServiceException {
         String taskBranch = branchService.getTaskBranchPathUsingCache(projectKey, taskKey);
-        return !taskBranch.startsWith("MAIN/SNOMEDCT-");
+        return usBranchPrefixes.stream().noneMatch(taskBranch::startsWith);
     }
 
     protected void transferTaskToNewAuthor(String projectKey, String taskKey, TaskChangeAssigneeRequest taskChangeAssigneeRequest) {
