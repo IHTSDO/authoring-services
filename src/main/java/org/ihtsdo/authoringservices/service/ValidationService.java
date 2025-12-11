@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
@@ -113,6 +114,14 @@ public class ValidationService {
 
 	@Autowired
 	private RVFClientFactory rvfClientFactory;
+
+	/**
+	 * Inject the proxied self so calls from ValidationRunner still go through Spring AOP
+	 * (@Transactional on updateValidationCache).
+	 */
+	@Lazy
+	@Autowired
+	private ValidationService selfProxy;
 
 	private LoadingCache<String, Validation> validationLoadingCache;
 
@@ -242,7 +251,8 @@ public class ValidationService {
 			if (validation.getStatus() != null && !ValidationJobStatus.isAllowedTriggeringState(validation.getStatus())) {
 				throw new EntityAlreadyExistsException("An in-progress validation has been detected for " + branchPath + " at state " + validation.getStatus());
 			}
-			new Thread(new ValidationRunner(validationConfig, snowstormRestClientFactory.getClient(), srsDAO, this, notificationService, rvfClientFactory.getClient(), scaQueuePrefix, username, authToken)).start();
+			// Pass the proxied bean to ensure @Transactional on updateValidationCache is applied
+			new Thread(new ValidationRunner(validationConfig, snowstormRestClientFactory.getClient(), srsDAO, selfProxy, notificationService, rvfClientFactory.getClient(), scaQueuePrefix, username, authToken)).start();
 
 			Map<String, String> newPropertyValues = new HashMap<>();
 			newPropertyValues.put(VALIDATION_STATUS, ValidationJobStatus.SCHEDULED.name());
