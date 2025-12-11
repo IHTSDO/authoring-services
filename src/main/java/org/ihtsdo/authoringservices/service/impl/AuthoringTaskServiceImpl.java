@@ -319,6 +319,9 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
             excludedStatuses.add(TaskStatus.PROMOTED);
         }
         List<Project> projects = permissionService.getProjectsForUser();
+        if (!projects.isEmpty()) {
+            projects = projects.stream().filter(item -> Boolean.TRUE.equals(item.getActive())).toList();
+        }
         List<Task> tasks = taskRepository.findByProjectInAndAssigneeAndStatusNotInOrderByUpdatedDateDesc(projects, username, excludedStatuses);
         return buildAuthoringTasks(tasks, codeSystems, false);
     }
@@ -331,6 +334,9 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
             statuses.add(TaskStatus.PROMOTED);
         }
         List<Project> projects = permissionService.getProjectsForUser();
+        if (!projects.isEmpty()) {
+            projects = projects.stream().filter(item -> Boolean.TRUE.equals(item.getActive())).toList();
+        }
         List<Task> tasks = taskRepository.findByProjectInAndAssigneeNotAndStatusInOrderByUpdatedDateDesc(projects, currentUser, statuses);
         tasks = tasks.stream().
                 filter(task -> (CollectionUtils.isEmpty(task.getReviewers()) && TaskStatus.IN_REVIEW.equals(task.getStatus()))
