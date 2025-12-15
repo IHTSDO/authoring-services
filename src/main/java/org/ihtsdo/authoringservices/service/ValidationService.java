@@ -180,7 +180,11 @@ public class ValidationService {
 	}
 
 	public void updateValidationCache(final String branchPath, final Map<String, String> newPropertyValues) {
-		Validation validation = validationRepository.findByBranchPath(branchPath);
+		// Check cache first to get the most recent in-memory state, then fall back to database
+		Validation validation = validationLoadingCache.getIfPresent(branchPath);
+		if (validation == null) {
+			validation = validationRepository.findByBranchPath(branchPath);
+		}
 		if (validation == null) {
 			validation = new Validation(branchPath);
 		}
