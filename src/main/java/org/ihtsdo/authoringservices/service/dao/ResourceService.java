@@ -1,6 +1,6 @@
 package org.ihtsdo.authoringservices.service.dao;
 
-import us.monoid.json.JSONException;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import java.io.File;
 import java.io.IOException;
@@ -21,7 +21,7 @@ public interface ResourceService {
 	 * @throws IOException If an error occurs while trying to write
 	 *                     the {@code data} into the resource.
 	 */
-	void write(String path, String data) throws IOException, JSONException;
+	void write(String path, JsonNode data) throws IOException;
 
 	/**
 	 * Reads the resource from the given path.
@@ -32,7 +32,7 @@ public interface ResourceService {
 	 * @throws IOException If an error occurs while trying to read
 	 *                     the resource.
 	 */
-	String read(String path) throws IOException;
+	JsonNode read(String path) throws IOException;
 
 	/**
 	 * Reads the resource from the file location, into memory.

@@ -1,5 +1,6 @@
 package org.ihtsdo.authoringservices.rest;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -14,7 +15,6 @@ import org.ihtsdo.sso.integration.SecurityUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
-import us.monoid.json.JSONException;
 
 import java.io.IOException;
 
@@ -40,7 +40,7 @@ public class UiStateController {
 	})
 	@PostMapping(value = "/projects/{projectKey}/tasks/{taskKey}/ui-state/{panelId}")
 	public void persistTaskUiPanelState(@PathVariable final String projectKey, @PathVariable final String taskKey, @PathVariable final String panelId,
-			@RequestBody final String jsonState) throws IOException, BusinessServiceException, JSONException {
+			@RequestBody final JsonNode jsonState) throws IOException, BusinessServiceException {
 		// TODO - move this to an explicit "Start progress" endpoint.
 		boolean useNew = false;
 		try {
@@ -59,7 +59,7 @@ public class UiStateController {
 			@ApiResponse(responseCode = "200", description = "OK")
 	})
 	@GetMapping(value = "/projects/{projectKey}/tasks/{taskKey}/ui-state/{panelId}")
-	public String retrieveTaskUiPanelState(@PathVariable final String projectKey, @PathVariable final String taskKey, @PathVariable final String panelId) throws IOException {
+	public JsonNode retrieveTaskUiPanelState(@PathVariable final String projectKey, @PathVariable final String taskKey, @PathVariable final String panelId) throws IOException {
 		return uiStateService.retrieveTaskPanelState(projectKey, taskKey, SecurityUtil.getUsername(), panelId);
 	}
 
@@ -82,7 +82,7 @@ public class UiStateController {
 	@PostMapping(value = "/projects/{projectKey}/tasks/{taskKey}/shared-ui-state/{panelId}")
 	public void persistSharedTaskUiPanelState(
 			@PathVariable final String projectKey, @PathVariable final String taskKey,
-			@PathVariable final String panelId, @RequestBody final String jsonState) throws IOException, JSONException {
+			@PathVariable final String panelId, @RequestBody final JsonNode jsonState) throws IOException {
 		uiStateService.persistTaskPanelState(projectKey, taskKey, SHARED, panelId, jsonState);
 	}
 
@@ -92,7 +92,7 @@ public class UiStateController {
 			@ApiResponse(responseCode = "200", description = "OK")
 	})
 	@GetMapping(value = "/projects/{projectKey}/tasks/{taskKey}/shared-ui-state/{panelId}")
-	public String retrieveSharedTaskUiPanelState(
+	public JsonNode retrieveSharedTaskUiPanelState(
 			@PathVariable final String projectKey, @PathVariable final String taskKey,
 			@PathVariable final String panelId) throws IOException {
 		return uiStateService.retrieveTaskPanelState(projectKey, taskKey, SHARED, panelId);
@@ -116,7 +116,7 @@ public class UiStateController {
 			@ApiResponse(responseCode = "200", description = "OK")
 	})
 	@PostMapping(value = "/ui-state/{panelId}")
-	public void persistUiPanelState(@PathVariable final String panelId, @RequestBody final String jsonState) throws IOException, JSONException {
+	public void persistUiPanelState(@PathVariable final String panelId, @RequestBody final JsonNode jsonState) throws IOException {
 		uiStateService.persistPanelState(SecurityUtil.getUsername(), panelId, jsonState);
 	}
 
@@ -126,7 +126,7 @@ public class UiStateController {
 			@ApiResponse(responseCode = "200", description = "OK")
 	})
 	@GetMapping(value = "/ui-state/{panelId}")
-	public String retrieveUiPanelState(@PathVariable final String panelId) throws IOException {
+	public JsonNode retrieveUiPanelState(@PathVariable final String panelId) throws IOException {
 		return uiStateService.retrievePanelState(SecurityUtil.getUsername(), panelId);
 	}
 

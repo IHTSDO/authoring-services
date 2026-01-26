@@ -1,5 +1,7 @@
 package org.ihtsdo.authoringservices.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.google.gson.JsonPrimitive;
 import jakarta.mail.Message;
 import jakarta.mail.MessagingException;
 import jakarta.mail.Session;
@@ -17,8 +19,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.thymeleaf.context.Context;
 import org.thymeleaf.spring6.SpringTemplateEngine;
-import us.monoid.json.JSONException;
-import us.monoid.json.JSONObject;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -153,21 +153,26 @@ public class EmailService {
         doSendMail(subject, templateFile, params, emails);
     }
 
-    private boolean isAllowedEmailNotification(String username) {
-        try {
-            String userPreference = uiStateService.retrievePanelStateWithoutThrowingResourceNotFoundException(username, "user-preferences");
-            if (userPreference != null) {
-                JSONObject jsonObject = new JSONObject(userPreference);
-                return jsonObject.getBoolean("allowedEmailNotification");
-            }
-        } catch (IOException e) {
-            logger.info("Could not find user-preferences for user: " + username);
-        } catch (JSONException e) {
-            logger.info("The JSON property allowedEmailNotification does not present in user-preferences for user: " + username);
+	private boolean isAllowedEmailNotification(String username) {
+		try {
+			JsonNode userPreferences = uiStateService.retrievePanelStateWithoutThrowingResourceNotFoundException(
+					username,
+					"user-preferences"
+			);
 
-        }
-        return false;
-    }
+			if (userPreferences != null) {
+				JsonNode allowed = userPreferences.get("allowedEmailNotification");
+				if (allowed != null && allowed.isBoolean()) {
+					return allowed.asBoolean();
+				}
+			}
+		} catch (IOException e) {
+			logger.info("Could not retrieve user-preferences for user: {}", username, e);
+		}
+		return false;
+	}
+
+
 
     private void doSendMail(final String subject, final String templateFile, final Context params, final Collection <String> toEmails) {
         if (CollectionUtils.isEmpty(toEmails)) {
@@ -195,7 +200,7 @@ public class EmailService {
     }
 
     @Async
-    private void send(MimeMessage mimeMessage) {
+    protected void send(MimeMessage mimeMessage) {
         try {
             mailSender.send(mimeMessage);
         } catch (MailException e) {

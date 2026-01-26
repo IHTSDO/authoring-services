@@ -1,8 +1,10 @@
 package org.ihtsdo.authoringservices.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.Sets;
-import com.google.gson.JsonObject;
+import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.annotation.PostConstruct;
 import jakarta.jms.JMSException;
 import net.rcarz.jiraclient.Status;
@@ -103,6 +105,9 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
 
     @Autowired
     private CacheService cacheService;
+
+	@Autowired
+	ObjectMapper objectMapper;
 
     private final ImpersonatingJiraClientFactory jiraClientFactory;
     private final Set<String> myTasksRequiredFields;
@@ -639,7 +644,7 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
                     task.setBranchHeadTimestamp(branch.getHeadTimestamp());
 
                     if (lightweight == null || !lightweight) {
-                        task.setLatestClassificationJson(classificationService.getLatestClassification(task.getBranchPath()));
+                        task.setLatestClassification(classificationService.getLatestClassification(task.getBranchPath()));
                         timer.checkpoint("Recovered classification");
                         // get the review message details and append to task
                         TaskMessagesDetail detail = reviewService.getTaskMessagesDetail(task.getProjectKey(), task.getKey(), getUsername());
@@ -970,10 +975,11 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
 
                     // Workaround to simulate a JSON string for Organization, then the FE does't need tweaking
                     String organization = contentRequestDto.getOrganizationOrNull();
-                    JsonObject jsonObject = new JsonObject();
-                    jsonObject.addProperty("value", organization);
+	                ObjectNode jsonObject = objectMapper.createObjectNode();
+	                jsonObject.put("value", organization);
 
-                    TaskAttachment taskAttachment = new TaskAttachment(null, String.valueOf(requestId), contentRequestDto.getConcept().toString(), jsonObject.toString());
+
+	                TaskAttachment taskAttachment = new TaskAttachment(null, String.valueOf(requestId), contentRequestDto.getConcept().toString(), jsonObject.toString());
                     attachments.add(taskAttachment);
                 }
             } else {

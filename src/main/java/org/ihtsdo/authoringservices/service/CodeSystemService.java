@@ -343,7 +343,7 @@ public class CodeSystemService {
 		try {
 			for (CodeSystem codeSystem : codeSystems) {
 				AuthoringCodeSystem authoringCodeSystem = new AuthoringCodeSystem(codeSystem);
-				authoringCodeSystem.setLatestClassificationJson(classificationService.getLatestClassification(codeSystem.getBranchPath()));
+				authoringCodeSystem.setLatestClassification(classificationService.getLatestClassification(codeSystem.getBranchPath()));
 
 				Branch branch = branchService.getBranchOrNull(codeSystem.getBranchPath());
 				Validation validation = validationService.getValidation(codeSystem.getBranchPath());

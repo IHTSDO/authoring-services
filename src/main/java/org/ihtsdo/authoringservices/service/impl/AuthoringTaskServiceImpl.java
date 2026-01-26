@@ -1,8 +1,10 @@
 package org.ihtsdo.authoringservices.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.gson.Gson;
-import com.google.gson.JsonObject;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.Expressions;
 import jakarta.jms.JMSException;
@@ -97,6 +99,9 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
 
     @Autowired
     private CacheService cacheService;
+
+	@Autowired
+	ObjectMapper objectMapper;
 
     @Override
     public boolean isUseNew(String taskKey) {
@@ -654,8 +659,8 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
 
                 // Workaround to simulate a JSON string for Organization, then the FE does't need tweaking
                 String organization = contentRequestDto.getOrganizationOrNull();
-                JsonObject jsonObject = new JsonObject();
-                jsonObject.addProperty("value", organization);
+	            ObjectNode jsonObject = objectMapper.createObjectNode();
+	            jsonObject.put("value", organization);
 
                 TaskAttachment taskAttachment = new TaskAttachment(null, crsTask.getCrsTaskKey(), contentRequestDto.getConcept() != null ? contentRequestDto.getConcept().toString() : null, jsonObject.toString());
                 attachments.add(taskAttachment);
@@ -802,7 +807,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
                 authoringTask.setBranchHeadTimestamp(branch.getHeadTimestamp());
 
                 if (lightweight == null || !lightweight) {
-                    authoringTask.setLatestClassificationJson(classificationService.getLatestClassification(authoringTask.getBranchPath()));
+                    authoringTask.setLatestClassification(classificationService.getLatestClassification(authoringTask.getBranchPath()));
                     timer.checkpoint("Recovered classification");
                     // get the review message details and append to task
                     TaskMessagesDetail detail = reviewService.getTaskMessagesDetail(authoringTask.getProjectKey(), authoringTask.getKey(), SecurityUtil.getUsername());

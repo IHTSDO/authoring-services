@@ -1,15 +1,12 @@
 package org.ihtsdo.authoringservices.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
 import org.ihtsdo.authoringservices.domain.TaskChangeAssigneeRequest;
 import org.ihtsdo.authoringservices.service.dao.UiStateResourceService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import us.monoid.json.JSONArray;
-import us.monoid.json.JSONException;
-import us.monoid.json.JSONObject;
-import us.monoid.json.JSONTokener;
 
 import java.io.IOException;
 import java.nio.file.NoSuchFileException;
@@ -20,21 +17,11 @@ public class UiStateService {
 	@Autowired
 	private UiStateResourceService resourceService;
 
-	public void persistTaskPanelState(final String projectKey, final String taskKey, final String username, final String panelId, final String jsonState) throws IOException, JSONException {
-		if (isValidJson(jsonState)) {
-			resourceService.write(getTaskUserPanelPath(projectKey, taskKey, username, panelId), jsonState);
-		}
+	public void persistTaskPanelState(final String projectKey, final String taskKey, final String username, final String panelId, final JsonNode jsonState) throws IOException {
+		resourceService.write(getTaskUserPanelPath(projectKey, taskKey, username, panelId), jsonState);
 	}
 
-	private boolean isValidJson(final String jsonState) throws JSONException {
-		final Object data = new JSONTokener(jsonState).nextValue();
-		if (data instanceof JSONObject || data instanceof JSONArray) {
-			return true;
-		}
-		throw new JSONException("JSON panel state is malformed.");
-	}
-
-	public String retrieveTaskPanelState(final String projectKey, final String taskKey, final String username, final String panelId) throws IOException {
+	public JsonNode retrieveTaskPanelState(final String projectKey, final String taskKey, final String username, final String panelId) throws IOException {
 		try {
 			return resourceService.read(getTaskUserPanelPath(projectKey, taskKey, username, panelId));
 		} catch (NoSuchFileException e) {
@@ -42,7 +29,7 @@ public class UiStateService {
 		}
 	}
 
-	public String retrieveTaskPanelStateWithoutThrowingResourceNotFoundException(final String projectKey, final String taskKey, final String username, final String panelId)
+	public JsonNode retrieveTaskPanelStateWithoutThrowingResourceNotFoundException(final String projectKey, final String taskKey, final String username, final String panelId)
 			throws IOException {
 		try {
 			return resourceService.read(getTaskUserPanelPath(projectKey, taskKey, username, panelId));
@@ -51,13 +38,11 @@ public class UiStateService {
 		}
 	}
 
-	public void persistPanelState(final String username, final String panelId, final String jsonState) throws IOException, JSONException {
-		if (isValidJson(jsonState)) {
-			resourceService.write(getUserPanelPath(username, panelId), jsonState);
-		}
+	public void persistPanelState(final String username, final String panelId, final JsonNode jsonState) throws IOException {
+		resourceService.write(getUserPanelPath(username, panelId), jsonState);
 	}
 
-	public String retrievePanelState(final String username, final String panelId) throws IOException {
+	public JsonNode retrievePanelState(final String username, final String panelId) throws IOException {
 		try {
 			return resourceService.read(getUserPanelPath(username, panelId));
 		} catch (NoSuchFileException e) {
@@ -65,7 +50,7 @@ public class UiStateService {
 		}
 	}
 
-	public String retrievePanelStateWithoutThrowingResourceNotFoundException(final String username, final String panelId) throws IOException {
+	public JsonNode retrievePanelStateWithoutThrowingResourceNotFoundException(final String username, final String panelId) throws IOException {
 		try {
 			return resourceService.read(getUserPanelPath(username, panelId));
 		} catch (NoSuchFileException e) {

@@ -12,6 +12,7 @@ import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
 import jakarta.jms.ConnectionFactory;
 import net.rcarz.jiraclient.JiraException;
+import org.apache.tomcat.util.buf.EncodedSolidusHandling;
 import org.ihtsdo.authoringservices.service.ProjectService;
 import org.ihtsdo.authoringservices.service.TaskService;
 import org.ihtsdo.authoringservices.service.client.JiraCloudClient;
@@ -19,6 +20,8 @@ import org.ihtsdo.authoringservices.service.impl.*;
 import org.ihtsdo.authoringservices.service.jira.ImpersonatingJiraClientFactory;
 import org.ihtsdo.otf.jms.MessagingHelper;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springdoc.core.models.GroupedOpenApi;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -28,6 +31,9 @@ import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.autoconfigure.http.HttpMessageConverters;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.info.BuildProperties;
+import org.springframework.boot.web.embedded.tomcat.TomcatConnectorCustomizer;
+import org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactory;
+import org.springframework.boot.web.server.WebServerFactoryCustomizer;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
@@ -48,6 +54,9 @@ import java.util.TimeZone;
 @EnableJpaRepositories(basePackages = "org.ihtsdo.authoringservices.repository")
 @EntityScan(basePackages = "org.ihtsdo.authoringservices.entity")
 public abstract class Configuration {
+
+	private final Logger logger = LoggerFactory.getLogger(getClass());
+
 	@Autowired(required = false)
 	private BuildProperties buildProperties;
 
@@ -181,6 +190,13 @@ public abstract class Configuration {
 				.externalDocs(new ExternalDocumentation()
 						.description("See more about Authoring Services in GitHub")
 						.url("https://github.com/IHTSDO/authoring-services"));
+	}
+
+	@Bean
+	public TomcatConnectorCustomizer connectorCustomizer() {
+		// Swagger encodes the slash in branch paths
+		logger.info("Configuring Tomcat to decode encoded slashes.");
+		return connector -> connector.setEncodedSolidusHandling(EncodedSolidusHandling.DECODE.getValue());
 	}
 
 }

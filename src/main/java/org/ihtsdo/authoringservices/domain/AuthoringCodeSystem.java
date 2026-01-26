@@ -2,6 +2,7 @@ package org.ihtsdo.authoringservices.domain;
 
 import com.fasterxml.jackson.annotation.JsonRawValue;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Classification;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystemVersion;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ConceptMiniPojo;
@@ -21,7 +22,7 @@ public class AuthoringCodeSystem {
 	private Collection<ConceptMiniPojo> modules;
 	private Integer dependantVersionEffectiveTime;
 	private CodeSystemVersion latestVersion;
-	private String latestClassificationJson;
+	private Classification latestClassification;
 	private String latestValidationStatus;
 	private List<CodeSystemVersion> versions;
 
@@ -120,13 +121,12 @@ public class AuthoringCodeSystem {
 		return versions;
 	}
 
-	@JsonRawValue
-	public String getLatestClassificationJson() {
-		return latestClassificationJson;
+	public Classification getLatestClassification() {
+		return latestClassification;
 	}
 
-	public void setLatestClassificationJson(String latestClassificationJson) {
-		this.latestClassificationJson = latestClassificationJson;
+	public void setLatestClassification(Classification latestClassificationJson) {
+		this.latestClassification = latestClassificationJson;
 	}
 
 	public String getLatestValidationStatus() {

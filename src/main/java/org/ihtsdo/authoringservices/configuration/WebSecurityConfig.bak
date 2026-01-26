@@ -1,0 +1,95 @@
+package org.ihtsdo.authoringservices.configuration;
+
+import jakarta.servlet.http.HttpServletResponse;
+import org.ihtsdo.authoringservices.rest.security.RequestHeaderAuthenticationDecoratorWithOverride;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
+import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.context.SecurityContextPersistenceFilter;
+import org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter;
+import org.springframework.security.web.session.DisableEncodeUrlFilter;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+
+import java.io.PrintWriter;
+import java.io.StringWriter;
+
+@Configuration
+@EnableWebSecurity
+public class WebSecurityConfig {
+
+	@Value("${ims-security.required-role}")
+	private String requiredRole;
+
+	@Value("${authentication.override.username}")
+	private String overrideUsername;
+
+	@Value("${authentication.override.roles}")
+	private String overrideRoles;
+
+	@Value("${authentication.override.token}")
+	private String overrideToken;
+
+	private final String[] excludedUrlPatterns = {
+			"/",
+			"/version",
+			"/ui-configuration",
+			"/authoring-services-websocket/**/*",
+			// Swagger API Docs:
+			"/swagger-ui/**",
+			"/v3/api-docs/**"
+	};
+
+	@Bean
+	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+		http.csrf(AbstractHttpConfigurer::disable);
+		http.addFilterBefore(new RequestHeaderAuthenticationDecoratorWithOverride(overrideUsername, overrideRoles, overrideToken), AnonymousAuthenticationFilter.class);
+		for (String excludedPath : excludedUrlPatterns) {
+			http.authorizeHttpRequests(auth -> auth.requestMatchers(new AntPathRequestMatcher(excludedPath)).permitAll());
+		}
+
+		if (requiredRole != null && !requiredRole.isEmpty()) {
+			http.authorizeHttpRequests(auth -> auth.anyRequest().hasAuthority(requiredRole));
+		} else {
+			http.authorizeHttpRequests(auth -> auth.anyRequest().authenticated());
+		}
+		
+		// Configure exception handling to prevent Basic Auth popup
+		// Returns JSON response instead of triggering browser Basic Auth popup
+		/*http.exceptionHandling(exceptions -> exceptions
+			.authenticationEntryPoint((request, response, authException) -> {
+				response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+				response.setContentType("application/json;charset=UTF-8");
+				String message = authException.getMessage() != null ? authException.getMessage().replace("\"", "\\\"") : "Authentication required";
+				response.getWriter().write("{\"error\":\"Unauthorized\",\"message\":\"" + message + "\"}");
+			})
+		);*/
+		//TODO DO NOT SHIP TO PRODUCTION!!!
+		http.exceptionHandling(exceptions -> exceptions
+				.authenticationEntryPoint((request, response, authException) -> {
+					response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+					response.setContentType("application/json;charset=UTF-8");
+
+					String message = authException.getMessage() != null ? authException.getMessage().replace("\"", "\\\"") : "Authentication required";
+
+					// Convert stack trace to a String
+					StringWriter sw = new StringWriter();
+					PrintWriter pw = new PrintWriter(sw);
+					authException.printStackTrace(pw);
+					String stackTrace = sw.toString().replace("\n", "\\n").replace("\r", "\\r").replace("\"", "\\\"");
+
+					response.getWriter().write("{\"error\":\"Unauthorized\",\"message\":\"" + message + "\",\"stackTrace\":\"" + stackTrace + "\"}");
+				})
+		);
+		
+		http.securityContext(securityContext -> securityContext
+				.requireExplicitSave(false));
+		return http.build();
+	}
+}

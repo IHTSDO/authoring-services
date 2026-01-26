@@ -1,15 +1,19 @@
 package org.ihtsdo.authoringservices.configuration;
 
-import jakarta.servlet.http.HttpServletResponse;
-import org.ihtsdo.authoringservices.rest.security.RequestHeaderAuthenticationDecoratorWithOverride;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.core.userdetails.UserDetailsByNameServiceWrapper;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.access.intercept.AuthorizationFilter;
+import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
+import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationProvider;
+import org.springframework.security.web.authentication.preauth.RequestHeaderAuthenticationFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration
@@ -33,17 +37,28 @@ public class WebSecurityConfig {
 			"/version",
 			"/ui-configuration",
 			"/authoring-services-websocket/**/*",
-			// Swagger API Docs:
 			"/swagger-ui/**",
 			"/v3/api-docs/**"
 	};
 
 	@Bean
-	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+	public SecurityFilterChain filterChain(HttpSecurity http, AuthenticationManager authManager) throws Exception {
+
 		http.csrf(AbstractHttpConfigurer::disable);
-		http.addFilterBefore(new RequestHeaderAuthenticationDecoratorWithOverride(overrideUsername, overrideRoles, overrideToken), AuthorizationFilter.class);
+
+		RequestHeaderAuthenticationFilter preAuthFilter = new RequestHeaderAuthenticationFilter();
+		preAuthFilter.setAuthenticationManager(authManager);
+
+		// header names from your base class
+		preAuthFilter.setPrincipalRequestHeader("X-AUTH-username");
+		preAuthFilter.setCredentialsRequestHeader("X-AUTH-token");
+		preAuthFilter.setExceptionIfHeaderMissing(false);
+
+		http.addFilterBefore(preAuthFilter, AnonymousAuthenticationFilter.class);
+
 		for (String excludedPath : excludedUrlPatterns) {
-			http.authorizeHttpRequests(auth -> auth.requestMatchers(new AntPathRequestMatcher(excludedPath)).permitAll());
+			http.authorizeHttpRequests(auth ->
+					auth.requestMatchers(new AntPathRequestMatcher(excludedPath)).permitAll());
 		}
 
 		if (requiredRole != null && !requiredRole.isEmpty()) {
@@ -51,20 +66,37 @@ public class WebSecurityConfig {
 		} else {
 			http.authorizeHttpRequests(auth -> auth.anyRequest().authenticated());
 		}
-		
-		// Configure exception handling to prevent Basic Auth popup
-		// Returns JSON response instead of triggering browser Basic Auth popup
-		http.exceptionHandling(exceptions -> exceptions
-			.authenticationEntryPoint((request, response, authException) -> {
-				response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-				response.setContentType("application/json;charset=UTF-8");
-				String message = authException.getMessage() != null ? authException.getMessage().replace("\"", "\\\"") : "Authentication required";
-				response.getWriter().write("{\"error\":\"Unauthorized\",\"message\":\"" + message + "\"}");
-			})
-		);
-		
-		http.securityContext(securityContext -> securityContext
-				.requireExplicitSave(false));
+
 		return http.build();
+	}
+
+	@Bean
+	public AuthenticationManager authenticationManager(UserDetailsService userDetailsService) {
+		PreAuthenticatedAuthenticationProvider provider = new PreAuthenticatedAuthenticationProvider();
+		provider.setPreAuthenticatedUserDetailsService(
+				new UserDetailsByNameServiceWrapper<>(userDetailsService)
+		);
+		return new ProviderManager(provider);
+	}
+
+	@Bean
+	public UserDetailsService userDetailsService() {
+		return username -> {
+			String effectiveUsername = overrideUsername != null && !overrideUsername.isBlank()
+					? overrideUsername : username;
+
+			String roles = overrideRoles != null && !overrideRoles.isBlank()
+					? overrideRoles : "ROLE_USER";
+
+			return org.springframework.security.core.userdetails.User
+					.withUsername(effectiveUsername)
+					.password("") // not used for pre-auth
+					.authorities(roles.split(","))
+					.accountExpired(false)
+					.accountLocked(false)
+					.credentialsExpired(false)
+					.disabled(false)
+					.build();
+		};
 	}
 }
