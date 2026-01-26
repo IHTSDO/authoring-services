@@ -6,6 +6,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Strings;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
 
 public class RequestHeaderAuthenticationDecoratorWithOverride extends org.ihtsdo.sso.integration.RequestHeaderAuthenticationDecorator {
 	private final String overrideUsername;
@@ -43,7 +46,8 @@ public class RequestHeaderAuthenticationDecoratorWithOverride extends org.ihtsdo
 	@Override
 	protected String getToken(HttpServletRequest request) {
 		if (!Strings.isNullOrEmpty(overrideToken)) {
-			logger.warn("Using authentication override token"); // We don't log the token
+			int tokenCutPoint = overrideToken.length() - 6;
+			logger.warn("Using authentication override token that ends: {}",  overrideToken.substring(tokenCutPoint));
 			return overrideToken;
 		} else {
 			return super.getToken(request);

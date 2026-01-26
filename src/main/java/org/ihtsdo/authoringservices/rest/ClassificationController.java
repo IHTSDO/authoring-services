@@ -3,11 +3,11 @@ package org.ihtsdo.authoringservices.rest;
 import io.kaicode.rest.util.branchpathrewrite.BranchPathUriUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.ihtsdo.authoringservices.domain.Classification;
 import org.ihtsdo.authoringservices.service.BranchService;
 import org.ihtsdo.authoringservices.service.CacheService;
 import org.ihtsdo.authoringservices.service.SnowstormClassificationClient;
 import org.ihtsdo.otf.rest.client.RestClientException;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Classification;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.sso.integration.SecurityUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import us.monoid.json.JSONException;
 
 import static org.ihtsdo.authoringservices.rest.ControllerHelper.*;
 
@@ -46,7 +45,7 @@ public class ClassificationController {
 			Classification classification = snowstormClassificationClient.startClassification(projectKey, null, branchPath, SecurityUtil.getUsername());
 			cacheService.clearClassificationCache(branchPath);
 			return classification;
-		} catch (RestClientException | JSONException e) {
+		} catch (RestClientException e) {
 			throw new BusinessServiceException(FAILED_TO_START_CLASSIFICATION_ERROR_MSG, e);
 		}
 	}
@@ -59,7 +58,7 @@ public class ClassificationController {
 			Classification classification = snowstormClassificationClient.startClassification(null, null, branchPath, SecurityUtil.getUsername());
 			cacheService.clearClassificationCache(branchPath);
 			return classification;
-		} catch (RestClientException | JSONException e) {
+		} catch (RestClientException e) {
 			throw new BusinessServiceException(FAILED_TO_START_CLASSIFICATION_ERROR_MSG, e);
 		}
 	}
@@ -72,7 +71,7 @@ public class ClassificationController {
 			Classification classification = snowstormClassificationClient.startClassification(projectKey, taskKey, branchPath, SecurityUtil.getUsername());
 			cacheService.clearClassificationCache(branchPath);
 			return classification;
-		} catch (RestClientException | JSONException e) {
+		} catch (RestClientException e) {
 			throw new BusinessServiceException(FAILED_TO_START_CLASSIFICATION_ERROR_MSG, e);
 		}
 	}

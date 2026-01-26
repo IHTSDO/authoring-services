@@ -22,6 +22,7 @@ import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Classification;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
@@ -656,11 +657,11 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
                 synchronized (branchPaths) {
                     branchPaths.add(branchPath);
                 }
-                String latestClassificationJson = !Boolean.TRUE.equals(lightweight) ? classificationService.getLatestClassification(branchPath) : null;
+                Classification latestClassification = !Boolean.TRUE.equals(lightweight) ? classificationService.getLatestClassification(branchPath) : null;
                 Map<String, JiraProject> projectMap = unfilteredProjects.get();
                 JiraProject project = projectMap.get(projectKey);
                 final AuthoringProject authoringProject = new AuthoringProject(projectKey, project.name(),
-                        project.lead(), true, branchPath, branchState, baseTimeStamp, headTimeStamp, latestClassificationJson, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled, rebaseDisabled, scheduledRebaseDisabled, taskPromotionDisabled, projectLocked);
+                        project.lead(), true, branchPath, branchState, baseTimeStamp, headTimeStamp, latestClassification, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled, rebaseDisabled, scheduledRebaseDisabled, taskPromotionDisabled, projectLocked);
                 authoringProject.setMetadata(metadata);
                 authoringProject.setCodeSystem(codeSystem);
                 synchronized (authoringProjects) {

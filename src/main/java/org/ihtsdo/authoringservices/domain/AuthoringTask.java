@@ -11,6 +11,7 @@ import org.ihtsdo.authoringservices.entity.CrsTask;
 import org.ihtsdo.authoringservices.entity.Task;
 import org.ihtsdo.authoringservices.service.impl.TaskServiceBase;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Classification;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -40,7 +41,7 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
     private List<CrsTask> crsTasks;
     private String created;
     private String updated;
-    private String latestClassificationJson;
+    private Classification latestClassification;
     private String latestValidationStatus;
     private TaskMessagesStatus feedbackMessagesStatus;
     private Date feedbackMessageDate;
@@ -200,13 +201,12 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
         this.updated = updated;
     }
 
-    @JsonRawValue
-    public String getLatestClassificationJson() {
-        return latestClassificationJson;
+    public Classification getLatestClassificationJson() {
+		return latestClassification;
     }
 
-    public void setLatestClassificationJson(String json) {
-        latestClassificationJson = json;
+    public void setLatestClassification(Classification json) {
+		latestClassification = json;
     }
 
     public void setLatestValidationStatus(String latestValidationStatus) {

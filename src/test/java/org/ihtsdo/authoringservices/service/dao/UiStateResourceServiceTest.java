@@ -1,13 +1,16 @@
 package org.ihtsdo.authoringservices.service.dao;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.NullNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.ihtsdo.authoringservices.configuration.UiStateStorageConfiguration;
 import org.ihtsdo.authoringservices.service.exceptions.PathNotProvidedException;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
-import us.monoid.json.JSONException;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -15,14 +18,17 @@ public class UiStateResourceServiceTest {
 
 	private static final UiStateResourceService uiStateResourceService = new UiStateResourceService(Mockito.mock(UiStateStorageConfiguration.class));
 
+	private static final ObjectMapper mapper = new ObjectMapper();
+	private static final ObjectNode EMPTY_OBJECT = mapper.createObjectNode();
+
 	@Test
 	public void testWriteThrowsPathNotProvidedExceptionWhenPathIsNull() {
-	    assertThrows(PathNotProvidedException.class, () -> uiStateResourceService.write(null, ""));
+	    assertThrows(PathNotProvidedException.class, () -> uiStateResourceService.write(null, EMPTY_OBJECT));
 	}
 
 	@Test
 	public void testWriteThrowsJSONExceptionWhenDataIsNull() {
-        assertThrows(JSONException.class, () -> uiStateResourceService.write("", null));
+        assertThrows(IOException.class, () -> uiStateResourceService.write("", EMPTY_OBJECT));
     }
 
     @Test

@@ -11,7 +11,7 @@ import org.ihtsdo.authoringservices.service.factory.ProjectServiceFactory;
 import org.ihtsdo.authoringservices.service.factory.TaskServiceFactory;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
-import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ClassificationResults;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Classification;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ClassificationStatus;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.sso.integration.SecurityUtil;
@@ -23,8 +23,6 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.jms.annotation.JmsListener;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import us.monoid.json.JSONException;
-import us.monoid.json.JSONObject;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -53,7 +51,7 @@ public class SnowstormClassificationClient {
 	private final ObjectMapper objectMapper = new ObjectMapper();
 	private final Map <String, ClassificationRequest> classificationRequests = Collections.synchronizedMap(new HashMap <>());
 
-	public synchronized Classification startClassification(String projectKey, String taskKey, String branchPath, String username) throws RestClientException, JSONException {
+	public synchronized Classification startClassification(String projectKey, String taskKey, String branchPath, String username) throws RestClientException {
 		if (!snowstormRestClientFactory.getClient().isClassificationInProgressOnBranch(branchPath)) {
 			Classification classificationResult = callClassification(projectKey, taskKey, branchPath, username);
 			Notification notification = new Notification(projectKey, taskKey, EntityType.Classification, "Classification is running");
@@ -67,7 +65,7 @@ public class SnowstormClassificationClient {
 	}
 
 	@Cacheable(value = "classification-status", key = "#branchPath")
-	public String getLatestClassification(String branchPath) throws RestClientException {
+	public Classification getLatestClassification(String branchPath) throws RestClientException {
 		return snowstormRestClientFactory.getClient().getLatestClassificationOnBranch(branchPath);
 	}
 
@@ -95,19 +93,19 @@ public class SnowstormClassificationClient {
 	private Classification callClassification(String projectKey, String taskKey, String branchPath, String callerUsername) throws RestClientException {
 		logger.info("Requesting classification of path {} for user {}", branchPath, callerUsername);
 
-		ClassificationResults results = snowstormRestClientFactory.getClient().startClassification(branchPath);
+		Classification classification = snowstormRestClientFactory.getClient().startClassification(branchPath);
 		//If we started the classification without an exception then it's state will be RUNNING (or queued)
-		results.setStatus(ClassificationStatus.RUNNING);
+		classification.setStatus(ClassificationStatus.RUNNING);
 
 		ClassificationRequest request = new ClassificationRequest();
-		request.setClassificationId(results.getClassificationId());
+		request.setClassificationId(classification.getId());
 		request.setTaskKey(taskKey);
 		request.setProjectKey(projectKey);
 		request.setBranchPath(branchPath);
 		request.setAuthentication(SecurityContextHolder.getContext().getAuthentication());
-		classificationRequests.put(results.getClassificationId(), request);
+		classificationRequests.put(classification.getId(), request);
 
-		return new Classification(results);
+		return classification;
 	}
 
 	private class ClassificationRunner implements Runnable {
@@ -123,21 +121,19 @@ public class SnowstormClassificationClient {
 		@Override
 		public void run() {
 			SecurityContextHolder.getContext().setAuthentication(request.getAuthentication());
-			String resultMessage;
-			if (ClassificationStatus.COMPLETED.equals(status)) {
-				resultMessage = "Classification completed successfully";
-			} else {
-				resultMessage = "Classification failed to complete due to an internal error. Please try again.";
-			}
+
+			String resultMessage = ClassificationStatus.COMPLETED.equals(status)
+					? "Classification completed successfully"
+					: "Classification failed to complete due to an internal error. Please try again.";
 
 			// Add new comment to project/task
-            try {
-                addCommentLog(resultMessage);
-            } catch (BusinessServiceException e) {
+			try {
+				addCommentLog(resultMessage);
+			} catch (BusinessServiceException e) {
 				logger.error("Failed to add comment log. Error: {}", e.getMessage());
-            }
+			}
 
-            // Clear the cache
+			// Clear the cache
 			cacheService.clearClassificationCache(request.getBranchPath());
 
 			// Notify user
@@ -147,22 +143,27 @@ public class SnowstormClassificationClient {
 
 			// Mark task as IN_REVIEW when inferred relationship changes found
 			if (request.getTaskKey() != null && ClassificationStatus.COMPLETED.equals(status)) {
-				try {
-					boolean useNew = taskServiceFactory.getInstance(true).isUseNew(request.getTaskKey());
-					AuthoringTask task = taskServiceFactory.getInstance(useNew).retrieveTask(request.getProjectKey(), request.getTaskKey(), true, true);
-					if (TaskStatus.REVIEW_COMPLETED.equals(task.getStatus())) {
-						String jsonStr = snowstormRestClientFactory.getClient().getLatestClassificationOnBranch(request.getBranchPath());
-						JSONObject jsonObject = new JSONObject(jsonStr);
-						if (jsonObject.has("inferredRelationshipChangesFound") && jsonObject.getBoolean("inferredRelationshipChangesFound")) {
-							AuthoringTaskUpdateRequest taskUpdateRequest = new AuthoringTask();
-							taskUpdateRequest.setStatus(TaskStatus.IN_REVIEW);
-							taskServiceFactory.getInstance(useNew).updateTask(request.getProjectKey(), request.getTaskKey(), taskUpdateRequest);
-						}
-					}
-				} catch (BusinessServiceException | RestClientException | JSONException e) {
-					logger.error("Failed to mark task as IN_REVIEW", e);
+				processCompletedClassification();
+			}
+		}
+
+		private void processCompletedClassification() {
+			try {
+				boolean useNew = taskServiceFactory.getInstance(true).isUseNew(request.getTaskKey());
+				AuthoringTask task = taskServiceFactory.getInstance(useNew).retrieveTask(request.getProjectKey(), request.getTaskKey(), true, true);
+				if (!TaskStatus.REVIEW_COMPLETED.equals(task.getStatus())) {
+					return;
 				}
-            }
+
+				Classification classification = snowstormRestClientFactory.getClient().getLatestClassificationOnBranch(request.getBranchPath());
+				if (classification != null && classification.hasInferredRelationshipChangesFound()) {
+					AuthoringTaskUpdateRequest taskUpdateRequest = new AuthoringTask();
+					taskUpdateRequest.setStatus(TaskStatus.IN_REVIEW);
+					taskServiceFactory.getInstance(useNew).updateTask(request.getProjectKey(), request.getTaskKey(), taskUpdateRequest);
+				}
+			} catch (BusinessServiceException | RestClientException e) {
+				logger.error("Failed to mark task as IN_REVIEW", e);
+			}
 		}
 
 		private void addCommentLog(String resultMessage) throws BusinessServiceException {

@@ -14,8 +14,6 @@ import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Merge;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.MergeReviewsResults;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -74,7 +72,6 @@ public class BranchService {
         return new AuthoringInfoWrapper(codeSystem, project, task);
     }
 
-    @NotNull
     private static BranchService.Information getBranchInformation(String branchPath, String[] parts) {
         String codeSystemShortname = null;
         String projectKey = null;
@@ -86,7 +83,6 @@ public class BranchService {
         }
     }
 
-    @NotNull
     private static Information getManagedServiceInformation(String[] parts, String codeSystemShortname, String projectKey, String taskKey) {
         for (int i = 0; i < parts.length; i++) {
             if (i == 1) codeSystemShortname = parts[i];
@@ -96,7 +92,6 @@ public class BranchService {
         return new Information(codeSystemShortname, projectKey, taskKey);
     }
 
-    @NotNull
     private static Information getInternationBranchInformation(String[] parts, String projectKey, String taskKey) {
         for (int i = 0; i < parts.length; i++) {
             if (i == 1) projectKey = parts[i];
@@ -124,7 +119,6 @@ public class BranchService {
         return project;
     }
 
-    @Nullable
     private AuthoringCodeSystem getAuthoringCodeSystem(String codeSystemShortname) throws BusinessServiceException, RestClientException {
         AuthoringCodeSystem codeSystem = null;
         if (codeSystemShortname != null) {

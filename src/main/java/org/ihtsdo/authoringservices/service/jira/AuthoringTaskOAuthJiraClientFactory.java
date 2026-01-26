@@ -31,12 +31,13 @@ public class AuthoringTaskOAuthJiraClientFactory implements ImpersonatingJiraCli
 	        @Value("${jira.url}") String jiraUrl,
             @Value("${jira.username}") String adminUsername,
             @Value("${jira.consumerKey}") String consumerKey,
-            @Value("${jira.privateKeyName}") String privateKeyPath) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+            @Value("${jira.privateKeyName}") String privateKeyPath,
+	        @Value("${jira.enabled}") boolean jiraEnabled) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
 
 		this.jiraUrl = jiraUrl;
 		this.adminJiraUsername = adminUsername;
 		this.consumerKey = consumerKey;
-		if (!adminUsername.equals(UNIT_TEST)) {
+		if (jiraEnabled && !adminUsername.equals(UNIT_TEST)) {
 			privateKey = OAuthCredentials.getPrivateKey(privateKeyPath);
 		} else {
 			privateKey = null;

@@ -78,7 +78,11 @@ public class UserCacheService {
 
     @Scheduled(initialDelay = 1, fixedRateString = "${user.cache.expiry.minutes}", timeUnit = TimeUnit.MINUTES)
     public void preloadUsersForDefaultGroup() throws URISyntaxException, IOException {
-        loginToIMSAndSetSecurityContext();
+        if (imsUsername == null || imsUsername.isEmpty()) {
+			logger.warn("Username is null or empty (configuration: auto.rebase.username), unable to preload users");
+			return;
+        }
+		loginToIMSAndSetSecurityContext();
         Set<String> keys = new HashSet<>(userGroupCache.asMap().keySet());
         keys.add(defaultGroupName);
         for (String key : keys) {

@@ -1,19 +1,19 @@
 package org.ihtsdo.authoringservices.domain;
 
-import com.fasterxml.jackson.annotation.JsonRawValue;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Classification;
 
 public class AuthoringMain {
 
 	private final String key;
-	private String latestClassificationJson;
+	private final Classification latestClassification;
 	private final String validationStatus;
 	private String branchState;
 
-	public AuthoringMain(String key, String branchState, String validationStatus, String latestClassificationJson) {
+	public AuthoringMain(String key, String branchState, String validationStatus, Classification latestClassification) {
 		this.key = key;
 		this.branchState = branchState;
 		this.validationStatus = validationStatus;
-		this.latestClassificationJson = latestClassificationJson;
+		this.latestClassification = latestClassification;
 	}
 
 	public String getKey() {
@@ -24,9 +24,8 @@ public class AuthoringMain {
 		return validationStatus;
 	}
 
-	@JsonRawValue
-	public String getLatestClassificationJson() {
-		return latestClassificationJson;
+	public Classification getLatestClassification() {
+		return latestClassification;
 	}
 	
 	public String getBranchState() {
