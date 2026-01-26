@@ -8,7 +8,6 @@ import org.ihtsdo.authoringservices.domain.JiraUserGroup;
 import org.ihtsdo.authoringservices.domain.User;
 import org.ihtsdo.authoringservices.domain.UserGroupItem;
 import org.ihtsdo.authoringservices.service.UserCacheService;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -68,7 +67,6 @@ public class UserController {
         return result;
     }
 
-    @NotNull
     private JiraUser toJiraUser(User user) {
         JiraUser jiraUser = new JiraUser();
         jiraUser.setName(user.getUsername());

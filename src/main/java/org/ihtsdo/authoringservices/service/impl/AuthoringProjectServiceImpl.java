@@ -17,10 +17,10 @@ import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Classification;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.PermissionRecord;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -287,7 +287,6 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
     }
 
-    @NotNull
     private Project getProjectOrThrow(String projectKey) throws BusinessServiceException {
         Optional<Project> projectOptional = projectRepository.findById(projectKey);
         if (projectOptional.isEmpty()) {
@@ -348,11 +347,11 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
                 synchronized (branchPaths) {
                     branchPaths.add(branchPath);
                 }
-                String latestClassificationJson = !Boolean.TRUE.equals(lightweight) ? classificationService.getLatestClassification(branchPath) : null;
+                Classification latestClassification = !Boolean.TRUE.equals(lightweight) ? classificationService.getLatestClassification(branchPath) : null;
 
                 User lead = authoringTaskService.getUser(projectTicket.getLead());
                 final AuthoringProject authoringProject = new AuthoringProject(projectKey, projectTicket.getName(),
-                        lead, projectTicket.getActive(), branchPath, branchState, baseTimeStamp, headTimeStamp, latestClassificationJson, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled, rebaseDisabled, scheduledRebaseDisabled, taskPromotionDisabled, projectLocked);
+                        lead, projectTicket.getActive(), branchPath, branchState, baseTimeStamp, headTimeStamp, latestClassification, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled, rebaseDisabled, scheduledRebaseDisabled, taskPromotionDisabled, projectLocked);
                 authoringProject.setMetadata(metadata);
                 authoringProject.setCodeSystem(codeSystem);
                 authoringProject.setInternalAuthoringProject(true);

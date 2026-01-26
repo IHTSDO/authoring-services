@@ -1,5 +1,10 @@
 package org.ihtsdo.authoringservices.service.dao;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.JsonElement;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.google.gson.JsonParser;
+import com.google.gson.stream.JsonReader;
 import org.apache.commons.io.IOUtils;
 import org.ihtsdo.authoringservices.configuration.UiStateStorageConfiguration;
 import org.ihtsdo.authoringservices.service.exceptions.PathNotProvidedException;
@@ -11,16 +16,10 @@ import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
 import software.amazon.awssdk.services.s3.model.S3Object;
-import us.monoid.json.JSONException;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.NoSuchFileException;
-
-import static java.lang.String.format;
 
 @Service
 public final class UiStateResourceService extends AbstractResourceService {
@@ -34,6 +33,9 @@ public final class UiStateResourceService extends AbstractResourceService {
     @Value("${ui-state.storage.cloud.path}")
     private String path;
 
+	@Autowired
+	ObjectMapper objectMapper;
+
     /**
      * Builds the service to read/write/delete and move files from S3 storage.
      */
@@ -42,30 +44,37 @@ public final class UiStateResourceService extends AbstractResourceService {
 	}
 
 	@Override
-	public final void write(final String path, final String data) throws IOException, JSONException {
+	public void write(final String path, final JsonNode data) throws IOException {
 		if (path == null) {
 			throw new PathNotProvidedException("Panel path is null while trying to write to the resource.");
 		}
-		if (data == null) {
-			throw new JSONException("Data to be written to the resource is null.");
+		if (data == null || data.isEmpty() ) {
+			throw new IOException("Data to be written to the resource is null or empty.");
 		}
-		resourceManager.writeResource(path, IOUtils.toInputStream(data, StandardCharsets.UTF_8));
+		resourceManager.writeResource(path, IOUtils.toInputStream(data.toPrettyString(), StandardCharsets.UTF_8));
 	}
 
 	@Override
-	public final String read(final String path) throws IOException {
+	public JsonNode read(final String path) throws IOException {
 		if (path == null) {
 			throw new PathNotProvidedException("Panel path is null while trying to read the resource stream.");
 		}
+
 		InputStream inputStream = resourceManager.readResourceStreamOrNullIfNotExists(path);
 		if (inputStream == null) {
-			throw new NoSuchFileException(format("File %s does not exist in S3.", path));
+			throw new NoSuchFileException(String.format("File %s does not exist in S3.", path));
 		}
-		return IOUtils.toString(inputStream, StandardCharsets.UTF_8);
+
+		try (inputStream) {
+			// Let Jackson parse the stream directly into a JsonNode
+			return objectMapper.readTree(inputStream);
+		}
 	}
 
+
+
 	@Override
-	public final String read(final File file) throws IOException {
+	public String read(final File file) throws IOException {
 		if (file == null) {
 			throw new FileNotFoundException("File is null while trying to read the resource stream.");
 		}
@@ -73,7 +82,7 @@ public final class UiStateResourceService extends AbstractResourceService {
 	}
 
 	@Override
-	public final void delete(final String path) throws IOException {
+	public void delete(final String path) throws IOException {
 		if (path == null) {
 			throw new PathNotProvidedException("Panel path is null while trying to delete the resource.");
 		}
@@ -81,7 +90,7 @@ public final class UiStateResourceService extends AbstractResourceService {
 	}
 
 	@Override
-    public final void move(final String fromPath, final String toPath) throws IOException {
+    public void move(final String fromPath, final String toPath) throws IOException {
         if (fromPath == null || toPath == null) {
             throw new PathNotProvidedException("Either the from/to path is null, both are required for the move operation to proceed.");
         }

@@ -2,6 +2,7 @@ package org.ihtsdo.authoringservices.domain;
 
 import com.fasterxml.jackson.annotation.JsonRawValue;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Classification;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
 
 import java.util.Map;
@@ -16,7 +17,7 @@ public class AuthoringProject {
     private User projectLead;
     private String branchPath;
     private String branchState;
-    private String latestClassificationJson;
+    private Classification latestClassification;
     private String validationStatus;
     private Long branchHeadTimestamp;
     private Long branchBaseTimestamp;
@@ -35,9 +36,14 @@ public class AuthoringProject {
     public AuthoringProject() {
     }
 
-    public AuthoringProject(String key, String title, User leadUser, Boolean active, String branchPath, String branchState, Long baseTimeStamp, Long headTimeStamp,
-                            String latestClassificationJson, boolean projectPromotionDisabled,
-                            boolean projectMrcmDisabled, boolean projectTemplatesDisabled, boolean projectSpellCheckDisabled, boolean projectRebaseDisabled,
+    public AuthoringProject(String key, String title, User leadUser,
+                            Boolean active, String branchPath,
+                            String branchState, Long baseTimeStamp, Long headTimeStamp,
+                            Classification latestClassification,
+                            boolean projectPromotionDisabled,
+                            boolean projectMrcmDisabled, boolean projectTemplatesDisabled,
+                            boolean projectSpellCheckDisabled,
+                            boolean projectRebaseDisabled,
                             boolean projectScheduledRebaseDisabled,
                             boolean taskPromotionDisabled,
                             boolean projectLocked) {
@@ -49,7 +55,7 @@ public class AuthoringProject {
         this.branchState = branchState;
         this.branchBaseTimestamp = baseTimeStamp;
         this.branchHeadTimestamp = headTimeStamp;
-        this.latestClassificationJson = latestClassificationJson;
+        this.latestClassification = latestClassification;
         this.projectPromotionDisabled = projectPromotionDisabled;
         this.projectMrcmDisabled = projectMrcmDisabled;
         this.projectTemplatesDisabled = projectTemplatesDisabled;
@@ -96,9 +102,8 @@ public class AuthoringProject {
         this.validationStatus = validationStatus;
     }
 
-    @JsonRawValue
-    public String getLatestClassificationJson() {
-        return latestClassificationJson;
+    public Classification getLatestClassification() {
+        return latestClassification;
     }
 
     public Long getBranchHeadTimestamp() {

@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
 import net.sf.json.JSONObject;
-import org.ihtsdo.authoringservices.domain.Classification;
 import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.service.client.ContentRequestServiceClient;
 import org.ihtsdo.authoringservices.service.client.ContentRequestServiceClientFactory;
@@ -26,7 +25,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import us.monoid.json.JSONException;
 
 import java.util.*;
 import java.util.concurrent.ExecutorService;
@@ -34,6 +32,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import static org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient.US_EN_LANG_REFSET;
 
 @Service
 public class PromotionService {
@@ -267,8 +267,8 @@ public class PromotionService {
             // Call classification process
             Classification classification = this.autoClassificationTask(projectKey, taskKey);
             if (classification != null
-                    && !classification.getResults().isInferredRelationshipChangesFound()
-                    && !classification.getResults().isEquivalentConceptsFound()) {
+                    && !classification.hasInferredRelationshipChangesFound()
+                    && !classification.hasEquivalentConceptsFound()) {
 
                 // Call promote process
                 Merge merge = this.autoPromoteTask(projectKey, taskKey);
@@ -308,23 +308,23 @@ public class PromotionService {
         String branchPath = branchService.getTaskBranchPathUsingCache(projectKey, taskKey);
         try {
             Classification classification = classificationService.startClassification(projectKey, taskKey, branchPath, SecurityUtil.getUsername());
-            classification.setResults(snowstormRestClientFactory.getClient().waitForClassificationToComplete(classification.getResults()));
-            if (ClassificationStatus.COMPLETED == classification.getResults().getStatus()) {
-                if (classification.getResults().isEquivalentConceptsFound()) {
+	        classification = snowstormRestClientFactory.getClient().waitForClassificationToComplete(classification);
+            if (ClassificationStatus.COMPLETED == classification.getStatus()) {
+                if (classification.hasEquivalentConceptsFound()) {
                     status = new ProcessStatus("Classified with equivalencies Found", "");
                     status.setCompleteDate(new Date());
                     automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
-                } else if (classification.getResults().isInferredRelationshipChangesFound()) {
+                } else if (classification.hasInferredRelationshipChangesFound()) {
                     status = new ProcessStatus("Classified with results", "");
                     status.setCompleteDate(new Date());
                     automateTaskPromotionStatus.put(parseKey(projectKey, taskKey), status);
                 }
             } else {
-                throw new BusinessServiceException(classification.getMessage());
+                throw new BusinessServiceException(classification.getErrorMessage());
             }
             cacheService.clearClassificationCache(branchService.getProjectOrTaskBranchPathUsingCache(projectKey, taskKey));
             return classification;
-        } catch (RestClientException | JSONException | InterruptedException e) {
+        } catch (RestClientException | InterruptedException e) {
             notificationService.queueNotification(SecurityUtil.getUsername(), new Notification(projectKey, taskKey, EntityType.Classification, "Failed to start classification"));
             cacheService.clearClassificationCache(branchService.getProjectOrTaskBranchPathUsingCache(projectKey, taskKey));
             throw new BusinessServiceException("Failed to classify", e);
@@ -470,7 +470,9 @@ public class PromotionService {
         Set<String> synonyms = new HashSet<>();
         if (descriptions != null) {
             for (DescriptionPojo description : descriptions) {
-                if (DescriptionPojo.Type.SYNONYM.equals(description.getType()) && description.isActive() && DescriptionPojo.Acceptability.ACCEPTABLE.equals(description.getAcceptabilityMap().get(SnowstormRestClient.US_EN_LANG_REFSET))) {
+                if (DescriptionPojo.Type.SYNONYM.equals(description.getType())
+		                && description.isActive()
+		                && DescriptionPojo.Acceptability.ACCEPTABLE.equals(description.getAcceptabilityMap().get(US_EN_LANG_REFSET))) {
                     synonyms.add(description.getTerm());
                 }
             }
@@ -535,7 +537,7 @@ public class PromotionService {
     private String getFsn(Set<DescriptionPojo> descriptions) {
         if (descriptions != null) {
             for (DescriptionPojo description : descriptions) {
-                if (DescriptionPojo.Type.FSN.equals(description.getType()) && description.isActive() && DescriptionPojo.Acceptability.PREFERRED.equals(description.getAcceptabilityMap().get(SnowstormRestClient.US_EN_LANG_REFSET))) {
+                if (DescriptionPojo.Type.FSN.equals(description.getType()) && description.isActive() && DescriptionPojo.Acceptability.PREFERRED.equals(description.getAcceptabilityMap().get(US_EN_LANG_REFSET))) {
                     return description.getTerm();
                 }
             }
@@ -546,7 +548,7 @@ public class PromotionService {
     private String getPreferredTerm(Set<DescriptionPojo> descriptions) {
         if (descriptions != null) {
             for (DescriptionPojo description : descriptions) {
-                if (DescriptionPojo.Type.SYNONYM.equals(description.getType()) && description.isActive() && DescriptionPojo.Acceptability.PREFERRED.equals(description.getAcceptabilityMap().get(SnowstormRestClient.US_EN_LANG_REFSET))) {
+                if (DescriptionPojo.Type.SYNONYM.equals(description.getType()) && description.isActive() && DescriptionPojo.Acceptability.PREFERRED.equals(description.getAcceptabilityMap().get(US_EN_LANG_REFSET))) {
                     return description.getTerm();
                 }
             }

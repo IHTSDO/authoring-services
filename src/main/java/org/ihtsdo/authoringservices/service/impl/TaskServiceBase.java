@@ -1,7 +1,7 @@
 package org.ihtsdo.authoringservices.service.impl;
 
 import com.google.common.collect.ImmutableMap;
-import org.apache.commons.lang.StringUtils;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.entity.Validation;
 import org.ihtsdo.authoringservices.service.*;
@@ -11,6 +11,7 @@ import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Classification;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.sso.integration.SecurityUtil;
@@ -68,10 +69,8 @@ public abstract class TaskServiceBase {
 
     protected void setCrsConceptsIfAny(String projectKey, String taskKey, Map<String, String> properties) {
         try {
-            String conceptsStr = uiService.retrieveTaskPanelStateWithoutThrowingResourceNotFoundException(projectKey, taskKey, SHARED, "crs-concepts");
-            if (StringUtils.isNotEmpty(conceptsStr)) {
-                properties.put("concepts", conceptsStr);
-            }
+            JsonNode taskPanelState = uiService.retrieveTaskPanelStateWithoutThrowingResourceNotFoundException(projectKey, taskKey, SHARED, "crs-concepts");
+			properties.put("concepts", taskPanelState.toPrettyString());
         } catch (IOException e) {
             logger.error("Error while reading crs-concepts.json for task {}. Message: {}", taskKey, e.getMessage());
         }
@@ -166,10 +165,10 @@ public abstract class TaskServiceBase {
             Collection<String> paths = Collections.singletonList(path);
             final ImmutableMap<String, Validation> validationMap = validationService.getValidations(paths);
             final String branchState = branchService.getBranchStateOrNull(PathHelper.getMainPath());
-            final String latestClassificationJson = classificationService
+            final Classification latestClassification = classificationService
                     .getLatestClassification(PathHelper.getMainPath());
             final Validation validation = validationMap.get(path);
-            return new AuthoringMain(path, branchState, validation != null ? validation.getStatus() : null, latestClassificationJson);
+            return new AuthoringMain(path, branchState, validation != null ? validation.getStatus() : null, latestClassification);
         } catch (ExecutionException | RestClientException | ServiceException e) {
             throw new BusinessServiceException("Failed to retrieve Main", e);
         }

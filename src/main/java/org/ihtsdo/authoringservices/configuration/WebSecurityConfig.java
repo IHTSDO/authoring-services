@@ -51,18 +51,18 @@ public class WebSecurityConfig {
 		} else {
 			http.authorizeHttpRequests(auth -> auth.anyRequest().authenticated());
 		}
-		
+
 		// Configure exception handling to prevent Basic Auth popup
 		// Returns JSON response instead of triggering browser Basic Auth popup
 		http.exceptionHandling(exceptions -> exceptions
-			.authenticationEntryPoint((request, response, authException) -> {
-				response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-				response.setContentType("application/json;charset=UTF-8");
-				String message = authException.getMessage() != null ? authException.getMessage().replace("\"", "\\\"") : "Authentication required";
-				response.getWriter().write("{\"error\":\"Unauthorized\",\"message\":\"" + message + "\"}");
-			})
+				.authenticationEntryPoint((request, response, authException) -> {
+					response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+					response.setContentType("application/json;charset=UTF-8");
+					String message = authException.getMessage() != null ? authException.getMessage().replace("\"", "\\\"") : "Authentication required";
+					response.getWriter().write("{\"error\":\"Unauthorized\",\"message\":\"" + message + "\"}");
+				})
 		);
-		
+
 		http.securityContext(securityContext -> securityContext
 				.requireExplicitSave(false));
 		return http.build();

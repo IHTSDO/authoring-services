@@ -16,7 +16,6 @@ import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.*;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.sso.integration.SecurityUtil;
-import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -256,7 +255,6 @@ public class CodeSystemService {
 		}
 	}
 
-	@Nullable
 	private Merge rebaseProject(String projectKey, CodeSystem codeSystem, String projectBranchPath) {
 		Merge merge = null;
 		try {
@@ -343,7 +341,7 @@ public class CodeSystemService {
 		try {
 			for (CodeSystem codeSystem : codeSystems) {
 				AuthoringCodeSystem authoringCodeSystem = new AuthoringCodeSystem(codeSystem);
-				authoringCodeSystem.setLatestClassificationJson(classificationService.getLatestClassification(codeSystem.getBranchPath()));
+				authoringCodeSystem.setLatestClassification(classificationService.getLatestClassification(codeSystem.getBranchPath()));
 
 				Branch branch = branchService.getBranchOrNull(codeSystem.getBranchPath());
 				Validation validation = validationService.getValidation(codeSystem.getBranchPath());
