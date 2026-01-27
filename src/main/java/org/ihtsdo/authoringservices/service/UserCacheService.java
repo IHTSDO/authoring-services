@@ -82,9 +82,7 @@ public class UserCacheService {
         Set<String> keys = new HashSet<>(userGroupCache.asMap().keySet());
         keys.add(defaultGroupName);
         for (String key : keys) {
-            List<User> allUsers = new ArrayList<>();
-            doGetUsersForGroup(key, 0, allUsers);
-            userGroupCache.put(key, allUsers);
+            userGroupCache.put(key, doGetUsersForGroup(key));
         }
     }
 
@@ -205,20 +203,16 @@ public class UserCacheService {
         String groupNameToSearch = (StringUtils.hasLength(groupName) ? groupName : defaultGroupName).trim();
         List<User> allUsers = userGroupCache.getIfPresent(groupNameToSearch.trim());
         if (allUsers == null) {
-            allUsers = new ArrayList<>();
-            doGetUsersForGroup(groupNameToSearch, 0, allUsers);
+            allUsers = doGetUsersForGroup(groupNameToSearch);
             userGroupCache.put(groupNameToSearch, allUsers);
         }
 
         return allUsers;
     }
 
-    private void doGetUsersForGroup(String groupName, int offset, List<User> allUsers) {
-        List<User> users = imsClientFactory.getClient().searchUserByGroupname(groupName, offset, 1000);
-        allUsers.addAll(users.stream().filter(User::isActive).toList());
-        if (users.size() == 1000) {
-            doGetUsersForGroup(groupName, offset + 1000, allUsers);
-        }
+    private List<User> doGetUsersForGroup(String groupName) {
+        List<User> users = imsClientFactory.getClient().searchUserByGroupname(groupName, 0, -1);
+        return users.stream().filter(User::isActive).toList();
     }
 
     /**
