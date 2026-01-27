@@ -1,10 +1,7 @@
 package org.ihtsdo.authoringservices.service.dao;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.gson.JsonElement;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.google.gson.JsonParser;
-import com.google.gson.stream.JsonReader;
 import org.apache.commons.io.IOUtils;
 import org.ihtsdo.authoringservices.configuration.UiStateStorageConfiguration;
 import org.ihtsdo.authoringservices.service.exceptions.PathNotProvidedException;

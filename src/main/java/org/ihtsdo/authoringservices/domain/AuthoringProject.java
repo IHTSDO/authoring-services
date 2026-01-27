@@ -1,6 +1,5 @@
 package org.ihtsdo.authoringservices.domain;
 
-import com.fasterxml.jackson.annotation.JsonRawValue;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Classification;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;

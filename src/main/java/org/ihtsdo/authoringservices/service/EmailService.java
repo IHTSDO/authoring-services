@@ -1,7 +1,6 @@
 package org.ihtsdo.authoringservices.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.google.gson.JsonPrimitive;
 import jakarta.mail.Message;
 import jakarta.mail.MessagingException;
 import jakarta.mail.Session;
@@ -200,7 +199,7 @@ public class EmailService {
     }
 
     @Async
-    protected void send(MimeMessage mimeMessage) {
+    public void send(MimeMessage mimeMessage) {
         try {
             mailSender.send(mimeMessage);
         } catch (MailException e) {
