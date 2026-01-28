@@ -21,8 +21,6 @@ public interface TaskService {
 
     Integer getLatestTaskNumberForProject(String projectKey);
 
-    void deleteTask(String taskKey) throws BusinessServiceException;
-
     void deleteTasks(Set<String> taskKeys) throws BusinessServiceException;
 
     List<AuthoringTask> getTasksByStatus(String projectKey, TaskStatus taskStatus) throws BusinessServiceException;

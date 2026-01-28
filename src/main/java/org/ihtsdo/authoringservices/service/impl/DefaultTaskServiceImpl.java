@@ -41,11 +41,6 @@ public class DefaultTaskServiceImpl implements TaskService {
     }
 
     @Override
-    public void deleteTask(String taskKey) throws BusinessServiceException {
-        // Do nothing
-    }
-
-    @Override
     public void deleteTasks(Set<String> taskKeys) throws BusinessServiceException {
         // Do nothing
     }
