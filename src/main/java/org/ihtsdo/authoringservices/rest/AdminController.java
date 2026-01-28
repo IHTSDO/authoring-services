@@ -64,7 +64,7 @@ public class AdminController {
     @DeleteMapping(value = "/projects/{projectKey}/tasks/{taskKey}")
     public ResponseEntity<Void> deleteTask(@PathVariable final String projectKey, @PathVariable final String taskKey, @RequestParam(value = "useNew", required = false) Boolean useNew) throws BusinessServiceException {
         AuthoringProject project = projectServiceFactory.getInstance(useNew).retrieveProject(projectKey, true);
-        adminService.deleteTask(project, taskKey, useNew);
+        adminService.deleteTasks(project, Set.of(taskKey), useNew);
         return new ResponseEntity<>(HttpStatus.OK);
     }
 

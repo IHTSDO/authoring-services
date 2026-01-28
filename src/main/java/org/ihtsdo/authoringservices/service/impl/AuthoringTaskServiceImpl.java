@@ -167,22 +167,15 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
 
     @Override
     public AuthoringTask retrieveTask(String projectKey, String taskKey, Boolean lightweight, boolean skipTaskMigration) throws BusinessServiceException {
-        Optional<Task> taskOptional = taskRepository.findById(taskKey);
-        if (taskOptional.isPresent()) {
-            return buildAuthoringTasks(new ArrayList<>(List.of(taskOptional.get())), lightweight).get(0);
-        }
-        throw new ResourceNotFoundException(TASK_NOT_FOUND_MSG + toString(projectKey, taskKey));
+        Task task = getTaskOrThrow(taskKey);
+        return buildAuthoringTasks(new ArrayList<>(List.of(task)), lightweight).get(0);
     }
 
     @Override
     public AuthoringTask updateTask(String projectKey, String taskKey, AuthoringTaskUpdateRequest taskUpdateRequest) throws BusinessServiceException {
         permissionService.checkUserPermissionOnProjectOrThrow(projectKey);
 
-        Optional<Task> taskOptional = taskRepository.findById(taskKey);
-        if (taskOptional.isEmpty()) {
-            throw new ResourceNotFoundException(TASK_NOT_FOUND_MSG + toString(projectKey, taskKey));
-        }
-        Task task = taskOptional.get();
+        Task task = getTaskOrThrow(taskKey);
 
         // Act on each field received
         final TaskStatus status = taskUpdateRequest.getStatus();
@@ -289,15 +282,6 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
     }
 
     @Override
-    public void deleteTask(String taskKey) {
-        Optional<Task> taskOptional = taskRepository.findById(taskKey);
-        if (taskOptional.isEmpty()) {
-            throw new ResourceNotFoundException(TASK_NOT_FOUND_MSG);
-        }
-        taskRepository.delete(taskOptional.get());
-    }
-
-    @Override
     public void deleteTasks(Set<String> taskKeys) {
         taskRepository.deleteAllById(taskKeys);
     }
@@ -378,6 +362,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         }
 
         Set<String> accessibleProjectKeys = userProjects.stream()
+                .filter(Project::getActive)
                 .map(Project::getKey)
                 .collect(Collectors.toSet());
 
@@ -583,11 +568,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
 
     @Override
     public void conditionalStateTransition(String projectKey, String taskKey, TaskStatus requiredState, TaskStatus newState) throws BusinessServiceException {
-        Optional<Task> taskOptional = taskRepository.findById(taskKey);
-        if (taskOptional.isEmpty()) {
-            throw new ResourceNotFoundException(TASK_NOT_FOUND_MSG + toString(projectKey, taskKey));
-        }
-        Task task = taskOptional.get();
+        Task task = getTaskOrThrow(taskKey);
         if (task.getStatus().equals(requiredState)) {
             stateTransition(newState, taskKey, projectKey);
         }
@@ -616,36 +597,28 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
 
     private void stateTransition(TaskStatus newState, String taskKey, String projectKey) throws BusinessServiceException {
         permissionService.checkUserPermissionOnProjectOrThrow(projectKey);
-        Optional<Task> taskOptional = taskRepository.findById(taskKey);
-        if (taskOptional.isPresent()) {
-            Task task = taskOptional.get();
-            TaskStatus currentState = task.getStatus();
-            task.setStatus(newState);
-            task.setUpdatedDate(Timestamp.from(Instant.now()));
-            logger.info("Transition task {} to {}", taskKey, newState.getLabel());
-            taskRepository.save(task);
-            auditStatusChangeSender.sendMessage(task.getKey(), task.getBranchPath(), SecurityUtil.getUsername(), currentState.getLabel().toUpperCase(), newState.getLabel().toUpperCase(), new Date().getTime());
-            if (!taskStateChangeNotificationQueues.isEmpty()) {
-                // Send JMS Task State Notification
-                sendJMSTaskStateChangeNotification(task, newState);
-            }
+        Task task = getTaskOrThrow(taskKey);
+        TaskStatus currentState = task.getStatus();
+        task.setStatus(newState);
+        task.setUpdatedDate(Timestamp.from(Instant.now()));
+        logger.info("Transition task {} to {}", taskKey, newState.getLabel());
+        taskRepository.save(task);
+        auditStatusChangeSender.sendMessage(task.getKey(), task.getBranchPath(), SecurityUtil.getUsername(), currentState.getLabel().toUpperCase(), newState.getLabel().toUpperCase(), new Date().getTime());
+        if (!taskStateChangeNotificationQueues.isEmpty()) {
+            // Send JMS Task State Notification
+            sendJMSTaskStateChangeNotification(task, newState);
+        }
 
-            // Clear branch cache for the completed task
-            if (TaskStatus.COMPLETED.equals(newState)) {
-                cacheService.clearBranchCache(task.getBranchPath());
-            }
+        // Clear branch cache for the completed task
+        if (TaskStatus.COMPLETED.equals(newState)) {
+            cacheService.clearBranchCache(task.getBranchPath());
         }
     }
 
     @Override
     public List<TaskAttachment> getTaskAttachments(String projectKey, String taskKey) throws BusinessServiceException {
         List<TaskAttachment> attachments = new ArrayList<>();
-        final Optional<Task> taskOptional = taskRepository.findById(taskKey);
-        if (taskOptional.isEmpty()) {
-            throw new ResourceNotFoundException(TASK_NOT_FOUND_MSG + toString(projectKey, taskKey));
-        }
-
-        Task task = taskOptional.get();
+        Task task = getTaskOrThrow(taskKey);
         for (CrsTask crsTask : task.getCrsTasks()) {
             if (crsTask.getCrsJiraKey() != null) {
                 jiraTaskService.getCrsJiraAttachment(crsTask.getCrsJiraKey(), attachments, taskKey);
@@ -679,11 +652,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
 
     @Override
     public void removeCrsTaskForGivenRequestJiraKey(String issueKey, String linkId) throws BusinessServiceException {
-        Optional<Task> taskOptional = taskRepository.findById(issueKey);
-        if (taskOptional.isEmpty()) {
-            throw new ResourceNotFoundException(TASK_NOT_FOUND_MSG + issueKey);
-        }
-        Task task = taskOptional.get();
+        Task task = getTaskOrThrow(issueKey);
         CrsTask crsTask = task.getCrsTasks().stream().filter(item -> item.getCrsJiraKey().equals(linkId)).findFirst().orElse(null);
         if (crsTask != null) {
             try {
@@ -698,11 +667,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
 
     @Override
     public void removeCrsTaskForGivenRequestId(String projectKey, String taskKey, String crsId) throws BusinessServiceException {
-        Optional<Task> taskOptional = taskRepository.findById(taskKey);
-        if (taskOptional.isEmpty()) {
-            throw new ResourceNotFoundException(TASK_NOT_FOUND_MSG + taskKey);
-        }
-        Task task = taskOptional.get();
+        Task task = getTaskOrThrow(taskKey);
         CrsTask crsTask = task.getCrsTasks().stream().filter(item -> item.getCrsTaskKey().equals(crsId)).findFirst().orElse(null);
         if (crsTask != null) {
             try {
@@ -852,7 +817,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
 
     private Project getProjectOrThrow(String projectKey) {
         Optional<Project> projectOptional = projectRepository.findById(projectKey);
-        if (projectOptional.isEmpty()) {
+        if (projectOptional.isEmpty() || !Boolean.TRUE.equals(projectOptional.get().getActive())) {
             throw new ResourceNotFoundException("Project with key " + projectKey + " not found");
         }
         return projectOptional.get();
@@ -895,5 +860,13 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         });
         existing.removeIf(item -> !reviewers.contains(item.getUsername()));
         return existing;
+    }
+
+    private Task getTaskOrThrow(String taskKey) {
+        Optional<Task> taskOptional = taskRepository.findById(taskKey);
+        if (taskOptional.isEmpty() || !Boolean.TRUE.equals(taskOptional.get().getProject().getActive())) {
+            throw new ResourceNotFoundException(TASK_NOT_FOUND_MSG + taskKey);
+        }
+        return taskOptional.get();
     }
 }

@@ -151,8 +151,7 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
         logger.info("{} task state notification queues configured {}", taskStateChangeNotificationQueues.size(), taskStateChangeNotificationQueues);
     }
 
-    @Override
-    public void deleteTask(String taskKey) throws BusinessServiceException {
+    private void deleteTask(String taskKey) throws BusinessServiceException {
         logger.info("Deleting JIRA issue {}", taskKey);
         JiraClient adminJiraClient = jiraClientFactory.getAdminInstance();
         try {

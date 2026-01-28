@@ -43,12 +43,6 @@ public class AdminService {
     }
 
     @PreAuthorize("hasPermission('ADMIN', 'global') || hasPermission('ADMIN', #project.codeSystem.branchPath)")
-    public void deleteTask(AuthoringProject project, String issueKey, Boolean useNew) throws BusinessServiceException {
-        logger.info("Deleting task with key {} on project {}", issueKey, project.getKey());
-        taskServiceFactory.getInstance(useNew).deleteTask(issueKey);
-    }
-
-    @PreAuthorize("hasPermission('ADMIN', 'global') || hasPermission('ADMIN', #project.codeSystem.branchPath)")
     public void deleteTasks(AuthoringProject project, Set<String> taskKeys, Boolean useNew) throws BusinessServiceException {
         logger.info("Deleting tasks [{}] on project {}", taskKeys, project.getKey());
         taskServiceFactory.getInstance(useNew).deleteTasks(taskKeys);
