@@ -86,6 +86,7 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
     private final String jiraProjectMrcmField;
     private final String jiraProjectTemplatesField;
     private final String jiraProjectSpellCheckField;
+    private final String jiraProjectTranslationField;
     private final Set<String> projectJiraFetchFields;
 
     private final ExecutorService executorService;
@@ -127,6 +128,7 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
             jiraProjectMrcmField = JiraHelper.fieldIdLookup("SCA Project MRCM", jiraClientForFieldLookup, projectJiraFetchFields);
             jiraProjectTemplatesField = JiraHelper.fieldIdLookup("SCA Project Templates", jiraClientForFieldLookup, projectJiraFetchFields);
             jiraProjectSpellCheckField = JiraHelper.fieldIdLookup("SCA Project Spell Check", jiraClientForFieldLookup, projectJiraFetchFields);
+            jiraProjectTranslationField = JiraHelper.fieldIdLookup("SCA Project Translation", jiraClientForFieldLookup, projectJiraFetchFields, "false");
             logger.info("Jira custom field names fetched. (e.g. {}).", jiraExtensionBaseField);
 
             init();
@@ -142,6 +144,7 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
             jiraProjectMrcmField = null;
             jiraProjectTemplatesField = null;
             jiraProjectSpellCheckField = null;
+            jiraProjectTranslationField = null;
         }
     }
 
@@ -632,6 +635,7 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
                 final boolean mrcmDisabled = DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectMrcmField)));
                 final boolean templatesDisabled = DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectTemplatesField)));
                 final boolean spellCheckDisabled = DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectSpellCheckField)));
+                final boolean projectTranslation = !DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectTranslationField)));
 
                 final Branch branchOrNull = branchService.getBranchOrNull(branchPath);
                 String parentPath = PathHelper.getParentPath(branchPath);
@@ -661,7 +665,7 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
                 Map<String, JiraProject> projectMap = unfilteredProjects.get();
                 JiraProject project = projectMap.get(projectKey);
                 final AuthoringProject authoringProject = new AuthoringProject(projectKey, project.name(),
-                        project.lead(), true, branchPath, branchState, baseTimeStamp, headTimeStamp, latestClassification, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled, rebaseDisabled, scheduledRebaseDisabled, taskPromotionDisabled, projectLocked);
+                        project.lead(), true, branchPath, branchState, baseTimeStamp, headTimeStamp, latestClassification, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled, rebaseDisabled, scheduledRebaseDisabled, taskPromotionDisabled, projectLocked, projectTranslation);
                 authoringProject.setMetadata(metadata);
                 authoringProject.setCodeSystem(codeSystem);
                 synchronized (authoringProjects) {
