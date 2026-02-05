@@ -59,6 +59,14 @@ public class JiraHelper {
         }
     }
 
+    public static String fieldIdLookup(String fieldName, JiraClient client, Set<String> customFieldsSet, String defaultValue) {
+        try {
+            return fieldIdLookup(fieldName, client, customFieldsSet);
+        } catch (Exception e) {
+            return defaultValue;
+        }
+    }
+
     public static JSONArray getFields(JiraClient client) throws URISyntaxException, RestException, IOException {
         final RestClient restClient = client.getRestClient();
         final URI uri = restClient.buildURI(JIRA_BASE_URI + "field");
