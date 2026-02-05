@@ -307,7 +307,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
         List<CodeSystem> codeSystems = snowstormRestClient.getCodeSystems();
 
         SecurityContext securityContext = SecurityContextHolder.getContext();
-        projects.parallelStream().forEach(projectTicket -> {
+        projects.forEach(projectTicket -> {
             SecurityContextHolder.setContext(securityContext);
             try {
                 final String projectKey = projectTicket.getKey();

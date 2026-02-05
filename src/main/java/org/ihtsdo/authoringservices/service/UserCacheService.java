@@ -44,6 +44,12 @@ public class UserCacheService {
     @Value("${ims.url}")
     private String imsUrl;
 
+    @Value("${ims.viewable.email.account.username}")
+    private String emailViewerUsername;
+
+    @Value("${ims.viewable.email.account.password}")
+    private String emailViewerPassword;
+
     @Value("${user.cache.expiry.minutes}")
     private int cacheExpiryMinutes;
 
@@ -53,6 +59,13 @@ public class UserCacheService {
     private Cache<String, User> userCache;
 
     private Cache<String, List<User>> userGroupCache;
+
+    /** Cache for email-viewer IMS token to avoid re-login on every user fetch. */
+    private static final String EMAIL_VIEWER_TOKEN_KEY = "emailViewer";
+    private Cache<String, String> emailViewerTokenCache;
+
+    @Value("${user.cache.token.expiry.minutes:60}")
+    private int tokenCacheExpiryMinutes;
 
     @PostConstruct
     public void init() {
@@ -66,6 +79,11 @@ public class UserCacheService {
                 .expireAfterWrite(cacheExpiryMinutes, TimeUnit.MINUTES)
                 .maximumSize(cacheMaximumSize)
                 .recordStats()
+                .build();
+
+        this.emailViewerTokenCache = CacheBuilder.newBuilder()
+                .expireAfterWrite(tokenCacheExpiryMinutes, TimeUnit.MINUTES)
+                .maximumSize(1)
                 .build();
         
         logger.info("UserCacheService initialized with {} minute expiry, max size {}",
@@ -178,11 +196,18 @@ public class UserCacheService {
     }
 
     /**
-     * Clear all cached users
+     * Clear all cached users and the email-viewer token (so next fetch will relogin).
      */
     public void clearCache() {
-        userCache.invalidateAll();
-        userGroupCache.invalidateAll();
+        if (userCache != null) {
+            userCache.invalidateAll();
+        }
+        if (userGroupCache != null) {
+            userGroupCache.invalidateAll();
+        }
+        if (emailViewerTokenCache != null) {
+            emailViewerTokenCache.invalidateAll();
+        }
         logger.info("User cache cleared");
     }
 
@@ -220,11 +245,32 @@ public class UserCacheService {
     }
 
     /**
+     * Obtain IMS token for email-viewer credentials. Caches the token to prevent relogin on every user fetch.
+     */
+    private String getOrRefreshEmailViewerToken() throws URISyntaxException, IOException {
+        String token = emailViewerTokenCache.getIfPresent(EMAIL_VIEWER_TOKEN_KEY);
+        if (token != null) {
+            return token;
+        }
+        synchronized (emailViewerTokenCache) {
+            token = emailViewerTokenCache.getIfPresent(EMAIL_VIEWER_TOKEN_KEY);
+            if (token == null) {
+                IMSRestClient imsClient = new IMSRestClient(imsUrl);
+                token = imsClient.login(emailViewerUsername, emailViewerPassword);
+                emailViewerTokenCache.put(EMAIL_VIEWER_TOKEN_KEY, token);
+                logger.debug("Obtained and cached new IMS token for email viewer");
+            }
+            return token;
+        }
+    }
+
+    /**
      * Fetch a single user from IMS
      */
     private User fetchUserFromIMS(String username) {
         try {
-            return imsClientFactory.getClient().getUserDetails(username);
+            String token = getOrRefreshEmailViewerToken();
+            return imsClientFactory.getClient(token).getUserDetails(username);
         } catch (Exception e) {
             logger.error("Unexpected error fetching user '{}' from IMS: {}", username, e.getMessage(), e);
             // Return minimal user object as fallback

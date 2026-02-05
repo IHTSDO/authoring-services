@@ -43,5 +43,9 @@ public class IMSClientFactory {
 
         return client;
     }
+
+    public IMSClient getClient(String token) {
+        return new IMSClient(imsUrl, token);
+    }
 }
 
