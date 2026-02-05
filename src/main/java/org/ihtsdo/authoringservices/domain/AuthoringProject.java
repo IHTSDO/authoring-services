@@ -28,6 +28,7 @@ public class AuthoringProject {
     private Boolean projectSpellCheckDisabled;
     private Boolean projectScheduledRebaseDisabled;
     private Boolean taskPromotionDisabled;
+    private Boolean projectTranslation;
     private Map<String, Object> metadata;
     private CodeSystem codeSystem;
     private boolean internalAuthoringProject;
@@ -45,7 +46,8 @@ public class AuthoringProject {
                             boolean projectRebaseDisabled,
                             boolean projectScheduledRebaseDisabled,
                             boolean taskPromotionDisabled,
-                            boolean projectLocked) {
+                            boolean projectLocked,
+                            boolean projectTranslation) {
         this.key = key;
         this.title = title;
         this.projectLead = leadUser;
@@ -63,6 +65,7 @@ public class AuthoringProject {
         this.projectScheduledRebaseDisabled = projectScheduledRebaseDisabled;
         this.taskPromotionDisabled = taskPromotionDisabled;
         this.projectLocked = projectLocked;
+        this.projectTranslation = projectTranslation;
     }
 
     public String getKey() {
@@ -190,6 +193,14 @@ public class AuthoringProject {
         this.taskPromotionDisabled = taskPromotionDisabled;
     }
 
+    public Boolean isProjectTranslation() {
+        return projectTranslation;
+    }
+
+    public void setProjectTranslation(Boolean projectTranslation) {
+        this.projectTranslation = projectTranslation;
+    }
+
     public Boolean isProjectLocked() {
         return projectLocked;
     }
@@ -200,6 +211,14 @@ public class AuthoringProject {
 
     public CodeSystem getCodeSystem() {
         return codeSystem;
+    }
+
+    public String getCodeSystemShortName() {
+        if (codeSystem == null) {
+            return null;
+        }
+
+        return codeSystem.getShortName();
     }
 
     public void setInternalAuthoringProject(boolean internalAuthoringProject) {
