@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import static org.ihtsdo.authoringservices.rest.ControllerHelper.PROJECT_KEY;
 import static org.ihtsdo.authoringservices.rest.ControllerHelper.requiredParam;
@@ -62,10 +63,19 @@ public class ProjectController {
     @Operation(summary = "List authoring projects")
     @ApiResponse(responseCode = "200", description = "OK")
     @GetMapping(value = "/projects")
-    public List<AuthoringProject> listProjects(@RequestParam(value = "lightweight", required = false) Boolean lightweight) throws BusinessServiceException {
+    public List<AuthoringProject> listProjects(
+            @RequestParam(value = "lightweight", required = false) Boolean lightweight,
+            @RequestParam(value = "codeSystemShortName", required = false) String codeSystemShortName
+    ) throws BusinessServiceException {
         List<AuthoringProject> results = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(lightweight, null, null));
         List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(lightweight, null, null);
-        return ProjectFilterUtil.joinJiraProjectsIfNotExists(jiraProjects, results);
+        List<AuthoringProject> projects = ProjectFilterUtil.joinJiraProjectsIfNotExists(jiraProjects, results);
+
+        if (codeSystemShortName != null && !codeSystemShortName.isBlank()) {
+            projects.removeIf(authoringProject -> !Objects.equals(authoringProject.getCodeSystemShortName(), codeSystemShortName));
+        }
+
+        return projects;
     }
 
     @Operation(summary = "Retrieve an authoring project")
