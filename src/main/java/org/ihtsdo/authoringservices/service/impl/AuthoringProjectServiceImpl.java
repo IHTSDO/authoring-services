@@ -324,7 +324,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
                 final boolean spellCheckDisabled = !Boolean.TRUE.equals(customFields.get("projectSpellCheck"));
                 final boolean projectTranslation = customFields.getOrDefault("projectTranslation", false);
 
-                final Branch branchOrNull = branchService.getBranchOrNull(branchPath);
+                final Branch branchOrNull = branchService.getBranch(branchPath);
                 String parentPath = PathHelper.getParentPath(branchPath);
                 final Branch parentBranchOrNull = branchService.getBranchOrNull(parentPath);
                 if (parentBranchOrNull == null) {
