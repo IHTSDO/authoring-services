@@ -1,5 +1,6 @@
 package org.ihtsdo.authoringservices.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonRawValue;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -18,6 +19,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskUpdateRequest {
 
     public static final String JIRA_CREATED_FIELD = "created";
