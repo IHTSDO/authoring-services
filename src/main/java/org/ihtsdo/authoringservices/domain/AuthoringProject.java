@@ -31,7 +31,7 @@ public class AuthoringProject {
     private Boolean projectSpellCheckDisabled;
     private Boolean projectScheduledRebaseDisabled;
     private Boolean taskPromotionDisabled;
-    private Boolean projectTranslation;
+    private Boolean translationProject;
     private Map<String, Object> metadata;
     private CodeSystem codeSystem;
     private boolean internalAuthoringProject;
@@ -50,7 +50,7 @@ public class AuthoringProject {
                             boolean projectScheduledRebaseDisabled,
                             boolean taskPromotionDisabled,
                             boolean projectLocked,
-                            boolean projectTranslation) {
+                            boolean translationProject) {
         this.key = key;
         this.title = title;
         this.projectLead = leadUser;
@@ -68,7 +68,7 @@ public class AuthoringProject {
         this.projectScheduledRebaseDisabled = projectScheduledRebaseDisabled;
         this.taskPromotionDisabled = taskPromotionDisabled;
         this.projectLocked = projectLocked;
-        this.projectTranslation = projectTranslation;
+        this.translationProject = translationProject;
     }
 
     public String getKey() {
@@ -197,12 +197,12 @@ public class AuthoringProject {
         this.taskPromotionDisabled = taskPromotionDisabled;
     }
 
-    public Boolean isProjectTranslation() {
-        return projectTranslation;
+    public Boolean isTranslationProject() {
+        return translationProject;
     }
 
-    public void setProjectTranslation(Boolean projectTranslation) {
-        this.projectTranslation = projectTranslation;
+    public void setTranslationProject(Boolean translationProject) {
+        this.translationProject = translationProject;
     }
 
     public Boolean isProjectLocked() {

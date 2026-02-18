@@ -322,7 +322,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
                 final boolean mrcmDisabled = !Boolean.TRUE.equals(customFields.get("projectMrcm"));
                 final boolean templatesDisabled = !Boolean.TRUE.equals(customFields.get("projectTemplates"));
                 final boolean spellCheckDisabled = !Boolean.TRUE.equals(customFields.get("projectSpellCheck"));
-                final boolean projectTranslation = customFields.getOrDefault("projectTranslation", false);
+                final boolean translationProject = customFields.getOrDefault("translationProject", false);
 
                 final Branch branchOrNull = branchService.getBranchOrNull(branchPath);
                 String parentPath = PathHelper.getParentPath(branchPath);
@@ -352,7 +352,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
                 User lead = authoringTaskService.getUser(projectTicket.getLead());
                 final AuthoringProject authoringProject = new AuthoringProject(projectKey, projectTicket.getName(),
-                        lead, projectTicket.getActive(), branchPath, branchState, baseTimeStamp, headTimeStamp, latestClassification, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled, rebaseDisabled, scheduledRebaseDisabled, taskPromotionDisabled, projectLocked, projectTranslation);
+                        lead, projectTicket.getActive(), branchPath, branchState, baseTimeStamp, headTimeStamp, latestClassification, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled, rebaseDisabled, scheduledRebaseDisabled, taskPromotionDisabled, projectLocked, translationProject);
                 authoringProject.setMetadata(metadata);
                 authoringProject.setCodeSystem(codeSystem);
                 authoringProject.setInternalAuthoringProject(true);
