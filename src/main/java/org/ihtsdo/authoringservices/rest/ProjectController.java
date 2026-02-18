@@ -66,7 +66,7 @@ public class ProjectController {
     public List<AuthoringProject> listProjects(
             @RequestParam(value = "lightweight", required = false) Boolean lightweight,
             @RequestParam(value = "codeSystemShortName", required = false) String codeSystemShortName,
-            @RequestParam(value = "projectTranslation", required = false) Boolean projectTranslation
+            @RequestParam(value = "translationProject", required = false) Boolean translationProject
     ) throws BusinessServiceException {
         List<AuthoringProject> results = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(lightweight, null, null));
         List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(lightweight, null, null);
@@ -76,8 +76,8 @@ public class ProjectController {
             projects.removeIf(authoringProject -> !Objects.equals(authoringProject.getCodeSystemShortName(), codeSystemShortName));
         }
 
-        if (projectTranslation != null) {
-            projects.removeIf(authoringProject -> !Objects.equals(authoringProject.isProjectTranslation(), projectTranslation));
+        if (translationProject != null) {
+            projects.removeIf(authoringProject -> !Objects.equals(authoringProject.isTranslationProject(), translationProject));
         }
 
         return projects;
