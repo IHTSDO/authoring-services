@@ -1,5 +1,7 @@
 package org.ihtsdo.authoringservices.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Classification;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
@@ -8,6 +10,7 @@ import java.util.Map;
 import java.util.Objects;
 
 @JsonDeserialize
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class AuthoringProject {
 
     private String key;
@@ -101,6 +104,7 @@ public class AuthoringProject {
         this.validationStatus = validationStatus;
     }
 
+    @JsonProperty("latestClassificationJson")
     public Classification getLatestClassification() {
         return latestClassification;
     }

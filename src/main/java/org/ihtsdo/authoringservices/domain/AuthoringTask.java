@@ -203,7 +203,8 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
         this.updated = updated;
     }
 
-    public Classification getLatestClassificationJson() {
+    @JsonProperty("latestClassificationJson")
+    public Classification getLatestClassification() {
 		return latestClassification;
     }
 

@@ -1,5 +1,7 @@
 package org.ihtsdo.authoringservices.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Classification;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
@@ -11,6 +13,7 @@ import java.util.List;
 import java.util.Set;
 
 @JsonDeserialize
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class AuthoringCodeSystem {
 	private String shortName;
 	private String name;
@@ -120,12 +123,13 @@ public class AuthoringCodeSystem {
 		return versions;
 	}
 
+	@JsonProperty("latestClassificationJson")
 	public Classification getLatestClassification() {
 		return latestClassification;
 	}
 
-	public void setLatestClassification(Classification latestClassificationJson) {
-		this.latestClassification = latestClassificationJson;
+	public void setLatestClassification(Classification latestClassification) {
+		this.latestClassification = latestClassification;
 	}
 
 	public String getLatestValidationStatus() {
