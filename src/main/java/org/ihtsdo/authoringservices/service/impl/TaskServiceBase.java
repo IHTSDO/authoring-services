@@ -70,7 +70,9 @@ public abstract class TaskServiceBase {
     protected void setCrsConceptsIfAny(String projectKey, String taskKey, Map<String, String> properties) {
         try {
             JsonNode taskPanelState = uiService.retrieveTaskPanelStateWithoutThrowingResourceNotFoundException(projectKey, taskKey, SHARED, "crs-concepts");
-			properties.put("concepts", taskPanelState.toPrettyString());
+            if (taskPanelState != null) {
+                properties.put("concepts", taskPanelState.toPrettyString());
+            }
         } catch (IOException e) {
             logger.error("Error while reading crs-concepts.json for task {}. Message: {}", taskKey, e.getMessage());
         }
