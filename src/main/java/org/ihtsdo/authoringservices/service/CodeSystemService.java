@@ -354,6 +354,9 @@ public class CodeSystemService {
 					} else {
 						authoringCodeSystem.setLatestValidationStatus(validation.getStatus());
 					}
+					if (ValidationJobStatus.FAILED.name().equals(validation.getStatus())) {
+						authoringCodeSystem.setValidationFailureMessages(validation.getFailureMessages());
+					}
 				}
 
 				allCodeSystems.add(authoringCodeSystem);

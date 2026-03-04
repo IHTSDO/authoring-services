@@ -26,6 +26,7 @@ public class AuthoringCodeSystem {
 	private CodeSystemVersion latestVersion;
 	private Classification latestClassification;
 	private String latestValidationStatus;
+	private List<String> validationFailureMessages;
 	private List<CodeSystemVersion> versions;
 
 	public AuthoringCodeSystem() {
@@ -138,5 +139,13 @@ public class AuthoringCodeSystem {
 
 	public void setLatestValidationStatus(String latestValidationStatus) {
 		this.latestValidationStatus = latestValidationStatus;
+	}
+
+	public List<String> getValidationFailureMessages() {
+		return validationFailureMessages;
+	}
+
+	public void setValidationFailureMessages(List<String> validationFailureMessages) {
+		this.validationFailureMessages = validationFailureMessages;
 	}
 }

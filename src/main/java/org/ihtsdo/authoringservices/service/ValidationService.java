@@ -1,5 +1,6 @@
 package org.ihtsdo.authoringservices.service;
 
+import org.ihtsdo.authoringservices.entity.ValidationFailureMessagesConverter;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -45,6 +46,7 @@ import java.util.stream.Stream;
 @Service
 public class ValidationService {
 
+	public static final String FAILURE_MESSAGES = "failureMessages";
 	private Logger logger = LoggerFactory.getLogger(getClass());
 
 	public static final String EXECUTION_STATUS = "executionStatus";
@@ -191,6 +193,9 @@ public class ValidationService {
 		if (newPropertyValues.containsKey(VALIDATION_STATUS)) {
 			validation.setStatus(newPropertyValues.get(VALIDATION_STATUS));
 		}
+		if (newPropertyValues.containsKey(FAILURE_MESSAGES)) {
+			validation.setFailureMessages(splitFailureMessages(newPropertyValues.get(FAILURE_MESSAGES)));
+		}
 		if (newPropertyValues.containsKey(REPORT_URL)) {
 			validation.setReportUrl(newPropertyValues.get(REPORT_URL));
 		}
@@ -260,6 +265,7 @@ public class ValidationService {
 
 			Map<String, String> newPropertyValues = new HashMap<>();
 			newPropertyValues.put(VALIDATION_STATUS, ValidationJobStatus.SCHEDULED.name());
+			newPropertyValues.put(FAILURE_MESSAGES, null);
 			newPropertyValues.put(PROJECT_KEY, projectKey);
 			newPropertyValues.put(TASK_KEY, taskKey);
 			newPropertyValues.put(VALIDATION_START_TIMESTAMP, String.valueOf((new Date()).getTime()));
@@ -295,6 +301,13 @@ public class ValidationService {
             return null;
         }
     }
+
+	private List<String> splitFailureMessages(String value) {
+		if (value == null || value.isBlank()) {
+			return Collections.emptyList();
+		}
+        return new ArrayList<>(Arrays.asList(value.split(ValidationFailureMessagesConverter.DELIMITER, -1)));
+	}
 
 	@SuppressWarnings("unchecked")
 	private ValidationConfiguration constructValidationConfig(final String branchPath, final Map <String, Object> branchMetadata, String effectiveDate, boolean enableMRCM, String projectKey, String taskKey) {
@@ -499,13 +512,12 @@ public class ValidationService {
 		List<Validation> validations = validationRepository.findAllByBranchPathIn(paths);
 		Map<String, Validation> branchToValidationMap = validations.stream().collect(Collectors.toMap(Validation::getBranchPath, Function.identity()));
         for (String path : paths) {
-            Validation validation;
-            if (!branchToValidationMap.containsKey(path)) {
-                validation = new Validation(path);
-                validation.setStatus(ValidationJobStatus.NOT_TRIGGERED.name());
-                validation = validationRepository.save(validation);
-                branchToValidationMap.put(path, validation);
-            }
+			branchToValidationMap.computeIfAbsent(path, k -> {
+				Validation validation = new Validation(path);
+				validation.setStatus(ValidationJobStatus.NOT_TRIGGERED.name());
+				validation = validationRepository.save(validation);
+				return validation;
+			});
         }
 
 		return branchToValidationMap;
@@ -519,6 +531,12 @@ public class ValidationService {
 	public void resetBranchValidationStatus(String branchPath) {
 		Map<String, String> newPropertyValues = new HashMap<>();
 		newPropertyValues.put(VALIDATION_STATUS, ValidationJobStatus.NOT_TRIGGERED.name());
+		newPropertyValues.put(RUN_ID, null);
+		newPropertyValues.put(REPORT_URL, null);
+		newPropertyValues.put(FAILURE_MESSAGES, null);
+		newPropertyValues.put(CONTENT_HEAD_TIMESTAMP, null);
+		newPropertyValues.put(VALIDATION_START_TIMESTAMP, null);
+		newPropertyValues.put(VALIDATION_END_TIMESTAMP, null);
 		updateValidationCache(branchPath, newPropertyValues);
 	}
 }

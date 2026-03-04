@@ -108,6 +108,7 @@ public class ValidationRunner implements Runnable {
         } catch (Exception e) {
             Map<String, String> newPropertyValues = new HashMap<>();
             newPropertyValues.put(ValidationService.VALIDATION_STATUS, ValidationJobStatus.FAILED.name());
+            newPropertyValues.put(ValidationService.FAILURE_MESSAGES, e.getMessage());
             validationService.updateValidationCache(config.getBranchPath(), newPropertyValues);
             logger.error("Validation of {} failed.", branchPath, e);
 
@@ -163,7 +164,7 @@ public class ValidationRunner implements Runnable {
             // call validation API
             runValidationForRF2DeltaExport(localZipFile, config, effectiveTime);
         } catch (IOException | ProcessWorkflowException e) {
-			throw new ServiceException("Validation failed.", e);
+			throw new ServiceException("Validation failed. Error: " + e.getMessage(), e);
 		} finally {
             if (localZipFile != null) {
                 FileUtils.deleteQuietly(localZipFile);
@@ -254,7 +255,8 @@ public class ValidationRunner implements Runnable {
         try {
             URI location = rvfClient.triggerValidation(body);
 			if (location == null) {
-				throw new ServiceException("RVF did not return a location header for new validation.");
+                String failureMessage = "RVF did not return a location header for new validation.";
+				throw new ServiceException(failureMessage);
 			}
             logger.info("RVF Report URL: {}", location);
 
@@ -262,9 +264,8 @@ public class ValidationRunner implements Runnable {
             newPropertyValues.put(ValidationService.REPORT_URL, location.toString());
             validationService.updateValidationCache(config.getBranchPath(), newPropertyValues);
         } catch (RestClientException e) {
-			String message = String.format("Failed to validate for branch:%s", this.config.getBranchPath());
-            logger.error(message, e);
-            throw new ServiceException(message, e);
+			String message = String.format("Failed to validate for branch: %s", this.config.getBranchPath());
+            throw new ServiceException(message + ". Error: " + e.getMessage(), e);
         }
     }
 }

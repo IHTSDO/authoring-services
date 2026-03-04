@@ -1,8 +1,14 @@
 package org.ihtsdo.authoringservices.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
 
-import jakarta.persistence.*;
+import java.util.List;
 
 @Entity
 public class Validation {
@@ -41,6 +47,10 @@ public class Validation {
 
 	@Column(name = "end_timestamp")
 	private Long endTimestamp;
+
+	@Column(name = "failure_messages")
+	@Convert(converter = ValidationFailureMessagesConverter.class)
+	private List<String> failureMessages;
 
 	protected Validation() {
 	}
@@ -133,6 +143,14 @@ public class Validation {
 		this.endTimestamp = endTimestamp;
 	}
 
+	public List<String> getFailureMessages() {
+		return failureMessages;
+	}
+
+	public void setFailureMessages(List<String> failureMessages) {
+		this.failureMessages = failureMessages;
+	}
+
 	@Override
 	public String toString() {
 		return "Validation{" +
@@ -147,6 +165,7 @@ public class Validation {
 				", taskKey='" + taskKey + '\'' +
 				", startTimestamp=" + startTimestamp +
 				", endTimestamp=" + endTimestamp +
+				", failureMessages=" + failureMessages +
 				'}';
 	}
 }
