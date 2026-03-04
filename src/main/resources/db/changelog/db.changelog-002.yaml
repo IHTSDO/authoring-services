@@ -1,0 +1,144 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/db.changelog-002.yaml
+
+  - changeSet:
+      id: 007-create-rmp-task
+      author: cursor
+      preConditions:
+        - onFail: MARK_RAN
+        - onError: MARK_RAN
+        - not:
+            tableExists:
+              tableName: rmp_task
+      changes:
+        - createTable:
+            tableName: rmp_task
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: type
+                  type: varchar(255)
+              - column:
+                  name: status
+                  type: varchar(255)
+              - column:
+                  name: country
+                  type: varchar(255)
+              - column:
+                  name: reporter
+                  type: varchar(255)
+              - column:
+                  name: assignee
+                  type: varchar(255)
+              - column:
+                  name: summary
+                  type: text
+              - column:
+                  name: languageRefset
+                  type: text
+              - column:
+                  name: contextRefset
+                  type: text
+              - column:
+                  name: concept
+                  type: text
+              - column:
+                  name: conceptId
+                  type: varchar(255)
+              - column:
+                  name: conceptName
+                  type: text
+              - column:
+                  name: relationshipType
+                  type: text
+              - column:
+                  name: relationshipTarget
+                  type: text
+              - column:
+                  name: existingRelationship
+                  type: text
+              - column:
+                  name: memberConceptIds
+                  type: text
+              - column:
+                  name: eclQuery
+                  type: text
+              - column:
+                  name: existingDescription
+                  type: text
+              - column:
+                  name: newDescription
+                  type: text
+              - column:
+                  name: newFSN
+                  type: text
+              - column:
+                  name: newPT
+                  type: text
+              - column:
+                  name: newSynonyms
+                  type: text
+              - column:
+                  name: parentConcept
+                  type: text
+              - column:
+                  name: justification
+                  type: text
+              - column:
+                  name: reference
+                  type: text
+              - column:
+                  name: created_timestamp
+                  type: datetime
+              - column:
+                  name: updated_timestamp
+                  type: datetime
+
+  - changeSet:
+      id: 008-create-comment
+      author: cursor
+      preConditions:
+        - onFail: MARK_RAN
+        - onError: MARK_RAN
+        - not:
+            tableExists:
+              tableName: comment
+      changes:
+        - createTable:
+            tableName: comment
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: body
+                  type: text
+              - column:
+                  name: user
+                  type: varchar(255)
+              - column:
+                  name: rmp_task
+                  type: bigint
+              - column:
+                  name: created_timestamp
+                  type: datetime
+              - column:
+                  name: updated_timestamp
+                  type: datetime
+        - addForeignKeyConstraint:
+            baseTableName: comment
+            baseColumnNames: rmp_task
+            referencedTableName: rmp_task
+            referencedColumnNames: id
+            constraintName: fk_comment_rmp_task
+
