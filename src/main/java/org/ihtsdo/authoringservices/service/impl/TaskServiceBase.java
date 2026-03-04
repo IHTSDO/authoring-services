@@ -90,19 +90,17 @@ public abstract class TaskServiceBase {
     protected void transferTaskToNewAuthor(String projectKey, String taskKey, TaskChangeAssigneeRequest taskChangeAssigneeRequest) {
         try {
             uiService.transferTask(projectKey, taskKey, taskChangeAssigneeRequest);
-            String taskReassignMessage = "Your task %s has been assigned to %s";
-            String taskTakenMessage = "The task %s has been assigned to you by %s";
             if (!SecurityUtil.getUsername().equalsIgnoreCase(taskChangeAssigneeRequest.getCurrentAssignee().getUsername()) &&
-                    !SecurityUtil.getUsername().equalsIgnoreCase(taskChangeAssigneeRequest.getNewAssignee().getUsername())) {
-                String message = String.format(taskReassignMessage, taskKey, taskChangeAssigneeRequest.getNewAssignee().getDisplayName());
+                !SecurityUtil.getUsername().equalsIgnoreCase(taskChangeAssigneeRequest.getNewAssignee().getUsername())) {
+                String message = String.format("Your task %s has been assigned to %s by %s", taskKey, taskChangeAssigneeRequest.getNewAssignee().getDisplayName(), taskChangeAssigneeRequest.getCurrentLoggedUser().getDisplayName());
                 notificationService.queueNotification(taskChangeAssigneeRequest.getCurrentAssignee().getUsername(), new Notification(projectKey, taskKey, EntityType.AuthorChange, message));
-                message = String.format(taskTakenMessage, taskKey, taskChangeAssigneeRequest.getCurrentLoggedUser().getDisplayName());
+                message = String.format("The task %s has been assigned from %s to you by %s", taskKey, taskChangeAssigneeRequest.getCurrentAssignee().getDisplayName(), taskChangeAssigneeRequest.getCurrentLoggedUser().getDisplayName());
                 notificationService.queueNotification(taskChangeAssigneeRequest.getNewAssignee().getUsername(), new Notification(projectKey, taskKey, EntityType.AuthorChange, message));
             } else if (taskChangeAssigneeRequest.getNewAssignee().getUsername().equalsIgnoreCase(SecurityUtil.getUsername())) {
-                String message = String.format(taskReassignMessage, taskKey, taskChangeAssigneeRequest.getCurrentAssignee().getDisplayName());
+                String message = String.format("Your task %s has been taken by %s", taskKey, taskChangeAssigneeRequest.getNewAssignee().getDisplayName());
                 notificationService.queueNotification(taskChangeAssigneeRequest.getCurrentAssignee().getUsername(), new Notification(projectKey, taskKey, EntityType.AuthorChange, message));
             } else {
-                String message = String.format(taskTakenMessage, taskKey, taskChangeAssigneeRequest.getCurrentAssignee().getDisplayName());
+                String message = String.format("The task %s has been assigned to you by %s", taskKey, taskChangeAssigneeRequest.getCurrentAssignee().getDisplayName());
                 notificationService.queueNotification(taskChangeAssigneeRequest.getNewAssignee().getUsername(), new Notification(projectKey, taskKey, EntityType.AuthorChange, message));
             }
         } catch (BusinessServiceException e) {
