@@ -1,0 +1,111 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/db.changelog-003.yaml
+
+  - changeSet:
+      id: 009-create-branch
+      author: cursor
+      preConditions:
+        - onFail: MARK_RAN
+        - onError: MARK_RAN
+        - not:
+            tableExists:
+              tableName: branch
+      changes:
+        - createTable:
+            tableName: branch
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: project
+                  type: varchar(255)
+              - column:
+                  name: task
+                  type: varchar(255)
+
+  - changeSet:
+      id: 010-create-review-message
+      author: cursor
+      preConditions:
+        - onFail: MARK_RAN
+        - onError: MARK_RAN
+        - not:
+            tableExists:
+              tableName: review_message
+      changes:
+        - createTable:
+            tableName: review_message
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: branch_id
+                  type: bigint
+              - column:
+                  name: message_html
+                  type: text
+              - column:
+                  name: creation_date
+                  type: datetime
+              - column:
+                  name: from_username
+                  type: varchar(255)
+              - column:
+                  name: feedback_requested
+                  type: boolean
+        - addForeignKeyConstraint:
+            baseTableName: review_message
+            baseColumnNames: branch_id
+            referencedTableName: branch
+            referencedColumnNames: id
+            constraintName: fk_review_message_branch
+
+  - changeSet:
+      id: 011-create-review-concept-view
+      author: cursor
+      preConditions:
+        - onFail: MARK_RAN
+        - onError: MARK_RAN
+        - not:
+            tableExists:
+              tableName: reviewconceptview
+      changes:
+        - createTable:
+            tableName: reviewconceptview
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: branch_id
+                  type: bigint
+              - column:
+                  name: conceptId
+                  type: varchar(255)
+              - column:
+                  name: username
+                  type: varchar(255)
+              - column:
+                  name: viewDate
+                  type: datetime
+        - addForeignKeyConstraint:
+            baseTableName: reviewconceptview
+            baseColumnNames: branch_id
+            referencedTableName: branch
+            referencedColumnNames: id
+            constraintName: fk_review_concept_view_branch
+

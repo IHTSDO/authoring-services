@@ -1,0 +1,266 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/db.changelog-001.yaml
+
+  - changeSet:
+      id: 001-create-project
+      author: cursor
+      preConditions:
+        - onFail: MARK_RAN
+        - onError: MARK_RAN
+        - not:
+            tableExists:
+              tableName: project
+      changes:
+        - createTable:
+            tableName: project
+            columns:
+              - column:
+                  name: project_key
+                  type: varchar(255)
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: project_name
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: project_lead
+                  type: varchar(255)
+              - column:
+                  name: branch_path
+                  type: varchar(255)
+              - column:
+                  name: extension_base
+                  type: varchar(255)
+              - column:
+                  name: active
+                  type: boolean
+              - column:
+                  name: custom_fields
+                  type: json
+              - column:
+                  name: created_timestamp
+                  type: datetime
+              - column:
+                  name: updated_timestamp
+                  type: datetime
+
+  - changeSet:
+      id: 002-create-task-sequence
+      author: cursor
+      preConditions:
+        - onFail: MARK_RAN
+        - onError: MARK_RAN
+        - not:
+            tableExists:
+              tableName: task_sequence
+      changes:
+        - createTable:
+            tableName: task_sequence
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: project_key
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: sequence
+                  type: int
+        - addForeignKeyConstraint:
+            baseTableName: task_sequence
+            baseColumnNames: project_key
+            referencedTableName: project
+            referencedColumnNames: project_key
+            constraintName: fk_task_sequence_project
+        - addUniqueConstraint:
+            tableName: task_sequence
+            columnNames: project_key
+            constraintName: uk_task_sequence_project
+
+  - changeSet:
+      id: 003-create-user-group
+      author: cursor
+      preConditions:
+        - onFail: MARK_RAN
+        - onError: MARK_RAN
+        - not:
+            tableExists:
+              tableName: user_group
+      changes:
+        - createTable:
+            tableName: user_group
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: group_name
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: project_key
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: user_group
+            baseColumnNames: project_key
+            referencedTableName: project
+            referencedColumnNames: project_key
+            constraintName: fk_user_group_project
+
+  - changeSet:
+      id: 004-create-task
+      author: cursor
+      preConditions:
+        - onFail: MARK_RAN
+        - onError: MARK_RAN
+        - not:
+            tableExists:
+              tableName: task
+      changes:
+        - createTable:
+            tableName: task
+            columns:
+              - column:
+                  name: task_key
+                  type: varchar(255)
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: task_name
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: text
+              - column:
+                  name: branch_path
+                  type: varchar(255)
+              - column:
+                  name: status
+                  type: varchar(255)
+              - column:
+                  name: type
+                  type: varchar(255)
+              - column:
+                  name: project_key
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: assignee
+                  type: varchar(255)
+              - column:
+                  name: reporter
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_timestamp
+                  type: datetime
+              - column:
+                  name: updated_timestamp
+                  type: datetime
+        - addForeignKeyConstraint:
+            baseTableName: task
+            baseColumnNames: project_key
+            referencedTableName: project
+            referencedColumnNames: project_key
+            constraintName: fk_task_project
+
+  - changeSet:
+      id: 005-create-task-reviewer
+      author: cursor
+      preConditions:
+        - onFail: MARK_RAN
+        - onError: MARK_RAN
+        - not:
+            tableExists:
+              tableName: task_reviewer
+      changes:
+        - createTable:
+            tableName: task_reviewer
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: task_key
+                  type: varchar(255)
+              - column:
+                  name: username
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: task_reviewer
+            baseColumnNames: task_key
+            referencedTableName: task
+            referencedColumnNames: task_key
+            constraintName: fk_task_reviewer_task
+        - addUniqueConstraint:
+            tableName: task_reviewer
+            columnNames: task_key, username
+            constraintName: uk_task_reviewer_task_username
+
+  - changeSet:
+      id: 006-create-crs-task
+      author: cursor
+      preConditions:
+        - onFail: MARK_RAN
+        - onError: MARK_RAN
+        - not:
+            tableExists:
+              tableName: crs_task
+      changes:
+        - createTable:
+            tableName: crs_task
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: crs_task_key
+                  type: varchar(255)
+              - column:
+                  name: crs_jira_key
+                  type: varchar(255)
+              - column:
+                  name: task_key
+                  type: varchar(255)
+        - addForeignKeyConstraint:
+            baseTableName: crs_task
+            baseColumnNames: task_key
+            referencedTableName: task
+            referencedColumnNames: task_key
+            constraintName: fk_crs_task_task
+        - addUniqueConstraint:
+            tableName: crs_task
+            columnNames: crs_task_key, task_key
+            constraintName: uk_crs_task_key_task
+

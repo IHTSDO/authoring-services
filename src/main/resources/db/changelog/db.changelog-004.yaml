@@ -1,0 +1,84 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/db.changelog-004.yaml
+
+  - changeSet:
+      id: 012-create-validation
+      author: cursor
+      preConditions:
+        - onFail: MARK_RAN
+        - onError: MARK_RAN
+        - not:
+            tableExists:
+              tableName: validation
+      changes:
+        - createTable:
+            tableName: validation
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: run_id
+                  type: bigint
+              - column:
+                  name: branch_path
+                  type: varchar(255)
+              - column:
+                  name: status
+                  type: varchar(255)
+              - column:
+                  name: content_head_timestamp
+                  type: bigint
+              - column:
+                  name: report_url
+                  type: varchar(1024)
+              - column:
+                  name: daily_build_report_url
+                  type: varchar(1024)
+              - column:
+                  name: project_key
+                  type: varchar(255)
+              - column:
+                  name: task_key
+                  type: varchar(255)
+              - column:
+                  name: start_timestamp
+                  type: bigint
+              - column:
+                  name: end_timestamp
+                  type: bigint
+
+  - changeSet:
+      id: 013-create-rvf-failure-jira-associations
+      author: cursor
+      preConditions:
+        - onFail: MARK_RAN
+        - onError: MARK_RAN
+        - not:
+            tableExists:
+              tableName: rvf_failure_jira_associations
+      changes:
+        - createTable:
+            tableName: rvf_failure_jira_associations
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: report_run_id
+                  type: bigint
+              - column:
+                  name: assertion_id
+                  type: varchar(255)
+              - column:
+                  name: jira_url
+                  type: varchar(1024)
+
