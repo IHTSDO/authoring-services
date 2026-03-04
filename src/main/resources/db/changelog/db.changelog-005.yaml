@@ -1,0 +1,36 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/db.changelog-005.yaml
+
+  - changeSet:
+      id: 014-create-rmp-notification-user
+      author: cursor
+      preConditions:
+        - onFail: MARK_RAN
+        - onError: MARK_RAN
+        - not:
+            tableExists:
+              tableName: rmp_notification_user
+      changes:
+        - createTable:
+            tableName: rmp_notification_user
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: country
+                  type: varchar(255)
+              - column:
+                  name: user
+                  type: varchar(255)
+              - column:
+                  name: created_timestamp
+                  type: datetime
+              - column:
+                  name: updated_timestamp
+                  type: datetime
+
