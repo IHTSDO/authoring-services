@@ -13,7 +13,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.thymeleaf.context.Context;
@@ -29,6 +28,14 @@ import java.util.Date;
 
 @Service
 public class EmailService {
+
+    public static final String RECEIVER_NAMES_STRING = "receiverNames";
+    public static final String TASK_ID_STRING = "taskId";
+    public static final String SUMMARY_STRING = "summary";
+    public static final String STATUS_STRING = "status";
+    public static final String DATE_STRING = "date";
+    public static final String TASK_TITLE_STRING = "taskTitle";
+    public static final String COMMENT_STRING = "comment";
 
     @Value("${email.user.from}")
     private String from;
@@ -75,21 +82,21 @@ public class EmailService {
         }
         String subject = "SNOMED International - Comment added";
         String templateFile = "Notify-Comment-Template";
-        String receiverNames = "";
+        StringBuilder receiverNames = new StringBuilder();
         Collection <String> emails = new ArrayList <>();
         for (User user : recipients) {
             if (isAllowedEmailNotification(user.getUsername())) {
-                receiverNames += receiverNames.length() > 0 ? ", " + user.getDisplayName() : user.getDisplayName();
+                receiverNames.append(!receiverNames.isEmpty() ? ", " + user.getDisplayName() : user.getDisplayName());
                 emails.add(user.getEmail());
             }
         }
 
         Context params = new Context();
-        params.setVariable("receiverNames", receiverNames);
-        params.setVariable("taskId", taskKey);
-        params.setVariable("taskTitle", taskTitle);
-        params.setVariable("comment", comment);
-        params.setVariable("date", SIMPLE_DATE_FORMAT.format(new Date()));
+        params.setVariable(RECEIVER_NAMES_STRING, receiverNames.toString());
+        params.setVariable(TASK_ID_STRING, taskKey);
+        params.setVariable(TASK_TITLE_STRING, taskTitle);
+        params.setVariable(COMMENT_STRING, comment);
+        params.setVariable(DATE_STRING, SIMPLE_DATE_FORMAT.format(new Date()));
         String url = rootURL + "/#/tasks/task/" + projectKey + "/" + taskKey + "/feedback";
         params.setVariable("requestUrl", url);
         doSendMail(subject, templateFile, params, emails);
@@ -103,14 +110,32 @@ public class EmailService {
             emails.add(user.getEmail());
         }
         Context params = new Context();
-        params.setVariable("receiverNames", receiverNames.toString());
-        params.setVariable("taskId", rmpTaskId);
-        params.setVariable("summary", summary);
-        params.setVariable("status", status);
-        params.setVariable("date", SIMPLE_DATE_FORMAT.format(new Date()));
+        params.setVariable(RECEIVER_NAMES_STRING, receiverNames.toString());
+        params.setVariable(TASK_ID_STRING, rmpTaskId);
+        params.setVariable(SUMMARY_STRING, summary);
+        params.setVariable(STATUS_STRING, status);
+        params.setVariable(DATE_STRING, SIMPLE_DATE_FORMAT.format(new Date()));
 
         String subject = "Status change";
         String templateFile = "Notify-Status-Template-RMP";
+        doSendMail(subject, templateFile, params, emails);
+    }
+
+    public void sendRMPTaskCreatedNotification(long rmpTaskId, String summary, Collection<User> recipients) {
+        StringBuilder receiverNames = new StringBuilder();
+        Collection<String> emails = new ArrayList<>();
+        for (User user : recipients) {
+            receiverNames.append(!receiverNames.isEmpty() ? ", " + user.getDisplayName() : user.getDisplayName());
+            emails.add(user.getEmail());
+        }
+        Context params = new Context();
+        params.setVariable(RECEIVER_NAMES_STRING, receiverNames.toString());
+        params.setVariable(TASK_ID_STRING, rmpTaskId);
+        params.setVariable(SUMMARY_STRING, summary);
+        params.setVariable(DATE_STRING, SIMPLE_DATE_FORMAT.format(new Date()));
+
+        String subject = "New RMP request created";
+        String templateFile = "Notify-Creation-Template-RMP";
         doSendMail(subject, templateFile, params, emails);
     }
 
@@ -122,11 +147,11 @@ public class EmailService {
             emails.add(user.getEmail());
         }
         Context params = new Context();
-        params.setVariable("receiverNames", receiverNames.toString());
-        params.setVariable("taskId", rmpTaskId);
-        params.setVariable("summary", summary);
-        params.setVariable("comment", comment);
-        params.setVariable("date", SIMPLE_DATE_FORMAT.format(new Date()));
+        params.setVariable(RECEIVER_NAMES_STRING, receiverNames.toString());
+        params.setVariable(TASK_ID_STRING, rmpTaskId);
+        params.setVariable(SUMMARY_STRING, summary);
+        params.setVariable(COMMENT_STRING, comment);
+        params.setVariable(DATE_STRING, SIMPLE_DATE_FORMAT.format(new Date()));
 
         String subject = "Comment added";
         String templateFile = "Notify-Comment-Template-RMP";
@@ -134,19 +159,19 @@ public class EmailService {
     }
 
     private void sendTaskStatusChangeNotification(String projectKey, String taskKey, String taskTitle, Collection <User> recipients, String subject, String templateFile, String view) {
-        String receiverNames = "";
+        StringBuilder receiverNames = new StringBuilder();
         Collection <String> emails = new ArrayList <>();
         for (User user : recipients) {
             if (isAllowedEmailNotification(user.getUsername())) {
-                receiverNames += receiverNames.length() > 0 ? ", " + user.getDisplayName() : user.getDisplayName();
+                receiverNames.append((!receiverNames.isEmpty()) ? ", " + user.getDisplayName() : user.getDisplayName());
                 emails.add(user.getEmail());
             }
         }
         Context params = new Context();
-        params.setVariable("receiverNames", receiverNames);
-        params.setVariable("taskId", taskKey);
-        params.setVariable("taskTitle", taskTitle);
-        params.setVariable("date", SIMPLE_DATE_FORMAT.format(new Date()));
+        params.setVariable(RECEIVER_NAMES_STRING, receiverNames.toString());
+        params.setVariable(TASK_ID_STRING, taskKey);
+        params.setVariable(TASK_TITLE_STRING, taskTitle);
+        params.setVariable(DATE_STRING, SIMPLE_DATE_FORMAT.format(new Date()));
         String url = rootURL + "/#/tasks/task/" + projectKey + "/" + taskKey + "/" + view;
         params.setVariable("requestUrl", url);
         doSendMail(subject, templateFile, params, emails);
@@ -187,23 +212,22 @@ public class EmailService {
             }
             message.setFrom(new InternetAddress(from, from));
             message.setSubject(subject);
-            String emailContent = EmailService.this.templateEngine.process(templateFile, params);
+            String emailContent = this.templateEngine.process(templateFile, params);
             message.setText(emailContent, "utf-8", "html");
-            logger.info(String.format("Sending email to %s with subject %s", toEmails, subject));
+            logger.info("Sending email to {}} with subject {}", toEmails, subject);
             send(message);
         } catch (UnsupportedEncodingException e) {
-            logger.error("The character encoding is not supported. " + e.getMessage());
+            logger.error("The character encoding is not supported. {}", e.getMessage());
         } catch (MessagingException e) {
             logger.error(e.getMessage(), e);
         }
     }
 
-    @Async
     public void send(MimeMessage mimeMessage) {
         try {
             mailSender.send(mimeMessage);
         } catch (MailException e) {
-            logger.debug("Error sending email notification: " + e.getMessage());
+            logger.debug("Error sending email notification: {}", e.getMessage());
         }
     }
 }

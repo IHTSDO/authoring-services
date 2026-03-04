@@ -7,6 +7,7 @@ import org.ihtsdo.authoringservices.domain.RMPTaskStatus;
 import org.ihtsdo.authoringservices.domain.User;
 import org.ihtsdo.authoringservices.entity.QRMPTask;
 import org.ihtsdo.authoringservices.entity.RMPTask;
+import org.ihtsdo.authoringservices.entity.RMPNotificationUser;
 import org.ihtsdo.authoringservices.repository.RMPTaskRepository;
 
 import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
@@ -20,6 +21,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -34,11 +36,17 @@ public class RMPTaskService {
 
     private final UserCacheService userCacheService;
 
+    private final RMPUserNotificationService rmpNotificationUserService;
+
     @Autowired
-    public RMPTaskService(RMPTaskRepository rmpTaskRepository, EmailService emailService, UserCacheService userCacheService) {
+    public RMPTaskService(RMPTaskRepository rmpTaskRepository,
+                          EmailService emailService,
+                          UserCacheService userCacheService,
+                          RMPUserNotificationService rmpNotificationUserService) {
         this.rmpTaskRepository = rmpTaskRepository;
         this.emailService = emailService;
         this.userCacheService = userCacheService;
+        this.rmpNotificationUserService = rmpNotificationUserService;
     }
 
     public Page<RMPTask> findTasks(String country, String reporter, Pageable pageable) {
@@ -96,7 +104,9 @@ public class RMPTaskService {
         rmpTask.setStatus(RMPTaskStatus.NEW);
         rmpTask.setReporter(SecurityUtil.getUsername());
         rmpTask.setAssignee(null);
-        return rmpTaskRepository.save(rmpTask);
+        RMPTask savedTask = rmpTaskRepository.save(rmpTask);
+        notifyTaskCreated(savedTask);
+        return savedTask;
     }
 
     public Optional<RMPTask> updateTask(long id, RMPTask updatedTask) {
@@ -206,5 +216,31 @@ public class RMPTaskService {
             }
         }
         emailService.sendRMPTaskStatusChangeNotification(task.getId(), task.getSummary(), newStatus, recipients);
+    }
+
+    private void notifyTaskCreated(RMPTask task) {
+        String country = task.getCountry();
+        if (!StringUtils.hasLength(country)) {
+            return;
+        }
+        List<RMPNotificationUser> notifications = rmpNotificationUserService.getNotificationUsers(country);
+        if (notifications == null || notifications.isEmpty()) {
+            return;
+        }
+        String currentUser = SecurityUtil.getUsername();
+        Collection<User> recipients = new ArrayList<>();
+        for (RMPNotificationUser notification : notifications) {
+            String username = notification.getUser();
+            if (!StringUtils.hasLength(username) || currentUser.equals(username)) {
+                continue;
+            }
+            User user = userCacheService.getUser(username);
+            if (user != null) {
+                recipients.add(user);
+            }
+        }
+        if (!recipients.isEmpty()) {
+            emailService.sendRMPTaskCreatedNotification(task.getId(), task.getSummary(), recipients);
+        }
     }
 }
