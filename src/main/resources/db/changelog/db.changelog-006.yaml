@@ -1,0 +1,21 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/db.changelog-006.yaml
+
+  - changeSet:
+      id: 015-add-failure-messages-to-validation
+      author: cursor
+      preConditions:
+        - onFail: MARK_RAN
+        - onError: MARK_RAN
+        - not:
+            columnExists:
+              tableName: validation
+              columnName: failure_messages
+      changes:
+        - addColumn:
+            tableName: validation
+            columns:
+              - column:
+                  name: failure_messages
+                  type: text
+

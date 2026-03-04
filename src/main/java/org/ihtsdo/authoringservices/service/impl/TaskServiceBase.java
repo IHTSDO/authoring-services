@@ -117,17 +117,20 @@ public abstract class TaskServiceBase {
         if (validationMap == null || validationMap.isEmpty()) {
             String branchPath = paths.iterator().next();
             logger.warn("Failed to recover validation statuses for {} branches including '{}'.", paths.size(), branchPath);
-        } else {
-            for (final String path : paths) {
-                Validation validation = validationMap.get(path);
-                if (validation != null) {
-                    if (ValidationJobStatus.COMPLETED.name().equals(validation.getStatus())
-                            && validation.getContentHeadTimestamp() != null
-                            && !startedTasks.get(path).getBranchHeadTimestamp().equals(validation.getContentHeadTimestamp())) {
-                        startedTasks.get(path).setLatestValidationStatus(ValidationJobStatus.STALE.name());
-                    } else {
-                        startedTasks.get(path).setLatestValidationStatus(validation.getStatus());
-                    }
+            return;
+        }
+        for (final String path : paths) {
+            Validation validation = validationMap.get(path);
+            if (validation != null) {
+                if (ValidationJobStatus.COMPLETED.name().equals(validation.getStatus())
+                        && validation.getContentHeadTimestamp() != null
+                        && !startedTasks.get(path).getBranchHeadTimestamp().equals(validation.getContentHeadTimestamp())) {
+                    startedTasks.get(path).setLatestValidationStatus(ValidationJobStatus.STALE.name());
+                } else {
+                    startedTasks.get(path).setLatestValidationStatus(validation.getStatus());
+                }
+                if (ValidationJobStatus.FAILED.name().equals(validation.getStatus())) {
+                    startedTasks.get(path).setValidationFailureMessages(validation.getFailureMessages());
                 }
             }
         }

@@ -58,6 +58,9 @@ public abstract class ProjectServiceBase {
                 } else {
                     authoringProject.setValidationStatus(validation.getStatus());
                 }
+                if (ValidationJobStatus.FAILED.name().equals(validation.getStatus())) {
+                    authoringProject.setValidationFailureMessages(validation.getFailureMessages());
+                }
             }
 
         } catch (Exception e) {

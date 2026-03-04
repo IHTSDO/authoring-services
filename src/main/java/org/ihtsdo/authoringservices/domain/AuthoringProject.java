@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Classification;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -21,6 +22,7 @@ public class AuthoringProject {
     private String branchState;
     private Classification latestClassification;
     private String validationStatus;
+    private List<String> validationFailureMessages;
     private Long branchHeadTimestamp;
     private Long branchBaseTimestamp;
     private Boolean projectPromotionDisabled;
@@ -105,6 +107,14 @@ public class AuthoringProject {
 
     public void setValidationStatus(String validationStatus) {
         this.validationStatus = validationStatus;
+    }
+
+    public List<String> getValidationFailureMessages() {
+        return validationFailureMessages;
+    }
+
+    public void setValidationFailureMessages(List<String> validationFailureMessages) {
+        this.validationFailureMessages = validationFailureMessages;
     }
 
     @JsonProperty("latestClassificationJson")

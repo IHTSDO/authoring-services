@@ -45,6 +45,7 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
     private String updated;
     private Classification latestClassification;
     private String latestValidationStatus;
+    private List<String> validationFailureMessages;
     private TaskMessagesStatus feedbackMessagesStatus;
     private Date feedbackMessageDate;
     private Date viewDate;
@@ -218,6 +219,14 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
 
     public String getLatestValidationStatus() {
         return "".equals(latestValidationStatus) ? null : latestValidationStatus;
+    }
+
+    public void setValidationFailureMessages(List<String> validationFailureMessages) {
+        this.validationFailureMessages = validationFailureMessages;
+    }
+
+    public List<String> getValidationFailureMessages() {
+        return validationFailureMessages;
     }
 
     public List<User> getReviewers() {
