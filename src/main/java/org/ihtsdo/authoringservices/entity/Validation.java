@@ -48,7 +48,7 @@ public class Validation {
 	@Column(name = "end_timestamp")
 	private Long endTimestamp;
 
-	@Column(name = "failure_messages")
+	@Column(name = "failure_messages", columnDefinition = "TEXT DEFAULT NULL")
 	@Convert(converter = ValidationFailureMessagesConverter.class)
 	private List<String> failureMessages;
 
