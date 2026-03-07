@@ -11,7 +11,6 @@ import org.ihtsdo.authoringservices.service.dao.SRSFileDAO;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch;
-import org.ihtsdo.otf.rest.exception.BadRequestException;
 import org.ihtsdo.otf.rest.exception.ProcessWorkflowException;
 import org.ihtsdo.otf.utils.DateUtils;
 import org.ihtsdo.otf.utils.ZipFileUtils;
@@ -87,44 +86,64 @@ public class ValidationRunner implements Runnable {
     public void run() {
         File exportArchive = null;
         String branchPath = config.getBranchPath();
+
+        // Check the config is set correctly
+        String errorMsg = config.checkMissingParameters();
+        if (errorMsg != null) {
+            logger.error("Validation configuration is not set correctly: {}", errorMsg);
+            this.markValidationAsFailedAndNotifyUser("Configuration is not set correctly. " + errorMsg);
+            return;
+        }
+
+        // Check and update export effective time
+        String effectiveTime = null;
         try {
+            effectiveTime = resolveEffectiveTime(config);
+        } catch (Exception e) {
+            logger.error("Fail to parse the effective time.", e);
+            this.markValidationAsFailedAndNotifyUser("Failed to resolve the effective time. Please check the logs for details");
+            return;
+        }
 
-            // check the config is set correctly
-            String errorMsg = config.checkMissingParameters();
-            if (errorMsg != null) {
-                throw new BadRequestException("Validation configuration is not set correctly:" + errorMsg);
-            }
-            //check and update export effective time
-            String effectiveTime = resolveEffectiveTime(config);
-
-            // Export RF2 delta
+        // Export RF2 delta
+        try {
             final Branch branch = snowstormRestClient.getBranch(branchPath);
             exportArchive = snowstormRestClient.export(branchPath, effectiveTime, null, UNPUBLISHED, DELTA);
             config.setContentHeadTimestamp(branch.getHeadTimestamp());
             config.setContentBaseTimestamp(branch.getBaseTimestamp());
-
-            // send delta export directly for RVF validation
-            validateByRvfDirectly(exportArchive, effectiveTime);
         } catch (Exception e) {
-            Map<String, String> newPropertyValues = new HashMap<>();
-            newPropertyValues.put(ValidationService.VALIDATION_STATUS, ValidationJobStatus.FAILED.name());
-            newPropertyValues.put(ValidationService.FAILURE_MESSAGES, e.getMessage());
-            validationService.updateValidationCache(config.getBranchPath(), newPropertyValues);
-            logger.error("Validation of {} failed.", branchPath, e);
+            logger.error("Failed to export RF2 Delta for branch {}.", branchPath, e);
+            this.markValidationAsFailedAndNotifyUser("Failed to export RF2 Delta. Please check the logs for details");
+            if (exportArchive != null) {
+                exportArchive.deleteOnExit();
+            }
+            return;
+        }
 
-            // Notify user
-            notificationService.queueNotification(
-                    username,
-                    new Notification(
-                            config.getProjectKey(),
-                            config.getTaskKey(),
-                            EntityType.Validation,
-                            ValidationJobStatus.FAILED.name()));
+        // Send delta export directly for RVF validation
+        try {
+            validateByRvfDirectly(exportArchive, effectiveTime);
         } finally {
             if (exportArchive != null) {
                 exportArchive.deleteOnExit();
             }
         }
+    }
+
+    private void markValidationAsFailedAndNotifyUser(String failureMessage) {
+        Map<String, String> newPropertyValues = new HashMap<>();
+        newPropertyValues.put(ValidationService.VALIDATION_STATUS, ValidationJobStatus.FAILED.name());
+        newPropertyValues.put(ValidationService.FAILURE_MESSAGES, failureMessage);
+        validationService.updateValidationCache(config.getBranchPath(), newPropertyValues);
+
+        // Notify user
+        notificationService.queueNotification(
+                username,
+                new Notification(
+                        config.getProjectKey(),
+                        config.getTaskKey(),
+                        EntityType.Validation,
+                        ValidationJobStatus.FAILED.name()));
     }
 
     private String resolveEffectiveTime(ValidationConfiguration config) throws ParseException {
@@ -152,7 +171,7 @@ public class ValidationRunner implements Runnable {
         return exportEffectiveDate;
     }
 
-    public void validateByRvfDirectly(File exportArchive, String effectiveTime) throws ServiceException {
+    public void validateByRvfDirectly(File exportArchive, String effectiveTime) {
         File tempDir = null;
         File localZipFile = null;
         try {
@@ -160,17 +179,23 @@ public class ValidationRunner implements Runnable {
             localZipFile = new File(tempDir, config.getProductName() + "_" + effectiveTime + ".zip");
             // prepare files for validation
             prepareExportFilesForValidation(exportArchive, config, localZipFile, effectiveTime);
-
-            // call validation API
-            runValidationForRF2DeltaExport(localZipFile, config, effectiveTime);
-        } catch (IOException | ProcessWorkflowException e) {
-			throw new ServiceException("Validation failed. Error: " + e.getMessage(), e);
+        } catch (Exception e) {
+            logger.error("Validation of {} failed.", config.getBranchPath(), e);
+            this.markValidationAsFailedAndNotifyUser("Failed to prepare Export Files for validation. Please check the logs for details");
 		} finally {
-            if (localZipFile != null) {
+            if (localZipFile != null) FileUtils.deleteQuietly(localZipFile);
+            if (tempDir != null) FileUtils.deleteQuietly(tempDir);
+        }
+
+        // call validation API
+        if (localZipFile != null) {
+            try {
+                runValidationForRF2DeltaExport(localZipFile, config, effectiveTime);
+            } catch (Exception e) {
+                logger.error("Validation of {} failed.", config.getBranchPath(), e);
+                this.markValidationAsFailedAndNotifyUser("Failed to send request to RVF. Please check the logs for details");
+            } finally {
                 FileUtils.deleteQuietly(localZipFile);
-            }
-            if (tempDir != null) {
-                // Better to delete temp files after use rather than deleteOnExit()
                 FileUtils.deleteQuietly(tempDir);
             }
         }

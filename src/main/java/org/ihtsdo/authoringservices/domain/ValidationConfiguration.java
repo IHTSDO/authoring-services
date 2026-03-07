@@ -25,25 +25,15 @@ public class ValidationConfiguration {
     private String taskKey;
 
     public String checkMissingParameters() {
-        StringBuilder msgBuilder = new StringBuilder();
         if (this.assertionGroupNames == null) {
-            msgBuilder.append("assertionGroupNames can't be null.");
+            return "The assertionGroupNames can't be null";
         }
         if (dependencyRelease == null && previousRelease == null) {
-            if (msgBuilder.length() > 0) {
-                msgBuilder.append(" ");
-            }
-            msgBuilder.append("previousRelease and dependencyRelease can't be both null.");
+            return "The previousRelease and dependencyRelease can't be both null";
         }
 
         if (previousPackage == null && dependencyPackage == null) {
-            if (msgBuilder.length() > 0) {
-                msgBuilder.append(" ");
-            }
-            msgBuilder.append("previousPackage and dependencyPackage can't be both null.");
-        }
-        if (!msgBuilder.toString().isEmpty()) {
-            return msgBuilder.toString();
+            return "The previousPackage and dependencyPackage can't be both null";
         }
         return null;
     }
