@@ -260,9 +260,6 @@ public class ValidationService {
 			if (validation.getStatus() != null && !ValidationJobStatus.isAllowedTriggeringState(validation.getStatus())) {
 				throw new EntityAlreadyExistsException("An in-progress validation has been detected for " + branchPath + " at state " + validation.getStatus());
 			}
-			// Pass the proxied bean to ensure @Transactional on updateValidationCache is applied
-			new Thread(new ValidationRunner(validationConfig, snowstormRestClientFactory.getClient(), srsDAO, selfProxy, notificationService, rvfClientFactory.getClient(), scaQueuePrefix, username, authToken)).start();
-
 			Map<String, String> newPropertyValues = new HashMap<>();
 			newPropertyValues.put(VALIDATION_STATUS, ValidationJobStatus.SCHEDULED.name());
 			newPropertyValues.put(FAILURE_MESSAGES, null);
@@ -283,6 +280,9 @@ public class ValidationService {
 					ValidationJobStatus.SCHEDULED.name());
 			notification.setBranchPath(branchPath);
 			notificationService.queueNotification(username, notification);
+
+			// Pass the proxied bean to ensure @Transactional on updateValidationCache is applied
+			new Thread(new ValidationRunner(validationConfig, snowstormRestClientFactory.getClient(), srsDAO, selfProxy, notificationService, rvfClientFactory.getClient(), scaQueuePrefix, username, authToken)).start();
 
 			return new Status(ValidationJobStatus.SCHEDULED.name());
 		} catch (ServiceException | ExecutionException e) {
