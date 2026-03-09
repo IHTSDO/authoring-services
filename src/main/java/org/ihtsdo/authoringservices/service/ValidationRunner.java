@@ -182,22 +182,20 @@ public class ValidationRunner implements Runnable {
         } catch (Exception e) {
             logger.error("Validation of {} failed.", config.getBranchPath(), e);
             this.markValidationAsFailedAndNotifyUser("Failed to prepare Export Files for validation. Please check the logs for details");
-		} finally {
             if (localZipFile != null) FileUtils.deleteQuietly(localZipFile);
             if (tempDir != null) FileUtils.deleteQuietly(tempDir);
+            return;
         }
 
         // call validation API
-        if (localZipFile != null) {
-            try {
-                runValidationForRF2DeltaExport(localZipFile, config, effectiveTime);
-            } catch (Exception e) {
-                logger.error("Validation of {} failed.", config.getBranchPath(), e);
-                this.markValidationAsFailedAndNotifyUser("Failed to send request to RVF. Please check the logs for details");
-            } finally {
-                FileUtils.deleteQuietly(localZipFile);
-                FileUtils.deleteQuietly(tempDir);
-            }
+        try {
+            runValidationForRF2DeltaExport(localZipFile, config, effectiveTime);
+        } catch (Exception e) {
+            logger.error("Validation of {} failed.", config.getBranchPath(), e);
+            this.markValidationAsFailedAndNotifyUser("Failed to send request to RVF. Please check the logs for details");
+        } finally {
+            FileUtils.deleteQuietly(localZipFile);
+            FileUtils.deleteQuietly(tempDir);
         }
     }
 
