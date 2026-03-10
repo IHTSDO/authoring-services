@@ -40,6 +40,9 @@ public class Project extends BaseEntity {
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Task> tasks = new ArrayList<>();
 
+    @Transient
+    private Boolean canViewOnly;
+
     public String getKey() {
         return key;
     }
@@ -114,6 +117,14 @@ public class Project extends BaseEntity {
 
     public void setTasks(List<Task> tasks) {
         this.tasks = tasks;
+    }
+
+    public Boolean isCanViewOnly() {
+        return canViewOnly;
+    }
+
+    public void setCanViewOnly(boolean canViewOnly) {
+        this.canViewOnly = canViewOnly;
     }
 
     @Override

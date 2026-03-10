@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.util.CollectionUtils;
 
 import java.sql.Timestamp;
@@ -44,8 +45,9 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 @Transactional
-public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskService {
+    public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskService {
 
+    public static final String NO_PERMISSION_ON_PROJECT = "User has no permission on project ";
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private static final TaskStatus[] EXCLUDE_STATUSES = new TaskStatus[]{TaskStatus.COMPLETED, TaskStatus.DELETED};
@@ -117,6 +119,8 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         permissionService.checkUserPermissionOnProjectOrThrow(projectKey);
 
         Project project = getProjectOrThrow(projectKey);
+
+
         // Create project branch if needed
         try {
             branchService.createBranchIfNeeded(project.getBranchPath());
@@ -173,38 +177,65 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
 
     @Override
     public AuthoringTask updateTask(String projectKey, String taskKey, AuthoringTaskUpdateRequest taskUpdateRequest) throws BusinessServiceException {
-        permissionService.checkUserPermissionOnProjectOrThrow(projectKey);
-
+        final boolean hasPermission = permissionService.userHasPermissionOnProject(projectKey);
         Task task = getTaskOrThrow(taskKey);
 
         // Act on each field received
         final TaskStatus status = taskUpdateRequest.getStatus();
-        boolean isTaskStatusChanged = shouldUpdateTaskStatus(status, task);
+        boolean isTaskStatusChanged = shouldUpdateTaskStatus(status, task, hasPermission);
 
-        final User assignee = taskUpdateRequest.getAssignee();
-        TaskChangeAssigneeRequest taskChangeAssigneeRequest = updateTaskAssignee(assignee, task);
-
-        final List<User> reviewers = taskUpdateRequest.getReviewers();
-        List<User> newReviewersToSendEmail = new ArrayList<>();
-        if (reviewers != null) {
-            // Find new reviewers to send email
-            newReviewersToSendEmail = getNewReviewersToSendEmail(task.getReviewers(), reviewers);
-            task.setReviewers(getTaskReviewers(task, reviewers.stream().map(User::getUsername).toList()));
+        TaskChangeAssigneeRequest taskChangeAssigneeRequest = updateTaskAssignee(taskUpdateRequest.getAssignee(), task);
+        if (taskChangeAssigneeRequest != null && !hasPermission) {
+            throw new AccessDeniedException(NO_PERMISSION_ON_PROJECT + projectKey);
         }
 
-        final String summary = taskUpdateRequest.getSummary();
-        if (summary != null) {
-            task.setName(summary);
-        }
+        List<User> newReviewersToSendEmail = updateTaskReviewers(projectKey, task, taskUpdateRequest.getReviewers(), hasPermission);
 
-        final String description = taskUpdateRequest.getDescription();
-        if (description != null) {
-            task.setDescription(description);
-        }
+        updateTaskSummary(projectKey, task, taskUpdateRequest.getSummary(), hasPermission);
+
+        updateTaskDescription(projectKey, task, taskUpdateRequest.getDescription(), hasPermission);
 
         task.setUpdatedDate(Timestamp.from(Instant.now()));
         task = taskRepository.save(task);
 
+        handlePostUpdateSideEffects(projectKey, taskKey, status, task, isTaskStatusChanged, taskChangeAssigneeRequest, newReviewersToSendEmail);
+
+        return buildAuthoringTasks(new ArrayList<>(List.of(task)), false).get(0);
+    }
+
+    private List<User> updateTaskReviewers(String projectKey, Task task, List<User> reviewers, boolean hasPermission) {
+        List<User> newReviewersToSendEmail = new ArrayList<>();
+        if (reviewers != null) {
+            newReviewersToSendEmail = getNewReviewersToSendEmail(task.getReviewers(), reviewers);
+            if (!newReviewersToSendEmail.isEmpty() && !hasPermission) {
+                throw new AccessDeniedException(NO_PERMISSION_ON_PROJECT + projectKey);
+            }
+            task.setReviewers(getTaskReviewers(task, reviewers.stream().map(User::getUsername).toList()));
+        }
+        return newReviewersToSendEmail;
+    }
+
+    private void updateTaskSummary(String projectKey, Task task, String summary, boolean hasPermission) {
+        if (summary != null) {
+            if (!hasPermission) {
+                throw new AccessDeniedException(NO_PERMISSION_ON_PROJECT + projectKey);
+            }
+            task.setName(summary);
+        }
+    }
+
+    private void updateTaskDescription(String projectKey, Task task, String description, boolean hasPermission) {
+        if (description != null) {
+            if (!hasPermission) {
+                throw new AccessDeniedException(NO_PERMISSION_ON_PROJECT + projectKey);
+            }
+            task.setDescription(description);
+        }
+    }
+
+    private void handlePostUpdateSideEffects(String projectKey, String taskKey, TaskStatus status, Task task,
+                                             boolean isTaskStatusChanged, TaskChangeAssigneeRequest taskChangeAssigneeRequest,
+                                             List<User> newReviewersToSendEmail) throws BusinessServiceException {
         if (isTaskStatusChanged) {
             if (!taskStateChangeNotificationQueues.isEmpty()) {
                 // Send JMS Task State Notification
@@ -222,6 +253,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
                 cacheService.clearBranchCache(task.getBranchPath());
             }
         }
+
         if (taskChangeAssigneeRequest != null) {
             transferTaskToNewAuthor(projectKey, taskKey, taskChangeAssigneeRequest);
         }
@@ -229,8 +261,6 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         if (!newReviewersToSendEmail.isEmpty()) {
             emailService.sendTaskReviewAssignedNotification(projectKey, taskKey, task.getName(), newReviewersToSendEmail);
         }
-
-        return buildAuthoringTasks(new ArrayList<>(List.of(task)), false).get(0);
     }
 
     @Override
@@ -251,21 +281,34 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         return taskChangeAssigneeRequest;
     }
 
-    private boolean shouldUpdateTaskStatus(TaskStatus status, Task task) throws BadRequestException {
-        boolean isTaskStatusChanged = false;
-        if (status != null) {
-            TaskStatus currentStatus = task.getStatus();
-            // Don't attempt to transition to the same status
-            if (!status.equals(currentStatus)) {
-                if (status == TaskStatus.UNKNOWN) {
-                    throw new BadRequestException("Requested status is unknown.");
-                }
-                task.setStatus(status);
-                isTaskStatusChanged = true;
-                auditStatusChangeSender.sendMessage(task.getKey(), task.getBranchPath(), SecurityUtil.getUsername(), currentStatus.getLabel().toUpperCase(), status.getLabel().toUpperCase(), new Date().getTime());
-            }
+    private boolean shouldUpdateTaskStatus(TaskStatus status, Task task, boolean hasPermission) throws BadRequestException {
+        if (status == null) {
+            return false;
         }
-        return isTaskStatusChanged;
+        TaskStatus currentStatus = task.getStatus();
+        // Don't attempt to transition to the same status
+        if (status.equals(currentStatus))
+            return false;
+
+        if (status == TaskStatus.UNKNOWN) {
+            throw new BadRequestException("Requested status is unknown.");
+        }
+        // Normal author or reviewer will have this full permission
+        if (hasPermission) {
+            task.setStatus(status);
+            auditStatusChangeSender.sendMessage(task.getKey(), task.getBranchPath(), SecurityUtil.getUsername(), currentStatus.getLabel().toUpperCase(), status.getLabel().toUpperCase(), new Date().getTime());
+            return true;
+        }
+
+        // For REVIEWER_ONLY permission, user can only move the status from IN_REVIEW -> REVIEW_COMPLETED or REVIEW_COMPLETED -> IN_REVIEW
+        if ((currentStatus == TaskStatus.IN_REVIEW && status == TaskStatus.REVIEW_COMPLETED ||
+            currentStatus == TaskStatus.REVIEW_COMPLETED && status == TaskStatus.IN_REVIEW) && (!permissionService.userHasReviewerRoleOnProject(task.getProject().getKey()))) {
+                throw new AccessDeniedException(NO_PERMISSION_ON_PROJECT + task.getProject().getKey());
+
+        }
+        task.setStatus(status);
+        auditStatusChangeSender.sendMessage(task.getKey(), task.getBranchPath(), SecurityUtil.getUsername(), currentStatus.getLabel().toUpperCase(), status.getLabel().toUpperCase(), new Date().getTime());
+        return true;
     }
 
     private List<User> getNewReviewersToSendEmail(List<TaskReviewer> currentReviewers, List<User> reviewers) {
@@ -327,7 +370,15 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
         tasks = tasks.stream().
                 filter(task -> (CollectionUtils.isEmpty(task.getReviewers()) && TaskStatus.IN_REVIEW.equals(task.getStatus()))
                         || task.getReviewers().stream().anyMatch(reviewer -> reviewer.getUsername().equals(currentUser))).toList();
-        return buildAuthoringTasks(tasks, codeSystems, false);
+        List<AuthoringTask> authoringTasks = buildAuthoringTasks(tasks, codeSystems, false);
+        List<String> viewOnlyProjects = projects.stream().filter(item -> Boolean.TRUE.equals(item.isCanViewOnly())).map(Project::getKey).toList();
+        authoringTasks.forEach(item -> {
+            if (viewOnlyProjects.contains(item.getProjectKey())) {
+                item.setCanReviewOnly(true);
+            }
+        });
+
+        return authoringTasks;
     }
 
     @Override
@@ -570,7 +621,7 @@ public class AuthoringTaskServiceImpl extends TaskServiceBase implements TaskSer
     public void conditionalStateTransition(String projectKey, String taskKey, TaskStatus requiredState, TaskStatus newState) throws BusinessServiceException {
         Task task = getTaskOrThrow(taskKey);
         if (task.getStatus().equals(requiredState)) {
-            stateTransition(newState, taskKey, projectKey);
+            this.stateTransition(newState, taskKey, projectKey);
         }
     }
 

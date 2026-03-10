@@ -30,6 +30,7 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.*;
+import java.util.List;
 
 @Transactional
 public class AuthoringProjectServiceImpl extends ProjectServiceBase implements ProjectService {
@@ -189,13 +190,8 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
     @Override
     public List<AuthoringProject> listProjects(Boolean lightweight, Boolean ignoreProductCodeFilter, Boolean excludeArchived) {
-        List<String> loggedInUserRoles = permissionService.getUserRoles();
-        if (loggedInUserRoles.isEmpty()) return Collections.emptyList();
-
-        List<ProjectUserGroup> projectUserGroups = projectUserGroupRepository.findByNameIn(loggedInUserRoles);
-        if(projectUserGroups.isEmpty())  return Collections.emptyList();
-
-        List<Project> result = projectUserGroups.stream().map(ProjectUserGroup::getProject).distinct().filter(project -> Boolean.FALSE.equals(excludeArchived) || Boolean.TRUE.equals(project.getActive())).toList();
+        List<Project> projects = permissionService. getProjectsForUser();
+        List<Project> result = projects.stream().filter(project -> Boolean.FALSE.equals(excludeArchived) || Boolean.TRUE.equals(project.getActive())).toList();
         return buildAuthoringProjects(result, lightweight);
     }
 
@@ -307,13 +303,13 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
         List<CodeSystem> codeSystems = snowstormRestClient.getCodeSystems();
 
         SecurityContext securityContext = SecurityContextHolder.getContext();
-        projects.forEach(projectTicket -> {
+        projects.forEach(project -> {
             SecurityContextHolder.setContext(securityContext);
             try {
-                final String projectKey = projectTicket.getKey();
-                final String branchPath = projectTicket.getBranchPath();
+                final String projectKey = project.getKey();
+                final String branchPath = project.getBranchPath();
 
-                Map<String, Boolean> customFields = Optional.ofNullable(projectTicket.getCustomFields()).orElse(new HashMap<>());
+                Map<String, Boolean> customFields = Optional.ofNullable(project.getCustomFields()).orElse(new HashMap<>());
                 final boolean promotionDisabled = !Boolean.TRUE.equals(customFields.get("projectPromotion"));
                 final boolean projectLocked = Boolean.TRUE.equals(customFields.get(PROJECT_LOCKED_FILED));
                 final boolean taskPromotionDisabled = !Boolean.TRUE.equals(customFields.get("taskPromotion"));
@@ -350,17 +346,18 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
                 }
                 Classification latestClassification = !Boolean.TRUE.equals(lightweight) ? classificationService.getLatestClassification(branchPath) : null;
 
-                User lead = authoringTaskService.getUser(projectTicket.getLead());
-                final AuthoringProject authoringProject = new AuthoringProject(projectKey, projectTicket.getName(),
-                        lead, projectTicket.getActive(), branchPath, branchState, baseTimeStamp, headTimeStamp, latestClassification, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled, rebaseDisabled, scheduledRebaseDisabled, taskPromotionDisabled, projectLocked, translationProject);
+                User lead = authoringTaskService.getUser(project.getLead());
+                final AuthoringProject authoringProject = new AuthoringProject(projectKey, project.getName(),
+                        lead, project.getActive(), branchPath, branchState, baseTimeStamp, headTimeStamp, latestClassification, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled, rebaseDisabled, scheduledRebaseDisabled, taskPromotionDisabled, projectLocked, translationProject);
                 authoringProject.setMetadata(metadata);
                 authoringProject.setCodeSystem(codeSystem);
                 authoringProject.setInternalAuthoringProject(true);
+                authoringProject.setCanViewOnly(project.isCanViewOnly());
                 synchronized (authoringProjects) {
                     authoringProjects.add(authoringProject);
                 }
             } catch (RestClientException | ServiceException | BusinessServiceException e) {
-                logger.error("Failed to fetch details of project {}", projectTicket.getName(), e);
+                logger.error("Failed to fetch details of project {}", project.getName(), e);
             }
         });
 

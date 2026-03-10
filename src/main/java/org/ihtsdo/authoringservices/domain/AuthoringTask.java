@@ -52,6 +52,7 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
     private String branchPath;
     private String labels;
     private boolean internalAuthoringTask;
+    private boolean canReviewOnly;
 
     public AuthoringTask() {
     }
@@ -321,5 +322,13 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
 
     public void setInternalAuthoringTask(boolean internalAuthoringTask) {
         this.internalAuthoringTask = internalAuthoringTask;
+    }
+
+    public void setCanReviewOnly(boolean canReviewOnly) {
+        this.canReviewOnly = canReviewOnly;
+    }
+
+    public boolean isCanReviewOnly() {
+        return canReviewOnly;
     }
 }
