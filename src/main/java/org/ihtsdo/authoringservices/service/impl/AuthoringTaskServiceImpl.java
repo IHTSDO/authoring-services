@@ -115,6 +115,7 @@ import java.util.stream.StreamSupport;
     }
 
     @Override
+    @Transactional
     public AuthoringTask createTask(String projectKey, String username, AuthoringTaskCreateRequest taskCreateRequest, TaskType type) throws BusinessServiceException {
         permissionService.checkUserPermissionOnProjectOrThrow(projectKey);
 
@@ -176,38 +177,32 @@ import java.util.stream.StreamSupport;
     }
 
     @Override
+    @Transactional
     public AuthoringTask updateTask(String projectKey, String taskKey, AuthoringTaskUpdateRequest taskUpdateRequest) throws BusinessServiceException {
-        final boolean hasPermission = permissionService.userHasPermissionOnProject(projectKey);
+        final boolean hasFullPermission = permissionService.userHasPermissionOnProject(projectKey);
         Task task = getTaskOrThrow(taskKey);
 
         // Act on each field received
-        final TaskStatus status = taskUpdateRequest.getStatus();
-        boolean isTaskStatusChanged = shouldUpdateTaskStatus(status, task, hasPermission);
-
-        TaskChangeAssigneeRequest taskChangeAssigneeRequest = updateTaskAssignee(taskUpdateRequest.getAssignee(), task);
-        if (taskChangeAssigneeRequest != null && !hasPermission) {
-            throw new AccessDeniedException(NO_PERMISSION_ON_PROJECT + projectKey);
-        }
-
-        List<User> newReviewersToSendEmail = updateTaskReviewers(projectKey, task, taskUpdateRequest.getReviewers(), hasPermission);
-
-        updateTaskSummary(projectKey, task, taskUpdateRequest.getSummary(), hasPermission);
-
-        updateTaskDescription(projectKey, task, taskUpdateRequest.getDescription(), hasPermission);
+        final TaskStatus newStatus = taskUpdateRequest.getStatus();
+        boolean requiredUpdateTaskStatus = requireUpdateTaskStatus(newStatus, task, hasFullPermission);
+        TaskChangeAssigneeRequest taskChangeAssigneeRequest = updateTaskAssignee(taskUpdateRequest.getAssignee(), task, hasFullPermission);
+        List<User> newReviewersToSendEmail = updateTaskReviewers(projectKey, task, taskUpdateRequest.getReviewers(), hasFullPermission);
+        updateTaskSummary(projectKey, task, taskUpdateRequest.getSummary(), hasFullPermission);
+        updateTaskDescription(projectKey, task, taskUpdateRequest.getDescription(), hasFullPermission);
 
         task.setUpdatedDate(Timestamp.from(Instant.now()));
         task = taskRepository.save(task);
 
-        handlePostUpdateSideEffects(projectKey, taskKey, status, task, isTaskStatusChanged, taskChangeAssigneeRequest, newReviewersToSendEmail);
+        handlePostUpdateSideEffects(projectKey, taskKey, newStatus, task, requiredUpdateTaskStatus, taskChangeAssigneeRequest, newReviewersToSendEmail);
 
         return buildAuthoringTasks(new ArrayList<>(List.of(task)), false).get(0);
     }
 
-    private List<User> updateTaskReviewers(String projectKey, Task task, List<User> reviewers, boolean hasPermission) {
+    private List<User> updateTaskReviewers(String projectKey, Task task, List<User> reviewers, boolean hasFullPermission) {
         List<User> newReviewersToSendEmail = new ArrayList<>();
         if (reviewers != null) {
             newReviewersToSendEmail = getNewReviewersToSendEmail(task.getReviewers(), reviewers);
-            if (!newReviewersToSendEmail.isEmpty() && !hasPermission) {
+            if (!newReviewersToSendEmail.isEmpty() && !hasFullPermission) {
                 throw new AccessDeniedException(NO_PERMISSION_ON_PROJECT + projectKey);
             }
             task.setReviewers(getTaskReviewers(task, reviewers.stream().map(User::getUsername).toList()));
@@ -215,41 +210,41 @@ import java.util.stream.StreamSupport;
         return newReviewersToSendEmail;
     }
 
-    private void updateTaskSummary(String projectKey, Task task, String summary, boolean hasPermission) {
+    private void updateTaskSummary(String projectKey, Task task, String summary, boolean hasFullPermission) {
         if (summary != null) {
-            if (!hasPermission) {
+            if (!hasFullPermission) {
                 throw new AccessDeniedException(NO_PERMISSION_ON_PROJECT + projectKey);
             }
             task.setName(summary);
         }
     }
 
-    private void updateTaskDescription(String projectKey, Task task, String description, boolean hasPermission) {
+    private void updateTaskDescription(String projectKey, Task task, String description, boolean hasFullPermission) {
         if (description != null) {
-            if (!hasPermission) {
+            if (!hasFullPermission) {
                 throw new AccessDeniedException(NO_PERMISSION_ON_PROJECT + projectKey);
             }
             task.setDescription(description);
         }
     }
 
-    private void handlePostUpdateSideEffects(String projectKey, String taskKey, TaskStatus status, Task task,
-                                             boolean isTaskStatusChanged, TaskChangeAssigneeRequest taskChangeAssigneeRequest,
+    private void handlePostUpdateSideEffects(String projectKey, String taskKey, TaskStatus newStatus, Task task,
+                                             boolean requiredUpdateTaskStatus, TaskChangeAssigneeRequest taskChangeAssigneeRequest,
                                              List<User> newReviewersToSendEmail) throws BusinessServiceException {
-        if (isTaskStatusChanged) {
+        if (requiredUpdateTaskStatus) {
             if (!taskStateChangeNotificationQueues.isEmpty()) {
                 // Send JMS Task State Notification
-                sendJMSTaskStateChangeNotification(task, status);
+                sendJMSTaskStateChangeNotification(task, newStatus);
             }
 
             // Send email to Author once the task has been reviewed completely
-            if (TaskStatus.REVIEW_COMPLETED.equals(status)) {
+            if (TaskStatus.REVIEW_COMPLETED.equals(newStatus)) {
                 User recipient = getUser(task.getAssignee());
                 emailService.sendTaskReviewCompletedNotification(projectKey, task.getKey(), task.getName(), Collections.singleton(recipient));
             }
 
             // Clear branch cache for the deleted task
-            if (TaskStatus.DELETED.equals(status)) {
+            if (TaskStatus.DELETED.equals(newStatus)) {
                 cacheService.clearBranchCache(task.getBranchPath());
             }
         }
@@ -263,12 +258,7 @@ import java.util.stream.StreamSupport;
         }
     }
 
-    @Override
-    public Integer getLatestTaskNumberForProject(String projectKey) {
-        return null;
-    }
-
-    private TaskChangeAssigneeRequest updateTaskAssignee(User assignee, Task task) {
+    private TaskChangeAssigneeRequest updateTaskAssignee(User assignee, Task task, boolean hasFullPermission) {
         TaskChangeAssigneeRequest taskChangeAssigneeRequest = null;
         if (assignee != null) {
             final String newAssignee = assignee.getUsername();
@@ -278,37 +268,34 @@ import java.util.stream.StreamSupport;
             }
             task.setAssignee(assignee.getUsername());
         }
+        if (taskChangeAssigneeRequest != null && !hasFullPermission) {
+            throw new AccessDeniedException(NO_PERMISSION_ON_PROJECT + task.getProject().getKey());
+        }
         return taskChangeAssigneeRequest;
     }
 
-    private boolean shouldUpdateTaskStatus(TaskStatus status, Task task, boolean hasPermission) throws BadRequestException {
-        if (status == null) {
+    private boolean requireUpdateTaskStatus(TaskStatus newStatus, Task task, boolean hasFullPermission) throws BadRequestException {
+        if (newStatus == null) {
             return false;
         }
         TaskStatus currentStatus = task.getStatus();
         // Don't attempt to transition to the same status
-        if (status.equals(currentStatus))
+        if (newStatus.equals(currentStatus))
             return false;
 
-        if (status == TaskStatus.UNKNOWN) {
+        if (newStatus == TaskStatus.UNKNOWN) {
             throw new BadRequestException("Requested status is unknown.");
         }
-        // Normal author or reviewer will have this full permission
-        if (hasPermission) {
-            task.setStatus(status);
-            auditStatusChangeSender.sendMessage(task.getKey(), task.getBranchPath(), SecurityUtil.getUsername(), currentStatus.getLabel().toUpperCase(), status.getLabel().toUpperCase(), new Date().getTime());
+        // Normal AUTHOR or REVIEWER has full permission
+        // For REVIEWER_ONLY user, only allow moving the status from IN_REVIEW -> REVIEW_COMPLETED or REVIEW_COMPLETED -> IN_REVIEW
+        if (hasFullPermission ||
+                ((currentStatus == TaskStatus.IN_REVIEW && newStatus == TaskStatus.REVIEW_COMPLETED || currentStatus == TaskStatus.REVIEW_COMPLETED && newStatus == TaskStatus.IN_REVIEW)
+                && permissionService.userHasReviewerRoleOnProject(task.getProject().getKey()))) {
+            task.setStatus(newStatus);
+            auditStatusChangeSender.sendMessage(task.getKey(), task.getBranchPath(), SecurityUtil.getUsername(), currentStatus.getLabel().toUpperCase(), newStatus.getLabel().toUpperCase(), new Date().getTime());
             return true;
         }
-
-        // For REVIEWER_ONLY permission, user can only move the status from IN_REVIEW -> REVIEW_COMPLETED or REVIEW_COMPLETED -> IN_REVIEW
-        if ((currentStatus == TaskStatus.IN_REVIEW && status == TaskStatus.REVIEW_COMPLETED ||
-            currentStatus == TaskStatus.REVIEW_COMPLETED && status == TaskStatus.IN_REVIEW) && (!permissionService.userHasReviewerRoleOnProject(task.getProject().getKey()))) {
-                throw new AccessDeniedException(NO_PERMISSION_ON_PROJECT + task.getProject().getKey());
-
-        }
-        task.setStatus(status);
-        auditStatusChangeSender.sendMessage(task.getKey(), task.getBranchPath(), SecurityUtil.getUsername(), currentStatus.getLabel().toUpperCase(), status.getLabel().toUpperCase(), new Date().getTime());
-        return true;
+        throw new AccessDeniedException(NO_PERMISSION_ON_PROJECT + task.getProject().getKey());
     }
 
     private List<User> getNewReviewersToSendEmail(List<TaskReviewer> currentReviewers, List<User> reviewers) {
@@ -322,6 +309,11 @@ import java.util.stream.StreamSupport;
             }
         }
         return results;
+    }
+
+    @Override
+    public Integer getLatestTaskNumberForProject(String projectKey) {
+        return null;
     }
 
     @Override
