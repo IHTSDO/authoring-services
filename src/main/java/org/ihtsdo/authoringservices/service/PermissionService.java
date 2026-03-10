@@ -21,6 +21,7 @@ import java.util.Set;
 @Service
 public class PermissionService {
 
+    public static final String AP_REVIEWER_PATTERN = "ap-.*-reviewer";
     private final Logger logger = LoggerFactory.getLogger(PermissionService.class);
 
     public static final String GLOBAL_ROLE_SCOPE = "global";
@@ -56,6 +57,45 @@ public class PermissionService {
         }
     }
 
+    public boolean userHasPermissionOnProject(String projectKey) {
+        List<String> loggedInUserRoles = getUserRoles();
+        if (loggedInUserRoles.isEmpty()) return false;
+
+        List<ProjectUserGroup> projectUserGroups = projectUserGroupRepository.findByNameIn(loggedInUserRoles);
+        if (projectUserGroups.isEmpty()) return false;
+
+
+        List<String> projectGroups = projectUserGroups.stream().filter(item -> item.getProject().getKey().equals(projectKey)).map(ProjectUserGroup::getName).toList();
+        if (projectGroups.isEmpty()) return false;
+
+        String reviewerRoleFromProject = projectGroups.stream().filter(item -> item.matches(AP_REVIEWER_PATTERN)).findFirst().orElse(null);
+        if (reviewerRoleFromProject != null) {
+            boolean foundReviewerRoleFromUser = loggedInUserRoles.contains(reviewerRoleFromProject);
+            String codeSystem = reviewerRoleFromProject.split("-")[1];
+            return !foundReviewerRoleFromUser || loggedInUserRoles.contains("ap-" + codeSystem + "-author");
+        }
+        return true;
+    }
+
+    public boolean userHasReviewerRoleOnProject(String projectKey) {
+        List<String> loggedInUserRoles = getUserRoles();
+        if (loggedInUserRoles.isEmpty()) return false;
+
+        List<ProjectUserGroup> projectUserGroups = projectUserGroupRepository.findByNameIn(loggedInUserRoles);
+        if (projectUserGroups.isEmpty()) return false;
+
+
+        List<String> projectGroups = projectUserGroups.stream().filter(item -> item.getProject().getKey().equals(projectKey)).map(ProjectUserGroup::getName).toList();
+        if (projectGroups.isEmpty()) return false;
+
+        String reviewerRoleFromProject = projectGroups.stream().filter(item -> item.matches(AP_REVIEWER_PATTERN)).findFirst().orElse(null);
+        if (reviewerRoleFromProject != null) {
+            return loggedInUserRoles.contains(reviewerRoleFromProject);
+        }
+        return false;
+    }
+
+
     public List<Project> getProjectsForUser() {
         List<String> loggedInUserRoles = getUserRoles();
         if (loggedInUserRoles.isEmpty()) return Collections.emptyList();
@@ -63,7 +103,19 @@ public class PermissionService {
         List<ProjectUserGroup> projectUserGroups = projectUserGroupRepository.findByNameIn(loggedInUserRoles);
         if (projectUserGroups.isEmpty()) return Collections.emptyList();
 
-        return projectUserGroups.stream().map(ProjectUserGroup::getProject).distinct().toList();
+        List<Project> projects = projectUserGroups.stream().map(ProjectUserGroup::getProject).distinct().toList();
+
+        projects.forEach(project -> {
+            ProjectUserGroup reviewerRoleFromProject = projectUserGroups.stream().filter(item -> item.getProject().getKey().equals(project.getKey()) && item.getName().matches(AP_REVIEWER_PATTERN)).findFirst().orElse(null);
+            if (reviewerRoleFromProject != null) {
+                String codeSystem = reviewerRoleFromProject.getName().split("-")[1];
+                if (!loggedInUserRoles.contains("ap-" + codeSystem + "-author")) {
+                    project.setCanViewOnly(true);
+                }
+            }
+        });
+
+        return projects;
     }
 
     public List<String> getUserRoles() {
@@ -80,15 +132,4 @@ public class PermissionService {
         }
         return null;
     }
-
-    private boolean userHasPermissionOnProject(String projectKey) {
-        List<String> loggedInUserRoles = getUserRoles();
-        if (loggedInUserRoles.isEmpty()) return false;
-
-        List<ProjectUserGroup> projectUserGroups = projectUserGroupRepository.findByNameIn(loggedInUserRoles);
-        if (projectUserGroups.isEmpty()) return false;
-
-        return projectUserGroups.stream().anyMatch(item -> item.getProject().getKey().equals(projectKey));
-    }
-
 }
