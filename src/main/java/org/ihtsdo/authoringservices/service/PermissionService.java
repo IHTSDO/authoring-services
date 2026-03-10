@@ -59,13 +59,7 @@ public class PermissionService {
 
     public boolean userHasPermissionOnProject(String projectKey) {
         List<String> loggedInUserRoles = getUserRoles();
-        if (loggedInUserRoles.isEmpty()) return false;
-
-        List<ProjectUserGroup> projectUserGroups = projectUserGroupRepository.findByNameIn(loggedInUserRoles);
-        if (projectUserGroups.isEmpty()) return false;
-
-
-        List<String> projectGroups = projectUserGroups.stream().filter(item -> item.getProject().getKey().equals(projectKey)).map(ProjectUserGroup::getName).toList();
+        List<String> projectGroups = findGroupsForProject(projectKey, loggedInUserRoles);
         if (projectGroups.isEmpty()) return false;
 
         String reviewerRoleFromProject = projectGroups.stream().filter(item -> item.matches(AP_REVIEWER_PATTERN)).findFirst().orElse(null);
@@ -77,15 +71,21 @@ public class PermissionService {
         return true;
     }
 
-    public boolean userHasReviewerRoleOnProject(String projectKey) {
-        List<String> loggedInUserRoles = getUserRoles();
-        if (loggedInUserRoles.isEmpty()) return false;
+    private List<String> findGroupsForProject(String projectKey, List<String> loggedInUserRoles) {
+        if (loggedInUserRoles.isEmpty()) return Collections.emptyList();
 
         List<ProjectUserGroup> projectUserGroups = projectUserGroupRepository.findByNameIn(loggedInUserRoles);
-        if (projectUserGroups.isEmpty()) return false;
+        if (projectUserGroups.isEmpty()) return Collections.emptyList();
 
 
         List<String> projectGroups = projectUserGroups.stream().filter(item -> item.getProject().getKey().equals(projectKey)).map(ProjectUserGroup::getName).toList();
+        if (projectGroups.isEmpty()) return Collections.emptyList();
+        return projectGroups;
+    }
+
+    public boolean userHasReviewerRoleOnProject(String projectKey) {
+        List<String> loggedInUserRoles = getUserRoles();
+        List<String> projectGroups = findGroupsForProject(projectKey, loggedInUserRoles);
         if (projectGroups.isEmpty()) return false;
 
         String reviewerRoleFromProject = projectGroups.stream().filter(item -> item.matches(AP_REVIEWER_PATTERN)).findFirst().orElse(null);
