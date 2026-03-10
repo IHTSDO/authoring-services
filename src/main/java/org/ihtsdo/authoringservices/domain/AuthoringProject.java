@@ -37,7 +37,7 @@ public class AuthoringProject {
     private Map<String, Object> metadata;
     private CodeSystem codeSystem;
     private boolean internalAuthoringProject;
-    private boolean canViewOnly;
+    private Boolean canViewOnly;
     public AuthoringProject() {
     }
 
@@ -243,11 +243,11 @@ public class AuthoringProject {
         return internalAuthoringProject;
     }
 
-    public void setCanViewOnly(boolean canViewOnly) {
+    public void setCanViewOnly(Boolean canViewOnly) {
         this.canViewOnly = canViewOnly;
     }
 
-    public boolean isCanViewOnly() {
+    public Boolean isCanViewOnly() {
         return canViewOnly;
     }
 
