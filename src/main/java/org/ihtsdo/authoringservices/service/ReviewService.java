@@ -112,10 +112,10 @@ public class ReviewService {
 			AuthoringTask authoringTask = taskServiceFactory.getInstanceByKey(taskKey).retrieveTask(projectKey, taskKey, true, true);
 			if (authoringTask.getAssignee() != null || authoringTask.getReviewers() != null) {
 				List<User> recipients = new ArrayList<>();
-				boolean isTaskAuthor = authoringTask.getAssignee() != null && fromUsername.equals(authoringTask.getAssignee().getUsername());
-				if (isTaskAuthor && authoringTask.getReviewers() != null) {
+				if (authoringTask.getReviewers() != null) {
 					recipients.addAll(authoringTask.getReviewers());
-				} else if (!isTaskAuthor && authoringTask.getAssignee() != null) {
+				}
+				if (authoringTask.getAssignee() != null) {
 					recipients.add(authoringTask.getAssignee());
 				}
 				recipients = recipients.stream().filter(item -> !item.getUsername().equals(fromUsername)).toList();
