@@ -28,7 +28,7 @@ public class UiStateResourceServiceTest {
 
 	@Test
 	public void testWriteThrowsJSONExceptionWhenDataIsNull() {
-        assertThrows(IOException.class, () -> uiStateResourceService.write("", EMPTY_OBJECT));
+        assertThrows(IOException.class, () -> uiStateResourceService.write("", null));
     }
 
     @Test

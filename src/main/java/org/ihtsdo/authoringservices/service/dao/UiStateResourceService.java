@@ -45,8 +45,8 @@ public final class UiStateResourceService extends AbstractResourceService {
 		if (path == null) {
 			throw new PathNotProvidedException("Panel path is null while trying to write to the resource.");
 		}
-		if (data == null || data.isEmpty() ) {
-			throw new IOException("Data to be written to the resource is null or empty.");
+		if (data == null) {
+			throw new IOException("Data to be written to the resource is null.");
 		}
 		resourceManager.writeResource(path, IOUtils.toInputStream(data.toPrettyString(), StandardCharsets.UTF_8));
 	}
