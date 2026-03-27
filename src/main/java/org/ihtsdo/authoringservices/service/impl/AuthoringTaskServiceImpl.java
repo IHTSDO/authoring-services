@@ -172,8 +172,16 @@ import java.util.stream.StreamSupport;
 
     @Override
     public AuthoringTask retrieveTask(String projectKey, String taskKey, Boolean lightweight, boolean skipTaskMigration) throws BusinessServiceException {
-        Task task = getTaskOrThrow(taskKey);
-        return buildAuthoringTasks(new ArrayList<>(List.of(task)), lightweight).get(0);
+        boolean hasFullPermission = permissionService.userHasPermissionOnProject(projectKey);
+        if (hasFullPermission || permissionService.userHasReviewerRoleOnProject(projectKey)) {
+            Task task = getTaskOrThrow(taskKey);
+            AuthoringTask authoringTask = buildAuthoringTasks(new ArrayList<>(List.of(task)), lightweight).get(0);
+            if (!hasFullPermission) {
+                authoringTask.setCanReviewOnly(true);
+            }
+            return authoringTask;
+        }
+        throw new AccessDeniedException(NO_PERMISSION_ON_PROJECT + projectKey);
     }
 
     @Override
@@ -341,7 +349,7 @@ import java.util.stream.StreamSupport;
         }
         List<Project> projects = permissionService.getProjectsForUser();
         if (!projects.isEmpty()) {
-            projects = projects.stream().filter(item -> Boolean.TRUE.equals(item.getActive())).toList();
+            projects = projects.stream().filter(item -> !Boolean.TRUE.equals(item.isCanReviewTaskOnly()) && Boolean.TRUE.equals(item.getActive())).toList();
         }
         List<Task> tasks = taskRepository.findByProjectInAndAssigneeAndStatusNotInOrderByUpdatedDateDesc(projects, username, excludedStatuses);
         return buildAuthoringTasks(tasks, codeSystems, false);
@@ -362,15 +370,7 @@ import java.util.stream.StreamSupport;
         tasks = tasks.stream().
                 filter(task -> (CollectionUtils.isEmpty(task.getReviewers()) && TaskStatus.IN_REVIEW.equals(task.getStatus()))
                         || task.getReviewers().stream().anyMatch(reviewer -> reviewer.getUsername().equals(currentUser))).toList();
-        List<AuthoringTask> authoringTasks = buildAuthoringTasks(tasks, codeSystems, false);
-        List<String> viewOnlyProjects = projects.stream().filter(item -> Boolean.TRUE.equals(item.isCanViewOnly())).map(Project::getKey).toList();
-        authoringTasks.forEach(item -> {
-            if (viewOnlyProjects.contains(item.getProjectKey())) {
-                item.setCanReviewOnly(true);
-            }
-        });
-
-        return authoringTasks;
+        return buildAuthoringTasks(tasks, codeSystems, false);
     }
 
     @Override
@@ -405,7 +405,7 @@ import java.util.stream.StreamSupport;
         }
 
         Set<String> accessibleProjectKeys = userProjects.stream()
-                .filter(Project::getActive)
+                .filter(project -> Boolean.TRUE.equals(project.getActive()))
                 .map(Project::getKey)
                 .collect(Collectors.toSet());
 
@@ -632,8 +632,8 @@ import java.util.stream.StreamSupport;
             try {
                 this.stateTransition(newState, task.getKey(), projectKey);
             } catch (Exception e) {
-                logger.error("Failed to transition issue {} to {}", task.getKey(), newState.getLabel());
-                throw new BusinessServiceException(String.format("Failed to transition issue %s to %s", task.getKey(), newState.getLabel()), e);
+                logger.error("Failed to transition task {} to {}", task.getKey(), newState.getLabel());
+                throw new BusinessServiceException(String.format("Failed to transition task %s to %s", task.getKey(), newState.getLabel()), e);
             }
         }
     }

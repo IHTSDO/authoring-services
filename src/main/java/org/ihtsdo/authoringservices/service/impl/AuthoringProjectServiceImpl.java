@@ -163,6 +163,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
     @Override
     public void deleteProject(String projectKey) throws BusinessServiceException {
+        permissionService.checkUserPermissionOnProjectOrThrow(projectKey);
         Project project = getProjectOrThrow(projectKey);
         taskRepository.deleteAll(taskRepository.findByProject(project));
         projectRepository.delete(project);
@@ -191,12 +192,13 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
     @Override
     public List<AuthoringProject> listProjects(Boolean lightweight, Boolean ignoreProductCodeFilter, Boolean excludeArchived) {
         List<Project> projects = permissionService. getProjectsForUser();
-        List<Project> result = projects.stream().filter(project -> Boolean.FALSE.equals(excludeArchived) || Boolean.TRUE.equals(project.getActive())).toList();
+        List<Project> result = projects.stream().filter(project -> !Boolean.TRUE.equals(project.isCanReviewTaskOnly()) && (Boolean.FALSE.equals(excludeArchived) || Boolean.TRUE.equals(project.getActive()))).toList();
         return buildAuthoringProjects(result, lightweight);
     }
 
     @Override
     public AuthoringProject retrieveProject(String projectKey) {
+        permissionService.checkUserPermissionOnProjectOrThrow(projectKey);
         Optional<Project> projectOptional = projectRepository.findById(projectKey);
         return projectOptional.map(project -> buildAuthoringProjects(List.of(project), false).get(0)).orElse(null);
 
@@ -204,6 +206,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
     @Override
     public AuthoringProject retrieveProject(String projectKey, boolean lightweight) {
+        permissionService.checkUserPermissionOnProjectOrThrow(projectKey);
         Optional<Project> projectOptional = projectRepository.findById(projectKey);
         return projectOptional.map(project -> buildAuthoringProjects(List.of(project), lightweight).get(0)).orElse(null);
     }
@@ -352,7 +355,6 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
                 authoringProject.setMetadata(metadata);
                 authoringProject.setCodeSystem(codeSystem);
                 authoringProject.setInternalAuthoringProject(true);
-                authoringProject.setCanViewOnly(project.isCanViewOnly());
                 synchronized (authoringProjects) {
                     authoringProjects.add(authoringProject);
                 }

@@ -10,31 +10,35 @@ import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class PermissionService {
 
-    public static final String AP_REVIEWER_PATTERN = "ap-.*-reviewer";
     private final Logger logger = LoggerFactory.getLogger(PermissionService.class);
 
     public static final String GLOBAL_ROLE_SCOPE = "global";
     private static final String BRANCH_MAIN = "MAIN";
 
-    @Autowired
-    private SnowstormRestClientFactory snowstormRestClientFactory;
+    private final SnowstormRestClientFactory snowstormRestClientFactory;
+    private final ProjectUserGroupRepository projectUserGroupRepository;
+    private final IMSClientFactory imsClientFactory;
+
+    @Value("${authoring.reviewer.role.pattern}")
+    private String reviewerRolePattern;
 
     @Autowired
-    private ProjectUserGroupRepository projectUserGroupRepository;
-
-    @Autowired
-    private IMSClientFactory imsClientFactory;
+    public PermissionService (SnowstormRestClientFactory snowstormRestClientFactory, ProjectUserGroupRepository projectUserGroupRepository, IMSClientFactory imsClientFactory) {
+        this.snowstormRestClientFactory = snowstormRestClientFactory;
+        this.projectUserGroupRepository = projectUserGroupRepository;
+        this.imsClientFactory = imsClientFactory;
+    }
 
     public boolean userHasRoleOnBranch(String role, String branchPath, Authentication authentication) throws RestClientException {
         Set<String> userRoleForBranch;
@@ -62,13 +66,12 @@ public class PermissionService {
         List<String> projectGroups = findGroupsForProject(projectKey, loggedInUserRoles);
         if (projectGroups.isEmpty()) return false;
 
-        String reviewerRoleFromProject = projectGroups.stream().filter(item -> item.matches(AP_REVIEWER_PATTERN)).findFirst().orElse(null);
-        if (reviewerRoleFromProject != null) {
-            boolean foundReviewerRoleFromUser = loggedInUserRoles.contains(reviewerRoleFromProject);
-            String codeSystem = reviewerRoleFromProject.split("-")[1];
-            return !foundReviewerRoleFromUser || loggedInUserRoles.contains("ap-" + codeSystem + "-author");
-        }
-        return true;
+        List<String> intersection = projectGroups.stream()
+                .filter(loggedInUserRoles::contains)
+                .distinct()
+                .toList();
+
+        return !intersection.isEmpty() && (intersection.size() > 1 || !intersection.get(0).matches(reviewerRolePattern));
     }
 
     private List<String> findGroupsForProject(String projectKey, List<String> loggedInUserRoles) {
@@ -88,7 +91,7 @@ public class PermissionService {
         List<String> projectGroups = findGroupsForProject(projectKey, loggedInUserRoles);
         if (projectGroups.isEmpty()) return false;
 
-        String reviewerRoleFromProject = projectGroups.stream().filter(item -> item.matches(AP_REVIEWER_PATTERN)).findFirst().orElse(null);
+        String reviewerRoleFromProject = projectGroups.stream().filter(item -> item.matches(reviewerRolePattern)).findFirst().orElse(null);
         if (reviewerRoleFromProject != null) {
             return loggedInUserRoles.contains(reviewerRoleFromProject);
         }
@@ -102,20 +105,13 @@ public class PermissionService {
 
         List<ProjectUserGroup> projectUserGroups = projectUserGroupRepository.findByNameIn(loggedInUserRoles);
         if (projectUserGroups.isEmpty()) return Collections.emptyList();
-
-        List<Project> projects = projectUserGroups.stream().map(ProjectUserGroup::getProject).distinct().toList();
-
-        projects.forEach(project -> {
-            ProjectUserGroup reviewerRoleFromProject = projectUserGroups.stream().filter(item -> item.getProject().getKey().equals(project.getKey()) && item.getName().matches(AP_REVIEWER_PATTERN)).findFirst().orElse(null);
-            if (reviewerRoleFromProject != null) {
-                String codeSystem = reviewerRoleFromProject.getName().split("-")[1];
-                if (!loggedInUserRoles.contains("ap-" + codeSystem + "-author")) {
-                    project.setCanViewOnly(true);
-                }
-            }
+        Map<Project, List<ProjectUserGroup>> projectToGroupsMap = projectUserGroups.stream().collect(Collectors.groupingBy(ProjectUserGroup::getProject));
+        projectToGroupsMap.forEach((key, value) -> {
+            List<String> projectGroups = value.stream().map(ProjectUserGroup::getName).distinct().toList();
+            key.setCanReviewTaskOnly(projectGroups.size() == 1 && projectGroups.get(0).matches(reviewerRolePattern));
         });
 
-        return projects;
+        return new ArrayList<>(projectToGroupsMap.keySet());
     }
 
     public List<String> getUserRoles() {

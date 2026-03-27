@@ -41,7 +41,7 @@ public class Project extends BaseEntity {
     private List<Task> tasks = new ArrayList<>();
 
     @Transient
-    private Boolean canViewOnly;
+    private Boolean canReviewTaskOnly;
 
     public String getKey() {
         return key;
@@ -119,12 +119,12 @@ public class Project extends BaseEntity {
         this.tasks = tasks;
     }
 
-    public Boolean isCanViewOnly() {
-        return canViewOnly;
+    public Boolean isCanReviewTaskOnly() {
+        return canReviewTaskOnly;
     }
 
-    public void setCanViewOnly(boolean canViewOnly) {
-        this.canViewOnly = canViewOnly;
+    public void setCanReviewTaskOnly(boolean canReviewTaskOnly) {
+        this.canReviewTaskOnly = canReviewTaskOnly;
     }
 
     @Override
