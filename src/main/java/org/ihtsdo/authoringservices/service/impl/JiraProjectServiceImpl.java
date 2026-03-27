@@ -614,7 +614,7 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
         final List<AuthoringProject> authoringProjects = new ArrayList<>();
         final Set<String> branchPaths = new HashSet<>();
         final SnowstormRestClient snowstormRestClient = snowstormRestClientFactory.getClient();
-        List<CodeSystem> codeSystems = snowstormRestClient.getCodeSystems();
+        List<CodeSystem> codeSystems = snowstormRestClient.getCodeSystemsLightweight();
 
         JiraClient jiraClient = getJiraClient();
         Future<Map<String, JiraProject>> unfilteredProjects = executorService.submit(() -> getProjects(jiraClient.getRestClient()).stream().collect(Collectors.toMap(JiraProject::key, Function.identity())));

@@ -54,7 +54,7 @@ public class ConceptPromotionController {
         } else {
             branchPath = request.getBranchPath();
         }
-        List <CodeSystem> codeSystems = snowstormRestClient.getCodeSystems();
+        List <CodeSystem> codeSystems = snowstormRestClient.getCodeSystemsLightweight();
         for(CodeSystem cs: codeSystems) {
             if (!cs.getBranchPath().equalsIgnoreCase("MAIN") && branchPath.startsWith(cs.getBranchPath())) {
                 codeSystem = cs;

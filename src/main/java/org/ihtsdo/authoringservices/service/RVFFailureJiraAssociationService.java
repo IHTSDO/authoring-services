@@ -86,7 +86,7 @@ public class RVFFailureJiraAssociationService {
 		ValidationReport report = getValidationReportOrThrow(rvfUrl);
 
 		final SnowstormRestClient snowstormRestClient = snowstormRestClientFactory.getClient();
-		List<CodeSystem> codeSystems = snowstormRestClient.getCodeSystems();
+		List<CodeSystem> codeSystems = snowstormRestClient.getCodeSystemsLightweight();
 		boolean isManagedServiceBranch = isManagedServiceBranch(codeSystems, branchPath);
 		String productName = getProductName(codeSystems, validation, branchPath);
 

@@ -303,7 +303,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
         final List<AuthoringProject> authoringProjects = new ArrayList<>();
         final Set<String> branchPaths = new HashSet<>();
         final SnowstormRestClient snowstormRestClient = snowstormRestClientFactory.getClient();
-        List<CodeSystem> codeSystems = snowstormRestClient.getCodeSystems();
+        List<CodeSystem> codeSystems = snowstormRestClient.getCodeSystemsLightweight();
 
         SecurityContext securityContext = SecurityContextHolder.getContext();
         projects.forEach(project -> {
