@@ -10,7 +10,6 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration
 @EnableWebSecurity
@@ -32,7 +31,7 @@ public class WebSecurityConfig {
 			"/",
 			"/version",
 			"/ui-configuration",
-			"/authoring-services-websocket/**/*",
+			"/authoring-services-websocket/**",
 			// Swagger API Docs:
 			"/swagger-ui/**",
 			"/v3/api-docs/**"
@@ -43,7 +42,7 @@ public class WebSecurityConfig {
 		http.csrf(AbstractHttpConfigurer::disable);
 		http.addFilterBefore(new RequestHeaderAuthenticationDecoratorWithOverride(overrideUsername, overrideRoles, overrideToken), AuthorizationFilter.class);
 		for (String excludedPath : excludedUrlPatterns) {
-			http.authorizeHttpRequests(auth -> auth.requestMatchers(new AntPathRequestMatcher(excludedPath)).permitAll());
+			http.authorizeHttpRequests(auth -> auth.requestMatchers(excludedPath).permitAll());
 		}
 
 		if (requiredRole != null && !requiredRole.isEmpty()) {
