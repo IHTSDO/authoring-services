@@ -55,13 +55,33 @@ public class PermissionService {
         return contains;
     }
 
-    public void checkUserPermissionOnProjectOrThrow(String projectKey) {
-        if(!userHasPermissionOnProject(projectKey)) {
+    /**
+     * Check if user has full permission (author) on a particular project
+     * @param projectKey
+     */
+    public void checkFullPermissionOnProjectOrThrow(String projectKey) {
+        if(!hasFullPermissionOnProject(projectKey)) {
             throw new AccessDeniedException("User has no permission on project " + projectKey);
         }
     }
 
-    public boolean userHasPermissionOnProject(String projectKey) {
+    /**
+     * Check if user has access permission (author or reviewer) on a particular project
+     * @param projectKey
+     */
+    public void checkAccessPermissionOnProjectOrThrown(String projectKey) {
+        List<String> loggedInUserRoles = getUserRoles();
+        List<String> projectGroups = findGroupsForProject(projectKey, loggedInUserRoles);
+        if (projectGroups.isEmpty()) {
+            throw new AccessDeniedException("User has no permission on project " + projectKey);
+        }
+    }
+
+    /**
+     * Check if user has full permission (author) on a particular project
+     * @param projectKey
+     */
+    public boolean hasFullPermissionOnProject(String projectKey) {
         List<String> loggedInUserRoles = getUserRoles();
         List<String> projectGroups = findGroupsForProject(projectKey, loggedInUserRoles);
         if (projectGroups.isEmpty()) return false;
@@ -72,6 +92,22 @@ public class PermissionService {
                 .toList();
 
         return !intersection.isEmpty() && (intersection.size() > 1 || !intersection.get(0).matches(reviewerRolePattern));
+    }
+
+    /**
+     * Check if user has the reviewer only permission on a particular project
+     * @param projectKey
+     */
+    public boolean hasReviewerOnlyPermissionOnProject(String projectKey) {
+        List<String> loggedInUserRoles = getUserRoles();
+        List<String> projectGroups = findGroupsForProject(projectKey, loggedInUserRoles);
+        if (projectGroups.isEmpty()) return false;
+
+        String reviewerRoleFromProject = projectGroups.stream().filter(item -> item.matches(reviewerRolePattern)).findFirst().orElse(null);
+        if (reviewerRoleFromProject != null) {
+            return loggedInUserRoles.contains(reviewerRoleFromProject);
+        }
+        return false;
     }
 
     private List<String> findGroupsForProject(String projectKey, List<String> loggedInUserRoles) {
@@ -85,19 +121,6 @@ public class PermissionService {
         if (projectGroups.isEmpty()) return Collections.emptyList();
         return projectGroups;
     }
-
-    public boolean userHasReviewerRoleOnProject(String projectKey) {
-        List<String> loggedInUserRoles = getUserRoles();
-        List<String> projectGroups = findGroupsForProject(projectKey, loggedInUserRoles);
-        if (projectGroups.isEmpty()) return false;
-
-        String reviewerRoleFromProject = projectGroups.stream().filter(item -> item.matches(reviewerRolePattern)).findFirst().orElse(null);
-        if (reviewerRoleFromProject != null) {
-            return loggedInUserRoles.contains(reviewerRoleFromProject);
-        }
-        return false;
-    }
-
 
     public List<Project> getProjectsForUser() {
         List<String> loggedInUserRoles = getUserRoles();

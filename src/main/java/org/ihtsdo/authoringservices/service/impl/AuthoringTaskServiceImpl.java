@@ -117,7 +117,7 @@ import java.util.stream.StreamSupport;
     @Override
     @Transactional
     public AuthoringTask createTask(String projectKey, String username, AuthoringTaskCreateRequest taskCreateRequest, TaskType type) throws BusinessServiceException {
-        permissionService.checkUserPermissionOnProjectOrThrow(projectKey);
+        permissionService.checkFullPermissionOnProjectOrThrow(projectKey);
 
         Project project = getProjectOrThrow(projectKey);
 
@@ -172,8 +172,8 @@ import java.util.stream.StreamSupport;
 
     @Override
     public AuthoringTask retrieveTask(String projectKey, String taskKey, Boolean lightweight, boolean skipTaskMigration) throws BusinessServiceException {
-        boolean hasFullPermission = permissionService.userHasPermissionOnProject(projectKey);
-        if (hasFullPermission || permissionService.userHasReviewerRoleOnProject(projectKey)) {
+        boolean hasFullPermission = permissionService.hasFullPermissionOnProject(projectKey);
+        if (hasFullPermission || permissionService.hasReviewerOnlyPermissionOnProject(projectKey)) {
             Task task = getTaskOrThrow(taskKey);
             AuthoringTask authoringTask = buildAuthoringTasks(new ArrayList<>(List.of(task)), lightweight).get(0);
             if (!hasFullPermission) {
@@ -187,7 +187,7 @@ import java.util.stream.StreamSupport;
     @Override
     @Transactional
     public AuthoringTask updateTask(String projectKey, String taskKey, AuthoringTaskUpdateRequest taskUpdateRequest) throws BusinessServiceException {
-        final boolean hasFullPermission = permissionService.userHasPermissionOnProject(projectKey);
+        final boolean hasFullPermission = permissionService.hasFullPermissionOnProject(projectKey);
         Task task = getTaskOrThrow(taskKey);
 
         // Act on each field received
@@ -298,7 +298,7 @@ import java.util.stream.StreamSupport;
         // For REVIEWER_ONLY user, only allow moving the status from IN_REVIEW -> REVIEW_COMPLETED or REVIEW_COMPLETED -> IN_REVIEW
         if (hasFullPermission ||
                 ((currentStatus == TaskStatus.IN_REVIEW && newStatus == TaskStatus.REVIEW_COMPLETED || currentStatus == TaskStatus.REVIEW_COMPLETED && newStatus == TaskStatus.IN_REVIEW)
-                && permissionService.userHasReviewerRoleOnProject(task.getProject().getKey()))) {
+                && permissionService.hasReviewerOnlyPermissionOnProject(task.getProject().getKey()))) {
             task.setStatus(newStatus);
             auditStatusChangeSender.sendMessage(task.getKey(), task.getBranchPath(), SecurityUtil.getUsername(), currentStatus.getLabel().toUpperCase(), newStatus.getLabel().toUpperCase(), new Date().getTime());
             return true;
@@ -639,7 +639,7 @@ import java.util.stream.StreamSupport;
     }
 
     private void stateTransition(TaskStatus newState, String taskKey, String projectKey) throws BusinessServiceException {
-        permissionService.checkUserPermissionOnProjectOrThrow(projectKey);
+        permissionService.checkFullPermissionOnProjectOrThrow(projectKey);
         Task task = getTaskOrThrow(taskKey);
         TaskStatus currentState = task.getStatus();
         task.setStatus(newState);

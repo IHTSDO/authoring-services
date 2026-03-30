@@ -138,7 +138,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
     @Override
     public AuthoringProject updateProject(String projectKey, AuthoringProject updatedProject) throws BusinessServiceException {
-        permissionService.checkUserPermissionOnProjectOrThrow(projectKey);
+        permissionService.checkFullPermissionOnProjectOrThrow(projectKey);
         Project project = getProjectOrThrow(projectKey);
         Map<String, Boolean> customFields = Optional.ofNullable(project.getCustomFields()).orElse(new HashMap<>());
         if (updatedProject.isTaskPromotionDisabled() != null) {
@@ -163,7 +163,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
     @Override
     public void deleteProject(String projectKey) throws BusinessServiceException {
-        permissionService.checkUserPermissionOnProjectOrThrow(projectKey);
+        permissionService.checkFullPermissionOnProjectOrThrow(projectKey);
         Project project = getProjectOrThrow(projectKey);
         taskRepository.deleteAll(taskRepository.findByProject(project));
         projectRepository.delete(project);
@@ -198,7 +198,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
     @Override
     public AuthoringProject retrieveProject(String projectKey) {
-        permissionService.checkUserPermissionOnProjectOrThrow(projectKey);
+        permissionService.checkAccessPermissionOnProjectOrThrown(projectKey);
         Optional<Project> projectOptional = projectRepository.findById(projectKey);
         return projectOptional.map(project -> buildAuthoringProjects(List.of(project), false).get(0)).orElse(null);
 
@@ -206,14 +206,14 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
     @Override
     public AuthoringProject retrieveProject(String projectKey, boolean lightweight) {
-        permissionService.checkUserPermissionOnProjectOrThrow(projectKey);
+        permissionService.checkAccessPermissionOnProjectOrThrown(projectKey);
         Optional<Project> projectOptional = projectRepository.findById(projectKey);
         return projectOptional.map(project -> buildAuthoringProjects(List.of(project), lightweight).get(0)).orElse(null);
     }
 
     @Override
     public void lockProject(String projectKey) throws BusinessServiceException {
-        permissionService.checkUserPermissionOnProjectOrThrow(projectKey);
+        permissionService.checkFullPermissionOnProjectOrThrow(projectKey);
         Project project = getProjectOrThrow(projectKey);
         Map<String, Boolean> customFields = Optional.ofNullable(project.getCustomFields()).orElse(new HashMap<>());
         customFields.put(PROJECT_LOCKED_FILED, true);
@@ -223,7 +223,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
     @Override
     public void unlockProject(String projectKey) throws BusinessServiceException {
-        permissionService.checkUserPermissionOnProjectOrThrow(projectKey);
+        permissionService.checkFullPermissionOnProjectOrThrow(projectKey);
         Project project = getProjectOrThrow(projectKey);
         Map<String, Boolean> customFields = Optional.ofNullable(project.getCustomFields()).orElse(new HashMap<>());
         customFields.put(PROJECT_LOCKED_FILED, false);
@@ -249,7 +249,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
     @Override
     public void updateProjectCustomFields(String projectKey, ProjectFieldUpdateRequest request) throws BusinessServiceException {
-        permissionService.checkUserPermissionOnProjectOrThrow(projectKey);
+        permissionService.checkFullPermissionOnProjectOrThrow(projectKey);
         Project project = getProjectOrThrow(projectKey);
         Map<String, Boolean> customFields = Optional.ofNullable(project.getCustomFields()).orElse(new HashMap<>());
         for (AuthoringProjectField item : request.fields()) {
@@ -267,7 +267,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
     @Override
     public void updateProjectRoles(String projectKey, ProjectRoleUpdateRequest request) throws BusinessServiceException {
-        permissionService.checkUserPermissionOnProjectOrThrow(projectKey);
+        permissionService.checkFullPermissionOnProjectOrThrow(projectKey);
         Project project = getProjectOrThrow(projectKey);
         List<ProjectUserGroup> existing = Objects.requireNonNullElseGet(project.getUserGroups(), ArrayList::new);
 
