@@ -38,6 +38,7 @@ import static org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystemUpgrad
 @Service
 public class CodeSystemService {
 
+	public static final String MANAGED_SERVICE_MAINTAINER_TYPE = "Managed Service";
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 
 	private static final String CODE_SYSTEM_NOT_FOUND_MSG = "Code system with shortname %s not found";
@@ -50,7 +51,7 @@ public class CodeSystemService {
 	private String jiraIssueType;
 
 	@Value("${jira.cloud.project-key}")
-	private String projectKey;
+	private String defaultProjectKey;
 
 	@Value("${email.link.platform.url}")
 	private String platformUrl;
@@ -58,32 +59,37 @@ public class CodeSystemService {
 	@Value("${jira.cloud.reporter-accountid}")
 	private String reporter;
 
-	@Autowired
-	private SnowstormRestClientFactory snowstormRestClientFactory;
+	private final SnowstormRestClientFactory snowstormRestClientFactory;
+
+	private final UiStateService uiStateService;
+
+	private final TaskServiceFactory taskServiceFactory;
+
+	private final ProjectServiceFactory projectServiceFactory;
+
+	private final BranchService branchService;
+
+	private final SnowstormClassificationClient classificationService;
+
+	private final ValidationService validationService;
+
+	private final RebaseService rebaseService;
+
+	private final JiraCloudClient jiraCloudClient;
 
 	@Autowired
-	private UiStateService uiStateService;
-
-	@Autowired
-	private TaskServiceFactory taskServiceFactory;
-
-	@Autowired
-	private ProjectServiceFactory projectServiceFactory;
-
-	@Autowired
-	private  BranchService branchService;
-
-	@Autowired
-	private SnowstormClassificationClient classificationService;
-
-	@Autowired
-	private ValidationService validationService;
-
-	@Autowired
-	private RebaseService rebaseService;
-
-	@Autowired
-	private JiraCloudClient jiraCloudClient;
+	public CodeSystemService(SnowstormRestClientFactory snowstormRestClientFactory, UiStateService uiStateService, TaskServiceFactory taskServiceFactory, ProjectServiceFactory projectServiceFactory,
+							 BranchService branchService, SnowstormClassificationClient classificationService, ValidationService validationService, RebaseService rebaseService, JiraCloudClient jiraCloudClient) {
+		this.snowstormRestClientFactory = snowstormRestClientFactory;
+		this.uiStateService = uiStateService;
+		this.taskServiceFactory = taskServiceFactory;
+		this.projectServiceFactory = projectServiceFactory;
+		this.branchService = branchService;
+		this.classificationService = classificationService;
+		this.validationService = validationService;
+		this.rebaseService = rebaseService;
+		this.jiraCloudClient = jiraCloudClient;
+	}
 
 	public AuthoringCodeSystem findOne(String shortname) throws BusinessServiceException, RestClientException {
 		CodeSystem codeSystem = snowstormRestClientFactory.getClient().getCodeSystem(shortname);
@@ -180,41 +186,67 @@ public class CodeSystemService {
 	public void waitForCodeSystemUpgradeToComplete(String jobId, Boolean generateEnGbLanguageRefsetDelta, String projectKey, SecurityContext securityContext) throws BusinessServiceException {
 		SecurityContextHolder.setContext(securityContext);
 		SnowstormRestClient client = snowstormRestClientFactory.getClient();
-		CodeSystemUpgradeJob codeSystemUpgradeJob;
-		int sleepSeconds = 5;
+		CodeSystemUpgradeJob codeSystemUpgradeJob = null;
+		int sleepSeconds = 10;
 		int totalWait = 0;
-		int maxTotalWait = 2 * 60 * 60;
+		int maxTotalWait = 4 * 60 * 60;
 		try {
-			do {
-				Thread.sleep(1000L * sleepSeconds);
-				totalWait += sleepSeconds;
+			while (totalWait < maxTotalWait) {
 				codeSystemUpgradeJob = client.getCodeSystemUpgradeJob(jobId);
-			} while (totalWait < maxTotalWait && RUNNING.equals(codeSystemUpgradeJob.getStatus()));
+				if (!RUNNING.equals(codeSystemUpgradeJob.getStatus())) {
+					break;
+				}
+				if (sleepSeconds(sleepSeconds)) {
+					totalWait = maxTotalWait;
+				} else {
+					totalWait += sleepSeconds;
+				}
+			}
 
-			if (codeSystemUpgradeJob != null && (COMPLETED.equals(codeSystemUpgradeJob.getStatus()) || FAILED.equals(codeSystemUpgradeJob.getStatus()))) {
-				List <CodeSystem> codeSystems = client.getCodeSystems();
-				final String codeSystemShortname = codeSystemUpgradeJob.getCodeSystemShortname();
-				CodeSystem codeSystem = codeSystems.stream().filter(c -> c.getShortName().equals(codeSystemShortname)).findFirst().orElse(null);
+			if (codeSystemUpgradeJob == null) {
+				logger.error("Failed to retrieve the code system upgrade job");
+				return;
+			}
 
-				if (codeSystem != null) {
-					String newDependantVersionRF2Format = codeSystemUpgradeJob.getNewDependantVersion().toString();
-					String newDependantVersionISOFormat = newDependantVersionRF2Format.substring(0, 4) + "-" + newDependantVersionRF2Format.substring(4, 6) + "-" + newDependantVersionRF2Format.substring(6, 8);
+			// handle timeout
+			if (RUNNING.equals(codeSystemUpgradeJob.getStatus())) {
+				logger.error("Timeout waiting for job completion");
+				return;
+			}
 
-					// Generate additional EN_GB language refset
-					if (COMPLETED.equals(codeSystemUpgradeJob.getStatus()) && Boolean.TRUE.equals(generateEnGbLanguageRefsetDelta) && isIntegrityCheckEmpty(codeSystem.getBranchPath())) {
-						rebaseMainProjectAndGenerateAdditionalLanguageRefsetDelta(projectKey, codeSystem, newDependantVersionISOFormat, client, codeSystemShortname);
-					}
+			List <CodeSystem> codeSystems = client.getCodeSystemsLightweight();
+			final String codeSystemShortname = codeSystemUpgradeJob.getCodeSystemShortname();
+			CodeSystem codeSystem = codeSystems.stream().filter(c -> c.getShortName().equals(codeSystemShortname)).findFirst().orElse(null);
 
-					// Raise an JIRA ticket for SI to update the daily build
-					createJiraIssue(codeSystem.getName().replace("Edition","Extension"), newDependantVersionISOFormat, generateDescription(codeSystem, codeSystemUpgradeJob, newDependantVersionISOFormat));
+			if (codeSystem != null) {
+				String newDependantVersionRF2Format = codeSystemUpgradeJob.getNewDependantVersion().toString();
+				String newDependantVersionISOFormat = newDependantVersionRF2Format.substring(0, 4) + "-" + newDependantVersionRF2Format.substring(4, 6) + "-" + newDependantVersionRF2Format.substring(6, 8);
+
+				// Generate additional EN_GB language refset
+				if (COMPLETED.equals(codeSystemUpgradeJob.getStatus()) && Boolean.TRUE.equals(generateEnGbLanguageRefsetDelta) && isIntegrityCheckEmpty(codeSystem.getBranchPath())) {
+					rebaseMainProjectAndGenerateAdditionalLanguageRefsetDelta(projectKey, codeSystem, newDependantVersionISOFormat, client, codeSystemShortname);
 				}
 
-				deleteUpgradeJobPanelState(codeSystemShortname);
+				// Raise an JIRA ticket for SI to update the daily build
+				createJiraIssue(codeSystem, newDependantVersionISOFormat, generateDescription(codeSystem, codeSystemUpgradeJob, newDependantVersionISOFormat));
 			}
-		} catch (InterruptedException | RestClientException e) {
+
+			deleteUpgradeJobPanelState(codeSystemShortname);
+		} catch (RestClientException e) {
 			logger.error("Failed to fetch code system upgrade status.", e);
 			Thread.currentThread().interrupt();
 		}
+	}
+
+	private boolean sleepSeconds(int sleepSeconds) {
+		try {
+			Thread.sleep(sleepSeconds * 1000L);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt(); // restore interrupt flag
+			logger.error("Interrupted while waiting for job", e);
+			return true;
+		}
+		return false;
 	}
 
 	private void rebaseMainProjectAndGenerateAdditionalLanguageRefsetDelta(String projectKey, CodeSystem codeSystem, String newDependantVersionISOFormat, SnowstormRestClient client, String codeSystemShortname) throws BusinessServiceException, RestClientException {
@@ -265,14 +297,23 @@ public class CodeSystemService {
 		return merge;
 	}
 
-	private void createJiraIssue(String codeSystemName, String newDependantVersion, String description) throws BusinessServiceException {
+	private void createJiraIssue(CodeSystem codeSystem, String newDependantVersion, String description) throws BusinessServiceException {
 		try {
-			JSONObject jiraIssue = jiraCloudClient.createIssue(projectKey, "Upgraded " + codeSystemName + " to the new " + newDependantVersion + " International Edition", description, jiraIssueType, reporter);
-			String issueKey = jiraIssue.getString("key");
-			logger.info("New JIRA ticket with key {} has been created", issueKey);
-			JSONObject issueFields = new JSONObject();
-			issueFields.put(Field.ASSIGNEE, "");
-			jiraCloudClient.updateIssue(issueKey, issueFields);
+			String codeSystemName = codeSystem.getName().replace("Edition","Extension");
+			String summary = "Upgraded " + codeSystemName + " to the new " + newDependantVersion + " International Edition";
+			JSONObject jiraIssue;
+			if (codeSystem.getMaintainerType().equals(MANAGED_SERVICE_MAINTAINER_TYPE)) {
+				jiraIssue = jiraCloudClient.createServiceDeskIssue(summary, description, codeSystem.getCountryName());
+				String issueKey = jiraIssue.getString("issueKey");
+				logger.info("New Service Desk ticket with key {} has been created", issueKey);
+			} else {
+				jiraIssue = jiraCloudClient.createIssue(defaultProjectKey, summary, description, jiraIssueType, reporter);
+				String issueKey = jiraIssue.getString("key");
+				logger.info("New JIRA ticket with key {} has been created", issueKey);
+				JSONObject issueFields = new JSONObject();
+				issueFields.put(Field.ASSIGNEE, "");
+				jiraCloudClient.updateIssue(issueKey, issueFields);
+			}
 		} catch (IOException e) {
 			throw new BusinessServiceException("Failed to create Jira task. Error: " + (e.getCause() != null ? e.getCause().getMessage() : e.getMessage()), e);
 		}

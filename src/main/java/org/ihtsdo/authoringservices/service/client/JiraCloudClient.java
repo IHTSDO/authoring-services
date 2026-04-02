@@ -18,20 +18,30 @@ import java.util.Base64;
  * Simple Jira Cloud REST client for basic operations.
  */
 public class JiraCloudClient {
-    public static final String REST_API_LATEST_ISSUE = "rest/api/latest/issue/";
+    public static final String REST_API_LATEST_ISSUE = "rest/api/latest/issue";
+
+    public static final String REST_API_SERVICE_DESK = "rest/servicedeskapi/request";
     public static final String APPLICATION_JSON = "application/json";
+    public static final String ERROR_MESSAGES_PROPERTY = "errorMessages";
+    public static final String ERROR_MESSAGE_PROPERTY = "errorMessage";
     private final String baseUrl;
     private final String authHeader;
+    private final String serviceDeskId;
+    private final String serviceDeskRequestTypeId;
+    private final String serviceDeskCountryCustomFieldId;
 
     /**
      * @param baseUrl  Jira Cloud instance URL
      * @param email    Jira user email
      * @param apiToken Jira API token
      */
-    public JiraCloudClient(String baseUrl, String email, String apiToken) {
+    public JiraCloudClient(String baseUrl, String email, String apiToken, String serviceDeskId, String serviceDeskRequestTypeId, String serviceDeskCountryCustomFieldId) {
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl : baseUrl + "/";
         String auth = email + ":" + apiToken;
         this.authHeader = "Basic " + Base64.getEncoder().encodeToString(auth.getBytes(StandardCharsets.UTF_8));
+        this.serviceDeskId = serviceDeskId;
+        this.serviceDeskRequestTypeId = serviceDeskRequestTypeId;
+        this.serviceDeskCountryCustomFieldId = serviceDeskCountryCustomFieldId;
     }
 
 
@@ -43,7 +53,7 @@ public class JiraCloudClient {
      * Create a Jira issue (fields must follow Jira Cloud API format).
      */
     public JSONObject createIssue(String projectKey, String summary, String description, String issueType, String reporter) throws IOException, BusinessServiceException {
-        String url = baseUrl + "rest/api/latest/issue";
+        String url = baseUrl + REST_API_LATEST_ISSUE;
         HttpPost request = new HttpPost(url);
         request.setHeader(HttpHeaders.AUTHORIZATION, authHeader);
         request.setHeader(HttpHeaders.ACCEPT, APPLICATION_JSON);
@@ -76,7 +86,43 @@ public class JiraCloudClient {
             }
             // Return an exception with the error message from Jira response
             JSONObject errorObj = JSONObject.fromObject(json);
-            String errorMsg = errorObj.has("errorMessages") ? errorObj.getJSONArray("errorMessages").toString() : json;
+            String errorMsg = errorObj.has(ERROR_MESSAGES_PROPERTY) ? errorObj.getJSONArray(ERROR_MESSAGES_PROPERTY).toString() : json;
+            throw new BusinessServiceException("Failed to create issue: HTTP " + statusCode + " - " + errorMsg);
+        }
+    }
+
+    public JSONObject createServiceDeskIssue(String summary, String description, String country) throws IOException, BusinessServiceException {
+        String url = baseUrl + REST_API_SERVICE_DESK;
+        HttpPost request = new HttpPost(url);
+        request.setHeader(HttpHeaders.AUTHORIZATION, authHeader);
+        request.setHeader(HttpHeaders.ACCEPT, APPLICATION_JSON);
+        request.setHeader(HttpHeaders.CONTENT_TYPE, APPLICATION_JSON);
+
+        // Construct JSON payload
+        JSONObject payload = new JSONObject();
+        JSONObject countryFieldValues = new JSONObject();
+        countryFieldValues.put("value", country);
+
+        JSONObject requestFieldValues = new JSONObject();
+        requestFieldValues.put("summary", summary);
+        requestFieldValues.put("description", description);
+        requestFieldValues.put(serviceDeskCountryCustomFieldId, countryFieldValues);
+
+        payload.put("serviceDeskId", this.serviceDeskId);
+        payload.put("requestTypeId", this.serviceDeskRequestTypeId);
+        payload.put("requestFieldValues", requestFieldValues);
+
+        request.setEntity(new StringEntity(payload.toString(), StandardCharsets.UTF_8));
+        try (CloseableHttpClient client = HttpClients.createDefault();
+             CloseableHttpResponse response = client.execute(request)) {
+            int statusCode = response.getStatusLine().getStatusCode();
+            String json = EntityUtils.toString(response.getEntity());
+            if (statusCode >= 200 && statusCode < 300) {
+                return JSONObject.fromObject(json);
+            }
+            // Return an exception with the error message from Jira response
+            JSONObject errorObj = JSONObject.fromObject(json);
+            String errorMsg = errorObj.has(ERROR_MESSAGE_PROPERTY) ? errorObj.getString(ERROR_MESSAGE_PROPERTY) : json;
             throw new BusinessServiceException("Failed to create issue: HTTP " + statusCode + " - " + errorMsg);
         }
     }
@@ -89,7 +135,7 @@ public class JiraCloudClient {
      * @param fields   Fields to update (as per Jira Cloud API)
      */
     public void updateIssue(String issueKey, JSONObject fields) throws IOException, BusinessServiceException {
-        String url = baseUrl + REST_API_LATEST_ISSUE + issueKey;
+        String url = baseUrl + REST_API_LATEST_ISSUE + "/" + issueKey;
         org.apache.http.client.methods.HttpPut request = new org.apache.http.client.methods.HttpPut(url);
         request.setHeader(HttpHeaders.AUTHORIZATION, authHeader);
         request.setHeader(HttpHeaders.ACCEPT, APPLICATION_JSON);
@@ -120,7 +166,7 @@ public class JiraCloudClient {
      * @param fileBytes File content as byte array
      */
     public void addAttachment(String issueKey, String fileName, byte[] fileBytes) throws IOException, BusinessServiceException {
-        String url = baseUrl + REST_API_LATEST_ISSUE + issueKey + "/attachments";
+        String url = baseUrl + REST_API_LATEST_ISSUE + "/" + issueKey + "/attachments";
         org.apache.http.client.methods.HttpPost request = new org.apache.http.client.methods.HttpPost(url);
         request.setHeader(HttpHeaders.AUTHORIZATION, authHeader);
         request.setHeader(HttpHeaders.ACCEPT, APPLICATION_JSON);
@@ -142,7 +188,7 @@ public class JiraCloudClient {
     }
 
     public void addWatcher(String issueKey, String accountId) throws IOException, BusinessServiceException {
-        String url = baseUrl + REST_API_LATEST_ISSUE + issueKey + "/watchers";
+        String url = baseUrl + REST_API_LATEST_ISSUE + "/" + issueKey + "/watchers";
         HttpPost request = new HttpPost(url);
         request.setHeader(HttpHeaders.AUTHORIZATION, authHeader);
         request.setHeader(HttpHeaders.ACCEPT, APPLICATION_JSON);

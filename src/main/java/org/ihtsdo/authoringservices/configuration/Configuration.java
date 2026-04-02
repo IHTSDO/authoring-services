@@ -62,8 +62,8 @@ public abstract class Configuration {
 	private ConnectionFactory connectionFactory;
 
 	@Bean
-	public JiraCloudClient jiraCloudClient(@Value("${jira.cloud.base-url}") String baseUrl, @Value("${jira.cloud.username}") String email, @Value("${jira.cloud.api-token}") String apiToken) {
-		return new JiraCloudClient(baseUrl, email, apiToken);
+	public JiraCloudClient jiraCloudClient(@Value("${jira.cloud.base-url}") String baseUrl, @Value("${jira.cloud.username}") String email, @Value("${jira.cloud.api-token}") String apiToken, @Value("${jira.cloud.service.desk.id}") String serviceDeskId, @Value("${jira.cloud.service.desk.request-type.id}") String serviceDeskRequestTypeId, @Value("${jira.cloud.service.desk.customFields.country}") String serviceDeskCountryCustomFieldId) {
+		return new JiraCloudClient(baseUrl, email, apiToken, serviceDeskId, serviceDeskRequestTypeId, serviceDeskCountryCustomFieldId);
 	}
 
 	@Bean
