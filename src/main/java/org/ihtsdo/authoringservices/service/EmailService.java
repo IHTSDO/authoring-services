@@ -139,6 +139,27 @@ public class EmailService {
         doSendMail(subject, templateFile, params, emails);
     }
 
+    public void sendRMPTaskAssignedNotification(long rmpTaskId, String summary, Collection<User> recipients) {
+        if (CollectionUtils.isEmpty(recipients)) {
+            return;
+        }
+        StringBuilder receiverNames = new StringBuilder();
+        Collection<String> emails = new ArrayList<>();
+        for (User user : recipients) {
+            receiverNames.append(!receiverNames.isEmpty() ? ", " + user.getDisplayName() : user.getDisplayName());
+            emails.add(user.getEmail());
+        }
+        Context params = new Context();
+        params.setVariable(RECEIVER_NAMES_STRING, receiverNames.toString());
+        params.setVariable(TASK_ID_STRING, rmpTaskId);
+        params.setVariable(SUMMARY_STRING, summary);
+        params.setVariable(DATE_STRING, SIMPLE_DATE_FORMAT.format(new Date()));
+
+        String subject = "RMP request assigned to you";
+        String templateFile = "Notify-Assignee-Template-RMP";
+        doSendMail(subject, templateFile, params, emails);
+    }
+
     public void sendRMPTaskCommentAddNotification(long rmpTaskId, String summary, String comment, Collection<User> recipients) {
         StringBuilder receiverNames = new StringBuilder();
         Collection <String> emails = new ArrayList <>();

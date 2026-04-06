@@ -22,6 +22,7 @@ import org.springframework.util.StringUtils;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -114,6 +115,7 @@ public class RMPTaskService {
         if (taskOptional.isEmpty()) throw new ResourceNotFoundException(String.format("RMP task %s not found", id));
 
         RMPTask existingTask = taskOptional.get();
+        String previousAssignee = existingTask.getAssignee();
         RMPTaskStatus updatedTaskStatus = updatedTask.getStatus();
         boolean statusChanged = !updatedTask.getStatus().equals(existingTask.getStatus());
         if (statusChanged && !validTaskStatusTransition(existingTask.getStatus(), updatedTaskStatus)) {
@@ -148,6 +150,9 @@ public class RMPTaskService {
         RMPTask savedRmpTask = rmpTaskRepository.save(existingTask);
         if (statusChanged) {
             notifyStatusChange(savedRmpTask, updatedTaskStatus.getLabel());
+        }
+        if (assigneeChanged(previousAssignee, savedRmpTask.getAssignee())) {
+            notifyAssignee(savedRmpTask);
         }
         return Optional.of(savedRmpTask);
     }
@@ -198,6 +203,26 @@ public class RMPTaskService {
                     currentStatus.equals(RMPTaskStatus.REJECTED) || currentStatus.equals(RMPTaskStatus.APPEAL_CLARIFICATION_REQUESTED);
             default -> true;
         };
+    }
+
+    private static boolean assigneeChanged(String previousAssignee, String newAssignee) {
+        return StringUtils.hasLength(newAssignee) && !Objects.equals(previousAssignee, newAssignee);
+    }
+
+    private void notifyAssignee(RMPTask task) {
+        String assigneeUsername = task.getAssignee();
+        if (!StringUtils.hasLength(assigneeUsername)) {
+            return;
+        }
+        String currentUser = SecurityUtil.getUsername();
+        if (currentUser != null && currentUser.equals(assigneeUsername)) {
+            return;
+        }
+        User assignee = userCacheService.getUser(assigneeUsername);
+        if (assignee == null) {
+            return;
+        }
+        emailService.sendRMPTaskAssignedNotification(task.getId(), task.getSummary(), List.of(assignee));
     }
 
     private void notifyStatusChange(RMPTask task, String newStatus) {
