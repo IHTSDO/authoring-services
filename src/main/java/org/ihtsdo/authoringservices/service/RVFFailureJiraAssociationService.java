@@ -13,6 +13,7 @@ import org.ihtsdo.authoringservices.repository.RVFFailureJiraAssociationReposito
 import org.ihtsdo.authoringservices.service.client.JiraCloudClient;
 import org.ihtsdo.authoringservices.service.client.RVFClientFactory;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
+import org.ihtsdo.authoringservices.service.util.TicketDescriptionContextUtil;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch;
@@ -52,6 +53,9 @@ public class RVFFailureJiraAssociationService {
 
 	@Value("${jira.cloud.reporter-accountid}")
 	private String reporter;
+
+	@Value("${email.link.platform.url}")
+	private String platformUrl;
 
 	@Autowired
 	private RVFFailureJiraAssociationRepository repository;
@@ -197,6 +201,8 @@ public class RVFFailureJiraAssociationService {
 
 	private String generateDescription(ValidationReport.RvfValidationResult.TestResult.TestRunItem testRunItem, String reportUrl) {
 		StringBuilder result = new StringBuilder();
+		TicketDescriptionContextUtil.appendEnvironmentAndUser(result, platformUrl, logger);
+
 		result.append(testRunItem.getAssertionText()).append("\n")
 				.append("Total number of failures: ").append(testRunItem.getFailureCount()).append("\n")
 				.append("Report URL: ").append("[").append(reportUrl).append("|").append(reportUrl).append("]").append("\n");
