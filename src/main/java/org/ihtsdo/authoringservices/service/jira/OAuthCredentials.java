@@ -140,8 +140,8 @@ public class OAuthCredentials implements ICredentials {
 	public static PrivateKey getPrivateKey(String privKeyPath) throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
 		final File privateKeyFile = new File(privKeyPath);
 		if (!privateKeyFile.isFile()) {
-			logger.error("Failed to load private key using path {}", privKeyPath);
-			throw new FileNotFoundException("Private key not found.");
+			logger.warn("Failed to load private key using path {}", privKeyPath);
+			return null;
 		}
 
 		String privateKeyString;
