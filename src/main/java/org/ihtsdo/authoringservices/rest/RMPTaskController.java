@@ -5,8 +5,10 @@ import org.ihtsdo.authoringservices.domain.RMPTaskStatus;
 import org.ihtsdo.authoringservices.domain.User;
 import org.ihtsdo.authoringservices.entity.Comment;
 import org.ihtsdo.authoringservices.entity.RMPTask;
+import org.ihtsdo.authoringservices.entity.RMPTaskAttachment;
 import org.ihtsdo.authoringservices.service.CommentService;
 import org.ihtsdo.authoringservices.service.EmailService;
+import org.ihtsdo.authoringservices.service.RMPTaskAttachmentService;
 import org.ihtsdo.authoringservices.service.RMPTaskService;
 import org.ihtsdo.authoringservices.service.UserCacheService;
 
@@ -14,12 +16,18 @@ import org.ihtsdo.sso.integration.SecurityUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 @Tag(name = "RMP Tasks")
@@ -35,12 +43,16 @@ public class RMPTaskController {
 
     private final UserCacheService userCacheService;
 
+    private final RMPTaskAttachmentService rmpTaskAttachmentService;
+
     @Autowired
-    public RMPTaskController(RMPTaskService rmpTaskService, CommentService commentService, EmailService emailService, UserCacheService userCacheService) {
+    public RMPTaskController(RMPTaskService rmpTaskService, CommentService commentService, EmailService emailService, UserCacheService userCacheService,
+                             RMPTaskAttachmentService rmpTaskAttachmentService) {
         this.rmpTaskService = rmpTaskService;
         this.commentService = commentService;
         this.emailService = emailService;
         this.userCacheService = userCacheService;
+        this.rmpTaskAttachmentService = rmpTaskAttachmentService;
     }
 
     @GetMapping
@@ -109,6 +121,56 @@ public class RMPTaskController {
         rmpTask.setId(id);
         List<Comment> comments = commentService.findCommentByRmpTask(rmpTask);
         return ResponseEntity.ok(comments);
+    }
+
+    @GetMapping("/{id}/attachments")
+    public ResponseEntity<List<RMPTaskAttachment>> listAttachments(@PathVariable long id) {
+        Optional<RMPTask> task = rmpTaskService.getTaskById(id);
+        if (task.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(rmpTaskAttachmentService.findByRmpTask(task.get()));
+    }
+
+    @PostMapping(value = "/{id}/attachments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<RMPTaskAttachment> addAttachment(@PathVariable long id, @RequestPart("file") MultipartFile file) {
+        Optional<RMPTask> task = rmpTaskService.getTaskById(id);
+        if (task.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        try {
+            RMPTaskAttachment saved = rmpTaskAttachmentService.saveAttachment(task.get(), file, SecurityUtil.getUsername());
+            return ResponseEntity.ok(saved);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @GetMapping(value = "/{id}/attachments/{attachmentId}/download", produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
+    public ResponseEntity<byte[]> downloadAttachment(@PathVariable long id, @PathVariable long attachmentId) {
+        Optional<RMPTaskAttachment> attachment = rmpTaskAttachmentService.getByTaskAndId(id, attachmentId);
+        if (attachment.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        RMPTaskAttachment a = attachment.get();
+        byte[] body = a.getContent() != null ? a.getContent() : new byte[0];
+        HttpHeaders headers = new HttpHeaders();
+        String ct = a.getContentType();
+        headers.setContentType(MediaType.parseMediaType(StringUtils.hasLength(ct) ? ct : MediaType.APPLICATION_OCTET_STREAM_VALUE));
+        headers.setContentDisposition(ContentDisposition.attachment()
+                .filename(a.getFileName() != null ? a.getFileName() : "attachment", StandardCharsets.UTF_8)
+                .build());
+        return new ResponseEntity<>(body, headers, HttpStatus.OK);
+    }
+
+    @DeleteMapping("/{id}/attachments/{attachmentId}")
+    public ResponseEntity<Void> deleteAttachment(@PathVariable long id, @PathVariable long attachmentId) {
+        if (rmpTaskAttachmentService.deleteAttachment(id, attachmentId)) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.notFound().build();
     }
 
     @PostMapping("/{id}/comment")

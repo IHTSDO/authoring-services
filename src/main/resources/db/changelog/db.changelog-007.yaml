@@ -1,0 +1,54 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/db.changelog-007.yaml
+
+  - changeSet:
+      id: 016-create-rmp-task-attachment
+      author: cursor
+      preConditions:
+        - onFail: MARK_RAN
+        - onError: MARK_RAN
+        - not:
+            tableExists:
+              tableName: rmp_task_attachment
+      changes:
+        - createTable:
+            tableName: rmp_task_attachment
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: file_name
+                  type: varchar(512)
+              - column:
+                  name: content_type
+                  type: varchar(255)
+              - column:
+                  name: content_size
+                  type: bigint
+              - column:
+                  name: content
+                  type: LONGBLOB
+              - column:
+                  name: user
+                  type: varchar(255)
+              - column:
+                  name: rmp_task
+                  type: bigint
+              - column:
+                  name: created_timestamp
+                  type: datetime
+              - column:
+                  name: updated_timestamp
+                  type: datetime
+        - addForeignKeyConstraint:
+            baseTableName: rmp_task_attachment
+            baseColumnNames: rmp_task
+            referencedTableName: rmp_task
+            referencedColumnNames: id
+            constraintName: fk_rmp_task_attachment_rmp_task
+            onDelete: CASCADE
