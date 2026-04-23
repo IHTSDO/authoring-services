@@ -222,7 +222,7 @@ public class ValidationController {
 
 	private Set<String> doValidateForAllCodeSystems() throws BusinessServiceException {
 		SecurityContext context = SecurityContextHolder.getContext();
-		List<AuthoringCodeSystem> codeSystems = codeSystemService.findAll();
+		List<AuthoringCodeSystem> codeSystems = codeSystemService.findAllLightweight();
 		List<AuthoringProject> authoringProjects = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(true, null, null));
 		List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(true, null, false);
 		ProjectFilterUtil.joinJiraProjectsIfNotExists(jiraProjects, authoringProjects);

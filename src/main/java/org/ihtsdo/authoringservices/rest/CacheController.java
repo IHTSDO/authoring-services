@@ -77,7 +77,7 @@ public class CacheController {
     }
 
     private void regenerateCacheForCodeSystems() throws BusinessServiceException {
-        List<AuthoringCodeSystem> authoringCodeSystems = codeSystemService.findAll();
+        List<AuthoringCodeSystem> authoringCodeSystems = codeSystemService.findAllLightweight();
         if (!CollectionUtils.isEmpty(authoringCodeSystems)) {
             authoringCodeSystems.forEach(item -> cacheService.clearBranchCache(item.getBranchPath()));
 

@@ -181,7 +181,7 @@ public abstract class TaskServiceBase {
         if (collection.isEmpty()) return Collections.emptyList();
 
         final SnowstormRestClient snowstormRestClient = snowstormRestClientFactory.getClient();
-        List<CodeSystem> codeSystems = snowstormRestClient.getCodeSystemsLightweight();
+        List<CodeSystem> codeSystems = lightweight == null || !lightweight ? snowstormRestClient.getCodeSystems() : snowstormRestClient.getCodeSystemsLightweight();
         return buildAuthoringTasks(collection, codeSystems, lightweight);
     }
 }

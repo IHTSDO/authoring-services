@@ -246,7 +246,7 @@ public class TaskController {
 
     private List<CodeSystem> getCodeSystems() {
         final SnowstormRestClient snowstormRestClient = snowstormRestClientFactory.getClient();
-        return snowstormRestClient.getCodeSystemsLightweight();
+        return snowstormRestClient.getCodeSystems();
     }
 
     private List<AuthoringTask> filterJiraTasks(List<AuthoringTask> jiraTasks, List<AuthoringTask> results) {

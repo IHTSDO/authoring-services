@@ -109,6 +109,11 @@ public class CodeSystemService {
 		return buildAuthoringCodeSystems(codeSystems);
 	}
 
+	public List<AuthoringCodeSystem> findAllLightweight() throws BusinessServiceException {
+		List<CodeSystem> codeSystems = snowstormRestClientFactory.getClient().getCodeSystemsLightweight();
+		return buildAuthoringCodeSystems(codeSystems);
+	}
+
 	public String upgrade(String shortName, Integer newDependantVersion) throws BusinessServiceException, ServiceException {
 		SnowstormRestClient snowstormRestClient = snowstormRestClientFactory.getClient();
 		CodeSystem cs = getCodeSystemByShortnameOrThrow(shortName);
@@ -363,7 +368,7 @@ public class CodeSystemService {
 	}
 
 	private CodeSystem getCodeSystemByShortnameOrThrow(String codeSystemShortname) throws BusinessServiceException {
-		List<CodeSystem> codeSystems = snowstormRestClientFactory.getClient().getCodeSystems();
+		List<CodeSystem> codeSystems = snowstormRestClientFactory.getClient().getCodeSystemsLightweight();
 		return codeSystems.stream()
 				.filter(item -> item.getShortName().equals(codeSystemShortname))
 				.findAny()
