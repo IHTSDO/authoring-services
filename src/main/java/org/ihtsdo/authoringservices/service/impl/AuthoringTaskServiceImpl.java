@@ -23,7 +23,6 @@ import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.authoringservices.service.util.TimerUtil;
 import org.ihtsdo.otf.jms.MessagingHelper;
 import org.ihtsdo.otf.rest.client.RestClientException;
-import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
 import org.ihtsdo.otf.rest.exception.BadRequestException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
@@ -799,7 +798,7 @@ import java.util.stream.StreamSupport;
 
         // Fetch latest code system version timestamp
         if (lightweight == null || !lightweight) {
-            setLatestCodeSystemVersionTimestampToAuthoringTask(authoringTask, task.getProject().getBranchPath(), codeSystems);
+            setLatestCodeSystemVersionBaseTimestampToAuthoringTask(authoringTask, task.getProject().getBranchPath(), codeSystems);
         }
 
         // Fetch the extra statuses for tasks that are not new and have a branch
@@ -842,19 +841,6 @@ import java.util.stream.StreamSupport;
                 }
             }
             authoringTask.setReviewers(reviewers);
-        }
-    }
-
-    private void setLatestCodeSystemVersionTimestampToAuthoringTask(AuthoringTask task, String projectBranchPath, List<CodeSystem> codeSystems) {
-        String projectParentPath = PathHelper.getParentPath(projectBranchPath);
-        CodeSystem codeSystem = codeSystems.stream().filter(c -> projectParentPath.equals(c.getBranchPath())).findFirst().orElse(null);
-        if (codeSystem == null && projectParentPath.contains("/")) {
-            // Attempt match using branch grandfather
-            String grandfatherPath = PathHelper.getParentPath(projectParentPath);
-            codeSystem = codeSystems.stream().filter(c -> grandfatherPath.equals(c.getBranchPath())).findFirst().orElse(null);
-        }
-        if (codeSystem != null && codeSystem.getLatestVersion() != null) {
-            task.setLatestCodeSystemVersionTimestamp(codeSystem.getLatestVersion().getImportDate().getTime());
         }
     }
 

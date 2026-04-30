@@ -184,4 +184,20 @@ public abstract class TaskServiceBase {
         List<CodeSystem> codeSystems = lightweight == null || !lightweight ? snowstormRestClient.getCodeSystems() : snowstormRestClient.getCodeSystemsLightweight();
         return buildAuthoringTasks(collection, codeSystems, lightweight);
     }
+
+    protected void setLatestCodeSystemVersionBaseTimestampToAuthoringTask(AuthoringTask task, String projectBranchPath, List<CodeSystem> codeSystems) throws ServiceException {
+        String projectParentPath = PathHelper.getParentPath(projectBranchPath);
+        CodeSystem codeSystem = codeSystems.stream().filter(c -> projectParentPath.equals(c.getBranchPath())).findFirst().orElse(null);
+        if (codeSystem == null && projectParentPath.contains("/")) {
+            // Attempt match using branch grandfather
+            String grandfatherPath = PathHelper.getParentPath(projectParentPath);
+            codeSystem = codeSystems.stream().filter(c -> grandfatherPath.equals(c.getBranchPath())).findFirst().orElse(null);
+        }
+        if (codeSystem != null && codeSystem.getLatestVersion() != null) {
+            org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch codeSystemVersionBranch = branchService.getBranchOrNull(codeSystem.getLatestVersion().getBranchPath());
+            if (codeSystemVersionBranch != null) {
+                task.setLatestCodeSystemVersionBaseTimestamp(codeSystemVersionBranch.getBaseTimestamp());
+            }
+        }
+    }
 }

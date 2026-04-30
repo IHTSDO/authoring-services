@@ -35,7 +35,7 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
     private String branchState;
     private Long branchHeadTimestamp;
     private Long branchBaseTimestamp;
-    private Long latestCodeSystemVersionTimestamp;
+    private Long latestCodeSystemVersionBaseTimestamp;
     private String description;
     private User assignee;
     private User reporter;
@@ -270,12 +270,12 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
         this.branchBaseTimestamp = branchBaseTimestamp;
     }
 
-    public Long getLatestCodeSystemVersionTimestamp() {
-        return latestCodeSystemVersionTimestamp;
+    public Long getLatestCodeSystemVersionBaseTimestamp() {
+        return latestCodeSystemVersionBaseTimestamp;
     }
 
-    public void setLatestCodeSystemVersionTimestamp(Long latestCodeSystemVersionTimestamp) {
-        this.latestCodeSystemVersionTimestamp = latestCodeSystemVersionTimestamp;
+    public void setLatestCodeSystemVersionBaseTimestamp(Long latestCodeSystemVersionBaseTimestamp) {
+        this.latestCodeSystemVersionBaseTimestamp = latestCodeSystemVersionBaseTimestamp;
     }
 
     public String getBranchPath() {
