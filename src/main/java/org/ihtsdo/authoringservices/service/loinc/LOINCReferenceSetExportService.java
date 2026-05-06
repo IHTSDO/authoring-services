@@ -227,12 +227,12 @@ public class LOINCReferenceSetExportService {
 			try (FileInputStream rf2DeltaZipInputStream = new FileInputStream(deltaExportZip)) {
 				releaseImporter.loadDeltaReleaseFiles(rf2DeltaZipInputStream, LoadingProfile.light, new ImpotentComponentFactory() {
 					@Override
-					public void newConceptState(String conceptId, String effectiveTime, String active, String moduleId, String definitionStatusId) {
+					public void newConceptState(String filename, long lineNumber, String conceptId, String effectiveTime, String active, String moduleId, String definitionStatusId) {
 						conceptsWithLogicalChanges.add(conceptId);
 					}
 
 					@Override
-					public void newRelationshipState(String id, String effectiveTime, String active, String moduleId, String sourceId, String destinationId, String relationshipGroup, String typeId, String characteristicTypeId, String modifierId) {
+					public void newRelationshipState(String filename, long lineNumber, String id, String effectiveTime, String active, String moduleId, String sourceId, String destinationId, String relationshipGroup, String typeId, String characteristicTypeId, String modifierId) {
 						conceptsWithLogicalChanges.add(sourceId);
 					}
 				}, false);
