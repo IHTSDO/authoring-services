@@ -4,24 +4,28 @@ import com.google.common.cache.LoadingCache;
 import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.service.ProjectService;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
+import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
 
 import java.util.Collections;
 import java.util.List;
 
 public class DefaultProjectServiceImpl implements ProjectService {
+
+    private static final String PROJECT_NOT_FOUND_MSG = "Project with key %s not found";
+
     @Override
     public boolean exists(String projectKey) {
-        throw new UnsupportedOperationException("exists is not supported");
+        throw new ResourceNotFoundException(String.format(PROJECT_NOT_FOUND_MSG, projectKey));
     }
 
     @Override
     public AuthoringProject createProject(CreateProjectRequest request, AuthoringCodeSystem codeSystem) throws BusinessServiceException {
-        throw new UnsupportedOperationException("Project creation is not supported");
+        throw new ResourceNotFoundException(String.format(PROJECT_NOT_FOUND_MSG, request.key()));
     }
 
     @Override
     public AuthoringProject updateProject(String projectKey, AuthoringProject updatedProject) throws BusinessServiceException {
-        throw new UnsupportedOperationException("Project update is not supported");
+        throw new ResourceNotFoundException(String.format(PROJECT_NOT_FOUND_MSG, projectKey));
     }
 
     @Override
@@ -41,12 +45,12 @@ public class DefaultProjectServiceImpl implements ProjectService {
 
     @Override
     public AuthoringProject retrieveProject(String projectKey) throws BusinessServiceException {
-        throw new UnsupportedOperationException("Retrieving project is not supported");
+        throw new ResourceNotFoundException(String.format(PROJECT_NOT_FOUND_MSG, projectKey));
     }
 
     @Override
     public AuthoringProject retrieveProject(String projectKey, boolean lightweight) throws BusinessServiceException {
-        throw new UnsupportedOperationException("Retrieving project is not supported");
+        throw new ResourceNotFoundException(String.format(PROJECT_NOT_FOUND_MSG, projectKey));
     }
 
     @Override
@@ -61,12 +65,12 @@ public class DefaultProjectServiceImpl implements ProjectService {
 
     @Override
     public String getProjectBaseUsingCache(String projectKey) throws BusinessServiceException {
-        throw new UnsupportedOperationException("Getting project base from cache is not supported");
+        throw new ResourceNotFoundException(String.format(PROJECT_NOT_FOUND_MSG, projectKey));
     }
 
     @Override
     public LoadingCache<String, ProjectDetails> getProjectDetailsCache() {
-        throw new UnsupportedOperationException("Getting project details from cache is not supported");
+        throw new ResourceNotFoundException("Project not found");
     }
 
     @Override

@@ -4,44 +4,48 @@ import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.service.TaskService;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
+import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
 public class DefaultTaskServiceImpl implements TaskService {
+
+    private static final String TASK_NOT_FOUND_MSG = "Task not found ";
+
     @Override
     public boolean exists(String taskKey) {
-        throw new UnsupportedOperationException("exists is not supported");
+        throw new ResourceNotFoundException(TASK_NOT_FOUND_MSG + taskKey);
     }
 
     @Override
-    public AuthoringMain retrieveMain() throws BusinessServiceException {
+    public AuthoringMain retrieveMain() {
         throw new UnsupportedOperationException("Retrieving MAIN is not supported");
     }
 
     @Override
     public AuthoringTask createTask(String projectKey, String username, AuthoringTaskCreateRequest taskCreateRequest, TaskType type) throws BusinessServiceException {
-        throw new UnsupportedOperationException("Creating task is not supported");
+        throw new ResourceNotFoundException("Project with key " + projectKey + " not found");
     }
 
     @Override
     public AuthoringTask retrieveTask(String projectKey, String taskKey, Boolean lightweight, boolean skipTaskMigration) throws BusinessServiceException {
-        throw new UnsupportedOperationException("Retrieving task is not supported");
+        throw new ResourceNotFoundException(TASK_NOT_FOUND_MSG + taskKey);
     }
 
     @Override
     public AuthoringTask updateTask(String projectKey, String taskKey, AuthoringTaskUpdateRequest taskUpdateRequest) throws BusinessServiceException {
-        throw new UnsupportedOperationException("Updating task is not supported");
+        throw new ResourceNotFoundException(TASK_NOT_FOUND_MSG + taskKey);
     }
 
     @Override
     public Integer getLatestTaskNumberForProject(String projectKey) {
-        throw new UnsupportedOperationException("Retrieving the latest task number is not supported");
+        throw new ResourceNotFoundException("Project with key " + projectKey + " not found");
     }
 
     @Override
-    public void deleteTasks(Set<String> taskKeys) throws BusinessServiceException {
+    public void deleteTasks(Set<String> taskKeys) {
         // Do nothing
     }
 
