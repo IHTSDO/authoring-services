@@ -1,0 +1,255 @@
+repo_name: IHTSDO/authoring-services
+report_id: ffc8987e54c715a6c3358c915d401c34
+version: 0.1
+repo_type: Public
+timestamp: '2024-03-21T12:56:58+00:00'
+requested_by: QuyenLy87
+provider: github
+branch: master
+detected_tools_count: 20
+tools:
+- name: Java
+  description: A concurrent, class-based, object-oriented, language specifically designed
+    to have as few implementation dependencies as possible
+  website_url: https://www.java.com
+  open_source: true
+  hosted_saas: false
+  category: Languages & Frameworks
+  sub_category: Languages
+  image_url: https://img.stackshare.io/service/995/K85ZWV2F.png
+  detection_source_url: https://github.com/IHTSDO/authoring-services
+  detection_source: Repo Metadata
+- name: Spring Framework
+  description: An application framework and inversion of control container for the
+    Java platform
+  website_url: https://spring.io/projects/spring-framework
+  license: Apache-2.0
+  open_source: true
+  hosted_saas: false
+  category: Languages & Frameworks
+  sub_category: Frameworks (Full Stack)
+  image_url: https://img.stackshare.io/service/2006/spring-framework-project-logo.png
+  detection_source_url: https://github.com/IHTSDO/authoring-services/blob/master/pom.xml
+  detection_source: pom.xml
+  last_updated_by: Quyen Ly
+  last_updated_on: 2023-10-23 06:24:22.000000000 Z
+- name: ActiveMQ
+  description: A message broker written in Java together with a full JMS client
+  website_url: http://activemq.apache.org/
+  license: Apache-2.0
+  open_source: true
+  hosted_saas: false
+  category: Data Stores
+  sub_category: Message Queue
+  image_url: https://img.stackshare.io/service/1062/default_08edb6f82e2c79424efc1e297ab096e50acd8e0b.jpg
+  detection_source_url: https://github.com/IHTSDO/authoring-services/blob/master/pom.xml
+  detection_source: pom.xml
+  last_updated_by: Jim Cornmell
+  last_updated_on: 2023-09-01 10:11:49.000000000 Z
+- name: H2 Database
+  description: A relational database management system written in Java
+  website_url: http://www.h2database.com/
+  open_source: false
+  hosted_saas: false
+  category: Data Stores
+  sub_category: Databases
+  image_url: https://img.stackshare.io/service/3105/h2-logo_square_400x400.png
+  detection_source_url: https://github.com/IHTSDO/authoring-services/blob/master/pom.xml
+  detection_source: pom.xml
+  last_updated_by: Jim Cornmell
+  last_updated_on: 2023-09-01 10:11:49.000000000 Z
+- name: Git
+  description: Fast, scalable, distributed revision control system
+  website_url: http://git-scm.com/
+  open_source: true
+  hosted_saas: false
+  category: Build, Test, Deploy
+  sub_category: Version Control System
+  image_url: https://img.stackshare.io/service/1046/git.png
+  detection_source_url: https://github.com/IHTSDO/authoring-services
+  detection_source: Repo Metadata
+- name: Mockito
+  description: Tasty mocking framework for unit tests in Java
+  website_url: https://site.mockito.org/
+  license: MIT
+  open_source: true
+  hosted_saas: false
+  category: Build, Test, Deploy
+  sub_category: Testing Frameworks
+  image_url: https://img.stackshare.io/service/2021/4y634TJm_400x400.jpg
+  detection_source_url: https://github.com/IHTSDO/authoring-services/blob/master/pom.xml
+  detection_source: pom.xml
+  last_updated_by: Jim Cornmell
+  last_updated_on: 2023-09-01 10:11:49.000000000 Z
+- name: Apache Camel
+  description: A versatile open source integration framework
+  website_url: https://camel.apache.org/
+  license: Apache-2.0
+  open_source: true
+  hosted_saas: false
+  category: Application Hosting
+  sub_category: Platform as a Service
+  image_url: https://img.stackshare.io/service/3276/xWt1RFo6_400x400.jpg
+  detection_source_url: https://github.com/IHTSDO/authoring-services/blob/master/src/main/resources/application.properties
+  detection_source: src/main/resources/application.properties
+  last_updated_by: Quyen Ly
+  last_updated_on: 2021-04-15 03:45:52.000000000 Z
+- name: Shell
+  description: A shell is a text-based terminal, used for manipulating programs and
+    files. Shell scripts typically manage program execution.
+  website_url: https://en.wikipedia.org/wiki/Shell_script
+  open_source: false
+  hosted_saas: false
+  category: Languages & Frameworks
+  sub_category: Languages
+  image_url: https://img.stackshare.io/service/4631/default_c2062d40130562bdc836c13dbca02d318205a962.png
+  detection_source_url: https://github.com/IHTSDO/authoring-services
+  detection_source: Repo Metadata
+- name: com.github.ben-manes.caffeine:caffeine
+  description: A high performance caching library for Java 8+
+  license: Apache-2.0
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: Maven Packages
+  image_url: https://img.stackshare.io/package/maven/image.png
+  detection_source_url: https://github.com/IHTSDO/authoring-services/blob/master/pom.xml
+  detection_source: pom.xml
+  last_updated_by: CoderMChu
+  last_updated_on: 2023-11-07 15:46:08.000000000 Z
+- name: com.google.gdata:core
+  description: The Google Data Java client library is written by Google
+  license: Apache-2.0
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: Maven Packages
+  image_url: https://img.stackshare.io/package/maven/image.png
+  detection_source_url: https://github.com/IHTSDO/authoring-services/blob/master/pom.xml
+  detection_source: pom.xml
+  last_updated_by: CoderMChu
+  last_updated_on: 2023-11-07 15:46:08.000000000 Z
+- name: com.h2database:h2
+  description: H2 Database Engine
+  license: MIT-feh
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: Maven Packages
+  image_url: https://img.stackshare.io/package/maven/image.png
+  detection_source_url: https://github.com/IHTSDO/authoring-services/blob/master/pom.xml
+  detection_source: pom.xml
+  last_updated_by: CoderMChu
+  last_updated_on: 2023-11-07 15:46:08.000000000 Z
+- name: org.apache.commons:commons-csv
+  description: The Apache Commons CSV library provides a simple interface for reading
+    and writing CSV files of various types
+  license: Apache-2.0
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: Maven Packages
+  image_url: https://img.stackshare.io/package/maven/image.png
+  detection_source_url: https://github.com/IHTSDO/authoring-services/blob/master/pom.xml
+  detection_source: pom.xml
+  last_updated_by: Elena Ilyukhina
+  last_updated_on: 2023-09-01 11:50:27.000000000 Z
+- name: org.mockito:mockito-core
+  description: Mockito mock objects library core API and implementation
+  license: MIT
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: Maven Packages
+  image_url: https://img.stackshare.io/package/maven/image.png
+  detection_source_url: https://github.com/IHTSDO/authoring-services/blob/master/pom.xml
+  detection_source: pom.xml
+  last_updated_by: Elena Ilyukhina
+  last_updated_on: 2023-09-01 11:50:27.000000000 Z
+- name: org.springframework.boot:spring-boot-starter-data-jpa
+  description: Starter for using Spring Data JPA with Hibernate
+  license: Apache-2.0
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: Maven Packages
+  image_url: https://img.stackshare.io/package/maven/image.png
+  detection_source_url: https://github.com/IHTSDO/authoring-services/blob/master/pom.xml
+  detection_source: pom.xml
+  last_updated_by: Quyen Ly
+  last_updated_on: 2023-10-23 06:24:22.000000000 Z
+- name: org.springframework.boot:spring-boot-starter-mail
+  description: Starter for using Java Mail and Spring Framework's email sending support
+  license: Apache-2.0
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: Maven Packages
+  image_url: https://img.stackshare.io/package/maven/image.png
+  detection_source_url: https://github.com/IHTSDO/authoring-services/blob/master/pom.xml
+  detection_source: pom.xml
+  last_updated_by: Quyen Ly
+  last_updated_on: 2023-10-23 06:24:22.000000000 Z
+- name: org.springframework.boot:spring-boot-starter-security
+  description: Starter for using Spring Security
+  license: Apache-2.0
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: Maven Packages
+  image_url: https://img.stackshare.io/package/maven/image.png
+  detection_source_url: https://github.com/IHTSDO/authoring-services/blob/master/pom.xml
+  detection_source: pom.xml
+  last_updated_by: Quyen Ly
+  last_updated_on: 2023-10-23 06:24:22.000000000 Z
+- name: org.springframework.boot:spring-boot-starter-test
+  description: Starter for testing Spring Boot applications with libraries including
+    JUnit
+  license: Apache-2.0
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: Maven Packages
+  image_url: https://img.stackshare.io/package/maven/image.png
+  detection_source_url: https://github.com/IHTSDO/authoring-services/blob/master/pom.xml
+  detection_source: pom.xml
+  last_updated_by: Quyen Ly
+  last_updated_on: 2023-10-23 06:24:22.000000000 Z
+- name: org.springframework.boot:spring-boot-starter-thymeleaf
+  description: Starter for building MVC web applications using Thymeleaf views
+  license: Apache-2.0
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: Maven Packages
+  image_url: https://img.stackshare.io/package/maven/image.png
+  detection_source_url: https://github.com/IHTSDO/authoring-services/blob/master/pom.xml
+  detection_source: pom.xml
+  last_updated_by: Quyen Ly
+  last_updated_on: 2023-10-23 06:24:22.000000000 Z
+- name: org.springframework.boot:spring-boot-starter-web
+  description: Starter for building web, including RESTful, applications using Spring
+    MVC
+  license: Apache-2.0
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: Maven Packages
+  image_url: https://img.stackshare.io/package/maven/image.png
+  detection_source_url: https://github.com/IHTSDO/authoring-services/blob/master/pom.xml
+  detection_source: pom.xml
+  last_updated_by: Quyen Ly
+  last_updated_on: 2023-10-23 06:24:22.000000000 Z
+- name: org.springframework.boot:spring-boot-starter-websocket
+  description: Starter for building WebSocket applications using Spring Framework's
+    WebSocket support
+  license: Apache-2.0
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: Maven Packages
+  image_url: https://img.stackshare.io/package/maven/image.png
+  detection_source_url: https://github.com/IHTSDO/authoring-services/blob/master/pom.xml
+  detection_source: pom.xml
+  last_updated_by: Quyen Ly
+  last_updated_on: 2023-10-23 06:24:22.000000000 Z
