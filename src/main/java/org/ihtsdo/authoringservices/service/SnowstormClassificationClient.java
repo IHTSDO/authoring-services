@@ -149,7 +149,7 @@ public class SnowstormClassificationClient {
 
 		private void processCompletedClassification() {
 			try {
-				boolean useNew = taskServiceFactory.getInstance(true).isUseNew(request.getTaskKey());
+				boolean useNew = taskServiceFactory.getInstance(true).exists(request.getTaskKey());
 				AuthoringTask task = taskServiceFactory.getInstance(useNew).retrieveTask(request.getProjectKey(), request.getTaskKey(), true, true);
 				if (!TaskStatus.REVIEW_COMPLETED.equals(task.getStatus())) {
 					return;
@@ -169,7 +169,7 @@ public class SnowstormClassificationClient {
 		private void addCommentLog(String resultMessage) throws BusinessServiceException {
 			if (request.getTaskKey() != null) {
 				//In every case we'll report what we know to the jira ticket
-                boolean useNew = taskServiceFactory.getInstance(true).isUseNew(request.getTaskKey());
+                boolean useNew = taskServiceFactory.getInstance(true).exists(request.getTaskKey());
 				taskServiceFactory.getInstance(useNew).addCommentLogErrors(request.getProjectKey(), request.getTaskKey(), resultMessage);
 			} else if (request.getProjectKey() != null) {
 				// Comment on project magic ticket

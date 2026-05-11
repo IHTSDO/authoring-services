@@ -9,7 +9,7 @@ import java.util.Set;
 
 public interface TaskService {
 
-    boolean isUseNew(String taskKey);
+    boolean exists(String taskKey);
 
     AuthoringMain retrieveMain() throws BusinessServiceException;
 

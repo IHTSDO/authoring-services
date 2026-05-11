@@ -86,7 +86,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
     private TaskService jiraTaskService;
 
     @Override
-    public boolean isUseNew(String projectKey) {
+    public boolean exists(String projectKey) {
         Optional<Project> projectOptional = projectRepository.findById(projectKey);
         return projectOptional.isPresent();
     }
@@ -138,8 +138,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
     @Override
     public AuthoringProject updateProject(String projectKey, AuthoringProject updatedProject) throws BusinessServiceException {
-        permissionService.checkFullPermissionOnProjectOrThrow(projectKey);
-        Project project = getProjectOrThrow(projectKey);
+        Project project = getProjectAndCheckPermission(projectKey);
         Map<String, Boolean> customFields = Optional.ofNullable(project.getCustomFields()).orElse(new HashMap<>());
         if (updatedProject.isTaskPromotionDisabled() != null) {
             customFields.put("taskPromotion", !updatedProject.isTaskPromotionDisabled());
@@ -163,8 +162,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
     @Override
     public void deleteProject(String projectKey) throws BusinessServiceException {
-        permissionService.checkFullPermissionOnProjectOrThrow(projectKey);
-        Project project = getProjectOrThrow(projectKey);
+        Project project = getProjectAndCheckPermission(projectKey);
         taskRepository.deleteAll(taskRepository.findByProject(project));
         projectRepository.delete(project);
     }
@@ -172,6 +170,8 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
     @Override
     public List<AuthoringProjectField> retrieveProjectCustomFields(String projectKey) throws BusinessServiceException {
         Project project = getProjectOrThrow(projectKey);
+        permissionService.checkAccessPermissionOnProjectOrThrown(projectKey);
+
         Map<String, Boolean> customFields = Optional.ofNullable(project.getCustomFields()).orElse(new HashMap<>());
         List<AuthoringProjectField> result = new ArrayList<>();
         projectCustomFieldConfiguration.getCustomFields().forEach((key, value) -> {
@@ -197,24 +197,23 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
     }
 
     @Override
-    public AuthoringProject retrieveProject(String projectKey) {
+    public AuthoringProject retrieveProject(String projectKey) throws BusinessServiceException {
+        Project project = getProjectOrThrow(projectKey);
         permissionService.checkAccessPermissionOnProjectOrThrown(projectKey);
-        Optional<Project> projectOptional = projectRepository.findById(projectKey);
-        return projectOptional.map(project -> buildAuthoringProjects(List.of(project), false).get(0)).orElse(null);
+        return buildAuthoringProjects(List.of(project), false).get(0);
 
     }
 
     @Override
-    public AuthoringProject retrieveProject(String projectKey, boolean lightweight) {
+    public AuthoringProject retrieveProject(String projectKey, boolean lightweight) throws BusinessServiceException {
+        Project project = getProjectOrThrow(projectKey);
         permissionService.checkAccessPermissionOnProjectOrThrown(projectKey);
-        Optional<Project> projectOptional = projectRepository.findById(projectKey);
-        return projectOptional.map(project -> buildAuthoringProjects(List.of(project), lightweight).get(0)).orElse(null);
+        return buildAuthoringProjects(List.of(project), lightweight).get(0);
     }
 
     @Override
     public void lockProject(String projectKey) throws BusinessServiceException {
-        permissionService.checkFullPermissionOnProjectOrThrow(projectKey);
-        Project project = getProjectOrThrow(projectKey);
+        Project project = getProjectAndCheckPermission(projectKey);
         Map<String, Boolean> customFields = Optional.ofNullable(project.getCustomFields()).orElse(new HashMap<>());
         customFields.put(PROJECT_LOCKED_FILED, true);
         project.setCustomFields(customFields);
@@ -223,8 +222,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
     @Override
     public void unlockProject(String projectKey) throws BusinessServiceException {
-        permissionService.checkFullPermissionOnProjectOrThrow(projectKey);
-        Project project = getProjectOrThrow(projectKey);
+        Project project = getProjectAndCheckPermission(projectKey);
         Map<String, Boolean> customFields = Optional.ofNullable(project.getCustomFields()).orElse(new HashMap<>());
         customFields.put(PROJECT_LOCKED_FILED, false);
         project.setCustomFields(customFields);
@@ -249,8 +247,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
     @Override
     public void updateProjectCustomFields(String projectKey, ProjectFieldUpdateRequest request) throws BusinessServiceException {
-        permissionService.checkFullPermissionOnProjectOrThrow(projectKey);
-        Project project = getProjectOrThrow(projectKey);
+        Project project = getProjectAndCheckPermission(projectKey);
         Map<String, Boolean> customFields = Optional.ofNullable(project.getCustomFields()).orElse(new HashMap<>());
         for (AuthoringProjectField item : request.fields()) {
             customFields.put(item.getId(), ENABLED_TEXT.equals(item.getValue()));
@@ -267,8 +264,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
     @Override
     public void updateProjectRoles(String projectKey, ProjectRoleUpdateRequest request) throws BusinessServiceException {
-        permissionService.checkFullPermissionOnProjectOrThrow(projectKey);
-        Project project = getProjectOrThrow(projectKey);
+        Project project = getProjectAndCheckPermission(projectKey);
         List<ProjectUserGroup> existing = Objects.requireNonNullElseGet(project.getUserGroups(), ArrayList::new);
 
         request.roles().forEach(item -> {
@@ -284,6 +280,12 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
         project.setUserGroups(existing);
         projectRepository.save(project);
 
+    }
+
+    private Project getProjectAndCheckPermission(String projectKey) throws BusinessServiceException {
+        Project project = getProjectOrThrow(projectKey);
+        permissionService.checkFullPermissionOnProjectOrThrow(projectKey);
+        return project;
     }
 
     private Project getProjectOrThrow(String projectKey) throws BusinessServiceException {

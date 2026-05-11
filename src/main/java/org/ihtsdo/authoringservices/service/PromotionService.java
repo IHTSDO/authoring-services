@@ -135,7 +135,7 @@ public class PromotionService {
     }
 
     public void doTaskPromotion(String projectKey, String taskKey, MergeRequest mergeRequest) throws BusinessServiceException {
-        boolean useNew = taskServiceFactory.getInstance(true).isUseNew(taskKey);
+        boolean useNew = taskServiceFactory.getInstance(true).exists(taskKey);
         AuthoringProject project = projectServiceFactory.getInstance(useNew).retrieveProject(projectKey, true);
         if (Boolean.TRUE.equals(project.isTaskPromotionDisabled())) {
             throw new BusinessServiceException(TASK_PROMOTION_DISABLED_MSG);
@@ -192,7 +192,7 @@ public class PromotionService {
     }
 
     public void doProjectPromotion(String projectKey, MergeRequest mergeRequest) throws BusinessServiceException {
-        boolean useNew = projectServiceFactory.getInstance(true).isUseNew(projectKey);
+        boolean useNew = projectServiceFactory.getInstance(true).exists(projectKey);
         AuthoringProject project = projectServiceFactory.getInstance(useNew).retrieveProject(projectKey, true);
         if (Boolean.TRUE.equals(project.isProjectPromotionDisabled()) || Boolean.TRUE.equals(project.isProjectLocked())) {
             throw new BusinessServiceException("Project promotion is disabled");
@@ -249,7 +249,7 @@ public class PromotionService {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         try {
             logger.info("Beginning auto promotion of task {}", taskKey);
-            boolean useNew = projectServiceFactory.getInstance(true).isUseNew(projectKey);
+            boolean useNew = projectServiceFactory.getInstance(true).exists(projectKey);
             AuthoringProject project = projectServiceFactory.getInstance(useNew).retrieveProject(projectKey, true);
             if (Boolean.TRUE.equals(project.isTaskPromotionDisabled())) {
                 ProcessStatus status = new ProcessStatus(FAILED_STATUS, TASK_PROMOTION_DISABLED_MSG);

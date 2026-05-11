@@ -35,7 +35,7 @@ public class TaskServiceFactory {
     }
 
     public TaskService getInstanceByKey(String taskKey) {
-        if (authoringTaskService.isUseNew(taskKey)) {
+        if (authoringTaskService.exists(taskKey)) {
             return authoringTaskService;
         } else if (jiraEnabled) {
             return jiraTaskService;

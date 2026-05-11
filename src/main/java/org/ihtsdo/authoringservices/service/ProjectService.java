@@ -8,7 +8,7 @@ import java.util.List;
 
 public interface ProjectService {
 
-    boolean isUseNew(String projectKey);
+    boolean exists(String projectKey);
 
     AuthoringProject createProject(CreateProjectRequest request, AuthoringCodeSystem codeSystem) throws BusinessServiceException;
 

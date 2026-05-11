@@ -14,7 +14,6 @@ import org.ihtsdo.authoringservices.service.util.ProjectFilterUtil;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.otf.rest.exception.EntityAlreadyExistsException;
-import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -167,13 +166,8 @@ public class AdminController {
     }
 
     private void findProjectAndThrowIfExists(String projectKey, Boolean useNew) throws EntityAlreadyExistsException {
-        AuthoringProject project = null;
-        try {
-            project = projectServiceFactory.getInstance(useNew).retrieveProject(projectKey, true);
-        } catch (BusinessServiceException | ResourceNotFoundException e) {
-            // do nothing
-        }
-        if (project != null) {
+        boolean found = projectServiceFactory.getInstance(useNew).exists(projectKey);
+        if (found) {
             throw new EntityAlreadyExistsException(String.format("Project with key %s already exists", projectKey));
         }
     }

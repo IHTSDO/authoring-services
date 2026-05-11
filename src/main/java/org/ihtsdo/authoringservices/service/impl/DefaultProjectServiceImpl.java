@@ -10,8 +10,8 @@ import java.util.List;
 
 public class DefaultProjectServiceImpl implements ProjectService {
     @Override
-    public boolean isUseNew(String projectKey) {
-        throw new UnsupportedOperationException("isUseNew is not supported");
+    public boolean exists(String projectKey) {
+        throw new UnsupportedOperationException("exists is not supported");
     }
 
     @Override

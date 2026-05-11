@@ -170,7 +170,7 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
     }
 
     @Override
-    public boolean isUseNew(String taskKey) {
+    public boolean exists(String taskKey) {
         return false;
     }
 

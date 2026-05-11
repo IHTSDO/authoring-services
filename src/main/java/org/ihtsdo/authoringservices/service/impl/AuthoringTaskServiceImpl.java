@@ -103,7 +103,7 @@ import java.util.stream.StreamSupport;
 	ObjectMapper objectMapper;
 
     @Override
-    public boolean isUseNew(String taskKey) {
+    public boolean exists(String taskKey) {
         Optional<Task> taskOptional = taskRepository.findById(taskKey);
         return taskOptional.isPresent();
     }
@@ -116,10 +116,8 @@ import java.util.stream.StreamSupport;
     @Override
     @Transactional
     public AuthoringTask createTask(String projectKey, String username, AuthoringTaskCreateRequest taskCreateRequest, TaskType type) throws BusinessServiceException {
-        permissionService.checkFullPermissionOnProjectOrThrow(projectKey);
-
         Project project = getProjectOrThrow(projectKey);
-
+        permissionService.checkFullPermissionOnProjectOrThrow(projectKey);
 
         // Create project branch if needed
         try {

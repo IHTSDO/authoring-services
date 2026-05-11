@@ -129,7 +129,7 @@ public class TaskController {
     @ApiResponse(responseCode = "200", description = "OK")
     @PostMapping(value = "/projects/{projectKey}/tasks")
     public AuthoringTask createTask(@PathVariable final String projectKey, @RequestParam(value = "type", required = false, defaultValue = "AUTHORING") TaskType type, @RequestBody final AuthoringTaskCreateRequest taskCreateRequest) throws BusinessServiceException {
-        boolean useNew = projectServiceFactory.getInstance(true).isUseNew(projectKey);
+        boolean useNew = projectServiceFactory.getInstance(true).exists(projectKey);
         String assignee = taskCreateRequest.getAssignee() != null ? taskCreateRequest.getAssignee().getUsername() : SecurityUtil.getUsername();
         return taskServiceFactory.getInstance(useNew).createTask(requiredParam(projectKey, PROJECT_KEY), assignee, taskCreateRequest, type);
     }

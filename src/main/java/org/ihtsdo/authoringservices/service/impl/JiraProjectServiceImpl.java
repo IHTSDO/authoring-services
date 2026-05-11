@@ -404,7 +404,7 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
     }
 
     @Override
-    public boolean isUseNew(String projectKey) {
+    public boolean exists(String projectKey) {
         return false;
     }
 

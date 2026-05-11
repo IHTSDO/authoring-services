@@ -35,7 +35,7 @@ public class ProjectServiceFactory {
     }
 
     public ProjectService getInstanceByKey(String projectKey) {
-        if (authoringProjectService.isUseNew(projectKey)) {
+        if (authoringProjectService.exists(projectKey)) {
             return authoringProjectService;
         } else if (jiraEnabled) {
             return  jiraProjectService;

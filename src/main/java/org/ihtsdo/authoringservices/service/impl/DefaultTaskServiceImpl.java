@@ -11,8 +11,8 @@ import java.util.Set;
 
 public class DefaultTaskServiceImpl implements TaskService {
     @Override
-    public boolean isUseNew(String taskKey) {
-        throw new UnsupportedOperationException("isUseNew is not supported");
+    public boolean exists(String taskKey) {
+        throw new UnsupportedOperationException("exists is not supported");
     }
 
     @Override
