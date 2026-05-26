@@ -44,6 +44,11 @@ public class DefaultProjectServiceImpl implements ProjectService {
     }
 
     @Override
+    public List<AuthoringProject> listMyProjects(String username, Boolean lightweight) throws BusinessServiceException {
+        return Collections.emptyList();
+    }
+
+    @Override
     public AuthoringProject retrieveProject(String projectKey) throws BusinessServiceException {
         throw new ResourceNotFoundException(String.format(PROJECT_NOT_FOUND_MSG, projectKey));
     }

@@ -300,6 +300,11 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
     }
 
     @Override
+    public List<AuthoringProject> listMyProjects(String username, Boolean lightweight) throws BusinessServiceException {
+        return Collections.emptyList();
+    }
+
+    @Override
     public AuthoringProject retrieveProject(String projectKey) throws BusinessServiceException {
         List<Issue> issues = Collections.singletonList(getProjectTicket(projectKey));
         List<AuthoringProject> projects = buildAuthoringProjects(issues, false);

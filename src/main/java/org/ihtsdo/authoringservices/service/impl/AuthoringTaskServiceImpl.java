@@ -371,6 +371,24 @@ import java.util.stream.StreamSupport;
     }
 
     @Override
+    public List<String> listMyTaskProjectKeys(String username) {
+        if (StringUtils.isBlank(username)) {
+            return Collections.emptyList();
+        }
+
+        QTask qTask = QTask.task;
+        BooleanExpression predicate = qTask.status.notIn(Arrays.asList(EXCLUDE_STATUSES))
+                .and(qTask.assignee.eq(username).or(qTask.reviewers.any().username.eq(username)));
+        Iterable<Task> tasks = taskRepository.findAll(predicate);
+        return StreamSupport.stream(tasks.spliterator(), false)
+                .map(Task::getProject)
+                .filter(Objects::nonNull)
+                .map(Project::getKey)
+                .distinct()
+                .toList();
+    }
+
+    @Override
     public List<AuthoringTask> searchTasks(String criteria, Set<String> projectKeys, Set<String> statuses, String author, Long createdDateFrom, Long createdDateTo, Boolean lightweight) throws BusinessServiceException {
         // Early return if no search criteria provided
         if (isEmptySearchCriteria(criteria, projectKeys, statuses, author, createdDateFrom, createdDateTo)) {

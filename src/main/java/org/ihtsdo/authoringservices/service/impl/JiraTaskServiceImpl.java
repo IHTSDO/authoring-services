@@ -552,6 +552,24 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
         return buildAuthoringTasks(issues, codeSystems, false);
     }
 
+    @Override
+    public List<String> listMyTaskProjectKeys(String username) throws BusinessServiceException {
+        if (StringUtils.isBlank(username)) {
+            return Collections.emptyList();
+        }
+
+        String jql = "type = \"" + AUTHORING_TASK_TYPE + "\" " + EXCLUDE_STATUSES
+                + " AND (assignee = \"" + username + "\" OR Reviewer = currentUser() OR Reviewers = currentUser())";
+        try {
+            return searchIssues(jql, LIMIT_UNLIMITED, Sets.newHashSet(Field.PROJECT)).stream()
+                    .map(issue -> issue.getProject().getKey())
+                    .distinct()
+                    .toList();
+        } catch (JiraException e) {
+            throw new BusinessServiceException("Failed to list my task project keys", e);
+        }
+    }
+
     private String getProjectTaskJQL(String projectKey, TaskStatus taskStatus) {
         String jql = "project = " + projectKey + " AND type = \"" + AUTHORING_TASK_TYPE + "\" " + EXCLUDE_STATUSES;
         if (taskStatus != null) {

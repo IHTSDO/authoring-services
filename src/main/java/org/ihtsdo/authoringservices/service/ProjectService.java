@@ -20,6 +20,8 @@ public interface ProjectService {
 
     List<AuthoringProject> listProjects(Boolean lightweight, Boolean ignoreProductCodeFilter, Boolean excludeArchived) throws BusinessServiceException;
 
+    List<AuthoringProject> listMyProjects(String username, Boolean lightweight) throws BusinessServiceException;
+
     AuthoringProject retrieveProject(String projectKey) throws BusinessServiceException;
 
     AuthoringProject retrieveProject(String projectKey, boolean lightweight) throws BusinessServiceException;

@@ -14,9 +14,11 @@ import org.ihtsdo.authoringservices.service.RebaseService;
 import org.ihtsdo.authoringservices.service.ScheduledRebaseService;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.authoringservices.service.factory.ProjectServiceFactory;
+import org.ihtsdo.authoringservices.service.factory.TaskServiceFactory;
 import org.ihtsdo.authoringservices.service.util.ProjectFilterUtil;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
+import org.ihtsdo.sso.integration.SecurityUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -24,8 +26,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 import static org.ihtsdo.authoringservices.rest.ControllerHelper.PROJECT_KEY;
 import static org.ihtsdo.authoringservices.rest.ControllerHelper.requiredParam;
@@ -39,6 +43,9 @@ public class ProjectController {
 
     @Autowired
     private ProjectServiceFactory projectServiceFactory;
+
+    @Autowired
+    private TaskServiceFactory taskServiceFactory;
 
     @Autowired
     private PromotionService promotionService;
@@ -81,6 +88,23 @@ public class ProjectController {
         }
 
         return projects;
+    }
+
+    @Operation(summary = "List authenticated user's projects")
+    @ApiResponse(responseCode = "200", description = "OK")
+    @GetMapping(value = "/projects/my-projects")
+    public List<AuthoringProject> listMyProjects(@RequestParam(value = "lightweight", required = false) Boolean lightweight) throws BusinessServiceException {
+        String username = SecurityUtil.getUsername();
+        List<AuthoringProject> results = new ArrayList<>(projectServiceFactory.getInstance(true).listMyProjects(username, lightweight));
+        Set<String> projectKeys = new LinkedHashSet<>(results.stream().map(AuthoringProject::getKey).toList());
+
+        for (String projectKey : taskServiceFactory.getInstance(false).listMyTaskProjectKeys(username)) {
+            if (projectKeys.add(projectKey)) {
+                results.add(projectServiceFactory.getInstance(false).retrieveProject(projectKey, Boolean.TRUE.equals(lightweight)));
+            }
+        }
+
+        return results;
     }
 
     @Operation(summary = "Retrieve an authoring project")
