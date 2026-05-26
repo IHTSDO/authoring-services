@@ -1,10 +1,13 @@
 package org.ihtsdo.authoringservices.service.impl;
 
 import com.google.common.cache.LoadingCache;
+import com.querydsl.core.types.dsl.BooleanExpression;
 import jakarta.transaction.Transactional;
 import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.entity.Project;
 import org.ihtsdo.authoringservices.entity.ProjectUserGroup;
+import org.ihtsdo.authoringservices.entity.QTask;
+import org.ihtsdo.authoringservices.entity.Task;
 import org.ihtsdo.authoringservices.entity.TaskSequence;
 import org.ihtsdo.authoringservices.repository.ProjectRepository;
 import org.ihtsdo.authoringservices.repository.ProjectUserGroupRepository;
@@ -21,6 +24,7 @@ import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Classification;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.PermissionRecord;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
+import org.ihtsdo.sso.integration.SecurityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,9 +32,11 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.util.StringUtils;
 
 import java.util.*;
 import java.util.List;
+import java.util.stream.StreamSupport;
 
 @Transactional
 public class AuthoringProjectServiceImpl extends ProjectServiceBase implements ProjectService {
@@ -41,6 +47,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
     private static final String ENABLED_TEXT = "Enabled";
     private static final String DISABLED_TEXT = "Disabled";
+    private static final List<TaskStatus> MY_PROJECT_EXCLUDED_TASK_STATUSES = List.of(TaskStatus.COMPLETED, TaskStatus.DELETED);
 
     @Value("${jira.enabled}")
     private boolean jiraEnabled;
@@ -96,7 +103,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
         Project project = new Project();
         project.setKey(request.key());
         project.setName(request.name());
-        project.setLead(request.lead());
+        project.setLead(StringUtils.hasLength(request.lead()) ? request.lead() : SecurityUtil.getUsername());
         project.setBranchPath(codeSystem.getBranchPath() + "/" + request.key());
         project.setExtensionBase(codeSystem.getBranchPath());
 
@@ -191,9 +198,35 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
     @Override
     public List<AuthoringProject> listProjects(Boolean lightweight, Boolean ignoreProductCodeFilter, Boolean excludeArchived) {
-        List<Project> projects = permissionService. getProjectsForUser();
+        List<Project> projects = permissionService.getProjectsForUser();
         List<Project> result = projects.stream().filter(project -> !Boolean.TRUE.equals(project.isCanReviewTaskOnly()) && (Boolean.FALSE.equals(excludeArchived) || Boolean.TRUE.equals(project.getActive()))).toList();
         return buildAuthoringProjects(result, lightweight);
+    }
+
+    @Override
+    public List<AuthoringProject> listMyProjects(String username, Boolean lightweight) {
+        if (!StringUtils.hasText(username)) {
+            return Collections.emptyList();
+        }
+        List<Project> projects = permissionService.getProjectsForUser();
+        if (!projects.isEmpty()) {
+            projects = projects.stream().filter(item -> !Boolean.TRUE.equals(item.isCanReviewTaskOnly()) && Boolean.TRUE.equals(item.getActive())).toList();
+        }
+
+        QTask qTask = QTask.task;
+        BooleanExpression predicate = qTask.status.notIn(MY_PROJECT_EXCLUDED_TASK_STATUSES)
+                .and(qTask.project.in(projects))
+                .and(qTask.assignee.eq(username)
+                    .or(qTask.reviewers.any().username.eq(username))
+                    .or(qTask.reviewers.isEmpty().and(qTask.status.eq(TaskStatus.IN_REVIEW)))
+                );
+        Iterable<Task> tasks = taskRepository.findAll(predicate);
+        List<Project> myProjects = StreamSupport.stream(tasks.spliterator(), false)
+                .map(Task::getProject)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+        return buildAuthoringProjects(myProjects, lightweight);
     }
 
     @Override
@@ -301,7 +334,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
         if (collection.isEmpty()) {
             return new ArrayList<>();
         }
-        List<Project> projects = (List<Project>) collection;
+        List<Project> projects = collection.stream().map(Project.class::cast).toList();
         final List<AuthoringProject> authoringProjects = new ArrayList<>();
         final Set<String> branchPaths = new HashSet<>();
         final SnowstormRestClient snowstormRestClient = snowstormRestClientFactory.getClient();
