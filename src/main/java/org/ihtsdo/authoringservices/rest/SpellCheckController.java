@@ -58,10 +58,9 @@ public class SpellCheckController {
 			description = "Visit this endpoint URL directly in your browser, loading through Swagger may not work.")
 	@ResponseBody
 	@RequestMapping(value = "/spelling/words/list", method = RequestMethod.GET, produces = "application/octet-stream")
-	public ResponseEntity<InputStreamResource> getWordList() throws IOException {
+	public ResponseEntity<InputStreamResource> getWordList() {
 		InputStream inputStream = spellingListsService.getListObject();
 		return ResponseEntity.ok()
-				.contentLength(inputStream.available())
 				.contentType(MediaType.APPLICATION_OCTET_STREAM)
 				.body(new InputStreamResource(inputStream));
 	}

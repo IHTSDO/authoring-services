@@ -7,6 +7,7 @@ import org.ihtsdo.authoringservices.service.DialectConversionService;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -97,12 +98,11 @@ public class DialectConversionController {
 			description = "Visit this endpoint URL directly in your browser, loading through Swagger may not work.")
 	@ResponseBody
 	@RequestMapping(value = "/dialect/en-us/map/en-gb/file", method = RequestMethod.GET, produces = "application/octet-stream")
-	public ResponseEntity<InputStreamResource> downloadEnUSToEnGbMap() throws IOException {
+	public ResponseEntity<InputStreamResource> downloadEnUSToEnGbMap() {
 		InputStream inputStream = dialectConversionService.getMapObject();
 		return ResponseEntity.ok()
-				.contentLength(inputStream.available())
 				.contentType(MediaType.APPLICATION_OCTET_STREAM)
-				.header("content-disposition", "attachment; filename=\"dialect_map_en-us_to_en-gb.txt\"")
+				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"us-to-gb-preferred-terms-map.txt\"")
 				.body(new InputStreamResource(inputStream));
 	}
 	
@@ -110,12 +110,11 @@ public class DialectConversionController {
 			description = "Visit this endpoint URL directly in your browser, loading through Swagger may not work.")
 	@ResponseBody
 	@RequestMapping(value = "/dialect/en-us/synonyms/en-gb/file", method = RequestMethod.GET, produces = "application/octet-stream")
-	public ResponseEntity<InputStreamResource> downloadEnUSToEnGbSynonyms() throws IOException {
+	public ResponseEntity<InputStreamResource> downloadEnUSToEnGbSynonyms() {
 		InputStream inputStream = dialectConversionService.getSynonymsMapObject();
 		return ResponseEntity.ok()
-				.contentLength(inputStream.available())
 				.contentType(MediaType.APPLICATION_OCTET_STREAM)
-				.header("content-disposition", "attachment; filename=\"us-to-gb-synonyms-map.txt\"")
+				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"us-to-gb-acceptable-terms-map.txt\"")
 				.body(new InputStreamResource(inputStream));
 	}
 
