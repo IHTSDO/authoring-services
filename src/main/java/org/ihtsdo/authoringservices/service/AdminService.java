@@ -87,24 +87,25 @@ public class AdminService {
     }
 
     @PreAuthorize("hasPermission('ADMIN', 'global')")
-    public void markTasksAsDeleted(Set<String> taskKeys) {
+    public void markTasksAsDeleted(List<MarkTaskAsDeletedItem> tasks) {
         final AuthoringTask request = new AuthoringTask();
         request.setStatus(TaskStatus.DELETED);
-        taskKeys.forEach(key -> {
+        logger.info("Marking {} tasks as deleted", tasks.size());
+        for (MarkTaskAsDeletedItem task : tasks) {
+            String projectKey = task.projectKey();
+            String taskKey = task.taskKey();
             try {
-                AuthoringTask internalAuthoringTask = taskServiceFactory.getInstance(true).retrieveTask(null, key, true, true);
-                taskServiceFactory.getInstance(true).updateTask(internalAuthoringTask.getProjectKey(), internalAuthoringTask.getKey(), request);
+                taskServiceFactory.getInstance(true).updateTask(projectKey, taskKey, request);
             } catch (ResourceNotFoundException | BusinessServiceException e) {
                 // Do nothing
             }
 
             try {
-                AuthoringTask jiraAuthoringTask = taskServiceFactory.getInstance(false).retrieveTask(null, key, true, true);
-                taskServiceFactory.getInstance(false).updateTask(jiraAuthoringTask.getProjectKey(), jiraAuthoringTask.getKey(), request);
+                taskServiceFactory.getInstance(false).updateTask(projectKey, taskKey, request);
             } catch (ResourceNotFoundException | BusinessServiceException | UnsupportedOperationException e) {
                 // Do nothing
             }
-        });
+        }
     }
 
     public void updateProjectStatus(String projectKey, Boolean useNew, Boolean activeStatus) throws BusinessServiceException {

@@ -77,11 +77,10 @@ public class AdminController {
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
-    @Operation(summary = "Bulk mark-as-deleted multiple task keys", description = "-")
+    @Operation(summary = "Bulk mark-as-deleted multiple tasks", description = "Each item must include projectKey and taskKey.")
     @PutMapping(value = "/tasks/mark-as-deleted")
-    public ResponseEntity<Void> markTasksAsDeleted(
-                                            @Parameter(description = "Task keys") @RequestParam final List<String> taskKeys) {
-        adminService.markTasksAsDeleted(new HashSet<>(taskKeys));
+    public ResponseEntity<Void> markTasksAsDeleted(@RequestBody final List<MarkTaskAsDeletedItem> tasks) {
+        adminService.markTasksAsDeleted(tasks);
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
