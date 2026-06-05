@@ -43,7 +43,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    public static final String PROJECT_LOCKED_FILED = "projectLocked";
+    public static final String PROJECT_LOCKED_FIELD = "projectLocked";
 
     private static final String ENABLED_TEXT = "Enabled";
     private static final String DISABLED_TEXT = "Disabled";
@@ -121,9 +121,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
             }
         }
 
-        Map<String, Boolean> customFields = new HashMap<>();
-        projectCustomFieldConfiguration.getCustomFields().forEach((key, value) -> customFields.put(key, !PROJECT_LOCKED_FILED.equals(key)));
-        project.setCustomFields(customFields);
+        project.setCustomFields(buildDefaultCustomFields());
         project.setUserGroups(groups);
         project = projectRepository.save(project);
 
@@ -248,7 +246,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
     public void lockProject(String projectKey) throws BusinessServiceException {
         Project project = getProjectAndCheckPermission(projectKey);
         Map<String, Boolean> customFields = Optional.ofNullable(project.getCustomFields()).orElse(new HashMap<>());
-        customFields.put(PROJECT_LOCKED_FILED, true);
+        customFields.put(PROJECT_LOCKED_FIELD, true);
         project.setCustomFields(customFields);
         projectRepository.save(project);
     }
@@ -257,7 +255,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
     public void unlockProject(String projectKey) throws BusinessServiceException {
         Project project = getProjectAndCheckPermission(projectKey);
         Map<String, Boolean> customFields = Optional.ofNullable(project.getCustomFields()).orElse(new HashMap<>());
-        customFields.put(PROJECT_LOCKED_FILED, false);
+        customFields.put(PROJECT_LOCKED_FIELD, false);
         project.setCustomFields(customFields);
         projectRepository.save(project);
     }
@@ -315,6 +313,15 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
     }
 
+    Map<String, Boolean> buildDefaultCustomFields() {
+        Set<String> disabledByDefault = Optional.ofNullable(projectCustomFieldConfiguration.getCustomFieldsDisabledByDefault())
+                .orElse(Set.of());
+        Map<String, Boolean> customFields = new HashMap<>();
+        projectCustomFieldConfiguration.getCustomFields().keySet()
+                .forEach(key -> customFields.put(key, !disabledByDefault.contains(key)));
+        return customFields;
+    }
+
     private Project getProjectAndCheckPermission(String projectKey) throws BusinessServiceException {
         Project project = getProjectOrThrow(projectKey);
         permissionService.checkFullPermissionOnProjectOrThrow(projectKey);
@@ -349,7 +356,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
                 Map<String, Boolean> customFields = Optional.ofNullable(project.getCustomFields()).orElse(new HashMap<>());
                 final boolean promotionDisabled = !Boolean.TRUE.equals(customFields.get("projectPromotion"));
-                final boolean projectLocked = Boolean.TRUE.equals(customFields.get(PROJECT_LOCKED_FILED));
+                final boolean projectLocked = Boolean.TRUE.equals(customFields.get(PROJECT_LOCKED_FIELD));
                 final boolean taskPromotionDisabled = !Boolean.TRUE.equals(customFields.get("taskPromotion"));
                 final boolean rebaseDisabled = !Boolean.TRUE.equals(customFields.get("projectRebase"));
                 final boolean scheduledRebaseDisabled = !Boolean.TRUE.equals(customFields.get("projectScheduledRebase"));
