@@ -3,6 +3,7 @@ package org.ihtsdo.authoringservices.service;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import jakarta.annotation.PostConstruct;
+import org.apache.http.HttpStatus;
 import org.ihtsdo.authoringservices.domain.User;
 import org.ihtsdo.authoringservices.service.client.IMSClientFactory;
 import org.ihtsdo.otf.rest.client.ims.IMSRestClient;
@@ -14,6 +15,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -272,12 +274,23 @@ public class UserCacheService {
             String token = getOrRefreshEmailViewerToken();
             return imsClientFactory.getClient(token).getUserDetails(username);
         } catch (Exception e) {
-            logger.error("Unexpected error fetching user '{}' from IMS: {}", username, e.getMessage(), e);
+            if (isNotFoundError(e)) {
+                logger.debug("User '{}' not found in IMS: {}", username, e.getMessage());
+            } else {
+                logger.error("Unexpected error fetching user '{}' from IMS: {}", username, e.getMessage(), e);
+            }
             // Return minimal user object as fallback
             User user = new User();
             user.setUsername(username);
             return user;
         }
+    }
+
+    private boolean isNotFoundError(Throwable e) {
+        if (e instanceof RestClientResponseException restException && restException.getStatusCode().value() == HttpStatus.SC_NOT_FOUND) {
+            return true;
+        }
+        return e.getCause() != null && isNotFoundError(e.getCause());
     }
 
     private void loginToIMSAndSetSecurityContext() throws URISyntaxException, IOException {
