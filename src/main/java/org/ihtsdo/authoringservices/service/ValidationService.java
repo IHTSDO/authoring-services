@@ -77,6 +77,8 @@ public class ValidationService {
 	public static final String INTERNATIONAL = "international";
 	public static final String MAX_FAILURE_EXPORT = "failureExportMax";
 	private static final String ASSERTION_EXCLUSION_LIST = "assertionExclusionList";
+	private static final String ASSERTION_EXCLUSION_MAP = "assertionExclusionMap";
+	private static final String ASSERTION_EXCLUSION_DEFAULT = "DEFAULT";
 
 	@Value("${aws.resources.enabled}")
 	private boolean awsResourceEnabled;
@@ -333,9 +335,7 @@ public class ValidationService {
 		if (branchMetadata.containsKey(MAX_FAILURE_EXPORT)) {
 			validationConfig.setFailureExportMax((String) branchMetadata.get(MAX_FAILURE_EXPORT));
 		}
-		if (branchMetadata.containsKey(ASSERTION_EXCLUSION_LIST)) {
-			validationConfig.setAssertionExclusionList(String.join(",", (List<String>) branchMetadata.get(ASSERTION_EXCLUSION_LIST)));
-		}
+		populateAssertionExclusions(validationConfig, branchMetadata);
 
 		validationConfig.setEnableMRCMValidation(enableMRCM);
 		validationConfig.setEnableTraceabilityValidation(!"true".equalsIgnoreCase((String) branchMetadata.get(DISABLE_TRACEABILITY_VALIDATION)));
@@ -354,6 +354,54 @@ public class ValidationService {
 
 		logger.info("Validation config created:{}", validationConfig);
 		return validationConfig;
+	}
+
+	@SuppressWarnings("unchecked")
+	private void populateAssertionExclusions(ValidationConfiguration validationConfig, Map<String, Object> branchMetadata) {
+		boolean hasExclusionMap = branchMetadata.containsKey(ASSERTION_EXCLUSION_MAP);
+		boolean hasExclusionList = branchMetadata.containsKey(ASSERTION_EXCLUSION_LIST);
+		if (!hasExclusionMap && !hasExclusionList) {
+			return;
+		}
+
+		Set<String> exclusions = new LinkedHashSet<>();
+		if (hasExclusionMap) {
+			collectAssertionExclusionsFromMap(
+					exclusions,
+					(Map<String, Object>) branchMetadata.get(ASSERTION_EXCLUSION_MAP),
+					validationConfig.getDefaultModuleId());
+		}
+		if (hasExclusionList) {
+			addExclusionUuids(exclusions, (List<String>) branchMetadata.get(ASSERTION_EXCLUSION_LIST));
+		}
+		if (exclusions.isEmpty()) {
+			return;
+		}
+
+		validationConfig.setAssertionExclusionList(String.join(",", exclusions));
+	}
+
+	@SuppressWarnings("unchecked")
+	private void collectAssertionExclusionsFromMap(Set<String> exclusions, Map<String, Object> exclusionMap, String defaultModuleId) {
+		for (Map.Entry<String, Object> entry : exclusionMap.entrySet()) {
+			if (isApplicableExclusionKey(entry.getKey(), defaultModuleId)) {
+				addExclusionUuids(exclusions, (List<String>) entry.getValue());
+			}
+		}
+	}
+
+	private void addExclusionUuids(Set<String> exclusions, Collection<String> uuids) {
+		if (uuids == null) {
+			return;
+		}
+		uuids.stream()
+				.filter(StringUtils::hasLength)
+				.forEach(exclusions::add);
+	}
+
+	private boolean isApplicableExclusionKey(String key, String defaultModuleId) {
+		return ASSERTION_EXCLUSION_DEFAULT.equals(key)
+				|| (StringUtils.hasLength(defaultModuleId) && defaultModuleId.equals(key));
 	}
 
 	public String getValidationJsonForBranch(String branchPath) throws BusinessServiceException {
