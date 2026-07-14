@@ -615,8 +615,7 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
             return new ArrayList<>();
         }
         List<Issue> projectTickets = (List<Issue>) collection;
-        final List<AuthoringProject> authoringProjects = new ArrayList<>();
-        final Set<String> branchPaths = new HashSet<>();
+        final List<AuthoringProject> authoringProjects = Collections.synchronizedList(new ArrayList<>());
         final List<CodeSystem> codeSystems = snowstormRestClientFactory.getClient().getCodeSystemsLightweight();
         final Future<Map<String, JiraProject>> unfilteredProjects = executorService.submit(() ->
                 getProjects(getJiraClient().getRestClient()).stream().collect(Collectors.toMap(JiraProject::key, Function.identity())));
@@ -625,11 +624,9 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
         projectTickets.parallelStream().forEach(projectTicket -> {
             SecurityContextHolder.setContext(securityContext);
             try {
-                AuthoringProject authoringProject = toAuthoringProject(projectTicket, codeSystems, lightweight, branchPaths, unfilteredProjects);
+                AuthoringProject authoringProject = toAuthoringProject(projectTicket, codeSystems, lightweight, unfilteredProjects);
                 if (authoringProject != null) {
-                    synchronized (authoringProjects) {
-                        authoringProjects.add(authoringProject);
-                    }
+                    authoringProjects.add(authoringProject);
                 }
             } catch (RestClientException | ServiceException | ExecutionException e) {
                 logger.error("Failed to fetch details of project {}", projectTicket.getProject().getName(), e);
@@ -639,12 +636,15 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
             }
         });
 
+        Set<String> branchPaths = authoringProjects.stream()
+                .map(AuthoringProject::getBranchPath)
+                .collect(Collectors.toSet());
         populateValidationStatusForProjects(validationService, branchPaths, authoringProjects, lightweight);
         return authoringProjects;
     }
 
     private AuthoringProject toAuthoringProject(Issue projectTicket, List<CodeSystem> codeSystems, Boolean lightweight,
-                                                Set<String> branchPaths, Future<Map<String, JiraProject>> unfilteredProjects)
+                                                Future<Map<String, JiraProject>> unfilteredProjects)
             throws ServiceException, RestClientException, ExecutionException, InterruptedException {
         final String projectKey = projectTicket.getProject().getKey();
         final String extensionBase = JiraHelper.toStringOrNull(projectTicket.getField(jiraExtensionBaseField));
@@ -662,10 +662,6 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
         Classification latestClassification = !Boolean.TRUE.equals(lightweight)
                 ? classificationService.getLatestClassification(branchPath) : null;
         JiraProject project = unfilteredProjects.get().get(projectKey);
-
-        synchronized (branchPaths) {
-            branchPaths.add(branchPath);
-        }
 
         AuthoringProject authoringProject = new AuthoringProject(
                 projectKey, project.name(), project.lead(), true, branchPath,

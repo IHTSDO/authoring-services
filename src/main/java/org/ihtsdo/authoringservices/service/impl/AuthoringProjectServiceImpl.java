@@ -36,6 +36,7 @@ import org.springframework.util.StringUtils;
 
 import java.util.*;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 @Transactional
@@ -343,29 +344,29 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
         }
         List<Project> projects = collection.stream().map(Project.class::cast).toList();
         final List<AuthoringProject> authoringProjects = new ArrayList<>();
-        final Set<String> branchPaths = new HashSet<>();
         final List<CodeSystem> codeSystems = snowstormRestClientFactory.getClient().getCodeSystemsLightweight();
         final SecurityContext securityContext = SecurityContextHolder.getContext();
 
         projects.forEach(project -> {
             SecurityContextHolder.setContext(securityContext);
             try {
-                AuthoringProject authoringProject = toAuthoringProject(project, codeSystems, lightweight, branchPaths);
+                AuthoringProject authoringProject = toAuthoringProject(project, codeSystems, lightweight);
                 if (authoringProject != null) {
-                    synchronized (authoringProjects) {
-                        authoringProjects.add(authoringProject);
-                    }
+                    authoringProjects.add(authoringProject);
                 }
             } catch (RestClientException | ServiceException | BusinessServiceException e) {
                 logger.error("Failed to fetch details of project {}", project.getName(), e);
             }
         });
 
+        Set<String> branchPaths = authoringProjects.stream()
+                .map(AuthoringProject::getBranchPath)
+                .collect(Collectors.toSet());
         populateValidationStatusForProjects(validationService, branchPaths, authoringProjects, lightweight);
         return authoringProjects;
     }
 
-    private AuthoringProject toAuthoringProject(Project project, List<CodeSystem> codeSystems, Boolean lightweight, Set<String> branchPaths)
+    private AuthoringProject toAuthoringProject(Project project, List<CodeSystem> codeSystems, Boolean lightweight)
             throws ServiceException, RestClientException, BusinessServiceException {
         final String projectKey = project.getKey();
         final String branchPath = project.getBranchPath();
@@ -381,10 +382,6 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
         CodeSystem codeSystem = getCodeSystemForProject(codeSystems, parentPath);
         Classification latestClassification = !Boolean.TRUE.equals(lightweight)
                 ? classificationService.getLatestClassification(branchPath) : null;
-
-        synchronized (branchPaths) {
-            branchPaths.add(branchPath);
-        }
 
         AuthoringProject authoringProject = new AuthoringProject(
                 projectKey, project.getName(), authoringTaskService.getUser(project.getLead()), project.getActive(),
