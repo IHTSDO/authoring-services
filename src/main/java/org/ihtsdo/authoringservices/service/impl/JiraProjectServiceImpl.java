@@ -19,7 +19,6 @@ import org.ihtsdo.authoringservices.service.jira.JiraHelper;
 import org.ihtsdo.authoringservices.service.util.TimerUtil;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
-import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Classification;
@@ -618,66 +617,19 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
         List<Issue> projectTickets = (List<Issue>) collection;
         final List<AuthoringProject> authoringProjects = new ArrayList<>();
         final Set<String> branchPaths = new HashSet<>();
-        final SnowstormRestClient snowstormRestClient = snowstormRestClientFactory.getClient();
-        List<CodeSystem> codeSystems = snowstormRestClient.getCodeSystemsLightweight();
+        final List<CodeSystem> codeSystems = snowstormRestClientFactory.getClient().getCodeSystemsLightweight();
+        final Future<Map<String, JiraProject>> unfilteredProjects = executorService.submit(() ->
+                getProjects(getJiraClient().getRestClient()).stream().collect(Collectors.toMap(JiraProject::key, Function.identity())));
+        final SecurityContext securityContext = SecurityContextHolder.getContext();
 
-        JiraClient jiraClient = getJiraClient();
-        Future<Map<String, JiraProject>> unfilteredProjects = executorService.submit(() -> getProjects(jiraClient.getRestClient()).stream().collect(Collectors.toMap(JiraProject::key, Function.identity())));
-
-        SecurityContext securityContext = SecurityContextHolder.getContext();
         projectTickets.parallelStream().forEach(projectTicket -> {
             SecurityContextHolder.setContext(securityContext);
             try {
-                final String projectKey = projectTicket.getProject().getKey();
-                final String extensionBase = JiraHelper.toStringOrNull(projectTicket.getField(jiraExtensionBaseField));
-                final String branchPath = PathHelper.getProjectPath(extensionBase, projectKey);
-
-                final boolean promotionDisabled = DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectPromotionField)));
-                final boolean projectLocked = !DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectLockedField)));
-                final boolean taskPromotionDisabled = DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraTaskPromotionField)));
-                final boolean rebaseDisabled = DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectRebaseField)));
-                final boolean scheduledRebaseDisabled = DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectScheduledRebaseField)));
-                final boolean mrcmDisabled = DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectMrcmField)));
-                final boolean templatesDisabled = DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectTemplatesField)));
-                final boolean spellCheckDisabled = DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectSpellCheckField)));
-                final boolean projectTranslation = !DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(jiraProjectTranslationField)));
-
-                final Branch branchOrNull = branchService.getBranchOrNull(branchPath);
-                String parentPath = PathHelper.getParentPath(branchPath);
-                final Branch parentBranchOrNull = branchService.getBranchOrNull(parentPath);
-                if (parentBranchOrNull == null) {
-                    logger.error("Project {} expected parent branch does not exist: {}", projectKey, parentPath);
-                    return;
-                }
-                CodeSystem codeSystem = getCodeSystemForProject(codeSystems, parentPath);
-                String branchState = null;
-                Map<String, Object> metadata = new HashMap<>();
-                Long baseTimeStamp = null;
-                Long headTimeStamp = null;
-                if (branchOrNull != null) {
-                    branchState = branchOrNull.getState();
-                    baseTimeStamp = branchOrNull.getBaseTimestamp();
-                    headTimeStamp = branchOrNull.getHeadTimestamp();
-                    metadata.putAll(parentBranchOrNull.getMetadata());
-                    if (branchOrNull.getMetadata() != null) {
-                        metadata.putAll(branchOrNull.getMetadata());
+                AuthoringProject authoringProject = toAuthoringProject(projectTicket, codeSystems, lightweight, branchPaths, unfilteredProjects);
+                if (authoringProject != null) {
+                    synchronized (authoringProjects) {
+                        authoringProjects.add(authoringProject);
                     }
-                }
-                synchronized (branchPaths) {
-                    branchPaths.add(branchPath);
-                }
-                Classification latestClassification = !Boolean.TRUE.equals(lightweight) ? classificationService.getLatestClassification(branchPath) : null;
-                Map<String, JiraProject> projectMap = unfilteredProjects.get();
-                JiraProject project = projectMap.get(projectKey);
-                final AuthoringProject authoringProject = new AuthoringProject(projectKey, project.name(),
-                        project.lead(), true, branchPath, branchState, baseTimeStamp, headTimeStamp, latestClassification, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled, rebaseDisabled, scheduledRebaseDisabled, taskPromotionDisabled, projectLocked, projectTranslation);
-                authoringProject.setMetadata(metadata);
-                authoringProject.setCodeSystem(codeSystem);
-                if (codeSystem != null) {
-                    authoringProject.setMaintainerType(codeSystem.getMaintainerType());
-                }
-                synchronized (authoringProjects) {
-                    authoringProjects.add(authoringProject);
                 }
             } catch (RestClientException | ServiceException | ExecutionException e) {
                 logger.error("Failed to fetch details of project {}", projectTicket.getProject().getName(), e);
@@ -688,8 +640,60 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
         });
 
         populateValidationStatusForProjects(validationService, branchPaths, authoringProjects, lightweight);
-
         return authoringProjects;
+    }
+
+    private AuthoringProject toAuthoringProject(Issue projectTicket, List<CodeSystem> codeSystems, Boolean lightweight,
+                                                Set<String> branchPaths, Future<Map<String, JiraProject>> unfilteredProjects)
+            throws ServiceException, RestClientException, ExecutionException, InterruptedException {
+        final String projectKey = projectTicket.getProject().getKey();
+        final String extensionBase = JiraHelper.toStringOrNull(projectTicket.getField(jiraExtensionBaseField));
+        final String branchPath = PathHelper.getProjectPath(extensionBase, projectKey);
+        final String parentPath = PathHelper.getParentPath(branchPath);
+        final Branch parentBranch = branchService.getBranchOrNull(parentPath);
+        if (parentBranch == null) {
+            logger.error("Project {} expected parent branch does not exist: {}", projectKey, parentPath);
+            return null;
+        }
+
+        ProjectFeatureFlags flags = resolveFeatureFlags(projectTicket);
+        BranchDetails branchDetails = toBranchDetails(branchService.getBranchOrNull(branchPath), parentBranch);
+        CodeSystem codeSystem = getCodeSystemForProject(codeSystems, parentPath);
+        Classification latestClassification = !Boolean.TRUE.equals(lightweight)
+                ? classificationService.getLatestClassification(branchPath) : null;
+        JiraProject project = unfilteredProjects.get().get(projectKey);
+
+        synchronized (branchPaths) {
+            branchPaths.add(branchPath);
+        }
+
+        AuthoringProject authoringProject = new AuthoringProject(
+                projectKey, project.name(), project.lead(), true, branchPath,
+                branchDetails.branchState(), branchDetails.baseTimeStamp(), branchDetails.headTimeStamp(),
+                latestClassification, flags.promotionDisabled(), flags.mrcmDisabled(), flags.templatesDisabled(),
+                flags.spellCheckDisabled(), flags.rebaseDisabled(), flags.scheduledRebaseDisabled(),
+                flags.taskPromotionDisabled(), flags.projectLocked(), flags.translationProject());
+        authoringProject.setMetadata(branchDetails.metadata());
+        applyCodeSystem(authoringProject, codeSystem);
+        return authoringProject;
+    }
+
+    private ProjectFeatureFlags resolveFeatureFlags(Issue projectTicket) {
+        return new ProjectFeatureFlags(
+                isDisabled(projectTicket, jiraProjectPromotionField),
+                !isDisabled(projectTicket, jiraProjectLockedField),
+                isDisabled(projectTicket, jiraTaskPromotionField),
+                isDisabled(projectTicket, jiraProjectRebaseField),
+                isDisabled(projectTicket, jiraProjectScheduledRebaseField),
+                isDisabled(projectTicket, jiraProjectMrcmField),
+                isDisabled(projectTicket, jiraProjectTemplatesField),
+                isDisabled(projectTicket, jiraProjectSpellCheckField),
+                !isDisabled(projectTicket, jiraProjectTranslationField)
+        );
+    }
+
+    private boolean isDisabled(Issue projectTicket, String field) {
+        return DISABLED_TEXT.equals(JiraHelper.toStringOrNull(projectTicket.getField(field)));
     }
 
     private List<Issue> searchIssues(String jql, int limit, Set<String> requiredFields) throws JiraException {

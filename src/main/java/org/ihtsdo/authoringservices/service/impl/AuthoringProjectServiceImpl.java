@@ -344,64 +344,17 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
         List<Project> projects = collection.stream().map(Project.class::cast).toList();
         final List<AuthoringProject> authoringProjects = new ArrayList<>();
         final Set<String> branchPaths = new HashSet<>();
-        final SnowstormRestClient snowstormRestClient = snowstormRestClientFactory.getClient();
-        List<CodeSystem> codeSystems = snowstormRestClient.getCodeSystemsLightweight();
+        final List<CodeSystem> codeSystems = snowstormRestClientFactory.getClient().getCodeSystemsLightweight();
+        final SecurityContext securityContext = SecurityContextHolder.getContext();
 
-        SecurityContext securityContext = SecurityContextHolder.getContext();
         projects.forEach(project -> {
             SecurityContextHolder.setContext(securityContext);
             try {
-                final String projectKey = project.getKey();
-                final String branchPath = project.getBranchPath();
-
-                Map<String, Boolean> customFields = Optional.ofNullable(project.getCustomFields()).orElse(new HashMap<>());
-                final boolean promotionDisabled = !Boolean.TRUE.equals(customFields.get("projectPromotion"));
-                final boolean projectLocked = Boolean.TRUE.equals(customFields.get(PROJECT_LOCKED_FIELD));
-                final boolean taskPromotionDisabled = !Boolean.TRUE.equals(customFields.get("taskPromotion"));
-                final boolean rebaseDisabled = !Boolean.TRUE.equals(customFields.get("projectRebase"));
-                final boolean scheduledRebaseDisabled = !Boolean.TRUE.equals(customFields.get("projectScheduledRebase"));
-                final boolean mrcmDisabled = !Boolean.TRUE.equals(customFields.get("projectMrcm"));
-                final boolean templatesDisabled = !Boolean.TRUE.equals(customFields.get("projectTemplates"));
-                final boolean spellCheckDisabled = !Boolean.TRUE.equals(customFields.get("projectSpellCheck"));
-                final boolean translationProject = customFields.getOrDefault("translationProject", false);
-
-                final Branch branchOrNull = branchService.getBranchOrNull(branchPath);
-                String parentPath = PathHelper.getParentPath(branchPath);
-                final Branch parentBranchOrNull = branchService.getBranchOrNull(parentPath);
-                if (parentBranchOrNull == null) {
-                    logger.error("Project {} expected parent branch does not exist: {}", projectKey, parentPath);
-                    return;
-                }
-                CodeSystem codeSystem = getCodeSystemForProject(codeSystems, parentPath);
-                String branchState = null;
-                Map<String, Object> metadata = new HashMap<>();
-                Long baseTimeStamp = null;
-                Long headTimeStamp = null;
-                if (branchOrNull != null) {
-                    branchState = branchOrNull.getState();
-                    baseTimeStamp = branchOrNull.getBaseTimestamp();
-                    headTimeStamp = branchOrNull.getHeadTimestamp();
-                    metadata.putAll(parentBranchOrNull.getMetadata());
-                    if (branchOrNull.getMetadata() != null) {
-                        metadata.putAll(branchOrNull.getMetadata());
+                AuthoringProject authoringProject = toAuthoringProject(project, codeSystems, lightweight, branchPaths);
+                if (authoringProject != null) {
+                    synchronized (authoringProjects) {
+                        authoringProjects.add(authoringProject);
                     }
-                }
-                synchronized (branchPaths) {
-                    branchPaths.add(branchPath);
-                }
-                Classification latestClassification = !Boolean.TRUE.equals(lightweight) ? classificationService.getLatestClassification(branchPath) : null;
-
-                User lead = authoringTaskService.getUser(project.getLead());
-                final AuthoringProject authoringProject = new AuthoringProject(projectKey, project.getName(),
-                        lead, project.getActive(), branchPath, branchState, baseTimeStamp, headTimeStamp, latestClassification, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled, rebaseDisabled, scheduledRebaseDisabled, taskPromotionDisabled, projectLocked, translationProject);
-                authoringProject.setMetadata(metadata);
-                authoringProject.setCodeSystem(codeSystem);
-                authoringProject.setInternalAuthoringProject(true);
-                if (codeSystem != null) {
-                    authoringProject.setMaintainerType(codeSystem.getMaintainerType());
-                }
-                synchronized (authoringProjects) {
-                    authoringProjects.add(authoringProject);
                 }
             } catch (RestClientException | ServiceException | BusinessServiceException e) {
                 logger.error("Failed to fetch details of project {}", project.getName(), e);
@@ -410,5 +363,53 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
         populateValidationStatusForProjects(validationService, branchPaths, authoringProjects, lightweight);
         return authoringProjects;
+    }
+
+    private AuthoringProject toAuthoringProject(Project project, List<CodeSystem> codeSystems, Boolean lightweight, Set<String> branchPaths)
+            throws ServiceException, RestClientException, BusinessServiceException {
+        final String projectKey = project.getKey();
+        final String branchPath = project.getBranchPath();
+        final String parentPath = PathHelper.getParentPath(branchPath);
+        final Branch parentBranch = branchService.getBranchOrNull(parentPath);
+        if (parentBranch == null) {
+            logger.error("Project {} expected parent branch does not exist: {}", projectKey, parentPath);
+            return null;
+        }
+
+        ProjectFeatureFlags flags = resolveFeatureFlags(project.getCustomFields());
+        BranchDetails branchDetails = toBranchDetails(branchService.getBranchOrNull(branchPath), parentBranch);
+        CodeSystem codeSystem = getCodeSystemForProject(codeSystems, parentPath);
+        Classification latestClassification = !Boolean.TRUE.equals(lightweight)
+                ? classificationService.getLatestClassification(branchPath) : null;
+
+        synchronized (branchPaths) {
+            branchPaths.add(branchPath);
+        }
+
+        AuthoringProject authoringProject = new AuthoringProject(
+                projectKey, project.getName(), authoringTaskService.getUser(project.getLead()), project.getActive(),
+                branchPath, branchDetails.branchState(), branchDetails.baseTimeStamp(), branchDetails.headTimeStamp(),
+                latestClassification, flags.promotionDisabled(), flags.mrcmDisabled(), flags.templatesDisabled(),
+                flags.spellCheckDisabled(), flags.rebaseDisabled(), flags.scheduledRebaseDisabled(),
+                flags.taskPromotionDisabled(), flags.projectLocked(), flags.translationProject());
+        authoringProject.setMetadata(branchDetails.metadata());
+        authoringProject.setInternalAuthoringProject(true);
+        applyCodeSystem(authoringProject, codeSystem);
+        return authoringProject;
+    }
+
+    private ProjectFeatureFlags resolveFeatureFlags(Map<String, Boolean> customFieldsSource) {
+        Map<String, Boolean> customFields = Optional.ofNullable(customFieldsSource).orElse(new HashMap<>());
+        return new ProjectFeatureFlags(
+                !Boolean.TRUE.equals(customFields.get("projectPromotion")),
+                Boolean.TRUE.equals(customFields.get(PROJECT_LOCKED_FIELD)),
+                !Boolean.TRUE.equals(customFields.get("taskPromotion")),
+                !Boolean.TRUE.equals(customFields.get("projectRebase")),
+                !Boolean.TRUE.equals(customFields.get("projectScheduledRebase")),
+                !Boolean.TRUE.equals(customFields.get("projectMrcm")),
+                !Boolean.TRUE.equals(customFields.get("projectTemplates")),
+                !Boolean.TRUE.equals(customFields.get("projectSpellCheck")),
+                customFields.getOrDefault("translationProject", false)
+        );
     }
 }

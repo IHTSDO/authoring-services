@@ -6,18 +6,40 @@ import org.ihtsdo.authoringservices.domain.ValidationJobStatus;
 import org.ihtsdo.authoringservices.entity.Validation;
 import org.ihtsdo.authoringservices.service.ValidationService;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 public abstract class ProjectServiceBase {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
+
+    protected record BranchDetails(String branchState, Long baseTimeStamp, Long headTimeStamp, Map<String, Object> metadata) {
+        static BranchDetails empty() {
+            return new BranchDetails(null, null, null, new HashMap<>());
+        }
+    }
+
+    protected record ProjectFeatureFlags(
+            boolean promotionDisabled,
+            boolean projectLocked,
+            boolean taskPromotionDisabled,
+            boolean rebaseDisabled,
+            boolean scheduledRebaseDisabled,
+            boolean mrcmDisabled,
+            boolean templatesDisabled,
+            boolean spellCheckDisabled,
+            boolean translationProject
+    ) {
+    }
 
     protected abstract List<AuthoringProject> buildAuthoringProjects(Collection<?> projects, Boolean lightweight );
 
@@ -29,6 +51,27 @@ public abstract class ProjectServiceBase {
             codeSystem = codeSystems.stream().filter(c -> grandfatherPath.equals(c.getBranchPath())).findFirst().orElse(null);
         }
         return codeSystem;
+    }
+
+    protected BranchDetails toBranchDetails(Branch branch, Branch parentBranch) {
+        if (branch == null) {
+            return BranchDetails.empty();
+        }
+        Map<String, Object> metadata = new HashMap<>();
+        if (parentBranch.getMetadata() != null) {
+            metadata.putAll(parentBranch.getMetadata());
+        }
+        if (branch.getMetadata() != null) {
+            metadata.putAll(branch.getMetadata());
+        }
+        return new BranchDetails(branch.getState(), branch.getBaseTimestamp(), branch.getHeadTimestamp(), metadata);
+    }
+
+    protected void applyCodeSystem(AuthoringProject authoringProject, CodeSystem codeSystem) {
+        authoringProject.setCodeSystem(codeSystem);
+        if (codeSystem != null) {
+            authoringProject.setMaintainerType(codeSystem.getMaintainerType());
+        }
     }
 
     protected void populateValidationStatusForProjects(ValidationService validationService, Set<String> branchPaths, List<AuthoringProject> authoringProjects, Boolean lightweight) {
