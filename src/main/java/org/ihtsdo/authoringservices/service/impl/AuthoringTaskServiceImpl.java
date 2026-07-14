@@ -812,10 +812,8 @@ import java.util.stream.StreamSupport;
 
         allTasks.add(authoringTask);
 
-        // Fetch latest code system version timestamp
-        if (lightweight == null || !lightweight) {
-            setLatestCodeSystemVersionBaseTimestampToAuthoringTask(authoringTask, task.getProject().getBranchPath(), codeSystems);
-        }
+        // Fetch maintainer type and latest code system version timestamp
+        populateCodeSystemDetailsOnAuthoringTask(authoringTask, task.getProject().getBranchPath(), codeSystems, lightweight);
 
         // Fetch the extra statuses for tasks that are not new and have a branch
         if (authoringTask.getStatus() != TaskStatus.NEW) {

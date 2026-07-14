@@ -185,7 +185,21 @@ public abstract class TaskServiceBase {
         return buildAuthoringTasks(collection, codeSystems, lightweight);
     }
 
-    protected void setLatestCodeSystemVersionBaseTimestampToAuthoringTask(AuthoringTask task, String projectBranchPath, List<CodeSystem> codeSystems) throws ServiceException {
+    protected void populateCodeSystemDetailsOnAuthoringTask(AuthoringTask task, String projectBranchPath, List<CodeSystem> codeSystems, Boolean lightweight) throws ServiceException {
+        CodeSystem codeSystem = getCodeSystemForProjectBranch(projectBranchPath, codeSystems);
+        if (codeSystem == null) {
+            return;
+        }
+        task.setMaintainerType(codeSystem.getMaintainerType());
+        if ((lightweight == null || !lightweight) && codeSystem.getLatestVersion() != null) {
+            org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch codeSystemVersionBranch = branchService.getBranchOrNull(codeSystem.getLatestVersion().getBranchPath());
+            if (codeSystemVersionBranch != null) {
+                task.setLatestCodeSystemVersionBaseTimestamp(codeSystemVersionBranch.getBaseTimestamp());
+            }
+        }
+    }
+
+    private CodeSystem getCodeSystemForProjectBranch(String projectBranchPath, List<CodeSystem> codeSystems) {
         String projectParentPath = PathHelper.getParentPath(projectBranchPath);
         CodeSystem codeSystem = codeSystems.stream().filter(c -> projectParentPath.equals(c.getBranchPath())).findFirst().orElse(null);
         if (codeSystem == null && projectParentPath.contains("/")) {
@@ -193,11 +207,6 @@ public abstract class TaskServiceBase {
             String grandfatherPath = PathHelper.getParentPath(projectParentPath);
             codeSystem = codeSystems.stream().filter(c -> grandfatherPath.equals(c.getBranchPath())).findFirst().orElse(null);
         }
-        if (codeSystem != null && codeSystem.getLatestVersion() != null) {
-            org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch codeSystemVersionBranch = branchService.getBranchOrNull(codeSystem.getLatestVersion().getBranchPath());
-            if (codeSystemVersionBranch != null) {
-                task.setLatestCodeSystemVersionBaseTimestamp(codeSystemVersionBranch.getBaseTimestamp());
-            }
-        }
+        return codeSystem;
     }
 }

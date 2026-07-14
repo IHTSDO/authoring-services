@@ -37,6 +37,7 @@ public class AuthoringProject {
     private Map<String, Object> metadata;
     private CodeSystem codeSystem;
     private boolean internalAuthoringProject;
+    private String maintainerType;
     public AuthoringProject() {
     }
 
@@ -240,6 +241,14 @@ public class AuthoringProject {
 
     public boolean isInternalAuthoringProject() {
         return internalAuthoringProject;
+    }
+
+    public String getMaintainerType() {
+        return maintainerType;
+    }
+
+    public void setMaintainerType(String maintainerType) {
+        this.maintainerType = maintainerType;
     }
 
     @Override

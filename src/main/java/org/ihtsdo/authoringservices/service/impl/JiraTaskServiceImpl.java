@@ -643,13 +643,10 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
 
             setTaskStatusFromAutomatedPromotionIfAny(task);
 
-            allTasks.add(task);
+            final String projectPath = PathHelper.getProjectPath(projectDetails.baseBranchPath(), issue.getProject().getKey());
+            populateCodeSystemDetailsOnAuthoringTask(task, projectPath, codeSystems, lightweight);
 
-            // Fetch latest code system version timestamp
-            if (lightweight == null || !lightweight) {
-                final String projectPath = PathHelper.getProjectPath(projectDetails.baseBranchPath(), issue.getProject().getKey());
-                setLatestCodeSystemVersionBaseTimestampToAuthoringTask(task, projectPath, codeSystems);
-            }
+            allTasks.add(task);
 
             // Fetch the extra statuses for tasks that are not new and have a branch
             if (task.getStatus() != TaskStatus.NEW) {

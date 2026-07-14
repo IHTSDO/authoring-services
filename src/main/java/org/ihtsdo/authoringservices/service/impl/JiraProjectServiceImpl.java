@@ -673,6 +673,9 @@ public class JiraProjectServiceImpl extends ProjectServiceBase implements Projec
                         project.lead(), true, branchPath, branchState, baseTimeStamp, headTimeStamp, latestClassification, promotionDisabled, mrcmDisabled, templatesDisabled, spellCheckDisabled, rebaseDisabled, scheduledRebaseDisabled, taskPromotionDisabled, projectLocked, projectTranslation);
                 authoringProject.setMetadata(metadata);
                 authoringProject.setCodeSystem(codeSystem);
+                if (codeSystem != null) {
+                    authoringProject.setMaintainerType(codeSystem.getMaintainerType());
+                }
                 synchronized (authoringProjects) {
                     authoringProjects.add(authoringProject);
                 }

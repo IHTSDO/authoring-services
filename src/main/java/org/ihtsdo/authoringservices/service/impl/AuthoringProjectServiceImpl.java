@@ -397,6 +397,9 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
                 authoringProject.setMetadata(metadata);
                 authoringProject.setCodeSystem(codeSystem);
                 authoringProject.setInternalAuthoringProject(true);
+                if (codeSystem != null) {
+                    authoringProject.setMaintainerType(codeSystem.getMaintainerType());
+                }
                 synchronized (authoringProjects) {
                     authoringProjects.add(authoringProject);
                 }

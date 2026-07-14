@@ -32,6 +32,7 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
     private String summary;
     private TaskStatus status;
     private TaskType type;
+    private String maintainerType;
     private String branchState;
     private Long branchHeadTimestamp;
     private Long branchBaseTimestamp;
@@ -159,6 +160,14 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
 
     public void setType(TaskType type) {
         this.type = type;
+    }
+
+    public String getMaintainerType() {
+        return maintainerType;
+    }
+
+    public void setMaintainerType(String maintainerType) {
+        this.maintainerType = maintainerType;
     }
 
     @Override
