@@ -1,5 +1,8 @@
 package org.ihtsdo.authoringservices.domain;
 
+import java.util.Collections;
+import java.util.List;
+
 public class Notification {
 
 	private String project;
@@ -7,6 +10,10 @@ public class Notification {
 	private EntityType entityType;
 	private String event;
 	private String branchPath;
+	private String notificationMessage;
+	private String deepLinkPath;
+	private NotificationSeverity severity;
+	private List<String> requiresRefetch = Collections.emptyList();
 
 	//Task level notification
 	public Notification(String project, String task, EntityType entityType, String event) {
@@ -61,6 +68,38 @@ public class Notification {
 		return branchPath;
 	}
 
+	public String getNotificationMessage() {
+		return notificationMessage;
+	}
+
+	public void setNotificationMessage(String notificationMessage) {
+		this.notificationMessage = notificationMessage;
+	}
+
+	public String getDeepLinkPath() {
+		return deepLinkPath;
+	}
+
+	public void setDeepLinkPath(String deepLinkPath) {
+		this.deepLinkPath = deepLinkPath;
+	}
+
+	public NotificationSeverity getSeverity() {
+		return severity;
+	}
+
+	public void setSeverity(NotificationSeverity severity) {
+		this.severity = severity;
+	}
+
+	public List<String> getRequiresRefetch() {
+		return requiresRefetch;
+	}
+
+	public void setRequiresRefetch(List<String> requiresRefetch) {
+		this.requiresRefetch = requiresRefetch != null ? requiresRefetch : Collections.emptyList();
+	}
+
 	@Override
 	public String toString() {
 		return "Notification{" +
@@ -69,6 +108,10 @@ public class Notification {
 				", branchPath='" + branchPath + '\'' +
 				", entityType=" + entityType +
 				", event='" + event + '\'' +
+				", notificationMessage='" + notificationMessage + '\'' +
+				", deepLinkPath='" + deepLinkPath + '\'' +
+				", severity=" + severity +
+				", requiresRefetch=" + requiresRefetch +
 				'}';
 	}
 }

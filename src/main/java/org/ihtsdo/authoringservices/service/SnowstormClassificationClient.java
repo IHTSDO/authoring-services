@@ -31,6 +31,8 @@ import java.util.Map;
 @Service
 public class SnowstormClassificationClient {
 
+	public static final String CLASSIFICATION_RUNNING = "Classification is running";
+
 	@Autowired
 	private CacheService cacheService;
 
@@ -54,7 +56,7 @@ public class SnowstormClassificationClient {
 	public synchronized Classification startClassification(String projectKey, String taskKey, String branchPath, String username) throws RestClientException {
 		if (!snowstormRestClientFactory.getClient().isClassificationInProgressOnBranch(branchPath)) {
 			Classification classificationResult = callClassification(projectKey, taskKey, branchPath, username);
-			Notification notification = new Notification(projectKey, taskKey, EntityType.Classification, "Classification is running");
+			Notification notification = new Notification(projectKey, taskKey, EntityType.Classification, CLASSIFICATION_RUNNING);
 			notification.setBranchPath(branchPath);
 			notificationService.queueNotification(SecurityUtil.getUsername(), notification);
 
