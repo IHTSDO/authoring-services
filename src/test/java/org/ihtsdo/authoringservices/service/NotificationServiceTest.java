@@ -17,7 +17,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -71,7 +70,7 @@ class NotificationServiceTest {
 
 		ReflectionTestUtils.invokeMethod(notificationService, "enrichNotification", notification);
 
-		assertNull(notification.getNotificationMessage());
+		assertEquals("Classification is running", notification.getNotificationMessage());
 		assertTrue(notification.getRequiresRefetch().contains("classification"));
 		assertTrue(notification.getRequiresRefetch().contains("task"));
 	}
@@ -100,7 +99,7 @@ class NotificationServiceTest {
 
 		ReflectionTestUtils.invokeMethod(notificationService, "enrichNotification", notification);
 
-		assertEquals("Validation Failed for task WRPAS-98", notification.getNotificationMessage());
+		assertEquals("Validation failed for task WRPAS-98", notification.getNotificationMessage());
 		assertEquals(NotificationSeverity.ERROR, notification.getSeverity());
 
 		assertEquals("/tasks/WRPAS/WRPAS-98/validate", notification.getDeepLinkPath());
@@ -114,7 +113,7 @@ class NotificationServiceTest {
 
 		ReflectionTestUtils.invokeMethod(notificationService, "enrichNotification", notification);
 
-		assertEquals("Validation Completed for task WRPAS-98", notification.getNotificationMessage());
+		assertEquals("Validation completed for task WRPAS-98", notification.getNotificationMessage());
 		assertEquals("/tasks/WRPAS/WRPAS-98/validate", notification.getDeepLinkPath());
 		assertEquals(NotificationSeverity.INFO, notification.getSeverity());
 	}
