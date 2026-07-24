@@ -102,7 +102,7 @@ public class DialectConversionController {
 		InputStream inputStream = dialectConversionService.getMapObject();
 		return ResponseEntity.ok()
 				.contentType(MediaType.APPLICATION_OCTET_STREAM)
-				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"us-to-gb-preferred-terms-map.txt\"")
+				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"dialect_map_en-us_to_en-gb.txt\"")
 				.body(new InputStreamResource(inputStream));
 	}
 	
@@ -114,7 +114,7 @@ public class DialectConversionController {
 		InputStream inputStream = dialectConversionService.getSynonymsMapObject();
 		return ResponseEntity.ok()
 				.contentType(MediaType.APPLICATION_OCTET_STREAM)
-				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"us-to-gb-acceptable-terms-map.txt\"")
+				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"us-to-gb-synonyms-map.txt\"")
 				.body(new InputStreamResource(inputStream));
 	}
 
