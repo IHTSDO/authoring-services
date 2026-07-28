@@ -15,6 +15,7 @@ import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
+import org.springframework.util.StringUtils;
 import org.thymeleaf.context.Context;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 
@@ -25,6 +26,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
+import java.util.List;
 
 @Service
 public class EmailService {
@@ -223,19 +225,24 @@ public class EmailService {
         if (CollectionUtils.isEmpty(toEmails)) {
             return;
         }
+        List<String> toEmailList = toEmails.stream().filter(StringUtils::hasLength).toList();
+        if (CollectionUtils.isEmpty(toEmailList)) {
+            return;
+        }
+
         try {
             Session session = Session.getDefaultInstance(System.getProperties());
             // Create a default MimeMessage object.
             MimeMessage message = new MimeMessage(session);
             // To get the array of addresses
-            for (String email : toEmails) {
+            for (String email : toEmailList) {
                 message.addRecipient(Message.RecipientType.TO, new InternetAddress(email));
             }
             message.setFrom(new InternetAddress(from, from));
             message.setSubject(subject);
             String emailContent = this.templateEngine.process(templateFile, params);
             message.setText(emailContent, "utf-8", "html");
-            logger.info("Sending email to {}} with subject {}", toEmails, subject);
+            logger.info("Sending email to {}} with subject {}", toEmailList, subject);
             send(message);
         } catch (UnsupportedEncodingException e) {
             logger.error("The character encoding is not supported. {}", e.getMessage());
