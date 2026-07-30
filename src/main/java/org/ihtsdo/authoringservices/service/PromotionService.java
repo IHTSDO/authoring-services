@@ -45,6 +45,8 @@ public class PromotionService {
     private static final String STOPPED_STATUS = "stopped";
     private static final String CONTENT_PROMOTION = "Content Promotion";
     private static final String TASK_PROMOTION_DISABLED_MSG = "Task promotion is disabled";
+    private static final String PROJECT_PROMOTION_DISABLED_MSG = "Project promotion is disabled";
+    private static final String UNKNOWN_PROMOTION_ERROR_MSG = "Promotion failed with an unknown error";
 
     public static final Pattern TAG_PATTERN = Pattern.compile("^.*\\((.*)\\)$");
     public static final String IS_A = "116680003";
@@ -143,14 +145,14 @@ public class PromotionService {
 
         String taskBranchPath = branchService.getTaskBranchPathUsingCache(projectKey, taskKey);
         final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        ProcessStatus taskProcessStatus = new ProcessStatus();
+        final String statusKey = parseKey(projectKey, taskKey);
         executorService.submit(() -> {
             SecurityContextHolder.getContext().setAuthentication(authentication);
+            ProcessStatus taskProcessStatus = new ProcessStatus();
             try {
-
                 taskProcessStatus.setStatus(REBASING_STATUS);
                 taskProcessStatus.setMessage("Task is rebasing");
-                taskPromotionStatus.put(parseKey(projectKey, taskKey), taskProcessStatus);
+                taskPromotionStatus.put(statusKey, taskProcessStatus);
                 Merge merge = branchService.mergeBranchSync(taskBranchPath, PathHelper.getParentPath(taskBranchPath), mergeRequest.getSourceReviewId());
                 if (merge.getStatus() == Merge.Status.COMPLETED) {
                     taskServiceFactory.getInstance(useNew).stateTransition(projectKey, taskKey, TaskStatus.PROMOTED);
@@ -158,35 +160,20 @@ public class PromotionService {
                             new Notification(projectKey, taskKey, EntityType.Promotion, "Task successfully promoted"));
                     taskProcessStatus.setStatus("Promotion Complete");
                     taskProcessStatus.setMessage("Task successfully promoted");
-                    taskPromotionStatus.put(parseKey(projectKey, taskKey), taskProcessStatus);
+                    taskPromotionStatus.put(statusKey, taskProcessStatus);
 
                     org.ihtsdo.authoringservices.domain.User user = taskServiceFactory.getInstance(useNew).getUser(SecurityUtil.getUsername());
                     releaseNoteService.promoteTaskLineItems(branchService.getTaskBranchPathUsingCache(projectKey, taskKey), user.getDisplayName());
 
                     // clear Auto Promotion status if the task has been triggered the Automated Promotion
-                    automateTaskPromotionStatus.remove(parseKey(projectKey, taskKey));
-                } else if (merge.getStatus().equals(Merge.Status.CONFLICTS)) {
-                    try {
-                        ObjectMapper mapper = new ObjectMapper();
-                        String jsonInString = mapper.writeValueAsString(merge);
-                        taskProcessStatus.setStatus(Merge.Status.CONFLICTS.name());
-                        taskProcessStatus.setMessage(jsonInString);
-                        taskPromotionStatus.put(parseKey(projectKey, taskKey), taskProcessStatus);
-                    } catch (JsonProcessingException e) {
-                        e.printStackTrace();
-                    }
+                    automateTaskPromotionStatus.remove(statusKey);
+                } else if (merge.getStatus() == Merge.Status.CONFLICTS) {
+                    processPromotionConflicts(merge, taskProcessStatus, taskPromotionStatus, statusKey);
                 } else {
-                    ApiError apiError = merge.getApiError();
-                    String message = apiError != null ? apiError.getMessage() : null;
-                    taskProcessStatus.setStatus(PROMOTION_ERROR_STATUS);
-                    taskProcessStatus.setMessage(message);
-                    taskPromotionStatus.put(parseKey(projectKey, taskKey), taskProcessStatus);
+                    updatePromotionError(taskProcessStatus, getMergeErrorMessage(merge), taskPromotionStatus, statusKey);
                 }
-            } catch (BusinessServiceException e) {
-                e.printStackTrace();
-                taskProcessStatus.setStatus(PROMOTION_ERROR_STATUS);
-                taskProcessStatus.setMessage(e.getMessage());
-                taskPromotionStatus.put(parseKey(projectKey, taskKey), taskProcessStatus);
+            } catch (Exception e) {
+                handlePromotionException(e, taskProcessStatus, taskPromotionStatus, statusKey, "Task");
             }
         });
     }
@@ -195,14 +182,13 @@ public class PromotionService {
         boolean useNew = projectServiceFactory.getInstance(true).exists(projectKey);
         AuthoringProject project = projectServiceFactory.getInstance(useNew).retrieveProject(projectKey, true);
         if (Boolean.TRUE.equals(project.isProjectPromotionDisabled()) || Boolean.TRUE.equals(project.isProjectLocked())) {
-            throw new BusinessServiceException("Project promotion is disabled");
+            throw new BusinessServiceException(getProjectPromotionDisabledMessage(project));
         }
         final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        ProcessStatus projectProcessStatus = new ProcessStatus();
         executorService.submit(() -> {
             SecurityContextHolder.getContext().setAuthentication(authentication);
+            ProcessStatus projectProcessStatus = new ProcessStatus();
             try {
-
                 projectProcessStatus.setStatus(REBASING_STATUS);
                 projectProcessStatus.setMessage("Project is rebasing");
                 projectPromotionStatus.put(projectKey, projectProcessStatus);
@@ -218,31 +204,65 @@ public class PromotionService {
                     projectPromotionStatus.put(projectKey, projectProcessStatus);
 
                     releaseNoteService.promoteProjectLineItems(projectBranchPath);
-                } else if (merge.getStatus().equals(Merge.Status.CONFLICTS)) {
-                    try {
-                        ObjectMapper mapper = new ObjectMapper();
-                        String jsonInString = mapper.writeValueAsString(merge);
-                        projectProcessStatus.setStatus(Merge.Status.CONFLICTS.name());
-                        projectProcessStatus.setMessage(jsonInString);
-                        projectPromotionStatus.put(projectKey, projectProcessStatus);
-                    } catch (JsonProcessingException e) {
-                        e.printStackTrace();
-                    }
+                } else if (merge.getStatus() == Merge.Status.CONFLICTS) {
+                    processPromotionConflicts(merge, projectProcessStatus, projectPromotionStatus, projectKey);
                 } else {
-                    ApiError apiError = merge.getApiError();
-                    String message = apiError != null ? apiError.getMessage() : null;
-                    projectProcessStatus.setStatus(PROMOTION_ERROR_STATUS);
-                    projectProcessStatus.setMessage(message);
-                    projectPromotionStatus.put(projectKey, projectProcessStatus);
+                    updatePromotionError(projectProcessStatus, getMergeErrorMessage(merge), projectPromotionStatus, projectKey);
                 }
-            } catch (BusinessServiceException e) {
-                e.printStackTrace();
-                projectProcessStatus.setStatus(PROMOTION_ERROR_STATUS);
-                projectProcessStatus.setMessage(e.getMessage());
-                projectPromotionStatus.put(projectKey, projectProcessStatus);
+            } catch (Exception e) {
+                handlePromotionException(e, projectProcessStatus, projectPromotionStatus, projectKey, "Project");
             }
         });
 
+    }
+
+    private String getProjectPromotionDisabledMessage(AuthoringProject project) {
+        if (Boolean.TRUE.equals(project.isProjectLocked())) {
+            return PROJECT_PROMOTION_DISABLED_MSG + " due to project being locked";
+        }
+        return PROJECT_PROMOTION_DISABLED_MSG;
+    }
+
+    private void processPromotionConflicts(Merge merge, ProcessStatus processStatus, Map<String, ProcessStatus> statusMap, String statusKey) {
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            String jsonInString = mapper.writeValueAsString(merge);
+            processStatus.setStatus(Merge.Status.CONFLICTS.name());
+            processStatus.setMessage(jsonInString);
+            statusMap.put(statusKey, processStatus);
+        } catch (JsonProcessingException e) {
+            logger.error("Failed to serialize promotion conflicts for {}", statusKey, e);
+            updatePromotionError(processStatus, "Promotion failed due to merge conflicts", statusMap, statusKey);
+        }
+    }
+
+    private void updatePromotionError(ProcessStatus processStatus, String message, Map<String, ProcessStatus> statusMap, String statusKey) {
+        processStatus.setStatus(PROMOTION_ERROR_STATUS);
+        processStatus.setMessage(StringUtils.hasLength(message) ? message : UNKNOWN_PROMOTION_ERROR_MSG);
+        statusMap.put(statusKey, processStatus);
+    }
+
+    private String getMergeErrorMessage(Merge merge) {
+        if (merge == null) {
+            return UNKNOWN_PROMOTION_ERROR_MSG;
+        }
+        ApiError apiError = merge.getApiError();
+        if (apiError != null && StringUtils.hasLength(apiError.getMessage())) {
+            return apiError.getMessage();
+        }
+        if (merge.getStatus() != null) {
+            return String.format("Promotion failed with merge status %s", merge.getStatus());
+        }
+        return UNKNOWN_PROMOTION_ERROR_MSG;
+    }
+
+    private void handlePromotionException(Exception e, ProcessStatus processStatus, Map<String, ProcessStatus> statusMap, String statusKey, String promotionType) {
+        logger.error("{} promotion failed for {}", promotionType, statusKey, e);
+        String message = e.getMessage();
+        if (!StringUtils.hasLength(message)) {
+            message = String.format("%s promotion failed with an unknown error", promotionType);
+        }
+        updatePromotionError(processStatus, message, statusMap, statusKey);
     }
 
     private synchronized void doAutomateTaskPromotion(String projectKey, String taskKey, Authentication authentication) {
