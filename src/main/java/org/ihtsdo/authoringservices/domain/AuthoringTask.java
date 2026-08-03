@@ -14,6 +14,7 @@ import org.ihtsdo.authoringservices.service.impl.TaskServiceBase;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Classification;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -37,6 +38,7 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
     private Long branchHeadTimestamp;
     private Long branchBaseTimestamp;
     private Long latestCodeSystemVersionBaseTimestamp;
+    private Date lastModifiedDate;
     private String description;
     private User assignee;
     private User reporter;
@@ -285,6 +287,33 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
 
     public void setLatestCodeSystemVersionBaseTimestamp(Long latestCodeSystemVersionBaseTimestamp) {
         this.latestCodeSystemVersionBaseTimestamp = latestCodeSystemVersionBaseTimestamp;
+    }
+
+    public Date getLastModifiedDate() {
+        return lastModifiedDate;
+    }
+
+    public void setLastModifiedDate(Date lastModifiedDate) {
+        this.lastModifiedDate = lastModifiedDate;
+    }
+
+    /**
+     * Sets lastModifiedDate to whichever is later: task updated time or branch head timestamp.
+     */
+    public void updateLastModifiedDate() {
+        Date updatedDate = null;
+        if (updated != null) {
+            try {
+                updatedDate = formatter.parse(updated);
+            } catch (ParseException e) {
+                // Fall through; branch head may still provide a value
+            }
+        }
+        if (branchHeadTimestamp != null && (updatedDate == null || updatedDate.getTime() < branchHeadTimestamp)) {
+            this.lastModifiedDate = new Date(branchHeadTimestamp);
+        } else {
+            this.lastModifiedDate = updatedDate;
+        }
     }
 
     public String getBranchPath() {

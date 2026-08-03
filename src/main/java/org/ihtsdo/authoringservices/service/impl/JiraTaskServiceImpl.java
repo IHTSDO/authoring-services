@@ -670,6 +670,7 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
                     startedTasks.put(task.getBranchPath(), task);
                 }
             }
+            task.updateLastModifiedDate();
         }
     }
 

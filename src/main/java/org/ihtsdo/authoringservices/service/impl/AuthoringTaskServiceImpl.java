@@ -837,6 +837,7 @@ import java.util.stream.StreamSupport;
                 startedTasks.put(authoringTask.getBranchPath(), authoringTask);
             }
         }
+        authoringTask.updateLastModifiedDate();
     }
 
     private void joinTaskUsers(Task task, AuthoringTask authoringTask) {
