@@ -11,10 +11,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class ReviewConceptAggregationServiceTest {
+class ReviewConceptAggregationServiceTest {
 
 	@Test
-	public void splitConceptChanges_placesStatedEditsInContentAndInferredInClassification() {
+	void splitConceptChanges_placesStatedEditsInContentAndInferredInClassification() {
 		TraceabilityClient.ActivitiesPage page = page(
 				contentChange("111", "DESCRIPTION"),
 				contentChange("222", "INFERRED_RELATIONSHIP"),
@@ -29,7 +29,7 @@ public class ReviewConceptAggregationServiceTest {
 	}
 
 	@Test
-	public void splitConceptChanges_removesContentConceptsFromClassificationList() {
+	void splitConceptChanges_removesContentConceptsFromClassificationList() {
 		TraceabilityClient.ActivitiesPage page = page(
 				contentChange("111", "DESCRIPTION"),
 				classificationSave("111"),
@@ -45,7 +45,7 @@ public class ReviewConceptAggregationServiceTest {
 	}
 
 	@Test
-	public void splitConceptChanges_deduplicatesContentConceptsAcrossActivities() {
+	void splitConceptChanges_deduplicatesContentConceptsAcrossActivities() {
 		TraceabilityClient.ActivitiesPage page = page(
 				contentChange("111", "DESCRIPTION"),
 				contentChange("111", "RELATIONSHIP")
@@ -60,7 +60,7 @@ public class ReviewConceptAggregationServiceTest {
 	}
 
 	@Test
-	public void splitConceptChanges_handlesNumericConceptIds() {
+	void splitConceptChanges_handlesNumericConceptIds() {
 		TraceabilityClient.ConceptChange concept = new TraceabilityClient.ConceptChange();
 		concept.setConceptId(123456789L);
 		concept.setComponentChanges(List.of(component("AXIOM")));
@@ -80,7 +80,7 @@ public class ReviewConceptAggregationServiceTest {
 	}
 
 	@Test
-	public void splitConceptChanges_returnsEmptyForNullActivities() {
+	void splitConceptChanges_returnsEmptyForNullActivities() {
 		ReviewConceptAggregationService.ChangedConceptSets result =
 				ReviewConceptAggregationService.splitConceptChanges(null);
 
