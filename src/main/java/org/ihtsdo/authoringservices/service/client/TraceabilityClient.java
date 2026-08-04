@@ -127,6 +127,7 @@ public class TraceabilityClient {
 	public static class Activity {
 		private String activityType;
 		private Date commitDate;
+		private List<ConceptChange> conceptChanges = new ArrayList<>();
 
 		public String getActivityType() {
 			return activityType;
@@ -142,6 +143,53 @@ public class TraceabilityClient {
 
 		public void setCommitDate(Date commitDate) {
 			this.commitDate = commitDate;
+		}
+
+		public List<ConceptChange> getConceptChanges() {
+			return conceptChanges;
+		}
+
+		public void setConceptChanges(List<ConceptChange> conceptChanges) {
+			this.conceptChanges = conceptChanges != null ? conceptChanges : new ArrayList<>();
+		}
+	}
+
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	public static class ConceptChange {
+		private Object conceptId;
+		private List<ComponentChange> componentChanges = new ArrayList<>();
+
+		public String getConceptIdAsString() {
+			return conceptId != null ? conceptId.toString() : null;
+		}
+
+		public Object getConceptId() {
+			return conceptId;
+		}
+
+		public void setConceptId(Object conceptId) {
+			this.conceptId = conceptId;
+		}
+
+		public List<ComponentChange> getComponentChanges() {
+			return componentChanges;
+		}
+
+		public void setComponentChanges(List<ComponentChange> componentChanges) {
+			this.componentChanges = componentChanges != null ? componentChanges : new ArrayList<>();
+		}
+	}
+
+	@JsonIgnoreProperties(ignoreUnknown = true)
+	public static class ComponentChange {
+		private String componentSubType;
+
+		public String getComponentSubType() {
+			return componentSubType;
+		}
+
+		public void setComponentSubType(String componentSubType) {
+			this.componentSubType = componentSubType;
 		}
 	}
 }
