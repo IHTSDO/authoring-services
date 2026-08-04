@@ -7,6 +7,8 @@ import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.authoringservices.entity.ReviewMessage;
 import org.ihtsdo.authoringservices.domain.ReviewConcept;
 import org.ihtsdo.authoringservices.domain.ReviewMessageCreateRequest;
+import org.ihtsdo.authoringservices.domain.ReviewPrerequisites;
+import org.ihtsdo.authoringservices.service.ReviewPrerequisitesService;
 import org.ihtsdo.authoringservices.service.ReviewService;
 import org.ihtsdo.sso.integration.SecurityUtil;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,12 +24,27 @@ import static org.ihtsdo.authoringservices.rest.ControllerHelper.*;
 @RequestMapping(produces={MediaType.APPLICATION_JSON_VALUE})
 public class ReviewMessagesController {
 
+	private final ReviewService reviewService;
+
+	private final ReviewPrerequisitesService reviewPrerequisitesService;
+
 	@Autowired
-	private ReviewService reviewService;
+	public ReviewMessagesController(ReviewService reviewService, ReviewPrerequisitesService reviewPrerequisitesService) {
+		this.reviewService = reviewService;
+		this.reviewPrerequisitesService = reviewPrerequisitesService;
+	}
+
+	@Operation(summary = "Retrieve review prerequisites for a task, including unsaved concepts, classification currency, content changes, and CRS blockers.")
+	@ApiResponse(responseCode = "200", description = "OK")
+	@GetMapping(value="/projects/{projectKey}/tasks/{taskKey}/review/prerequisites")
+	public ReviewPrerequisites retrieveTaskReviewPrerequisites(@PathVariable final String projectKey, @PathVariable final String taskKey)
+			throws BusinessServiceException {
+		return reviewPrerequisitesService.getReviewPrerequisites(requiredParam(projectKey, PROJECT_KEY), requiredParam(taskKey, TASK_KEY), SecurityUtil.getUsername());
+	}
 
 	@Operation(summary = "Retrieve a list of stored details for a task review concept, including last view date for the user and a list of messages.")
 	@ApiResponse(responseCode = "200", description = "OK")
-	@RequestMapping(value="/projects/{projectKey}/tasks/{taskKey}/review", method= RequestMethod.GET)
+	@GetMapping(value="/projects/{projectKey}/tasks/{taskKey}/review")
 	public List<ReviewConcept> retrieveTaskReview(@PathVariable final String projectKey, @PathVariable final String taskKey) {
 
 		return reviewService.retrieveTaskReviewConceptDetails(requiredParam(projectKey, PROJECT_KEY), requiredParam(taskKey, TASK_KEY), SecurityUtil.getUsername());
@@ -35,7 +52,7 @@ public class ReviewMessagesController {
 
 	@Operation(summary = "Retrieve a list of stored details for a project review concept, including last view date for the user and a list of messages.")
 	@ApiResponse(responseCode = "200",description = "OK")
-	@RequestMapping(value="/projects/{projectKey}/review", method= RequestMethod.GET)
+	@GetMapping(value="/projects/{projectKey}/review")
 	public List<ReviewConcept> retrieveProjectReview(@PathVariable final String projectKey) {
 
 		return reviewService.retrieveProjectReviewConceptDetails(requiredParam(projectKey, PROJECT_KEY), SecurityUtil.getUsername());
@@ -43,7 +60,7 @@ public class ReviewMessagesController {
 
 	@Operation(summary = "Record a review feedback message on task concepts.")
 	@ApiResponse(responseCode = "200", description = "OK")
-	@RequestMapping(value="/projects/{projectKey}/tasks/{taskKey}/review/message", method= RequestMethod.POST)
+	@PostMapping(value="/projects/{projectKey}/tasks/{taskKey}/review/message")
 	public ReviewMessage postTaskReviewMessage(@PathVariable final String projectKey, @PathVariable final String taskKey,
 			@RequestBody ReviewMessageCreateRequest createRequest) throws BusinessServiceException {
 
@@ -52,7 +69,7 @@ public class ReviewMessagesController {
 
 	@Operation(summary = "Record a review feedback message on project concepts.")
 	@ApiResponse(responseCode = "200", description = "OK")
-	@RequestMapping(value="/projects/{projectKey}/review/message", method= RequestMethod.POST)
+	@PostMapping(value="/projects/{projectKey}/review/message")
 	public ReviewMessage postProjectReviewMessage(@PathVariable final String projectKey,
 			@RequestBody ReviewMessageCreateRequest createRequest) throws BusinessServiceException {
 
@@ -61,14 +78,14 @@ public class ReviewMessagesController {
 
 	@Operation(summary = "Mark a task review concept as viewed for this user.")
 	@ApiResponse(responseCode = "200", description = "OK")
-	@RequestMapping(value="/projects/{projectKey}/tasks/{taskKey}/review/concepts/{conceptId}/view", method= RequestMethod.POST)
+	@PostMapping(value="/projects/{projectKey}/tasks/{taskKey}/review/concepts/{conceptId}/view")
 	public void markTaskReviewConceptViewed(@PathVariable final String projectKey, @PathVariable final String taskKey, @PathVariable final String conceptId) {
 		reviewService.recordConceptView(requiredParam(projectKey, PROJECT_KEY), requiredParam(taskKey, TASK_KEY), conceptId, SecurityUtil.getUsername());
 	}
 
 	@Operation(summary = "Mark a project review concept as viewed for this user.")
 	@ApiResponse(responseCode = "200", description = "OK")
-	@RequestMapping(value="/projects/{projectKey}/review/concepts/{conceptId}/view", method= RequestMethod.POST)
+	@PostMapping(value="/projects/{projectKey}/review/concepts/{conceptId}/view")
 	public void markProjectReviewConceptViewed(@PathVariable final String projectKey, @PathVariable final String conceptId) {
 		reviewService.recordConceptView(requiredParam(projectKey, PROJECT_KEY), null, conceptId, SecurityUtil.getUsername());
 	}
