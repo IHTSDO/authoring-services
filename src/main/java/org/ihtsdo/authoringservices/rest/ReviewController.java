@@ -54,13 +54,11 @@ public class ReviewController {
 	@GetMapping(value="/projects/{projectKey}/tasks/{taskKey}/review/concepts")
 	public ReviewConceptAggregation retrieveTaskReviewConcepts(@PathVariable final String projectKey,
 			@PathVariable final String taskKey,
-			@RequestParam(required = false) String acceptLanguage,
-			@RequestHeader(value = HttpHeaders.ACCEPT_LANGUAGE, required = false) String acceptLanguageHeader)
+			@RequestHeader(value = HttpHeaders.ACCEPT_LANGUAGE, required = false) String acceptLanguage)
 			throws BusinessServiceException {
-		String language = acceptLanguage != null ? acceptLanguage : acceptLanguageHeader;
 		return reviewConceptAggregationService.getAggregatedReviewConcepts(
 				requiredParam(projectKey, PROJECT_KEY), requiredParam(taskKey, TASK_KEY),
-				SecurityUtil.getUsername(), language);
+				SecurityUtil.getUsername(), acceptLanguage);
 	}
 
 	@Operation(summary = "Retrieve a list of stored details for a task review concept, including last view date for the user and a list of messages.")
