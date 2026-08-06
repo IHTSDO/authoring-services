@@ -12,14 +12,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.io.IOException;
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -28,6 +24,8 @@ class CrsBlockingStateServiceTest {
 	private static final String PROJECT = "PROJ";
 	private static final String TASK = "PROJ-1";
 	private static final String USER = "author";
+	private static final String SHARED = "SHARED";
+	private static final String CRS_CONCEPTS_PANEL = "crs-concepts";
 	private static final ObjectMapper MAPPER = new ObjectMapper();
 
 	@Mock
@@ -41,11 +39,8 @@ class CrsBlockingStateServiceTest {
 	}
 
 	@Test
-	void getBlockingState_returnsBlockedWhenUnsavedNewConceptHasSctid() throws IOException {
-		ArrayNode concepts = MAPPER.createArrayNode();
-		concepts.add(crsConcept("12345678901", "99", false, true, "Pneumonia (disorder)", null));
-		when(uiStateService.retrieveTaskPanelStateWithoutThrowingResourceNotFoundException(
-				eq(PROJECT), eq(TASK), eq("SHARED"), eq("crs-concepts"))).thenReturn(concepts);
+	void getBlockingState_returnsBlockedWhenUnsavedNewConceptHasSctid() throws Exception {
+		stubSharedCrsConcepts(arrayOf(crsConcept("12345678901", "99", false, true, "Pneumonia (disorder)")));
 
 		CrsBlockingState state = service.getBlockingState(PROJECT, TASK, USER);
 
@@ -59,45 +54,45 @@ class CrsBlockingStateServiceTest {
 	}
 
 	@Test
-	void getBlockingState_ignoresSavedConceptsAndNonSctids() throws IOException {
-		ArrayNode concepts = MAPPER.createArrayNode();
-		concepts.add(crsConcept("12345678901", "1", true, true, "Saved", null));
-		concepts.add(crsConcept("12345678902", "2", false, false, "Not new", null));
-		concepts.add(crsConcept("uuid-not-sctid", "3", false, true, "Temp id", null));
-		when(uiStateService.retrieveTaskPanelStateWithoutThrowingResourceNotFoundException(
-				eq(PROJECT), eq(TASK), eq("SHARED"), eq("crs-concepts"))).thenReturn(concepts);
+	void getBlockingState_ignoresSavedConceptsAndNonSctids() throws Exception {
+		stubSharedCrsConcepts(arrayOf(
+				crsConcept("12345678901", "1", true, true, "Saved"),
+				crsConcept("12345678902", "2", false, false, "Not new"),
+				crsConcept("uuid-not-sctid", "3", false, true, "Temp id")));
 
 		CrsBlockingState state = service.getBlockingState(PROJECT, TASK, USER);
 
 		assertFalse(state.isBlocked());
-		assertTrue(state.getBlockingConcepts().isEmpty());
+		assertEquals(0, state.getBlockingConcepts().size());
 	}
 
 	@Test
-	void getBlockingState_fallsBackToUserPanelWhenSharedMissing() throws IOException {
-		ArrayNode concepts = MAPPER.createArrayNode();
-		concepts.add(crsConcept("999", "7", false, true, null, "Preferred term"));
-		when(uiStateService.retrieveTaskPanelStateWithoutThrowingResourceNotFoundException(
-				eq(PROJECT), eq(TASK), eq("SHARED"), eq("crs-concepts"))).thenReturn(null);
-		when(uiStateService.retrieveTaskPanelStateWithoutThrowingResourceNotFoundException(
-				eq(PROJECT), eq(TASK), eq(USER), eq("crs-concepts"))).thenReturn(concepts);
+	void getBlockingState_fallsBackToUserPanelWhenSharedMissing() throws Exception {
+		stubSharedCrsConcepts(null);
+		ObjectNode conceptNode = crsConcept("999", "7", false, true);
+		conceptNode.put("preferredSynonym", "Preferred term");
+		stubUserCrsConcepts(arrayOf(conceptNode));
 
 		CrsBlockingState state = service.getBlockingState(PROJECT, TASK, USER);
 
 		assertTrue(state.isBlocked());
-		assertEquals(List.of(new BlockingConcept("999", "7", null, "Preferred term")), state.getBlockingConcepts());
+		assertEquals(1, state.getBlockingConcepts().size());
+		BlockingConcept concept = state.getBlockingConcepts().get(0);
+		assertEquals("999", concept.conceptId());
+		assertEquals("7", concept.crsRequestId());
+		assertNull(concept.status());
+		assertEquals("Preferred term", concept.requestSummary());
 	}
 
 	@Test
-	void getBlockingState_usesStatusFromUiStateWhenPresent() throws IOException {
-		ArrayNode concepts = MAPPER.createArrayNode();
-		concepts.add(crsConcept("111", "5", false, true, "FSN", "ACCEPTED"));
-		when(uiStateService.retrieveTaskPanelStateWithoutThrowingResourceNotFoundException(
-				eq(PROJECT), eq(TASK), eq("SHARED"), eq("crs-concepts"))).thenReturn(concepts);
+	void getBlockingState_usesStatusFromUiStateWhenPresent() throws Exception {
+		ObjectNode concept = crsConcept("111", "5", false, true, "FSN");
+		concept.put("status", "ACCEPTED");
+		stubSharedCrsConcepts(arrayOf(concept));
 
-		BlockingConcept concept = service.getBlockingState(PROJECT, TASK, USER).getBlockingConcepts().get(0);
+		BlockingConcept blockingConcept = service.getBlockingState(PROJECT, TASK, USER).getBlockingConcepts().get(0);
 
-		assertEquals("ACCEPTED", concept.status());
+		assertEquals("ACCEPTED", blockingConcept.status());
 	}
 
 	@Test
@@ -108,8 +103,29 @@ class CrsBlockingStateServiceTest {
 		assertFalse(CrsBlockingStateService.isSctid("12a3"));
 	}
 
-	private static JsonNode crsConcept(String conceptId, String crsId, boolean saved, boolean isNewConcept,
-			String fsn, String statusOrPreferred) {
+	private void stubSharedCrsConcepts(JsonNode concepts) throws Exception {
+		when(uiStateService.retrieveTaskPanelStateWithoutThrowingResourceNotFoundException(
+				PROJECT, TASK, SHARED, CRS_CONCEPTS_PANEL)).thenReturn(concepts);
+	}
+
+	private void stubUserCrsConcepts(JsonNode concepts) throws Exception {
+		when(uiStateService.retrieveTaskPanelStateWithoutThrowingResourceNotFoundException(
+				PROJECT, TASK, USER, CRS_CONCEPTS_PANEL)).thenReturn(concepts);
+	}
+
+	private static ArrayNode arrayOf(JsonNode... concepts) {
+		ArrayNode array = MAPPER.createArrayNode();
+		for (JsonNode concept : concepts) {
+			array.add(concept);
+		}
+		return array;
+	}
+
+	private static ObjectNode crsConcept(String conceptId, String crsId, boolean saved, boolean isNewConcept) {
+		return crsConcept(conceptId, crsId, saved, isNewConcept, null);
+	}
+
+	private static ObjectNode crsConcept(String conceptId, String crsId, boolean saved, boolean isNewConcept, String fsn) {
 		ObjectNode node = MAPPER.createObjectNode();
 		node.put("conceptId", conceptId);
 		node.put("crsId", crsId);
@@ -117,11 +133,6 @@ class CrsBlockingStateServiceTest {
 		node.put("isNewConcept", isNewConcept);
 		if (fsn != null) {
 			node.put("fsn", fsn);
-		}
-		if (statusOrPreferred != null && fsn == null) {
-			node.put("preferredSynonym", statusOrPreferred);
-		} else if (statusOrPreferred != null) {
-			node.put("status", statusOrPreferred);
 		}
 		return node;
 	}
