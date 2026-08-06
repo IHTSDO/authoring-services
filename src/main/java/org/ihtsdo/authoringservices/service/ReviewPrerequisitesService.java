@@ -24,9 +24,7 @@ import java.util.List;
 @Service
 public class ReviewPrerequisitesService {
 
-	private static final String SHARED = "SHARED";
 	private static final String MODIFIED_LIST_PANEL = "modified-list";
-	private static final String CRS_CONCEPTS_PANEL = "crs-concepts";
 	private static final String CONCEPT_PANEL_PREFIX = "concept-";
 	private static final String CLASSIFICATION_SAVE = "CLASSIFICATION_SAVE";
 	private static final String COULD_NOT_DETERMINE_FSN = "Could not determine FSN";
@@ -37,13 +35,16 @@ public class ReviewPrerequisitesService {
 	private final BranchService branchService;
 	private final SnowstormClassificationClient classificationClient;
 	private final TraceabilityClientFactory traceabilityClientFactory;
+	private final CrsBlockingStateService crsBlockingStateService;
 
 	public ReviewPrerequisitesService(UiStateService uiStateService, BranchService branchService,
-			SnowstormClassificationClient classificationClient, TraceabilityClientFactory traceabilityClientFactory) {
+			SnowstormClassificationClient classificationClient, TraceabilityClientFactory traceabilityClientFactory,
+			CrsBlockingStateService crsBlockingStateService) {
 		this.uiStateService = uiStateService;
 		this.branchService = branchService;
 		this.classificationClient = classificationClient;
 		this.traceabilityClientFactory = traceabilityClientFactory;
+		this.crsBlockingStateService = crsBlockingStateService;
 	}
 
 	public ReviewPrerequisites getReviewPrerequisites(String projectKey, String taskKey, String username)
@@ -81,7 +82,10 @@ public class ReviewPrerequisitesService {
 
 		evaluateClassification(branch, classification, activities, prerequisites, blockers);
 
-		List<String> crsBlockingConcepts = collectCrsBlockingConcepts(projectKey, taskKey, username);
+		List<String> crsBlockingConcepts = crsBlockingStateService.collectBlockingConcepts(projectKey, taskKey, username)
+				.stream()
+				.map(concept -> concept.conceptId() + " (Request ID: " + concept.crsRequestId() + ")")
+				.toList();
 		prerequisites.setCrsBlockingConcepts(crsBlockingConcepts);
 		for (String crsBlockingConcept : crsBlockingConcepts) {
 			blockers.add("Unsaved CRS concept: " + crsBlockingConcept);
@@ -153,33 +157,6 @@ public class ReviewPrerequisitesService {
 			displayConceptId = "(New concept)";
 		}
 		return new UnsavedConcept(displayConceptId, extractFsn(concept));
-	}
-
-	private List<String> collectCrsBlockingConcepts(String projectKey, String taskKey, String username) {
-		List<String> blocking = new ArrayList<>();
-		try {
-			JsonNode crsConcepts = uiStateService.retrieveTaskPanelStateWithoutThrowingResourceNotFoundException(
-					projectKey, taskKey, SHARED, CRS_CONCEPTS_PANEL);
-			if (crsConcepts == null) {
-				crsConcepts = uiStateService.retrieveTaskPanelStateWithoutThrowingResourceNotFoundException(
-						projectKey, taskKey, username, CRS_CONCEPTS_PANEL);
-			}
-			if (crsConcepts == null || !crsConcepts.isArray()) {
-				return blocking;
-			}
-			for (JsonNode crsConcept : crsConcepts) {
-				boolean saved = crsConcept.path("saved").asBoolean(false);
-				boolean isNewConcept = crsConcept.path("isNewConcept").asBoolean(false);
-				String conceptId = crsConcept.path("conceptId").asText(null);
-				String crsId = crsConcept.path("crsId").asText("");
-				if (!saved && isNewConcept && isSctid(conceptId)) {
-					blocking.add(conceptId + " (Request ID: " + crsId + ")");
-				}
-			}
-		} catch (IOException e) {
-			logger.error("Failed to read CRS concepts for task {}/{}: {}", projectKey, taskKey, e.getMessage());
-		}
-		return blocking;
 	}
 
 	private void evaluateClassification(Branch branch, Classification classification,
@@ -307,14 +284,6 @@ public class ReviewPrerequisitesService {
 	}
 
 	private static boolean isSctid(String id) {
-		if (!StringUtils.hasLength(id)) {
-			return false;
-		}
-		for (int i = 0; i < id.length(); i++) {
-			if (!Character.isDigit(id.charAt(i))) {
-				return false;
-			}
-		}
-		return true;
+		return CrsBlockingStateService.isSctid(id);
 	}
 }

@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.ihtsdo.authoringservices.domain.*;
+import org.ihtsdo.authoringservices.service.CrsBlockingStateService;
 import org.ihtsdo.authoringservices.service.PromotionService;
 import org.ihtsdo.authoringservices.service.RebaseService;
 import org.ihtsdo.authoringservices.service.factory.ProjectServiceFactory;
@@ -41,15 +42,19 @@ public class TaskController {
     private final TaskServiceFactory taskServiceFactory;
     private final PromotionService promotionService;
     private final RebaseService rebaseService;
+    private final CrsBlockingStateService crsBlockingStateService;
 
     private final SnowstormRestClientFactory snowstormRestClientFactory;
 
     @Autowired
-    public TaskController(ProjectServiceFactory projectServiceFactory, TaskServiceFactory taskServiceFactory, PromotionService promotionService, RebaseService rebaseService, SnowstormRestClientFactory snowstormRestClientFactory) {
+    public TaskController(ProjectServiceFactory projectServiceFactory, TaskServiceFactory taskServiceFactory,
+            PromotionService promotionService, RebaseService rebaseService,
+            CrsBlockingStateService crsBlockingStateService, SnowstormRestClientFactory snowstormRestClientFactory) {
         this.projectServiceFactory = projectServiceFactory;
         this.taskServiceFactory = taskServiceFactory;
         this.promotionService = promotionService;
         this.rebaseService = rebaseService;
+        this.crsBlockingStateService = crsBlockingStateService;
         this.snowstormRestClientFactory = snowstormRestClientFactory;
     }
 
@@ -242,6 +247,15 @@ public class TaskController {
             @PathVariable final String projectKey, @PathVariable final String taskKey,
             @Parameter(description = "CRS request ID") @PathVariable final String crsId) throws BusinessServiceException {
         taskServiceFactory.getInstanceByKey(taskKey).removeCrsTaskForGivenRequestId(projectKey, taskKey, crsId);
+    }
+
+    @Operation(summary = "Determine whether any CRS concepts on a task block promotion or review submission",
+            description = "Returns unsaved new CRS concepts that already have an SCTID. Mirrors the frontend check used by promotion and review.")
+    @ApiResponse(responseCode = "200", description = "OK")
+    @GetMapping(value = "/projects/{projectKey}/tasks/{taskKey}/crs/blocking-state")
+    public CrsBlockingState getCrsBlockingState(@PathVariable final String projectKey, @PathVariable final String taskKey) {
+        return crsBlockingStateService.getBlockingState(
+                requiredParam(projectKey, PROJECT_KEY), requiredParam(taskKey, TASK_KEY), SecurityUtil.getUsername());
     }
 
     private List<CodeSystem> getCodeSystems() {
