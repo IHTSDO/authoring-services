@@ -16,7 +16,6 @@ import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ConceptMiniPojo;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ConceptPojo;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ConceptPojo.HistoricalAssociation;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ConceptPojo.InactivationIndicator;
-import org.ihtsdo.otf.rest.client.terminologyserver.pojo.DefinitionStatus;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.RelationshipPojo;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.sso.integration.SecurityUtil;
@@ -40,7 +39,7 @@ public class ConceptInactivationService {
 
 	static final String CRS_BLOCKED_MESSAGE =
 			"Concept inactivation is blocked because this task has unsaved CRS concepts with SCTIDs.";
-	private static final String PRIMITIVE_DEFINITION_STATUS_ID = DefinitionStatus.PRIMITIVE.getConceptId();
+	private static final String CONCEPT_INACTIVATED_MESSAGE = "Concept %s inactivated";
 
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 
@@ -67,13 +66,11 @@ public class ConceptInactivationService {
 
 	public List<ConceptPojo> inactivate(String projectKey, String taskKey, String conceptId,
 			ConceptInactivationRequest request, Boolean dryRunParam) throws BusinessServiceException {
-		if (request == null) {
-			request = new ConceptInactivationRequest();
-		}
+		ConceptInactivationRequest effectiveRequest = request != null ? request : new ConceptInactivationRequest();
 		if (!StringUtils.hasLength(conceptId)) {
 			throw new IllegalArgumentException("Parameter conceptId is required.");
 		}
-		if (!StringUtils.hasLength(request.getReasonId())) {
+		if (!StringUtils.hasLength(effectiveRequest.getReasonId())) {
 			throw new IllegalArgumentException("reasonId is required.");
 		}
 
@@ -85,12 +82,12 @@ public class ConceptInactivationService {
 			throw new BusinessServiceException(CRS_BLOCKED_MESSAGE);
 		}
 
-		boolean dryRun = resolveDryRun(request, dryRunParam);
+		boolean dryRun = resolveDryRun(effectiveRequest, dryRunParam);
 		String branchPath = branchService.getTaskBranchPathUsingCache(projectKey, taskKey);
 		SnowstormRestClient client = snowstormRestClientFactory.getClient();
 
 		try {
-			List<ConceptPojo> conceptsToUpdate = prepareConceptsForUpdate(client, branchPath, conceptId, request);
+			List<ConceptPojo> conceptsToUpdate = prepareConceptsForUpdate(client, branchPath, conceptId, effectiveRequest);
 			if (dryRun) {
 				return conceptsToUpdate;
 			}
@@ -128,6 +125,11 @@ public class ConceptInactivationService {
 			applyAcceptedReplacements(affected, conceptId, accepted.getAcceptedReplacements());
 		}
 
+		return buildConceptsToUpdate(conceptIds, conceptsById, conceptId, inactivationConcept);
+	}
+
+	private static List<ConceptPojo> buildConceptsToUpdate(Set<String> conceptIds,
+			Map<String, ConceptPojo> conceptsById, String conceptId, ConceptPojo inactivationConcept) {
 		// Preserve a stable order: inactivated concept last (matches UI bulk write).
 		List<ConceptPojo> conceptsToUpdate = new ArrayList<>();
 		for (String id : conceptIds) {
@@ -185,29 +187,32 @@ public class ConceptInactivationService {
 			return;
 		}
 		for (AxiomPojo axiom : axioms) {
-			if (axiom.getRelationships() == null || axiom.getRelationships().isEmpty()) {
+			if (CollectionUtils.isEmpty(axiom.getRelationships())) {
 				continue;
 			}
-			Set<RelationshipPojo> updated = new HashSet<>();
-			List<RelationshipPojo> toAdd = new ArrayList<>();
-			for (RelationshipPojo relationship : axiom.getRelationships()) {
-				if (!targetsInactivatedConcept(relationship, inactivatedConceptId)) {
-					updated.add(relationship);
-					continue;
-				}
-				List<AcceptedReplacement> matching = findMatchingReplacements(relationship, replacements);
-				if (matching.isEmpty()) {
-					updated.add(relationship);
-					continue;
-				}
+			axiom.setRelationships(rebuildRelationships(axiom.getRelationships(), inactivatedConceptId, replacements));
+		}
+	}
+
+	private static Set<RelationshipPojo> rebuildRelationships(Set<RelationshipPojo> relationships,
+			String inactivatedConceptId, List<AcceptedReplacement> replacements) {
+		Set<RelationshipPojo> updated = new HashSet<>();
+		List<RelationshipPojo> toAdd = new ArrayList<>();
+		for (RelationshipPojo relationship : relationships) {
+			List<AcceptedReplacement> matching = targetsInactivatedConcept(relationship, inactivatedConceptId)
+					? findMatchingReplacements(relationship, replacements)
+					: List.of();
+			if (matching.isEmpty()) {
+				updated.add(relationship);
+			} else {
 				// Drop the relationship that pointed at the inactivated concept and add replacements.
 				for (AcceptedReplacement replacement : matching) {
 					toAdd.add(createReplacementRelationship(relationship, replacement.getTargetConceptId()));
 				}
 			}
-			updated.addAll(toAdd);
-			axiom.setRelationships(updated);
 		}
+		updated.addAll(toAdd);
+		return updated;
 	}
 
 	private static boolean targetsInactivatedConcept(RelationshipPojo relationship, String inactivatedConceptId) {
@@ -236,8 +241,6 @@ public class ConceptInactivationService {
 		RelationshipPojo replacement = new RelationshipPojo();
 		replacement.setActive(true);
 		replacement.setReleased(false);
-		replacement.setRelationshipId(null);
-		replacement.setEffectiveTime(null);
 		replacement.setModuleId(original.getModuleId());
 		replacement.setSourceId(original.getSourceId());
 		replacement.setGroupId(original.getGroupId());
@@ -256,7 +259,7 @@ public class ConceptInactivationService {
 		try {
 			return InactivationIndicator.valueOf(reasonId);
 		} catch (IllegalArgumentException e) {
-			throw new BusinessServiceException("Unrecognised inactivation reasonId: " + reasonId);
+			throw new BusinessServiceException("Unrecognised inactivation reasonId: " + reasonId, e);
 		}
 	}
 
@@ -272,7 +275,7 @@ public class ConceptInactivationService {
 				continue;
 			}
 			HistoricalAssociation type = resolveAssociationType(association.getType());
-			targets.computeIfAbsent(type, key -> new HashSet<>()).add(association.getTargetConceptId());
+			targets.computeIfAbsent(type, ignored -> new HashSet<>()).add(association.getTargetConceptId());
 		}
 		return targets;
 	}
@@ -285,7 +288,7 @@ public class ConceptInactivationService {
 		try {
 			return HistoricalAssociation.valueOf(type);
 		} catch (IllegalArgumentException e) {
-			throw new BusinessServiceException("Unrecognised association type: " + type);
+			throw new BusinessServiceException("Unrecognised association type: " + type, e);
 		}
 	}
 
@@ -298,17 +301,21 @@ public class ConceptInactivationService {
 
 	private void emitCompletionNotification(String projectKey, String taskKey, String branchPath, String conceptId) {
 		Notification notification = new Notification(projectKey, taskKey, EntityType.Inactivation,
-				"Concept " + conceptId + " inactivated");
+				conceptInactivatedMessage(conceptId));
 		notification.setBranchPath(branchPath);
 		notificationService.queueNotification(SecurityUtil.getUsername(), notification);
 	}
 
 	private void recordActivity(String projectKey, String taskKey, String conceptId) {
-		String comment = "Concept " + conceptId + " inactivated";
+		String comment = conceptInactivatedMessage(conceptId);
 		try {
 			taskServiceFactory.getInstanceByKey(taskKey).addCommentLogErrors(projectKey, taskKey, comment);
-		} catch (Exception e) {
-			logger.error("Failed to record inactivation activity for task {}/{}: {}", projectKey, taskKey, e.getMessage());
+		} catch (RuntimeException e) {
+			logger.error("Failed to record inactivation activity for task {}/{}", projectKey, taskKey, e);
 		}
+	}
+
+	private static String conceptInactivatedMessage(String conceptId) {
+		return String.format(CONCEPT_INACTIVATED_MESSAGE, conceptId);
 	}
 }

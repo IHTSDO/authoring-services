@@ -12,7 +12,6 @@ import org.ihtsdo.authoringservices.service.factory.TaskServiceFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.AxiomPojo;
-import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ConceptMiniPojo;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ConceptPojo;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ConceptPojo.HistoricalAssociation;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ConceptPojo.InactivationIndicator;
@@ -37,6 +36,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doThrow;
@@ -54,6 +54,7 @@ class ConceptInactivationServiceTest {
 	private static final String REPLACEMENT_TARGET = "33333333333";
 	private static final String ISA = "116680003";
 	private static final String BRANCH = "MAIN/WRPAS/WRPAS-1";
+	private static final String AMBIGUOUS_REASON_ID = "900000000000484002";
 
 	@Mock
 	private PermissionService permissionService;
@@ -94,9 +95,7 @@ class ConceptInactivationServiceTest {
 		ConceptPojo inactivationConcept = activeConcept(CONCEPT_ID);
 		ConceptPojo affectedConcept = conceptWithIsaTo(AFFECTED_ID, CONCEPT_ID);
 
-		when(crsBlockingStateService.getBlockingState(eq(PROJECT), eq(TASK), isNull())).thenReturn(unblockedState());
-		when(branchService.getTaskBranchPathUsingCache(PROJECT, TASK)).thenReturn(BRANCH);
-		when(snowstormRestClientFactory.getClient()).thenReturn(snowstormRestClient);
+		stubUnblockedTaskBranchAndClient();
 		when(snowstormRestClient.searchConcepts(eq(BRANCH), anyList()))
 				.thenReturn(List.of(inactivationConcept, affectedConcept));
 		when(snowstormRestClient.bulkUpdateConcepts(eq(BRANCH), anyList()))
@@ -106,19 +105,18 @@ class ConceptInactivationServiceTest {
 		List<ConceptPojo> result = service.inactivate(PROJECT, TASK, CONCEPT_ID, request, false);
 
 		assertEquals(2, result.size());
-		ConceptPojo inactivated = result.stream().filter(c -> CONCEPT_ID.equals(c.getConceptId())).findFirst().orElseThrow();
+		ConceptPojo inactivated = findConcept(result, CONCEPT_ID);
 		assertFalse(inactivated.isActive());
 		assertEquals(InactivationIndicator.AMBIGUOUS, inactivated.getInactivationIndicator());
 		assertTrue(inactivated.getAssociationTargets().get(HistoricalAssociation.POSSIBLY_EQUIVALENT_TO)
 				.contains(REPLACEMENT_TARGET));
 
-		ConceptPojo updatedAffected = result.stream().filter(c -> AFFECTED_ID.equals(c.getConceptId())).findFirst().orElseThrow();
+		ConceptPojo updatedAffected = findConcept(result, AFFECTED_ID);
 		RelationshipPojo newRel = updatedAffected.getClassAxioms().iterator().next().getRelationships().iterator().next();
 		assertEquals(REPLACEMENT_TARGET, newRel.getTarget().getConceptId());
 		assertFalse(newRel.isReleased());
 
-		@SuppressWarnings("unchecked")
-		ArgumentCaptor<List<ConceptPojo>> conceptsCaptor = ArgumentCaptor.forClass(List.class);
+		ArgumentCaptor<List<ConceptPojo>> conceptsCaptor = ArgumentCaptor.captor();
 		verify(snowstormRestClient).bulkUpdateConcepts(eq(BRANCH), conceptsCaptor.capture());
 		assertEquals(2, conceptsCaptor.getValue().size());
 
@@ -131,16 +129,14 @@ class ConceptInactivationServiceTest {
 	@Test
 	void inactivate_dryRunSkipsBulkWriteNotificationAndActivity() throws Exception {
 		ConceptInactivationRequest request = baseRequest();
-		when(crsBlockingStateService.getBlockingState(eq(PROJECT), eq(TASK), isNull())).thenReturn(unblockedState());
-		when(branchService.getTaskBranchPathUsingCache(PROJECT, TASK)).thenReturn(BRANCH);
-		when(snowstormRestClientFactory.getClient()).thenReturn(snowstormRestClient);
+		stubUnblockedTaskBranchAndClient();
 		when(snowstormRestClient.searchConcepts(eq(BRANCH), anyList())).thenReturn(List.of(activeConcept(CONCEPT_ID)));
 
 		List<ConceptPojo> result = service.inactivate(PROJECT, TASK, CONCEPT_ID, request, true);
 
 		assertEquals(1, result.size());
 		assertFalse(result.get(0).isActive());
-		verify(snowstormRestClient, never()).bulkUpdateConcepts(any(), any());
+		verify(snowstormRestClient, never()).bulkUpdateConcepts(anyString(), anyList());
 		verify(notificationService, never()).queueNotification(any(), any());
 		verify(taskServiceFactory, never()).getInstanceByKey(any());
 	}
@@ -149,9 +145,10 @@ class ConceptInactivationServiceTest {
 	void inactivate_throwsWhenPermissionDenied() {
 		doThrow(new AccessDeniedException("denied")).when(permissionService)
 				.checkFullPermissionOnProjectOrThrow(PROJECT);
+		ConceptInactivationRequest request = baseRequest();
 
 		assertThrows(AccessDeniedException.class,
-				() -> service.inactivate(PROJECT, TASK, CONCEPT_ID, baseRequest(), false));
+				() -> service.inactivate(PROJECT, TASK, CONCEPT_ID, request, false));
 	}
 
 	@Test
@@ -159,15 +156,29 @@ class ConceptInactivationServiceTest {
 		CrsBlockingState blocked = new CrsBlockingState();
 		blocked.setBlockingConcepts(List.of(new BlockingConcept(CONCEPT_ID, "1", null, "FSN")));
 		when(crsBlockingStateService.getBlockingState(eq(PROJECT), eq(TASK), isNull())).thenReturn(blocked);
+		ConceptInactivationRequest request = baseRequest();
 
 		BusinessServiceException exception = assertThrows(BusinessServiceException.class,
-				() -> service.inactivate(PROJECT, TASK, CONCEPT_ID, baseRequest(), false));
+				() -> service.inactivate(PROJECT, TASK, CONCEPT_ID, request, false));
 		assertEquals(ConceptInactivationService.CRS_BLOCKED_MESSAGE, exception.getMessage());
+	}
+
+	private void stubUnblockedTaskBranchAndClient() throws Exception {
+		when(crsBlockingStateService.getBlockingState(eq(PROJECT), eq(TASK), isNull())).thenReturn(unblockedState());
+		when(branchService.getTaskBranchPathUsingCache(PROJECT, TASK)).thenReturn(BRANCH);
+		when(snowstormRestClientFactory.getClient()).thenReturn(snowstormRestClient);
+	}
+
+	private static ConceptPojo findConcept(List<ConceptPojo> concepts, String conceptId) {
+		return concepts.stream()
+				.filter(concept -> conceptId.equals(concept.getConceptId()))
+				.findFirst()
+				.orElseThrow();
 	}
 
 	private static ConceptInactivationRequest baseRequest() {
 		ConceptInactivationRequest request = new ConceptInactivationRequest();
-		request.setReasonId("900000000000484002");
+		request.setReasonId(AMBIGUOUS_REASON_ID);
 		Association association = new Association();
 		association.setType("POSSIBLY_EQUIVALENT_TO");
 		association.setTargetConceptId(REPLACEMENT_TARGET);
