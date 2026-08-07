@@ -123,6 +123,7 @@ public class NotificationService {
 			case Validation -> enrichValidation(notification);
 			case BranchHead -> enrichBranchHead(notification);
 			case AuthorChange -> enrichAuthorChange(notification);
+			case Inactivation -> enrichInactivation(notification);
 		}
 	}
 
@@ -237,6 +238,17 @@ public class NotificationService {
 	}
 
 	private void enrichAuthorChange(Notification notification) {
+		notification.setNotificationMessage(notification.getEvent());
+		notification.setSeverity(NotificationSeverity.INFO);
+		notification.setRequiresRefetch(List.of(TASK));
+		if (!Strings.isNullOrEmpty(notification.getTask())) {
+			notification.setDeepLinkPath(taskPath(notification.getProject(), notification.getTask(), "edit"));
+		} else {
+			notification.setDeepLinkPath("/" + PROJECT + "/" + notification.getProject());
+		}
+	}
+
+	private void enrichInactivation(Notification notification) {
 		notification.setNotificationMessage(notification.getEvent());
 		notification.setSeverity(NotificationSeverity.INFO);
 		notification.setRequiresRefetch(List.of(TASK));

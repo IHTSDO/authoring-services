@@ -126,4 +126,17 @@ class NotificationServiceTest {
 
 		assertEquals(List.of("branchState"), notification.getRequiresRefetch());
 	}
+
+	@Test
+	void enrichInactivationSetsDeepLinkAndRefetch() {
+		Notification notification = new Notification("WRPAS", "WRPAS-76", EntityType.Inactivation,
+				"Concept 12345678901 inactivated");
+
+		ReflectionTestUtils.invokeMethod(notificationService, "enrichNotification", notification);
+
+		assertEquals("Concept 12345678901 inactivated", notification.getNotificationMessage());
+		assertEquals("/tasks/WRPAS/WRPAS-76/edit", notification.getDeepLinkPath());
+		assertEquals(NotificationSeverity.INFO, notification.getSeverity());
+		assertTrue(notification.getRequiresRefetch().contains("task"));
+	}
 }
