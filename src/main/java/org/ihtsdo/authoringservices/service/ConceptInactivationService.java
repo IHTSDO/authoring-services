@@ -2,37 +2,26 @@ package org.ihtsdo.authoringservices.service;
 
 import org.ihtsdo.authoringservices.domain.ConceptInactivationRequest;
 import org.ihtsdo.authoringservices.domain.ConceptInactivationRequest.AcceptedAffectedConcept;
+import org.ihtsdo.authoringservices.domain.ConceptInactivationRequest.AcceptedAffectedHistoricalAssociation;
 import org.ihtsdo.authoringservices.domain.ConceptInactivationRequest.AcceptedReplacement;
 import org.ihtsdo.authoringservices.domain.ConceptInactivationRequest.Association;
 import org.ihtsdo.authoringservices.domain.CrsBlockingState;
 import org.ihtsdo.authoringservices.domain.EntityType;
 import org.ihtsdo.authoringservices.domain.Notification;
-import org.ihtsdo.authoringservices.service.factory.TaskServiceFactory;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
-import org.ihtsdo.otf.rest.client.terminologyserver.pojo.AxiomPojo;
-import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ConceptMiniPojo;
-import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ConceptPojo;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.*;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ConceptPojo.HistoricalAssociation;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ConceptPojo.InactivationIndicator;
-import org.ihtsdo.otf.rest.client.terminologyserver.pojo.RelationshipPojo;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.sso.integration.SecurityUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
-import java.util.ArrayList;
-import java.util.EnumMap;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class ConceptInactivationService {
@@ -41,27 +30,22 @@ public class ConceptInactivationService {
 			"Concept inactivation is blocked because this task has unsaved CRS concepts with SCTIDs.";
 	private static final String CONCEPT_INACTIVATED_MESSAGE = "Concept %s inactivated";
 
-	private final Logger logger = LoggerFactory.getLogger(getClass());
-
 	private final PermissionService permissionService;
 	private final CrsBlockingStateService crsBlockingStateService;
 	private final BranchService branchService;
 	private final SnowstormRestClientFactory snowstormRestClientFactory;
 	private final NotificationService notificationService;
-	private final TaskServiceFactory taskServiceFactory;
 
 	public ConceptInactivationService(PermissionService permissionService,
 			CrsBlockingStateService crsBlockingStateService,
 			BranchService branchService,
 			SnowstormRestClientFactory snowstormRestClientFactory,
-			NotificationService notificationService,
-			TaskServiceFactory taskServiceFactory) {
+			NotificationService notificationService) {
 		this.permissionService = permissionService;
 		this.crsBlockingStateService = crsBlockingStateService;
 		this.branchService = branchService;
 		this.snowstormRestClientFactory = snowstormRestClientFactory;
 		this.notificationService = notificationService;
-		this.taskServiceFactory = taskServiceFactory;
 	}
 
 	public List<ConceptPojo> inactivate(String projectKey, String taskKey, String conceptId,
@@ -92,10 +76,10 @@ public class ConceptInactivationService {
 				return conceptsToUpdate;
 			}
 
-			List<ConceptPojo> updated = client.bulkUpdateConcepts(branchPath, conceptsToUpdate);
+			client.bulkUpdateConcepts(branchPath, conceptsToUpdate);
 			emitCompletionNotification(projectKey, taskKey, branchPath, conceptId);
-			recordActivity(projectKey, taskKey, conceptId);
-			return updated;
+			Set<String> updatedConceptIds = conceptsToUpdate.stream().map(ConceptPojo::getConceptId).collect(Collectors.toSet());
+			return client.searchConcepts(branchPath, new ArrayList<>(updatedConceptIds));
 		} catch (RestClientException e) {
 			throw new BusinessServiceException("Failed to inactivate concept " + conceptId, e);
 		}
@@ -103,7 +87,11 @@ public class ConceptInactivationService {
 
 	private List<ConceptPojo> prepareConceptsForUpdate(SnowstormRestClient client, String branchPath,
 			String conceptId, ConceptInactivationRequest request) throws RestClientException, BusinessServiceException {
-		Set<String> conceptIds = collectRelatedConceptIds(conceptId, request);
+		List<AcceptedAffectedHistoricalAssociation> historicalUpdates =
+				request.getAcceptedAffectedHistoricalAssociations();
+
+		Set<String> conceptIds = collectRelatedConceptIds(conceptId, request, historicalUpdates);
+		// Fetch full concepts (including inactive concepts/descriptions and their associationTargets).
 		List<ConceptPojo> fetched = client.searchConcepts(branchPath, new ArrayList<>(conceptIds));
 		Map<String, ConceptPojo> conceptsById = indexByConceptId(fetched);
 
@@ -113,6 +101,14 @@ public class ConceptInactivationService {
 		}
 		applyInactivation(inactivationConcept, request);
 
+		applyAcceptedAffectedConceptUpdates(branchPath, conceptId, request, conceptsById);
+
+		applyHistoricalAssociationUpdates(conceptsById, conceptId, request.getReasonId(), historicalUpdates);
+
+		return buildConceptsToUpdate(conceptIds, conceptsById, conceptId, inactivationConcept);
+	}
+
+	private void applyAcceptedAffectedConceptUpdates(String branchPath, String conceptId, ConceptInactivationRequest request, Map<String, ConceptPojo> conceptsById) throws BusinessServiceException {
 		for (AcceptedAffectedConcept accepted : request.getAcceptedAffectedConcepts()) {
 			if (accepted == null || !StringUtils.hasLength(accepted.getConceptId())) {
 				continue;
@@ -124,8 +120,193 @@ public class ConceptInactivationService {
 			}
 			applyAcceptedReplacements(affected, conceptId, accepted.getAcceptedReplacements());
 		}
+	}
 
-		return buildConceptsToUpdate(conceptIds, conceptsById, conceptId, inactivationConcept);
+	private void applyHistoricalAssociationUpdates(Map<String, ConceptPojo> conceptsById, String inactivatedConceptId,
+			String reasonId, List<AcceptedAffectedHistoricalAssociation> updates) throws BusinessServiceException {
+		if (CollectionUtils.isEmpty(updates)) {
+			return;
+		}
+		Map<String, List<AcceptedAffectedHistoricalAssociation>> byConcept = new LinkedHashMap<>();
+		Map<String, List<AcceptedAffectedHistoricalAssociation>> byDescription = new LinkedHashMap<>();
+		for (AcceptedAffectedHistoricalAssociation update : updates) {
+			if (update == null || !StringUtils.hasLength(update.getConceptId())) {
+				continue;
+			}
+			if (StringUtils.hasLength(update.getDescriptionId())) {
+				byDescription.computeIfAbsent(update.getDescriptionId(), ignored -> new ArrayList<>()).add(update);
+			} else {
+				byConcept.computeIfAbsent(update.getConceptId(), ignored -> new ArrayList<>()).add(update);
+			}
+		}
+
+		InactivationIndicator reasonIndicator = resolveInactivationIndicator(reasonId);
+		for (Map.Entry<String, List<AcceptedAffectedHistoricalAssociation>> entry : byConcept.entrySet()) {
+			ConceptPojo concept = conceptsById.get(entry.getKey());
+			if (concept == null) {
+				throw new BusinessServiceException(
+						"Historical association affected concept " + entry.getKey() + " not found");
+			}
+			applyConceptHistoricalAssociations(concept, inactivatedConceptId, reasonIndicator, entry.getValue());
+		}
+		for (Map.Entry<String, List<AcceptedAffectedHistoricalAssociation>> entry : byDescription.entrySet()) {
+			AcceptedAffectedHistoricalAssociation first = entry.getValue().get(0);
+			ConceptPojo concept = conceptsById.get(first.getConceptId());
+			if (concept == null) {
+				throw new BusinessServiceException(
+						"Historical association affected concept " + first.getConceptId() + " not found");
+			}
+			applyDescriptionHistoricalAssociations(concept, entry.getKey(), inactivatedConceptId, entry.getValue());
+		}
+	}
+
+	private static void applyConceptHistoricalAssociations(ConceptPojo concept, String inactivatedConceptId,
+			InactivationIndicator reasonIndicator, List<AcceptedAffectedHistoricalAssociation> updates)
+			throws BusinessServiceException {
+		InactivationIndicator oldIndicator = concept.getInactivationIndicator();
+		InactivationIndicator newIndicator = requireHistoricalInactivationIndicator(updates);
+		List<Map<HistoricalAssociation, Set<String>>> rowTargets = new ArrayList<>();
+		for (AcceptedAffectedHistoricalAssociation update : updates) {
+			Map<HistoricalAssociation, Set<String>> working = copyAssociationTargets(concept.getAssociationTargets());
+			removeAssociationTarget(working, inactivatedConceptId);
+			applyHistoricalAssociationRow(working, update, reasonIndicator, oldIndicator, false);
+			rowTargets.add(working);
+		}
+		concept.setAssociationTargets(mergeAssociationTargets(rowTargets));
+		concept.setInactivationIndicator(newIndicator);
+	}
+
+	private static void applyDescriptionHistoricalAssociations(ConceptPojo concept, String descriptionId,
+			String inactivatedConceptId, List<AcceptedAffectedHistoricalAssociation> updates)
+			throws BusinessServiceException {
+		DescriptionPojo description = findDescription(concept, descriptionId);
+		if (description == null) {
+			throw new BusinessServiceException("Description " + descriptionId + " not found on concept "
+					+ concept.getConceptId());
+		}
+		InactivationIndicator oldIndicator = description.getInactivationIndicator();
+		InactivationIndicator newIndicator = requireHistoricalInactivationIndicator(updates);
+		List<Map<HistoricalAssociation, Set<String>>> rowTargets = new ArrayList<>();
+		for (AcceptedAffectedHistoricalAssociation update : updates) {
+			Map<HistoricalAssociation, Set<String>> working = copyAssociationTargets(description.getAssociationTargets());
+			removeAssociationTarget(working, inactivatedConceptId);
+			applyHistoricalAssociationRow(working, update, null, oldIndicator, true);
+			rowTargets.add(working);
+		}
+		Map<HistoricalAssociation, Set<String>> merged = mergeAssociationTargets(rowTargets);
+		description.setInactivationIndicator(newIndicator);
+		if (newIndicator != InactivationIndicator.NOT_SEMANTICALLY_EQUIVALENT) {
+			// Match getConceptsToUpdate in inactivation.js
+			description.setAssociationTargets(null);
+		} else {
+			description.setAssociationTargets(merged);
+		}
+	}
+
+	/**
+	 * Mirrors updateHistoricalAssociations in inactivation.js.
+	 */
+	private static void applyHistoricalAssociationRow(Map<HistoricalAssociation, Set<String>> associationTargets,
+			AcceptedAffectedHistoricalAssociation update, InactivationIndicator reasonIndicator,
+			InactivationIndicator oldIndicator, boolean descriptionToConcept) throws BusinessServiceException {
+		if (!StringUtils.hasLength(update.getNewTargetConceptId())) {
+			associationTargets.clear();
+			return;
+		}
+		if (!StringUtils.hasLength(update.getAssociationType())) {
+			associationTargets.clear();
+			return;
+		}
+		HistoricalAssociation type = resolveAssociationType(update.getAssociationType());
+		boolean ambiguousMerge = isAmbiguousMerge(oldIndicator, reasonIndicator);
+		if (ambiguousMerge) {
+			associationTargets.computeIfAbsent(type, ignored -> new HashSet<>()).add(update.getNewTargetConceptId());
+			return;
+		}
+		if (!descriptionToConcept) {
+			associationTargets.clear();
+			associationTargets.put(type, new HashSet<>(Set.of(update.getNewTargetConceptId())));
+			return;
+		}
+		Set<String> existing = associationTargets.get(type);
+		if (existing != null && !existing.contains(update.getNewTargetConceptId())) {
+			existing.add(update.getNewTargetConceptId());
+		} else {
+			associationTargets.clear();
+			associationTargets.put(type, new HashSet<>(Set.of(update.getNewTargetConceptId())));
+		}
+	}
+
+	private static boolean isAmbiguousMerge(InactivationIndicator oldIndicator, InactivationIndicator reasonIndicator) {
+		return reasonIndicator == InactivationIndicator.AMBIGUOUS
+				&& oldIndicator == InactivationIndicator.AMBIGUOUS;
+	}
+
+	private static InactivationIndicator requireHistoricalInactivationIndicator(
+			List<AcceptedAffectedHistoricalAssociation> updates) throws BusinessServiceException {
+		for (AcceptedAffectedHistoricalAssociation update : updates) {
+			if (update != null && StringUtils.hasLength(update.getInactivationIndicator())) {
+				return resolveInactivationIndicator(update.getInactivationIndicator());
+			}
+		}
+		throw new IllegalArgumentException(
+				"inactivationIndicator is required for acceptedAffectedHistoricalAssociations.");
+	}
+
+	private static DescriptionPojo findDescription(ConceptPojo concept, String descriptionId) {
+		if (concept.getDescriptions() == null) {
+			return null;
+		}
+		for (DescriptionPojo description : concept.getDescriptions()) {
+			if (description != null && descriptionId.equals(description.getDescriptionId())) {
+				return description;
+			}
+		}
+		return null;
+	}
+
+	private static Map<HistoricalAssociation, Set<String>> copyAssociationTargets(
+			Map<HistoricalAssociation, Set<String>> source) {
+		Map<HistoricalAssociation, Set<String>> copy = new EnumMap<>(HistoricalAssociation.class);
+		if (source == null) {
+			return copy;
+		}
+		for (Map.Entry<HistoricalAssociation, Set<String>> entry : source.entrySet()) {
+			if (entry.getKey() == null) {
+				continue;
+			}
+			copy.put(entry.getKey(), entry.getValue() != null ? new HashSet<>(entry.getValue()) : new HashSet<>());
+		}
+		return copy;
+	}
+
+	private static void removeAssociationTarget(Map<HistoricalAssociation, Set<String>> associationTargets,
+			String inactivatedConceptId) {
+		if (associationTargets == null || !StringUtils.hasLength(inactivatedConceptId)) {
+			return;
+		}
+		for (Set<String> targets : associationTargets.values()) {
+			if (targets != null) {
+				targets.remove(inactivatedConceptId);
+			}
+		}
+	}
+
+	private static Map<HistoricalAssociation, Set<String>> mergeAssociationTargets(
+			List<Map<HistoricalAssociation, Set<String>>> rowTargets) {
+		Map<HistoricalAssociation, Set<String>> merged = new EnumMap<>(HistoricalAssociation.class);
+		for (Map<HistoricalAssociation, Set<String>> row : rowTargets) {
+			if (row == null) {
+				continue;
+			}
+			for (Map.Entry<HistoricalAssociation, Set<String>> entry : row.entrySet()) {
+				if (entry.getKey() == null || CollectionUtils.isEmpty(entry.getValue())) {
+					continue;
+				}
+				merged.computeIfAbsent(entry.getKey(), ignored -> new HashSet<>()).addAll(entry.getValue());
+			}
+		}
+		return merged;
 	}
 
 	private static List<ConceptPojo> buildConceptsToUpdate(Set<String> conceptIds,
@@ -141,12 +322,18 @@ public class ConceptInactivationService {
 		return conceptsToUpdate;
 	}
 
-	private static Set<String> collectRelatedConceptIds(String conceptId, ConceptInactivationRequest request) {
+	private static Set<String> collectRelatedConceptIds(String conceptId, ConceptInactivationRequest request,
+			List<AcceptedAffectedHistoricalAssociation> historicalUpdates) {
 		Set<String> conceptIds = new LinkedHashSet<>();
 		conceptIds.add(conceptId);
 		for (AcceptedAffectedConcept accepted : request.getAcceptedAffectedConcepts()) {
 			if (accepted != null && StringUtils.hasLength(accepted.getConceptId())) {
 				conceptIds.add(accepted.getConceptId());
+			}
+		}
+		for (AcceptedAffectedHistoricalAssociation historical : historicalUpdates) {
+			if (historical != null && StringUtils.hasLength(historical.getConceptId())) {
+				conceptIds.add(historical.getConceptId());
 			}
 		}
 		return conceptIds;
@@ -304,15 +491,6 @@ public class ConceptInactivationService {
 				conceptInactivatedMessage(conceptId));
 		notification.setBranchPath(branchPath);
 		notificationService.queueNotification(SecurityUtil.getUsername(), notification);
-	}
-
-	private void recordActivity(String projectKey, String taskKey, String conceptId) {
-		String comment = conceptInactivatedMessage(conceptId);
-		try {
-			taskServiceFactory.getInstanceByKey(taskKey).addCommentLogErrors(projectKey, taskKey, comment);
-		} catch (RuntimeException e) {
-			logger.error("Failed to record inactivation activity for task {}/{}", projectKey, taskKey, e);
-		}
 	}
 
 	private static String conceptInactivatedMessage(String conceptId) {

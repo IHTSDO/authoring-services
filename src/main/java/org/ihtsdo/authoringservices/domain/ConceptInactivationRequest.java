@@ -12,6 +12,11 @@ public class ConceptInactivationRequest {
 	private String reasonId;
 	private List<Association> associations = new ArrayList<>();
 	private List<AcceptedAffectedConcept> acceptedAffectedConcepts = new ArrayList<>();
+	/**
+	 * Historical associations on other concepts/descriptions that currently target the
+	 * concept being inactivated.
+	 */
+	private List<AcceptedAffectedHistoricalAssociation> acceptedAffectedHistoricalAssociations = new ArrayList<>();
 	private Boolean dryRun;
 
 	public String getReasonId() {
@@ -36,6 +41,17 @@ public class ConceptInactivationRequest {
 
 	public void setAcceptedAffectedConcepts(List<AcceptedAffectedConcept> acceptedAffectedConcepts) {
 		this.acceptedAffectedConcepts = acceptedAffectedConcepts != null ? acceptedAffectedConcepts : new ArrayList<>();
+	}
+
+	public List<AcceptedAffectedHistoricalAssociation> getAcceptedAffectedHistoricalAssociations() {
+		return acceptedAffectedHistoricalAssociations;
+	}
+
+	public void setAcceptedAffectedHistoricalAssociations(
+			List<AcceptedAffectedHistoricalAssociation> acceptedAffectedHistoricalAssociations) {
+		this.acceptedAffectedHistoricalAssociations = acceptedAffectedHistoricalAssociations != null
+				? acceptedAffectedHistoricalAssociations
+				: new ArrayList<>();
 	}
 
 	public Boolean getDryRun() {
@@ -110,6 +126,62 @@ public class ConceptInactivationRequest {
 
 		public void setTypeConceptId(String typeConceptId) {
 			this.typeConceptId = typeConceptId;
+		}
+	}
+
+	/**
+	 * Remap a historical association on a concept or description that pointed at the
+	 * inactivated concept. When {@code descriptionId} is set, the update applies to that
+	 * description on {@code conceptId}; otherwise it applies to the concept itself.
+	 */
+	public static class AcceptedAffectedHistoricalAssociation {
+		private String conceptId;
+		private String descriptionId;
+		/** Historical association type name or SCTID (e.g. POSSIBLY_EQUIVALENT_TO / REFERS_TO). */
+		private String associationType;
+		/** Replacement target; null/blank clears association targets for this row. */
+		private String newTargetConceptId;
+		/** New inactivation indicator for the affected concept/description. */
+		private String inactivationIndicator;
+
+		public String getConceptId() {
+			return conceptId;
+		}
+
+		public void setConceptId(String conceptId) {
+			this.conceptId = conceptId;
+		}
+
+		public String getDescriptionId() {
+			return descriptionId;
+		}
+
+		public void setDescriptionId(String descriptionId) {
+			this.descriptionId = descriptionId;
+		}
+
+		public String getAssociationType() {
+			return associationType;
+		}
+
+		public void setAssociationType(String associationType) {
+			this.associationType = associationType;
+		}
+
+		public String getNewTargetConceptId() {
+			return newTargetConceptId;
+		}
+
+		public void setNewTargetConceptId(String newTargetConceptId) {
+			this.newTargetConceptId = newTargetConceptId;
+		}
+
+		public String getInactivationIndicator() {
+			return inactivationIndicator;
+		}
+
+		public void setInactivationIndicator(String inactivationIndicator) {
+			this.inactivationIndicator = inactivationIndicator;
 		}
 	}
 }
