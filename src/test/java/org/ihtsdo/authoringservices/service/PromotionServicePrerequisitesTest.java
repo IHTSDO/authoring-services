@@ -1,0 +1,257 @@
+package org.ihtsdo.authoringservices.service;
+
+import org.ihtsdo.authoringservices.domain.AuthoringTask;
+import org.ihtsdo.authoringservices.domain.BranchState;
+import org.ihtsdo.authoringservices.domain.CrsBlockingState.BlockingConcept;
+import org.ihtsdo.authoringservices.domain.PromotionPrerequisites;
+import org.ihtsdo.authoringservices.domain.TaskStatus;
+import org.ihtsdo.authoringservices.service.client.AuthoringAcceptanceGatewayClient;
+import org.ihtsdo.authoringservices.service.client.TraceabilityClient;
+import org.ihtsdo.authoringservices.service.client.TraceabilityClientFactory;
+import org.ihtsdo.authoringservices.service.factory.TaskServiceFactory;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Classification;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ClassificationStatus;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import java.util.Date;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class PromotionServicePrerequisitesTest {
+
+	private static final String PROJECT = "WRPAS";
+	private static final String TASK = "WRPAS-1";
+	private static final String USER = "author";
+	private static final String BRANCH = "MAIN/WRPAS/WRPAS-1";
+
+	@Mock
+	private TaskServiceFactory taskServiceFactory;
+	@Mock
+	private TaskService taskService;
+	@Mock
+	private BranchService branchService;
+	@Mock
+	private SnowstormClassificationClient classificationService;
+	@Mock
+	private TraceabilityClientFactory traceabilityClientFactory;
+	@Mock
+	private TraceabilityClient traceabilityClient;
+	@Mock
+	private CrsBlockingStateService crsBlockingStateService;
+	@Mock
+	private AuthoringAcceptanceGatewayClient aagClient;
+	@Mock
+	private Branch branch;
+	@Mock
+	private Classification classification;
+
+	@InjectMocks
+	private PromotionService promotionService;
+
+	@Test
+	void getPromotionPrerequisites_promotableWhenForwardWithCurrentClassificationAndSacSignedOff() throws Exception {
+		AuthoringTask task = task(TaskStatus.REVIEW_COMPLETED, BranchState.FORWARD.name());
+		stubTask(task);
+		when(branchService.getBranchOrNull(BRANCH)).thenReturn(branch);
+		when(branch.getHeadTimestamp()).thenReturn(1_000L);
+		stubEmptyTraceability();
+		when(classificationService.getLatestClassification(BRANCH)).thenReturn(classification);
+		when(classification.getStatus()).thenReturn(ClassificationStatus.COMPLETED);
+		when(classification.getCreationDate()).thenReturn(new Date(2_000L));
+		when(classification.getEquivalentConceptsFound()).thenReturn(false);
+		when(classification.getInferredRelationshipChangesFound()).thenReturn(false);
+		when(classification.getRedundantStatedRelationshipsFound()).thenReturn(false);
+		when(crsBlockingStateService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(List.of());
+		when(aagClient.areTaskSacSignedOff(BRANCH)).thenReturn(true);
+
+		PromotionPrerequisites result = promotionService.getPromotionPrerequisites(PROJECT, TASK, USER);
+
+		assertTrue(result.isPromotable());
+		assertTrue(result.isClassificationCurrent());
+		assertEquals("COMPLETED", result.getClassificationStatus());
+		assertFalse(result.isEquivalenciesFound());
+		assertEquals("Review Completed", result.getReviewStatus());
+		assertEquals(BranchState.FORWARD.name(), result.getBranchState());
+		assertTrue(result.isSacSignedOff());
+		assertTrue(result.getBlockers().isEmpty());
+		assertTrue(result.getCrsBlockingConcepts().isEmpty());
+	}
+
+	@Test
+	void getPromotionPrerequisites_blocksWhenDiverged() throws Exception {
+		AuthoringTask task = task(TaskStatus.REVIEW_COMPLETED, BranchState.DIVERGED.name());
+		stubTask(task);
+		when(aagClient.areTaskSacSignedOff(BRANCH)).thenReturn(true);
+		when(crsBlockingStateService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(List.of());
+
+		PromotionPrerequisites result = promotionService.getPromotionPrerequisites(PROJECT, TASK, USER);
+
+		assertFalse(result.isPromotable());
+		assertEquals(BranchState.DIVERGED.name(), result.getBranchState());
+		assertTrue(result.getBlockers().stream().anyMatch(b -> b.startsWith("Task and Project Diverged")));
+	}
+
+	@Test
+	void getPromotionPrerequisites_blocksWhenUpToDate() throws Exception {
+		AuthoringTask task = task(TaskStatus.REVIEW_COMPLETED, BranchState.UP_TO_DATE.name());
+		stubTask(task);
+		when(aagClient.areTaskSacSignedOff(BRANCH)).thenReturn(true);
+		when(crsBlockingStateService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(List.of());
+
+		PromotionPrerequisites result = promotionService.getPromotionPrerequisites(PROJECT, TASK, USER);
+
+		assertFalse(result.isPromotable());
+		assertTrue(result.getBlockers().stream().anyMatch(b -> b.startsWith("No Changes To Promote")));
+	}
+
+	@Test
+	void getPromotionPrerequisites_blocksWhenEquivalenciesFound() throws Exception {
+		AuthoringTask task = task(TaskStatus.REVIEW_COMPLETED, BranchState.FORWARD.name());
+		stubTask(task);
+		when(branchService.getBranchOrNull(BRANCH)).thenReturn(branch);
+		when(branch.getHeadTimestamp()).thenReturn(1_000L);
+		stubEmptyTraceability();
+		when(classificationService.getLatestClassification(BRANCH)).thenReturn(classification);
+		when(classification.getStatus()).thenReturn(ClassificationStatus.COMPLETED);
+		when(classification.getCreationDate()).thenReturn(new Date(2_000L));
+		when(classification.getEquivalentConceptsFound()).thenReturn(true);
+		when(crsBlockingStateService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(List.of());
+		when(aagClient.areTaskSacSignedOff(BRANCH)).thenReturn(true);
+
+		PromotionPrerequisites result = promotionService.getPromotionPrerequisites(PROJECT, TASK, USER);
+
+		assertFalse(result.isPromotable());
+		assertTrue(result.isEquivalenciesFound());
+		assertTrue(result.getBlockers().stream().anyMatch(b -> b.startsWith("Equivalencies Found")));
+	}
+
+	@Test
+	void getPromotionPrerequisites_marksClassificationStaleWhenNotCurrent() throws Exception {
+		AuthoringTask task = task(TaskStatus.REVIEW_COMPLETED, BranchState.FORWARD.name());
+		stubTask(task);
+		when(branchService.getBranchOrNull(BRANCH)).thenReturn(branch);
+		when(branch.getHeadTimestamp()).thenReturn(5_000L);
+		stubEmptyTraceability();
+		when(classificationService.getLatestClassification(BRANCH)).thenReturn(classification);
+		when(classification.getStatus()).thenReturn(ClassificationStatus.COMPLETED);
+		when(classification.getCreationDate()).thenReturn(new Date(1_000L));
+		when(classification.getEquivalentConceptsFound()).thenReturn(false);
+		when(classification.getInferredRelationshipChangesFound()).thenReturn(false);
+		when(classification.getRedundantStatedRelationshipsFound()).thenReturn(false);
+		when(crsBlockingStateService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(List.of());
+		when(aagClient.areTaskSacSignedOff(BRANCH)).thenReturn(true);
+
+		PromotionPrerequisites result = promotionService.getPromotionPrerequisites(PROJECT, TASK, USER);
+
+		assertTrue(result.isPromotable());
+		assertFalse(result.isClassificationCurrent());
+		assertEquals("STALE", result.getClassificationStatus());
+		assertTrue(result.getBlockers().stream().anyMatch(b -> b.startsWith("Classification Not Current")));
+	}
+
+	@Test
+	void getPromotionPrerequisites_blocksWhenSacNotSignedOff() throws Exception {
+		AuthoringTask task = task(TaskStatus.REVIEW_COMPLETED, BranchState.FORWARD.name());
+		stubTask(task);
+		when(branchService.getBranchOrNull(BRANCH)).thenReturn(branch);
+		when(branch.getHeadTimestamp()).thenReturn(1_000L);
+		stubEmptyTraceability();
+		when(classificationService.getLatestClassification(BRANCH)).thenReturn(classification);
+		when(classification.getStatus()).thenReturn(ClassificationStatus.COMPLETED);
+		when(classification.getCreationDate()).thenReturn(new Date(2_000L));
+		when(classification.getEquivalentConceptsFound()).thenReturn(false);
+		when(classification.getInferredRelationshipChangesFound()).thenReturn(false);
+		when(classification.getRedundantStatedRelationshipsFound()).thenReturn(false);
+		when(crsBlockingStateService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(List.of());
+		when(aagClient.areTaskSacSignedOff(BRANCH)).thenReturn(false);
+
+		PromotionPrerequisites result = promotionService.getPromotionPrerequisites(PROJECT, TASK, USER);
+
+		assertFalse(result.isPromotable());
+		assertFalse(result.isSacSignedOff());
+		assertTrue(result.getBlockers().contains("Not all Acceptance Criteria have been signed off"));
+	}
+
+	@Test
+	void getPromotionPrerequisites_includesCrsBlockingConceptsAsSoftWarning() throws Exception {
+		AuthoringTask task = task(TaskStatus.REVIEW_COMPLETED, BranchState.FORWARD.name());
+		stubTask(task);
+		when(branchService.getBranchOrNull(BRANCH)).thenReturn(branch);
+		when(branch.getHeadTimestamp()).thenReturn(1_000L);
+		stubEmptyTraceability();
+		when(classificationService.getLatestClassification(BRANCH)).thenReturn(classification);
+		when(classification.getStatus()).thenReturn(ClassificationStatus.COMPLETED);
+		when(classification.getCreationDate()).thenReturn(new Date(2_000L));
+		when(classification.getEquivalentConceptsFound()).thenReturn(false);
+		when(classification.getInferredRelationshipChangesFound()).thenReturn(false);
+		when(classification.getRedundantStatedRelationshipsFound()).thenReturn(false);
+		when(crsBlockingStateService.collectBlockingConcepts(PROJECT, TASK, USER))
+				.thenReturn(List.of(new BlockingConcept("12345678901", "99", null, "Pneumonia")));
+		when(aagClient.areTaskSacSignedOff(BRANCH)).thenReturn(true);
+
+		PromotionPrerequisites result = promotionService.getPromotionPrerequisites(PROJECT, TASK, USER);
+
+		assertTrue(result.isPromotable());
+		assertEquals(List.of("12345678901 (Request ID: 99)"), result.getCrsBlockingConcepts());
+		assertTrue(result.getBlockers().stream().anyMatch(b -> b.contains("12345678901")));
+	}
+
+	@Test
+	void getPromotionPrerequisites_softWarnsWhenReviewNotCompletedButStillPromotable() throws Exception {
+		AuthoringTask task = task(TaskStatus.IN_PROGRESS, BranchState.FORWARD.name());
+		stubTask(task);
+		when(branchService.getBranchOrNull(BRANCH)).thenReturn(branch);
+		when(branch.getHeadTimestamp()).thenReturn(1_000L);
+		stubEmptyTraceability();
+		when(classificationService.getLatestClassification(BRANCH)).thenReturn(classification);
+		when(classification.getStatus()).thenReturn(ClassificationStatus.COMPLETED);
+		when(classification.getCreationDate()).thenReturn(new Date(2_000L));
+		when(classification.getEquivalentConceptsFound()).thenReturn(false);
+		when(classification.getInferredRelationshipChangesFound()).thenReturn(false);
+		when(classification.getRedundantStatedRelationshipsFound()).thenReturn(false);
+		when(crsBlockingStateService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(List.of());
+		when(aagClient.areTaskSacSignedOff(BRANCH)).thenReturn(true);
+
+		PromotionPrerequisites result = promotionService.getPromotionPrerequisites(PROJECT, TASK, USER);
+
+		assertTrue(result.isPromotable());
+		assertEquals("In Progress", result.getReviewStatus());
+		assertTrue(result.getBlockers().stream().anyMatch(b -> b.startsWith("No review completed")));
+	}
+
+	private void stubTask(AuthoringTask task) throws Exception {
+		when(taskServiceFactory.getInstanceByKey(TASK)).thenReturn(taskService);
+		when(taskService.retrieveTask(eq(PROJECT), eq(TASK), anyBoolean(), anyBoolean())).thenReturn(task);
+		when(branchService.getTaskBranchPathUsingCache(PROJECT, TASK)).thenReturn(BRANCH);
+	}
+
+	private void stubEmptyTraceability() {
+		when(traceabilityClientFactory.getClient()).thenReturn(traceabilityClient);
+		TraceabilityClient.ActivitiesPage page = new TraceabilityClient.ActivitiesPage();
+		page.setContent(List.of());
+		page.setNumberOfElements(0);
+		when(traceabilityClient.getActivitiesForBranch(anyString())).thenReturn(page);
+	}
+
+	private static AuthoringTask task(TaskStatus status, String branchState) {
+		AuthoringTask authoringTask = new AuthoringTask();
+		authoringTask.setKey(TASK);
+		authoringTask.setProjectKey(PROJECT);
+		authoringTask.setStatus(status);
+		authoringTask.setBranchState(branchState);
+		return authoringTask;
+	}
+}

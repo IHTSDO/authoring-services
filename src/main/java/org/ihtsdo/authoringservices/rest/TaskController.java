@@ -191,6 +191,17 @@ public class TaskController {
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
+    @Operation(summary = "Retrieve promotion prerequisites for a task",
+            description = "Aggregates branch state, classification currency, equivalencies, review status, SAC sign-off, and CRS blockers. Mirrors authoring-ui promotionService.checkPrerequisitesForTask.")
+    @ApiResponse(responseCode = "200", description = "OK")
+    @GetMapping(value = "/projects/{projectKey}/tasks/{taskKey}/promote/prerequisites")
+    public PromotionPrerequisites retrieveTaskPromotionPrerequisites(@PathVariable final String projectKey,
+                                                                     @PathVariable final String taskKey)
+            throws BusinessServiceException {
+        return promotionService.getPromotionPrerequisites(
+                requiredParam(projectKey, PROJECT_KEY), requiredParam(taskKey, TASK_KEY), SecurityUtil.getUsername());
+    }
+
     @Operation(summary = "Get status of authoring task promotion.")
     @ApiResponse(responseCode = "200", description = "OK")
     @GetMapping(value = "/projects/{projectKey}/tasks/{taskKey}/promote/status")
