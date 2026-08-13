@@ -60,6 +60,12 @@ public class CrsBlockingStateService {
 		return blocking;
 	}
 
+	public List<String> formatBlockingConcepts(List<BlockingConcept> blockingConcepts) {
+		return blockingConcepts.stream()
+				.map(concept -> concept.conceptId() + " (Request ID: " + concept.crsRequestId() + ")")
+				.toList();
+	}
+
 	private static BlockingConcept toBlockingConceptIfApplicable(JsonNode crsConcept) {
 		boolean saved = crsConcept.path("saved").asBoolean(false);
 		boolean isNewConcept = crsConcept.path("isNewConcept").asBoolean(false);

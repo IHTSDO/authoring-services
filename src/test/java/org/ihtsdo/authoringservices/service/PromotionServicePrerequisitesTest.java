@@ -5,27 +5,26 @@ import org.ihtsdo.authoringservices.domain.BranchState;
 import org.ihtsdo.authoringservices.domain.CrsBlockingState.BlockingConcept;
 import org.ihtsdo.authoringservices.domain.PromotionPrerequisites;
 import org.ihtsdo.authoringservices.domain.TaskStatus;
+import org.ihtsdo.authoringservices.service.ClassificationPrerequisiteService.ClassificationPrerequisiteResult;
+import org.ihtsdo.authoringservices.service.ClassificationPrerequisiteService.Context;
 import org.ihtsdo.authoringservices.service.client.AuthoringAcceptanceGatewayClient;
 import org.ihtsdo.authoringservices.service.client.TraceabilityClient;
-import org.ihtsdo.authoringservices.service.client.TraceabilityClientFactory;
 import org.ihtsdo.authoringservices.service.factory.TaskServiceFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Classification;
-import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ClassificationStatus;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.Date;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
@@ -44,11 +43,7 @@ class PromotionServicePrerequisitesTest {
 	@Mock
 	private BranchService branchService;
 	@Mock
-	private SnowstormClassificationClient classificationService;
-	@Mock
-	private TraceabilityClientFactory traceabilityClientFactory;
-	@Mock
-	private TraceabilityClient traceabilityClient;
+	private ClassificationPrerequisiteService classificationPrerequisiteService;
 	@Mock
 	private CrsBlockingStateService crsBlockingStateService;
 	@Mock
@@ -66,15 +61,12 @@ class PromotionServicePrerequisitesTest {
 		AuthoringTask task = task(TaskStatus.REVIEW_COMPLETED, BranchState.FORWARD.name());
 		stubTask(task);
 		when(branchService.getBranchOrNull(BRANCH)).thenReturn(branch);
-		when(branch.getHeadTimestamp()).thenReturn(1_000L);
-		stubEmptyTraceability();
-		when(classificationService.getLatestClassification(BRANCH)).thenReturn(classification);
-		when(classification.getStatus()).thenReturn(ClassificationStatus.COMPLETED);
-		when(classification.getCreationDate()).thenReturn(new Date(2_000L));
-		when(classification.getEquivalentConceptsFound()).thenReturn(false);
-		when(classification.getInferredRelationshipChangesFound()).thenReturn(false);
-		when(classification.getRedundantStatedRelationshipsFound()).thenReturn(false);
+		stubEmptyActivities();
+		when(classificationPrerequisiteService.getLatestClassificationOrNull(BRANCH)).thenReturn(classification);
+		when(classificationPrerequisiteService.evaluate(eq(branch), eq(classification), any(), eq(Context.PROMOTION)))
+				.thenReturn(new ClassificationPrerequisiteResult(true, "COMPLETED", false, List.of()));
 		when(crsBlockingStateService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(List.of());
+		when(crsBlockingStateService.formatBlockingConcepts(List.of())).thenReturn(List.of());
 		when(aagClient.areTaskSacSignedOff(BRANCH)).thenReturn(true);
 
 		PromotionPrerequisites result = promotionService.getPromotionPrerequisites(PROJECT, TASK, USER);
@@ -96,6 +88,7 @@ class PromotionServicePrerequisitesTest {
 		stubTask(task);
 		when(aagClient.areTaskSacSignedOff(BRANCH)).thenReturn(true);
 		when(crsBlockingStateService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(List.of());
+		when(crsBlockingStateService.formatBlockingConcepts(List.of())).thenReturn(List.of());
 
 		PromotionPrerequisites result = promotionService.getPromotionPrerequisites(PROJECT, TASK, USER);
 
@@ -110,6 +103,7 @@ class PromotionServicePrerequisitesTest {
 		stubTask(task);
 		when(aagClient.areTaskSacSignedOff(BRANCH)).thenReturn(true);
 		when(crsBlockingStateService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(List.of());
+		when(crsBlockingStateService.formatBlockingConcepts(List.of())).thenReturn(List.of());
 
 		PromotionPrerequisites result = promotionService.getPromotionPrerequisites(PROJECT, TASK, USER);
 
@@ -122,13 +116,13 @@ class PromotionServicePrerequisitesTest {
 		AuthoringTask task = task(TaskStatus.REVIEW_COMPLETED, BranchState.FORWARD.name());
 		stubTask(task);
 		when(branchService.getBranchOrNull(BRANCH)).thenReturn(branch);
-		when(branch.getHeadTimestamp()).thenReturn(1_000L);
-		stubEmptyTraceability();
-		when(classificationService.getLatestClassification(BRANCH)).thenReturn(classification);
-		when(classification.getStatus()).thenReturn(ClassificationStatus.COMPLETED);
-		when(classification.getCreationDate()).thenReturn(new Date(2_000L));
-		when(classification.getEquivalentConceptsFound()).thenReturn(true);
+		stubEmptyActivities();
+		when(classificationPrerequisiteService.getLatestClassificationOrNull(BRANCH)).thenReturn(classification);
+		when(classificationPrerequisiteService.evaluate(eq(branch), eq(classification), any(), eq(Context.PROMOTION)))
+				.thenReturn(new ClassificationPrerequisiteResult(true, "COMPLETED", true,
+						List.of("Equivalencies Found: Classification reports equivalent concepts on this branch. You may not promote until these are resolved")));
 		when(crsBlockingStateService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(List.of());
+		when(crsBlockingStateService.formatBlockingConcepts(List.of())).thenReturn(List.of());
 		when(aagClient.areTaskSacSignedOff(BRANCH)).thenReturn(true);
 
 		PromotionPrerequisites result = promotionService.getPromotionPrerequisites(PROJECT, TASK, USER);
@@ -143,15 +137,13 @@ class PromotionServicePrerequisitesTest {
 		AuthoringTask task = task(TaskStatus.REVIEW_COMPLETED, BranchState.FORWARD.name());
 		stubTask(task);
 		when(branchService.getBranchOrNull(BRANCH)).thenReturn(branch);
-		when(branch.getHeadTimestamp()).thenReturn(5_000L);
-		stubEmptyTraceability();
-		when(classificationService.getLatestClassification(BRANCH)).thenReturn(classification);
-		when(classification.getStatus()).thenReturn(ClassificationStatus.COMPLETED);
-		when(classification.getCreationDate()).thenReturn(new Date(1_000L));
-		when(classification.getEquivalentConceptsFound()).thenReturn(false);
-		when(classification.getInferredRelationshipChangesFound()).thenReturn(false);
-		when(classification.getRedundantStatedRelationshipsFound()).thenReturn(false);
+		stubEmptyActivities();
+		when(classificationPrerequisiteService.getLatestClassificationOrNull(BRANCH)).thenReturn(classification);
+		when(classificationPrerequisiteService.evaluate(eq(branch), eq(classification), any(), eq(Context.PROMOTION)))
+				.thenReturn(new ClassificationPrerequisiteResult(false, "STALE", false,
+						List.of("Classification Not Current: Classification was run, but modifications were made after the classifier was initiated.")));
 		when(crsBlockingStateService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(List.of());
+		when(crsBlockingStateService.formatBlockingConcepts(List.of())).thenReturn(List.of());
 		when(aagClient.areTaskSacSignedOff(BRANCH)).thenReturn(true);
 
 		PromotionPrerequisites result = promotionService.getPromotionPrerequisites(PROJECT, TASK, USER);
@@ -167,15 +159,12 @@ class PromotionServicePrerequisitesTest {
 		AuthoringTask task = task(TaskStatus.REVIEW_COMPLETED, BranchState.FORWARD.name());
 		stubTask(task);
 		when(branchService.getBranchOrNull(BRANCH)).thenReturn(branch);
-		when(branch.getHeadTimestamp()).thenReturn(1_000L);
-		stubEmptyTraceability();
-		when(classificationService.getLatestClassification(BRANCH)).thenReturn(classification);
-		when(classification.getStatus()).thenReturn(ClassificationStatus.COMPLETED);
-		when(classification.getCreationDate()).thenReturn(new Date(2_000L));
-		when(classification.getEquivalentConceptsFound()).thenReturn(false);
-		when(classification.getInferredRelationshipChangesFound()).thenReturn(false);
-		when(classification.getRedundantStatedRelationshipsFound()).thenReturn(false);
+		stubEmptyActivities();
+		when(classificationPrerequisiteService.getLatestClassificationOrNull(BRANCH)).thenReturn(classification);
+		when(classificationPrerequisiteService.evaluate(eq(branch), eq(classification), any(), eq(Context.PROMOTION)))
+				.thenReturn(new ClassificationPrerequisiteResult(true, "COMPLETED", false, List.of()));
 		when(crsBlockingStateService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(List.of());
+		when(crsBlockingStateService.formatBlockingConcepts(List.of())).thenReturn(List.of());
 		when(aagClient.areTaskSacSignedOff(BRANCH)).thenReturn(false);
 
 		PromotionPrerequisites result = promotionService.getPromotionPrerequisites(PROJECT, TASK, USER);
@@ -190,16 +179,14 @@ class PromotionServicePrerequisitesTest {
 		AuthoringTask task = task(TaskStatus.REVIEW_COMPLETED, BranchState.FORWARD.name());
 		stubTask(task);
 		when(branchService.getBranchOrNull(BRANCH)).thenReturn(branch);
-		when(branch.getHeadTimestamp()).thenReturn(1_000L);
-		stubEmptyTraceability();
-		when(classificationService.getLatestClassification(BRANCH)).thenReturn(classification);
-		when(classification.getStatus()).thenReturn(ClassificationStatus.COMPLETED);
-		when(classification.getCreationDate()).thenReturn(new Date(2_000L));
-		when(classification.getEquivalentConceptsFound()).thenReturn(false);
-		when(classification.getInferredRelationshipChangesFound()).thenReturn(false);
-		when(classification.getRedundantStatedRelationshipsFound()).thenReturn(false);
-		when(crsBlockingStateService.collectBlockingConcepts(PROJECT, TASK, USER))
-				.thenReturn(List.of(new BlockingConcept("12345678901", "99", null, "Pneumonia")));
+		stubEmptyActivities();
+		when(classificationPrerequisiteService.getLatestClassificationOrNull(BRANCH)).thenReturn(classification);
+		when(classificationPrerequisiteService.evaluate(eq(branch), eq(classification), any(), eq(Context.PROMOTION)))
+				.thenReturn(new ClassificationPrerequisiteResult(true, "COMPLETED", false, List.of()));
+		List<BlockingConcept> blocking = List.of(new BlockingConcept("12345678901", "99", null, "Pneumonia"));
+		when(crsBlockingStateService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(blocking);
+		when(crsBlockingStateService.formatBlockingConcepts(blocking))
+				.thenReturn(List.of("12345678901 (Request ID: 99)"));
 		when(aagClient.areTaskSacSignedOff(BRANCH)).thenReturn(true);
 
 		PromotionPrerequisites result = promotionService.getPromotionPrerequisites(PROJECT, TASK, USER);
@@ -214,15 +201,12 @@ class PromotionServicePrerequisitesTest {
 		AuthoringTask task = task(TaskStatus.IN_PROGRESS, BranchState.FORWARD.name());
 		stubTask(task);
 		when(branchService.getBranchOrNull(BRANCH)).thenReturn(branch);
-		when(branch.getHeadTimestamp()).thenReturn(1_000L);
-		stubEmptyTraceability();
-		when(classificationService.getLatestClassification(BRANCH)).thenReturn(classification);
-		when(classification.getStatus()).thenReturn(ClassificationStatus.COMPLETED);
-		when(classification.getCreationDate()).thenReturn(new Date(2_000L));
-		when(classification.getEquivalentConceptsFound()).thenReturn(false);
-		when(classification.getInferredRelationshipChangesFound()).thenReturn(false);
-		when(classification.getRedundantStatedRelationshipsFound()).thenReturn(false);
+		stubEmptyActivities();
+		when(classificationPrerequisiteService.getLatestClassificationOrNull(BRANCH)).thenReturn(classification);
+		when(classificationPrerequisiteService.evaluate(eq(branch), eq(classification), any(), eq(Context.PROMOTION)))
+				.thenReturn(new ClassificationPrerequisiteResult(true, "COMPLETED", false, List.of()));
 		when(crsBlockingStateService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(List.of());
+		when(crsBlockingStateService.formatBlockingConcepts(List.of())).thenReturn(List.of());
 		when(aagClient.areTaskSacSignedOff(BRANCH)).thenReturn(true);
 
 		PromotionPrerequisites result = promotionService.getPromotionPrerequisites(PROJECT, TASK, USER);
@@ -238,12 +222,11 @@ class PromotionServicePrerequisitesTest {
 		when(branchService.getTaskBranchPathUsingCache(PROJECT, TASK)).thenReturn(BRANCH);
 	}
 
-	private void stubEmptyTraceability() {
-		when(traceabilityClientFactory.getClient()).thenReturn(traceabilityClient);
+	private void stubEmptyActivities() {
 		TraceabilityClient.ActivitiesPage page = new TraceabilityClient.ActivitiesPage();
 		page.setContent(List.of());
 		page.setNumberOfElements(0);
-		when(traceabilityClient.getActivitiesForBranch(anyString())).thenReturn(page);
+		when(classificationPrerequisiteService.fetchActivities(BRANCH)).thenReturn(page);
 	}
 
 	private static AuthoringTask task(TaskStatus status, String branchState) {

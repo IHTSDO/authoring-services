@@ -5,11 +5,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
 import net.sf.json.JSONObject;
 import org.ihtsdo.authoringservices.domain.*;
+import org.ihtsdo.authoringservices.service.ClassificationPrerequisiteService.ClassificationPrerequisiteResult;
+import org.ihtsdo.authoringservices.service.ClassificationPrerequisiteService.Context;
 import org.ihtsdo.authoringservices.service.client.AuthoringAcceptanceGatewayClient;
 import org.ihtsdo.authoringservices.service.client.ContentRequestServiceClient;
 import org.ihtsdo.authoringservices.service.client.ContentRequestServiceClientFactory;
 import org.ihtsdo.authoringservices.service.client.TraceabilityClient;
-import org.ihtsdo.authoringservices.service.client.TraceabilityClientFactory;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.authoringservices.service.factory.ProjectServiceFactory;
 import org.ihtsdo.authoringservices.service.factory.TaskServiceFactory;
@@ -50,11 +51,7 @@ public class PromotionService {
     private static final String TASK_PROMOTION_DISABLED_MSG = "Task promotion is disabled";
     private static final String PROJECT_PROMOTION_DISABLED_MSG = "Project promotion is disabled";
     private static final String UNKNOWN_PROMOTION_ERROR_MSG = "Promotion failed with an unknown error";
-    private static final String CLASSIFICATION_SAVE = "CLASSIFICATION_SAVE";
-    private static final String STATUS_RUNNING = "RUNNING";
-    private static final String STATUS_FAILED = "FAILED";
-    private static final String STATUS_COMPLETED = "COMPLETED";
-    private static final String STATUS_STALE = "STALE";
+    private static final String CRITERIA_HAVE_BEEN_SIGNED_OFF_MSG = "Not all Acceptance Criteria have been signed off";
 
     public static final Pattern TAG_PATTERN = Pattern.compile("^.*\\((.*)\\)$");
     public static final String IS_A = "116680003";
@@ -68,7 +65,7 @@ public class PromotionService {
     private final BranchService branchService;
     private final ReleaseNoteService releaseNoteService;
     private final SnowstormClassificationClient classificationService;
-    private final TraceabilityClientFactory traceabilityClientFactory;
+    private final ClassificationPrerequisiteService classificationPrerequisiteService;
     private final CrsBlockingStateService crsBlockingStateService;
     private final AuthoringAcceptanceGatewayClient aagClient;
     private final UiConfiguration uiConfiguration;
@@ -85,8 +82,9 @@ public class PromotionService {
             SnowstormRestClientFactory snowstormRestClientFactory,
             ContentRequestServiceClientFactory contentRequestServiceClientFactory, BranchService branchService,
             ReleaseNoteService releaseNoteService, SnowstormClassificationClient classificationService,
-            TraceabilityClientFactory traceabilityClientFactory, CrsBlockingStateService crsBlockingStateService,
-            AuthoringAcceptanceGatewayClient aagClient, UiConfiguration uiConfiguration) {
+            ClassificationPrerequisiteService classificationPrerequisiteService,
+            CrsBlockingStateService crsBlockingStateService, AuthoringAcceptanceGatewayClient aagClient,
+            UiConfiguration uiConfiguration) {
         this.cacheService = cacheService;
         this.taskServiceFactory = taskServiceFactory;
         this.projectServiceFactory = projectServiceFactory;
@@ -96,7 +94,7 @@ public class PromotionService {
         this.branchService = branchService;
         this.releaseNoteService = releaseNoteService;
         this.classificationService = classificationService;
-        this.traceabilityClientFactory = traceabilityClientFactory;
+        this.classificationPrerequisiteService = classificationPrerequisiteService;
         this.crsBlockingStateService = crsBlockingStateService;
         this.aagClient = aagClient;
         this.uiConfiguration = uiConfiguration;
@@ -635,22 +633,19 @@ public class PromotionService {
             throw new BusinessServiceException("Failed to retrieve branch details for " + branchPath, e);
         }
 
-        TraceabilityClient.ActivitiesPage activities = fetchActivities(branchPath);
+        TraceabilityClient.ActivitiesPage activities = classificationPrerequisiteService.fetchActivities(branchPath);
+        Classification classification = classificationPrerequisiteService.getLatestClassificationOrNull(branchPath);
+        ClassificationPrerequisiteResult classificationResult = classificationPrerequisiteService.evaluate(
+                branch, classification, activities, Context.PROMOTION);
+        prerequisites.setClassificationCurrent(classificationResult.classificationCurrent());
+        prerequisites.setClassificationStatus(classificationResult.classificationStatus());
+        prerequisites.setEquivalenciesFound(classificationResult.equivalenciesFound());
+        blockers.addAll(classificationResult.blockers());
 
-        Classification classification = null;
-        try {
-            classification = classificationService.getLatestClassification(branchPath);
-        } catch (RestClientException e) {
-            logger.warn("Failed to retrieve latest classification for {}: {}", branchPath, e.getMessage());
-        }
-
-        evaluateClassification(branch, classification, activities, prerequisites, blockers);
         evaluateReviewStatus(task.getStatus(), blockers);
 
-        List<String> crsBlockingConcepts = crsBlockingStateService.collectBlockingConcepts(projectKey, taskKey, username)
-                .stream()
-                .map(concept -> concept.conceptId() + " (Request ID: " + concept.crsRequestId() + ")")
-                .toList();
+        List<String> crsBlockingConcepts = crsBlockingStateService.formatBlockingConcepts(
+                crsBlockingStateService.collectBlockingConcepts(projectKey, taskKey, username));
         prerequisites.setCrsBlockingConcepts(crsBlockingConcepts);
         for (String crsBlockingConcept : crsBlockingConcepts) {
             blockers.add("Unsaved requested promotion concept ID detected: " + crsBlockingConcept);
@@ -659,7 +654,7 @@ public class PromotionService {
         boolean sacSignedOff = aagClient.areTaskSacSignedOff(branchPath);
         prerequisites.setSacSignedOff(sacSignedOff);
         if (!sacSignedOff) {
-            blockers.add("Not all Acceptance Criteria have been signed off");
+            blockers.add(CRITERIA_HAVE_BEEN_SIGNED_OFF_MSG);
         }
 
         prerequisites.setBlockers(blockers);
@@ -682,108 +677,14 @@ public class PromotionService {
         }
         prerequisites.setSacSignedOff(sacSignedOff);
         if (!sacSignedOff) {
-            blockers.add("Not all Acceptance Criteria have been signed off");
+            blockers.add(CRITERIA_HAVE_BEEN_SIGNED_OFF_MSG);
         }
-        List<String> crsBlockingConcepts = crsBlockingStateService.collectBlockingConcepts(projectKey, taskKey, username)
-                .stream()
-                .map(concept -> concept.conceptId() + " (Request ID: " + concept.crsRequestId() + ")")
-                .toList();
+        List<String> crsBlockingConcepts = crsBlockingStateService.formatBlockingConcepts(
+                crsBlockingStateService.collectBlockingConcepts(projectKey, taskKey, username));
         prerequisites.setCrsBlockingConcepts(crsBlockingConcepts);
         prerequisites.setBlockers(blockers);
         prerequisites.setPromotable(false);
         return prerequisites;
-    }
-
-    private void evaluateClassification(Branch branch, Classification classification,
-            TraceabilityClient.ActivitiesPage activities, PromotionPrerequisites prerequisites, List<String> blockers) {
-        if (branch == null) {
-            prerequisites.setClassificationCurrent(false);
-            prerequisites.setClassificationStatus(null);
-            prerequisites.setEquivalenciesFound(false);
-            blockers.add("Could Not Retrieve Branch Details: Could not retrieve branch details. This is a fatal error; contact an administrator");
-            return;
-        }
-
-        if (classification == null) {
-            prerequisites.setClassificationCurrent(false);
-            prerequisites.setClassificationStatus(null);
-            prerequisites.setEquivalenciesFound(false);
-            blockers.add("Classification Not Run: No classifications were run on this branch. Promote only if you are sure your changes will not affect future classification.");
-            return;
-        }
-
-        ClassificationStatus status = classification.getStatus();
-        boolean equivalenciesFound = Boolean.TRUE.equals(classification.getEquivalentConceptsFound());
-        prerequisites.setEquivalenciesFound(equivalenciesFound);
-
-        boolean statusOk = isClassificationStatusOk(status);
-        if (!statusOk) {
-            if (status == ClassificationStatus.RUNNING || status == ClassificationStatus.SAVING_IN_PROGRESS) {
-                blockers.add("Classification is currently running");
-            } else {
-                blockers.add("Classification Not Completed: Classification was started for this branch, but either failed or has not completed.");
-            }
-        }
-
-        boolean current = checkClassificationCurrency(status, classification, branch, activities, blockers);
-        checkClassificationAcceptance(status, classification, blockers);
-
-        if (equivalenciesFound) {
-            blockers.add("Equivalencies Found: Classification reports equivalent concepts on this branch. You may not promote until these are resolved");
-        }
-
-        prerequisites.setClassificationCurrent(statusOk && current);
-        prerequisites.setClassificationStatus(mapClassificationStatus(status, statusOk && current));
-    }
-
-    private static boolean isClassificationStatusOk(ClassificationStatus status) {
-        return status == ClassificationStatus.COMPLETED
-                || status == ClassificationStatus.SAVING_IN_PROGRESS
-                || status == ClassificationStatus.SAVED;
-    }
-
-    private boolean checkClassificationCurrency(ClassificationStatus status, Classification classification,
-            Branch branch, TraceabilityClient.ActivitiesPage activities, List<String> blockers) {
-        if (status == ClassificationStatus.COMPLETED) {
-            return isCompletedClassificationCurrent(classification, branch, blockers);
-        }
-        if (status == ClassificationStatus.SAVED) {
-            return isSavedClassificationCurrent(classification, activities, blockers);
-        }
-        return true;
-    }
-
-    private static boolean isCompletedClassificationCurrent(Classification classification, Branch branch,
-            List<String> blockers) {
-        Date creationDate = classification.getCreationDate();
-        if (creationDate != null && creationDate.getTime() < branch.getHeadTimestamp()) {
-            blockers.add("Classification Not Current: Classification was run, but modifications were made after the classifier was initiated. Promote only if you are sure any changes will not affect future classification.");
-            return false;
-        }
-        return true;
-    }
-
-    private boolean isSavedClassificationCurrent(Classification classification,
-            TraceabilityClient.ActivitiesPage activities, List<String> blockers) {
-        if (classification.getSaveDate() == null) {
-            blockers.add("Classification May Not Be Current: Could not determine whether modifications were made after saving the classification. Promote only if you sure any changes will not affect future classification.");
-            return false;
-        }
-        if (!isClassificationSavedCurrent(activities)) {
-            blockers.add("Classification Not Current: Classification was run, but modifications were made to the task afterwards. Promote only if you are sure those changes will not affect future classifications.");
-            return false;
-        }
-        return true;
-    }
-
-    private static void checkClassificationAcceptance(ClassificationStatus status, Classification classification,
-            List<String> blockers) {
-        boolean hasResults = Boolean.TRUE.equals(classification.getEquivalentConceptsFound())
-                || Boolean.TRUE.equals(classification.getInferredRelationshipChangesFound())
-                || Boolean.TRUE.equals(classification.getRedundantStatedRelationshipsFound());
-        if (status != ClassificationStatus.SAVED && hasResults) {
-            blockers.add("Classification Not Accepted: Classification results were not accepted to this branch");
-        }
     }
 
     private static void evaluateReviewStatus(TaskStatus status, List<String> blockers) {
@@ -798,56 +699,6 @@ public class PromotionService {
         }
     }
 
-    private boolean isClassificationSavedCurrent(TraceabilityClient.ActivitiesPage activities) {
-        List<TraceabilityClient.Activity> content = activities.getContent();
-        if (content == null || content.isEmpty()) {
-            return false;
-        }
-        TraceabilityClient.Activity lastActivity = content.get(content.size() - 1);
-        if (lastActivity.getCommitDate() == null) {
-            return false;
-        }
-        long lastModifiedTime = lastActivity.getCommitDate().getTime();
-        long lastClassificationSaved = 0;
-        for (TraceabilityClient.Activity activity : content) {
-            if (CLASSIFICATION_SAVE.equals(activity.getActivityType()) && activity.getCommitDate() != null) {
-                lastClassificationSaved = activity.getCommitDate().getTime();
-            }
-        }
-        return lastClassificationSaved == lastModifiedTime;
-    }
-
-    private TraceabilityClient.ActivitiesPage fetchActivities(String branchPath) {
-        TraceabilityClient client = traceabilityClientFactory.getClient();
-        if (client == null) {
-            logger.debug("Traceability URL not configured; assuming no branch activities");
-            TraceabilityClient.ActivitiesPage empty = new TraceabilityClient.ActivitiesPage();
-            empty.setContent(List.of());
-            empty.setNumberOfElements(0);
-            return empty;
-        }
-        return client.getActivitiesForBranch(branchPath);
-    }
-
-    private static String mapClassificationStatus(ClassificationStatus status, boolean current) {
-        if (status == null) {
-            return null;
-        }
-        if (status == ClassificationStatus.RUNNING || status == ClassificationStatus.SAVING_IN_PROGRESS) {
-            return STATUS_RUNNING;
-        }
-        if (status == ClassificationStatus.FAILED) {
-            return STATUS_FAILED;
-        }
-        if ((status == ClassificationStatus.COMPLETED || status == ClassificationStatus.SAVED) && !current) {
-            return STATUS_STALE;
-        }
-        if (status == ClassificationStatus.COMPLETED || status == ClassificationStatus.SAVED) {
-            return STATUS_COMPLETED;
-        }
-        return status.name();
-    }
-
     /**
      * Hard blockers mirror promotionService.js blocksPromotion: true and getPromoteDisabledReason.
      */
@@ -859,7 +710,7 @@ public class PromotionService {
                     || blocker.startsWith("Equivalencies Found")
                     || blocker.equals("Task status is New")
                     || blocker.equals("Classification is currently running")
-                    || blocker.equals("Not all Acceptance Criteria have been signed off")) {
+                    || blocker.equals(CRITERIA_HAVE_BEEN_SIGNED_OFF_MSG)) {
                 return true;
             }
         }
