@@ -152,7 +152,8 @@ public abstract class Configuration {
 				"/branches/(.*)/validation",
 				"/branches/(.*)/classifications",
 				"/branches/(.*)/validation-reports/(.*)",
-				"/branches/(.*)/authoring-info"
+				"/branches/(.*)/authoring-info",
+				"/branches/(.*)/language-refsets"
 		));
 	}
 
