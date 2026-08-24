@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -29,10 +30,17 @@ public class CrsConceptPreparation {
 	static final String FULLY_DEFINED = "FULLY_DEFINED";
 
 	private static final Pattern PROMOTION_CONCEPT_ID_PATTERN = Pattern.compile("(\\d+)\\s+\\|([^|]*)\\|");
+	public static final String DEFINITION_STATUS = "definitionStatus";
+	public static final String CONCRETE_VALUE = "concreteValue";
+	public static final String TARGET = "target";
+	public static final String CONCEPT_ID = "conceptId";
+	public static final String RELATIONSHIPS = "relationships";
+	public static final String DEFINITION_OF_CHANGES = "definitionOfChanges";
 
 	private final ObjectMapper objectMapper;
 	private final Supplier<String> uuidSupplier;
 
+	@Autowired
 	public CrsConceptPreparation(ObjectMapper objectMapper) {
 		this(objectMapper, () -> UUID.randomUUID().toString());
 	}
@@ -57,18 +65,18 @@ public class CrsConceptPreparation {
 		}
 
 		ObjectNode request = requestNode.deepCopy();
-		String conceptId = textOrNull(request, "conceptId");
+		String conceptId = textOrNull(request, CONCEPT_ID);
 		if (conceptId != null) {
 			conceptId = conceptId.trim();
 			if (conceptId.isEmpty()) {
 				conceptId = null;
 			} else {
-				request.put("conceptId", conceptId);
+				request.put(CONCEPT_ID, conceptId);
 			}
 		}
 
 		if (conceptId == null) {
-			request.put("conceptId", uuidSupplier.get());
+			request.put(CONCEPT_ID, uuidSupplier.get());
 			return toNewConcept(request, defaultModuleId);
 		}
 		if (isNewConcept(request)) {
@@ -99,15 +107,15 @@ public class CrsConceptPreparation {
 	}
 
 	static boolean isNewConcept(JsonNode crsRequest) {
-		return CHANGE_TYPE_NEW_CONCEPT.equals(crsRequest.path("definitionOfChanges").path("changeType").asText(null));
+		return CHANGE_TYPE_NEW_CONCEPT.equals(crsRequest.path(DEFINITION_OF_CHANGES).path("changeType").asText(null));
 	}
 
 	private ObjectNode toNewConcept(ObjectNode request, String defaultModuleId) {
-		ArrayNode relationships = copyArray(request.get("relationships"));
+		ArrayNode relationships = copyArray(request.get(RELATIONSHIPS));
 		ObjectNode axiom = newAxiom(defaultModuleId);
-		axiom.set("relationships", relationships);
-		if (FULLY_DEFINED.equals(request.path("definitionStatus").asText(null))) {
-			axiom.put("definitionStatus", FULLY_DEFINED);
+		axiom.set(RELATIONSHIPS, relationships);
+		if (FULLY_DEFINED.equals(request.path(DEFINITION_STATUS).asText(null))) {
+			axiom.put(DEFINITION_STATUS, FULLY_DEFINED);
 		}
 		for (JsonNode relationship : relationships) {
 			if (relationship instanceof ObjectNode relationshipNode) {
@@ -117,7 +125,7 @@ public class CrsConceptPreparation {
 		ArrayNode classAxioms = objectMapper.createArrayNode();
 		classAxioms.add(axiom);
 		request.set("classAxioms", classAxioms);
-		request.remove("relationships");
+		request.remove(RELATIONSHIPS);
 		return request;
 	}
 
@@ -139,11 +147,9 @@ public class CrsConceptPreparation {
 		}
 
 		ArrayNode classAxioms = ensureArray(concept, "classAxioms");
-		for (JsonNode crsRelationship : iterable(crsConcept.get("relationships"))) {
-			if (!(crsRelationship instanceof ObjectNode crsRelationshipNode)) {
-				continue;
-			}
-			if (!STATED_RELATIONSHIP.equals(crsRelationshipNode.path("characteristicType").asText(null))) {
+		for (JsonNode crsRelationship : iterable(crsConcept.get(RELATIONSHIPS))) {
+			if (!(crsRelationship instanceof ObjectNode crsRelationshipNode)
+					|| !STATED_RELATIONSHIP.equals(crsRelationshipNode.path("characteristicType").asText(null))) {
 				continue;
 			}
 			if (!applyDefinitionOfChangesToMatchingRelationship(classAxioms, crsRelationshipNode)
@@ -154,9 +160,9 @@ public class CrsConceptPreparation {
 			}
 		}
 
-		String definitionStatus = textOrNull(crsConcept, "definitionStatus");
+		String definitionStatus = textOrNull(crsConcept, DEFINITION_STATUS);
 		if (definitionStatus != null) {
-			concept.put("definitionStatus", definitionStatus);
+			concept.put(DEFINITION_STATUS, definitionStatus);
 		}
 		applyDefinitionStatusToAxioms(classAxioms, definitionStatus);
 	}
@@ -166,7 +172,7 @@ public class CrsConceptPreparation {
 			if (!(axiom instanceof ObjectNode axiomNode)) {
 				continue;
 			}
-			for (JsonNode relationship : iterable(axiomNode.get("relationships"))) {
+			for (JsonNode relationship : iterable(axiomNode.get(RELATIONSHIPS))) {
 				if (relationship instanceof ObjectNode relationshipNode && relationshipsMatch(relationshipNode, crsRelationship)) {
 					copyDefinitionOfChanges(relationshipNode, crsRelationship);
 					return true;
@@ -187,7 +193,7 @@ public class CrsConceptPreparation {
 			axiom = newAxiom(null);
 			classAxioms.set(0, axiom);
 		}
-		return ensureArray(axiom, "relationships");
+		return ensureArray(axiom, RELATIONSHIPS);
 	}
 
 	private void applyDefinitionStatusToAxioms(ArrayNode classAxioms, String definitionStatus) {
@@ -197,7 +203,7 @@ public class CrsConceptPreparation {
 		if (PRIMITIVE.equals(definitionStatus)) {
 			for (JsonNode axiom : classAxioms) {
 				if (axiom instanceof ObjectNode axiomNode) {
-					axiomNode.put("definitionStatus", PRIMITIVE);
+					axiomNode.put(DEFINITION_STATUS, PRIMITIVE);
 				}
 			}
 			return;
@@ -206,26 +212,26 @@ public class CrsConceptPreparation {
 			return;
 		}
 		for (JsonNode axiom : classAxioms) {
-			if (FULLY_DEFINED.equals(axiom.path("definitionStatus").asText(null))) {
+			if (FULLY_DEFINED.equals(axiom.path(DEFINITION_STATUS).asText(null))) {
 				return;
 			}
 		}
 		if (classAxioms.get(0) instanceof ObjectNode first) {
-			first.put("definitionStatus", FULLY_DEFINED);
+			first.put(DEFINITION_STATUS, FULLY_DEFINED);
 		}
 	}
 
 	private ObjectNode newAxiom(String defaultModuleId) {
 		ObjectNode axiom = objectMapper.createObjectNode();
 		axiom.put("axiomId", uuidSupplier.get());
-		axiom.put("definitionStatus", PRIMITIVE);
+		axiom.put(DEFINITION_STATUS, PRIMITIVE);
 		axiom.putNull("effectiveTime");
 		axiom.put("active", true);
 		axiom.put("released", false);
 		if (StringUtils.hasLength(defaultModuleId)) {
 			axiom.put("moduleId", defaultModuleId);
 		}
-		axiom.set("relationships", objectMapper.createArrayNode());
+		axiom.set(RELATIONSHIPS, objectMapper.createArrayNode());
 		return axiom;
 	}
 
@@ -271,16 +277,16 @@ public class CrsConceptPreparation {
 				!= crsRelationship.path("groupId").asInt(Integer.MIN_VALUE)) {
 			return false;
 		}
-		boolean targetsMatch = axiomRelationship.hasNonNull("target") && crsRelationship.hasNonNull("target")
-				&& conceptIdsEqual(axiomRelationship.path("target"), crsRelationship.path("target"));
-		boolean concreteMatch = axiomRelationship.hasNonNull("concreteValue") && crsRelationship.hasNonNull("concreteValue")
-				&& textsEqual(axiomRelationship.path("concreteValue").path("valueWithPrefix"),
-				crsRelationship.path("concreteValue").path("valueWithPrefix"));
+		boolean targetsMatch = axiomRelationship.hasNonNull(TARGET) && crsRelationship.hasNonNull(TARGET)
+				&& conceptIdsEqual(axiomRelationship.path(TARGET), crsRelationship.path(TARGET));
+		boolean concreteMatch = axiomRelationship.hasNonNull(CONCRETE_VALUE) && crsRelationship.hasNonNull(CONCRETE_VALUE)
+				&& textsEqual(axiomRelationship.path(CONCRETE_VALUE).path("valueWithPrefix"),
+				crsRelationship.path(CONCRETE_VALUE).path("valueWithPrefix"));
 		return targetsMatch || concreteMatch;
 	}
 
 	private static boolean conceptIdsEqual(JsonNode left, JsonNode right) {
-		return textsEqual(left.path("conceptId"), right.path("conceptId"));
+		return textsEqual(left.path(CONCEPT_ID), right.path(CONCEPT_ID));
 	}
 
 	private static boolean textsEqual(JsonNode left, JsonNode right) {
@@ -303,9 +309,9 @@ public class CrsConceptPreparation {
 	}
 
 	private static void copyDefinitionOfChanges(ObjectNode target, JsonNode source) {
-		JsonNode definitionOfChanges = source.get("definitionOfChanges");
+		JsonNode definitionOfChanges = source.get(DEFINITION_OF_CHANGES);
 		if (definitionOfChanges != null && !definitionOfChanges.isNull()) {
-			target.set("definitionOfChanges", definitionOfChanges.deepCopy());
+			target.set(DEFINITION_OF_CHANGES, definitionOfChanges.deepCopy());
 		}
 	}
 
