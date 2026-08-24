@@ -272,10 +272,13 @@ public class TaskController {
     }
 
     @Operation(summary = "Apply a CRS request to the concept on a task branch",
-            description = "Fetches the CRS request (US extension vs international endpoint), detects NEW_CONCEPT, "
-                    + "generates a GUID and class axiom when needed, and merges CRS definitionOfChanges into the "
-                    + "concept currently on the task branch. Returns the concept ready for the concept editor; "
-                    + "does not persist. Mirrors authoring-ui crsService.prepareCrsConcept.")
+            description = "Fetches the CRS request (US extension vs international endpoint) and always returns "
+                    + "{ concepts, status?, message? }. For content-promotion requests, copies the donated "
+                    + "concept and dependencies onto the task branch. If the donated concept or dependents already "
+                    + "exist on the task, returns those concepts with status and message instead of "
+                    + "copying. Otherwise detects NEW_CONCEPT, generates a GUID and class axiom when needed, and "
+                    + "merges CRS definitionOfChanges into the concept currently on the task branch. "
+                    + "Non-promotion results are not persisted.")
     @ApiResponse(responseCode = "200", description = "OK")
     @PostMapping(value = "/projects/{projectKey}/tasks/{taskKey}/crs/apply-request/{requestId}")
     public JsonNode applyCrsRequest(@PathVariable final String projectKey, @PathVariable final String taskKey,

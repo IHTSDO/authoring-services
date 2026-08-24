@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import net.sf.json.JSONObject;
 import org.ihtsdo.authoringservices.domain.CrsBlockingState;
 import org.ihtsdo.authoringservices.domain.CrsBlockingState.BlockingConcept;
+import org.ihtsdo.authoringservices.domain.ContentRequestResult;
 import org.ihtsdo.authoringservices.domain.UiConfiguration;
 import org.ihtsdo.authoringservices.service.client.ContentRequestServiceClient;
 import org.ihtsdo.authoringservices.service.client.ContentRequestServiceClient.ContentRequestDto;
@@ -15,6 +16,9 @@ import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystemVersion;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ConceptMiniPojo;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ConceptPojo;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
@@ -27,19 +31,24 @@ import org.springframework.web.client.HttpStatusCodeException;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 public class ContentRequestService {
 
 	static final String CRS_ENDPOINT = "crsEndpoint";
 	static final String CRS_ENDPOINT_US = "crsEndpoint.US";
+	static final String CONTENT_PROMOTION_TOPIC = "Content Promotion";
 	private static final String DEFAULT_MODULE_ID = "defaultModuleId";
 	private static final String EXTENSION_BRANCH_PREFIX = "MAIN/SNOMEDCT-";
 	private static final String SHARED = "SHARED";
 	private static final String CRS_CONCEPTS_PANEL = "crs-concepts";
 	private static final String CONCEPT_ID = "conceptId";
+	private static final String BATCH_CHANGE_FLAG = "batch-change";
+	private static final int EXISTING_CONCEPT_SEARCH_LIMIT = 1000;
 
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 
@@ -70,20 +79,225 @@ public class ContentRequestService {
 		this.objectMapper = objectMapper;
 	}
 
-	public ObjectNode applyRequest(String projectKey, String taskKey, String requestId) throws BusinessServiceException {
+	public JsonNode applyRequest(String projectKey, String taskKey, String requestId) throws BusinessServiceException {
 		if (!StringUtils.hasText(requestId)) {
 			throw new IllegalArgumentException("Parameter requestId is required.");
 		}
 		permissionService.checkFullPermissionOnProjectOrThrow(projectKey);
 
 		String branchPath = branchService.getTaskBranchPathUsingCache(projectKey, taskKey);
+		try {
+			branchService.createBranchIfNeeded(branchPath);
+		} catch (ServiceException e) {
+			throw new BusinessServiceException("Failed to create branch " + branchPath, e);
+		}
+
 		ContentRequestDto crsRequest = fetchCrsRequest(branchPath, requestId);
 		JsonNode crsConcept = parseCrsConcept(crsRequest);
+		if (isContentPromotion(crsConcept)) {
+			return toResponse(donateContentPromotion(branchPath, crsRequest, crsConcept));
+		}
 		JsonNode existingConcept = null;
 		if (requiresExistingConcept(crsConcept)) {
 			existingConcept = fetchExistingConcept(branchPath, textOrNull(crsConcept, CONCEPT_ID));
 		}
-		return crsConceptPreparation.prepareCrsConcept(crsConcept, existingConcept, defaultModuleId(branchPath));
+		return toResponse(crsConceptPreparation.prepareCrsConcept(crsConcept, existingConcept, defaultModuleId(branchPath)));
+	}
+
+	private ContentRequestResult donateContentPromotion(String branchPath, ContentRequestDto crsRequest, JsonNode crsConcept)
+			throws BusinessServiceException {
+		String organization = crsRequest.getOrganizationOrNull();
+		if (!StringUtils.hasText(organization)) {
+			throw new IllegalArgumentException("Could not find code system for " + organization);
+		}
+
+		SnowstormRestClient snowstormRestClient = snowstormRestClientFactory.getClient();
+		CodeSystem codeSystem;
+		try {
+			codeSystem = snowstormRestClient.getCodeSystem(organization);
+		} catch (RestClientException e) {
+			throw new BusinessServiceException("Failed to load code system " + organization, e);
+		}
+		if (codeSystem == null) {
+			throw new IllegalArgumentException("Could not find code system for " + organization);
+		}
+		CodeSystemVersion latestVersion = codeSystem.getLatestVersion();
+		if (latestVersion == null || !StringUtils.hasText(latestVersion.getBranchPath())) {
+			throw new IllegalArgumentException("The latest version not found against code system " + organization);
+		}
+
+		try {
+			snowstormRestClient.setAuthorFlag(branchPath, BATCH_CHANGE_FLAG, "true");
+		} catch (RestClientException e) {
+			throw new BusinessServiceException("Failed to set author flag on branch " + branchPath, e);
+		}
+
+		String summary = textOrNull(crsConcept.path(CrsConceptPreparation.DEFINITION_OF_CHANGES), "summary");
+		List<String> conceptIdsToCopy = CrsConceptPreparation.getConceptIdsFromPromotionSummary(summary);
+		if (conceptIdsToCopy.isEmpty()) {
+			throw new IllegalArgumentException("No concepts found in the content promotion summary.");
+		}
+
+		String donatedConceptId = textOrNull(crsConcept, CONCEPT_ID);
+		if (!StringUtils.hasText(donatedConceptId)) {
+			throw new IllegalArgumentException("CRS request is missing conceptId.");
+		}
+		ContentRequestResult alreadyPresent = existingConceptsIfPresent(
+				snowstormRestClient, branchPath, conceptIdsToCopy, donatedConceptId);
+		if (alreadyPresent != null) {
+			return alreadyPresent;
+		}
+
+		boolean includeDependencies = conceptIdsToCopy.size() > 1;
+		List<String> copiedIds;
+		try {
+			copiedIds = copiedConceptIds(snowstormRestClient.copyConcepts(
+					branchPath, latestVersion.getBranchPath(), donatedConceptId, includeDependencies));
+		} catch (RestClientException e) {
+			throw new BusinessServiceException("Failed to copy concepts onto branch " + branchPath, e);
+		}
+		return ContentRequestResult.of(conceptsJson(loadCopiedConcepts(snowstormRestClient, branchPath, copiedIds)));
+	}
+
+	private ContentRequestResult existingConceptsIfPresent(SnowstormRestClient snowstormRestClient, String branchPath,
+			List<String> conceptIdsToCopy, String donatedConceptId) throws BusinessServiceException {
+		Set<ConceptMiniPojo> existing;
+		try {
+			int limit = Math.max(EXISTING_CONCEPT_SEARCH_LIMIT, conceptIdsToCopy.size());
+			existing = snowstormRestClient.getConceptMinis(branchPath, conceptIdsToCopy, limit, null);
+		} catch (RestClientException e) {
+			throw new BusinessServiceException("Failed to search concepts on branch " + branchPath, e);
+		}
+
+		Map<String, ConceptMiniPojo> existingById = new LinkedHashMap<>();
+		if (existing != null) {
+			for (ConceptMiniPojo concept : existing) {
+				if (concept != null && StringUtils.hasText(concept.getConceptId())) {
+					existingById.put(concept.getConceptId(), concept);
+				}
+			}
+		}
+
+		String foundDonatedConcept = null;
+		List<String> foundDependentConcepts = new ArrayList<>();
+		List<String> foundIds = new ArrayList<>();
+		for (String conceptId : conceptIdsToCopy) {
+			ConceptMiniPojo match = existingById.get(conceptId);
+			if (match == null) {
+				continue;
+			}
+			foundIds.add(conceptId);
+			String idAndFsnTerm = idAndFsnTerm(match);
+			if (conceptId.equals(donatedConceptId)) {
+				foundDonatedConcept = idAndFsnTerm;
+			} else {
+				foundDependentConcepts.add(idAndFsnTerm);
+			}
+		}
+
+		if (foundDonatedConcept == null && foundDependentConcepts.isEmpty()) {
+			return null;
+		}
+		JsonNode concepts = conceptsJson(loadCopiedConcepts(snowstormRestClient, branchPath, foundIds));
+		if (foundDonatedConcept != null) {
+			return ContentRequestResult.error(concepts, donatedConceptExistsMessage(foundDonatedConcept, branchPath));
+		}
+		return ContentRequestResult.warning(concepts,
+				dependentConceptsExistMessage(foundDependentConcepts, branchPath));
+	}
+
+	private JsonNode toResponse(JsonNode concept) {
+		return objectMapper.valueToTree(ContentRequestResult.of(conceptsJson(concept)));
+	}
+
+	private JsonNode toResponse(ContentRequestResult result) {
+		return objectMapper.valueToTree(result);
+	}
+
+	private JsonNode conceptsJson(JsonNode concept) {
+		return objectMapper.createArrayNode().add(concept);
+	}
+
+	private JsonNode conceptsJson(List<ConceptPojo> concepts) {
+		return objectMapper.valueToTree(concepts != null ? concepts : List.of());
+	}
+
+	private static List<String> copiedConceptIds(List<ConceptMiniPojo> copied) {
+		List<String> copiedIds = new ArrayList<>();
+		if (copied == null) {
+			return copiedIds;
+		}
+		for (ConceptMiniPojo mini : copied) {
+			if (mini != null && StringUtils.hasText(mini.getConceptId())) {
+				copiedIds.add(mini.getConceptId());
+			}
+		}
+		return copiedIds;
+	}
+
+	private List<ConceptPojo> loadCopiedConcepts(SnowstormRestClient snowstormRestClient, String branchPath,
+			List<String> copiedIds) throws BusinessServiceException {
+		if (copiedIds == null || copiedIds.isEmpty()) {
+			return List.of();
+		}
+		List<ConceptPojo> fetched;
+		try {
+			fetched = snowstormRestClient.searchConcepts(branchPath, copiedIds);
+		} catch (RestClientException e) {
+			throw new BusinessServiceException("Failed to load copied concepts from branch " + branchPath, e);
+		}
+		Map<String, ConceptPojo> byId = new LinkedHashMap<>();
+		if (fetched != null) {
+			for (ConceptPojo concept : fetched) {
+				if (concept != null && StringUtils.hasText(concept.getConceptId())) {
+					byId.put(concept.getConceptId(), concept);
+				}
+			}
+		}
+		List<ConceptPojo> ordered = new ArrayList<>();
+		for (String copiedId : copiedIds) {
+			ConceptPojo concept = byId.get(copiedId);
+			if (concept != null) {
+				ordered.add(concept);
+			}
+		}
+		return ordered;
+	}
+
+	static String idAndFsnTerm(ConceptMiniPojo concept) {
+		String conceptId = concept.getConceptId();
+		String fsnTerm = fsnTerm(concept);
+		if (!StringUtils.hasLength(fsnTerm)) {
+			return conceptId;
+		}
+		return conceptId + " | " + fsnTerm + " |";
+	}
+
+	static String donatedConceptExistsMessage(String idAndFsnTerm, String destinationBranch) {
+		return "The donated concept " + idAndFsnTerm + " already exists in this task (" + destinationBranch
+				+ ") and can not be created again. Please reject the request.";
+	}
+
+	static String dependentConceptsExistMessage(List<String> foundDependentConcepts, String destinationBranch) {
+		String base = " in this task (" + destinationBranch
+				+ ") and can not be created again. The request should be submitted again without dependencies.";
+		if (foundDependentConcepts.size() == 1) {
+			return "The dependent concept " + foundDependentConcepts.get(0) + " already exists" + base;
+		}
+		if (foundDependentConcepts.size() == 2) {
+			return "The dependent concepts " + foundDependentConcepts.get(0) + " and " + foundDependentConcepts.get(1)
+					+ " already exist" + base;
+		}
+		String last = foundDependentConcepts.get(foundDependentConcepts.size() - 1);
+		String rest = String.join(", ", foundDependentConcepts.subList(0, foundDependentConcepts.size() - 1));
+		return "The dependent concepts " + rest + ", and " + last + " already exist" + base;
+	}
+
+	private static String fsnTerm(ConceptMiniPojo concept) {
+		if (concept.getFsn() != null && StringUtils.hasLength(concept.getFsn().getTerm())) {
+			return concept.getFsn().getTerm();
+		}
+		return concept.getFsnTerm();
 	}
 
 	private ContentRequestDto fetchCrsRequest(String branchPath, String requestId) throws BusinessServiceException {
@@ -156,6 +370,14 @@ public class ContentRequestService {
 		} catch (JsonProcessingException e) {
 			throw new BusinessServiceException("Failed to parse CRS request concept JSON", e);
 		}
+	}
+
+	private static boolean isContentPromotion(JsonNode crsConcept) {
+		if (crsConcept == null || !crsConcept.isObject()) {
+			return false;
+		}
+		return CONTENT_PROMOTION_TOPIC.equals(
+				crsConcept.path(CrsConceptPreparation.DEFINITION_OF_CHANGES).path("topic").asText(null));
 	}
 
 	private static boolean requiresExistingConcept(JsonNode crsConcept) {
