@@ -67,7 +67,7 @@ class ConceptInactivationServiceTest {
 	@Mock
 	private PermissionService permissionService;
 	@Mock
-	private CrsBlockingStateService crsBlockingStateService;
+	private ContentRequestService contentRequestService;
 	@Mock
 	private BranchService branchService;
 	@Mock
@@ -81,7 +81,7 @@ class ConceptInactivationServiceTest {
 
 	@BeforeEach
 	void setUp() {
-		service = new ConceptInactivationService(permissionService, crsBlockingStateService, branchService,
+		service = new ConceptInactivationService(permissionService, contentRequestService, branchService,
 				snowstormRestClientFactory, notificationService);
 	}
 
@@ -237,7 +237,7 @@ class ConceptInactivationServiceTest {
 	void inactivate_throwsWhenCrsBlocked() {
 		CrsBlockingState blocked = new CrsBlockingState();
 		blocked.setBlockingConcepts(List.of(new BlockingConcept(CONCEPT_ID, "1", null, "FSN")));
-		when(crsBlockingStateService.getBlockingState(eq(PROJECT), eq(TASK), isNull())).thenReturn(blocked);
+		when(contentRequestService.getBlockingState(eq(PROJECT), eq(TASK), isNull())).thenReturn(blocked);
 		ConceptInactivationRequest request = baseRequest();
 
 		BusinessServiceException exception = assertThrows(BusinessServiceException.class,
@@ -246,7 +246,7 @@ class ConceptInactivationServiceTest {
 	}
 
 	private void stubUnblockedTaskBranchAndClient() throws BusinessServiceException {
-		when(crsBlockingStateService.getBlockingState(eq(PROJECT), eq(TASK), isNull())).thenReturn(unblockedState());
+		when(contentRequestService.getBlockingState(eq(PROJECT), eq(TASK), isNull())).thenReturn(unblockedState());
 		when(branchService.getTaskBranchPathUsingCache(PROJECT, TASK)).thenReturn(BRANCH);
 		when(snowstormRestClientFactory.getClient()).thenReturn(snowstormRestClient);
 	}

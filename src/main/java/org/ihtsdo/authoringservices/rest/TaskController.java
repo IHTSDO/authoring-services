@@ -4,8 +4,9 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.ihtsdo.authoringservices.domain.*;
-import org.ihtsdo.authoringservices.service.CrsBlockingStateService;
+import org.ihtsdo.authoringservices.service.ContentRequestService;
 import org.ihtsdo.authoringservices.service.PromotionService;
 import org.ihtsdo.authoringservices.service.RebaseService;
 import org.ihtsdo.authoringservices.service.factory.ProjectServiceFactory;
@@ -42,19 +43,20 @@ public class TaskController {
     private final TaskServiceFactory taskServiceFactory;
     private final PromotionService promotionService;
     private final RebaseService rebaseService;
-    private final CrsBlockingStateService crsBlockingStateService;
+    private final ContentRequestService contentRequestService;
 
     private final SnowstormRestClientFactory snowstormRestClientFactory;
 
     @Autowired
     public TaskController(ProjectServiceFactory projectServiceFactory, TaskServiceFactory taskServiceFactory,
             PromotionService promotionService, RebaseService rebaseService,
-            CrsBlockingStateService crsBlockingStateService, SnowstormRestClientFactory snowstormRestClientFactory) {
+            ContentRequestService contentRequestService,
+            SnowstormRestClientFactory snowstormRestClientFactory) {
         this.projectServiceFactory = projectServiceFactory;
         this.taskServiceFactory = taskServiceFactory;
         this.promotionService = promotionService;
         this.rebaseService = rebaseService;
-        this.crsBlockingStateService = crsBlockingStateService;
+        this.contentRequestService = contentRequestService;
         this.snowstormRestClientFactory = snowstormRestClientFactory;
     }
 
@@ -265,8 +267,23 @@ public class TaskController {
     @ApiResponse(responseCode = "200", description = "OK")
     @GetMapping(value = "/projects/{projectKey}/tasks/{taskKey}/crs/blocking-state")
     public CrsBlockingState getCrsBlockingState(@PathVariable final String projectKey, @PathVariable final String taskKey) {
-        return crsBlockingStateService.getBlockingState(
+        return contentRequestService.getBlockingState(
                 requiredParam(projectKey, PROJECT_KEY), requiredParam(taskKey, TASK_KEY), SecurityUtil.getUsername());
+    }
+
+    @Operation(summary = "Apply a CRS request to the concept on a task branch",
+            description = "Fetches the CRS request (US extension vs international endpoint), detects NEW_CONCEPT, "
+                    + "generates a GUID and class axiom when needed, and merges CRS definitionOfChanges into the "
+                    + "concept currently on the task branch. Returns the concept ready for the concept editor; "
+                    + "does not persist. Mirrors authoring-ui crsService.prepareCrsConcept.")
+    @ApiResponse(responseCode = "200", description = "OK")
+    @PostMapping(value = "/projects/{projectKey}/tasks/{taskKey}/crs/apply-request/{requestId}")
+    public JsonNode applyCrsRequest(@PathVariable final String projectKey, @PathVariable final String taskKey,
+            @Parameter(description = "CRS request ID") @PathVariable final String requestId)
+            throws BusinessServiceException {
+        return contentRequestService.applyRequest(
+                requiredParam(projectKey, PROJECT_KEY), requiredParam(taskKey, TASK_KEY),
+                requiredParam(requestId, "requestId"));
     }
 
     private List<CodeSystem> getCodeSystems() {

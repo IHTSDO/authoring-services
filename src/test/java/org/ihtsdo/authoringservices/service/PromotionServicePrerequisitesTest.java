@@ -45,7 +45,7 @@ class PromotionServicePrerequisitesTest {
 	@Mock
 	private ClassificationPrerequisiteService classificationPrerequisiteService;
 	@Mock
-	private CrsBlockingStateService crsBlockingStateService;
+	private ContentRequestService contentRequestService;
 	@Mock
 	private AuthoringAcceptanceGatewayClient aagClient;
 	@Mock
@@ -65,8 +65,8 @@ class PromotionServicePrerequisitesTest {
 		when(classificationPrerequisiteService.getLatestClassificationOrNull(BRANCH)).thenReturn(classification);
 		when(classificationPrerequisiteService.evaluate(eq(branch), eq(classification), any(), eq(Context.PROMOTION)))
 				.thenReturn(new ClassificationPrerequisiteResult(true, "COMPLETED", false, List.of()));
-		when(crsBlockingStateService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(List.of());
-		when(crsBlockingStateService.formatBlockingConcepts(List.of())).thenReturn(List.of());
+		when(contentRequestService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(List.of());
+		when(contentRequestService.formatBlockingConcepts(List.of())).thenReturn(List.of());
 		when(aagClient.areTaskSacSignedOff(BRANCH)).thenReturn(true);
 
 		PromotionPrerequisites result = promotionService.getPromotionPrerequisites(PROJECT, TASK, USER);
@@ -87,8 +87,8 @@ class PromotionServicePrerequisitesTest {
 		AuthoringTask task = task(TaskStatus.REVIEW_COMPLETED, BranchState.DIVERGED.name());
 		stubTask(task);
 		when(aagClient.areTaskSacSignedOff(BRANCH)).thenReturn(true);
-		when(crsBlockingStateService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(List.of());
-		when(crsBlockingStateService.formatBlockingConcepts(List.of())).thenReturn(List.of());
+		when(contentRequestService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(List.of());
+		when(contentRequestService.formatBlockingConcepts(List.of())).thenReturn(List.of());
 
 		PromotionPrerequisites result = promotionService.getPromotionPrerequisites(PROJECT, TASK, USER);
 
@@ -102,8 +102,8 @@ class PromotionServicePrerequisitesTest {
 		AuthoringTask task = task(TaskStatus.REVIEW_COMPLETED, BranchState.UP_TO_DATE.name());
 		stubTask(task);
 		when(aagClient.areTaskSacSignedOff(BRANCH)).thenReturn(true);
-		when(crsBlockingStateService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(List.of());
-		when(crsBlockingStateService.formatBlockingConcepts(List.of())).thenReturn(List.of());
+		when(contentRequestService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(List.of());
+		when(contentRequestService.formatBlockingConcepts(List.of())).thenReturn(List.of());
 
 		PromotionPrerequisites result = promotionService.getPromotionPrerequisites(PROJECT, TASK, USER);
 
@@ -121,8 +121,8 @@ class PromotionServicePrerequisitesTest {
 		when(classificationPrerequisiteService.evaluate(eq(branch), eq(classification), any(), eq(Context.PROMOTION)))
 				.thenReturn(new ClassificationPrerequisiteResult(true, "COMPLETED", true,
 						List.of("Equivalencies Found: Classification reports equivalent concepts on this branch. You may not promote until these are resolved")));
-		when(crsBlockingStateService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(List.of());
-		when(crsBlockingStateService.formatBlockingConcepts(List.of())).thenReturn(List.of());
+		when(contentRequestService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(List.of());
+		when(contentRequestService.formatBlockingConcepts(List.of())).thenReturn(List.of());
 		when(aagClient.areTaskSacSignedOff(BRANCH)).thenReturn(true);
 
 		PromotionPrerequisites result = promotionService.getPromotionPrerequisites(PROJECT, TASK, USER);
@@ -142,8 +142,8 @@ class PromotionServicePrerequisitesTest {
 		when(classificationPrerequisiteService.evaluate(eq(branch), eq(classification), any(), eq(Context.PROMOTION)))
 				.thenReturn(new ClassificationPrerequisiteResult(false, "STALE", false,
 						List.of("Classification Not Current: Classification was run, but modifications were made after the classifier was initiated.")));
-		when(crsBlockingStateService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(List.of());
-		when(crsBlockingStateService.formatBlockingConcepts(List.of())).thenReturn(List.of());
+		when(contentRequestService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(List.of());
+		when(contentRequestService.formatBlockingConcepts(List.of())).thenReturn(List.of());
 		when(aagClient.areTaskSacSignedOff(BRANCH)).thenReturn(true);
 
 		PromotionPrerequisites result = promotionService.getPromotionPrerequisites(PROJECT, TASK, USER);
@@ -163,8 +163,8 @@ class PromotionServicePrerequisitesTest {
 		when(classificationPrerequisiteService.getLatestClassificationOrNull(BRANCH)).thenReturn(classification);
 		when(classificationPrerequisiteService.evaluate(eq(branch), eq(classification), any(), eq(Context.PROMOTION)))
 				.thenReturn(new ClassificationPrerequisiteResult(true, "COMPLETED", false, List.of()));
-		when(crsBlockingStateService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(List.of());
-		when(crsBlockingStateService.formatBlockingConcepts(List.of())).thenReturn(List.of());
+		when(contentRequestService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(List.of());
+		when(contentRequestService.formatBlockingConcepts(List.of())).thenReturn(List.of());
 		when(aagClient.areTaskSacSignedOff(BRANCH)).thenReturn(false);
 
 		PromotionPrerequisites result = promotionService.getPromotionPrerequisites(PROJECT, TASK, USER);
@@ -184,8 +184,8 @@ class PromotionServicePrerequisitesTest {
 		when(classificationPrerequisiteService.evaluate(eq(branch), eq(classification), any(), eq(Context.PROMOTION)))
 				.thenReturn(new ClassificationPrerequisiteResult(true, "COMPLETED", false, List.of()));
 		List<BlockingConcept> blocking = List.of(new BlockingConcept("12345678901", "99", null, "Pneumonia"));
-		when(crsBlockingStateService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(blocking);
-		when(crsBlockingStateService.formatBlockingConcepts(blocking))
+		when(contentRequestService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(blocking);
+		when(contentRequestService.formatBlockingConcepts(blocking))
 				.thenReturn(List.of("12345678901 (Request ID: 99)"));
 		when(aagClient.areTaskSacSignedOff(BRANCH)).thenReturn(true);
 
@@ -205,8 +205,8 @@ class PromotionServicePrerequisitesTest {
 		when(classificationPrerequisiteService.getLatestClassificationOrNull(BRANCH)).thenReturn(classification);
 		when(classificationPrerequisiteService.evaluate(eq(branch), eq(classification), any(), eq(Context.PROMOTION)))
 				.thenReturn(new ClassificationPrerequisiteResult(true, "COMPLETED", false, List.of()));
-		when(crsBlockingStateService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(List.of());
-		when(crsBlockingStateService.formatBlockingConcepts(List.of())).thenReturn(List.of());
+		when(contentRequestService.collectBlockingConcepts(PROJECT, TASK, USER)).thenReturn(List.of());
+		when(contentRequestService.formatBlockingConcepts(List.of())).thenReturn(List.of());
 		when(aagClient.areTaskSacSignedOff(BRANCH)).thenReturn(true);
 
 		PromotionPrerequisites result = promotionService.getPromotionPrerequisites(PROJECT, TASK, USER);

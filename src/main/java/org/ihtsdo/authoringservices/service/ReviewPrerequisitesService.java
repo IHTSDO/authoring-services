@@ -31,15 +31,15 @@ public class ReviewPrerequisitesService {
 	private final UiStateService uiStateService;
 	private final BranchService branchService;
 	private final ClassificationPrerequisiteService classificationPrerequisiteService;
-	private final CrsBlockingStateService crsBlockingStateService;
+	private final ContentRequestService contentRequestService;
 
 	public ReviewPrerequisitesService(UiStateService uiStateService, BranchService branchService,
 			ClassificationPrerequisiteService classificationPrerequisiteService,
-			CrsBlockingStateService crsBlockingStateService) {
+			ContentRequestService contentRequestService) {
 		this.uiStateService = uiStateService;
 		this.branchService = branchService;
 		this.classificationPrerequisiteService = classificationPrerequisiteService;
-		this.crsBlockingStateService = crsBlockingStateService;
+		this.contentRequestService = contentRequestService;
 	}
 
 	public ReviewPrerequisites getReviewPrerequisites(String projectKey, String taskKey, String username)
@@ -75,8 +75,8 @@ public class ReviewPrerequisitesService {
 		prerequisites.setClassificationStatus(classificationResult.classificationStatus());
 		blockers.addAll(classificationResult.blockers());
 
-		List<String> crsBlockingConcepts = crsBlockingStateService.formatBlockingConcepts(
-				crsBlockingStateService.collectBlockingConcepts(projectKey, taskKey, username));
+		List<String> crsBlockingConcepts = contentRequestService.formatBlockingConcepts(
+				contentRequestService.collectBlockingConcepts(projectKey, taskKey, username));
 		prerequisites.setCrsBlockingConcepts(crsBlockingConcepts);
 		for (String crsBlockingConcept : crsBlockingConcepts) {
 			blockers.add("Unsaved CRS concept: " + crsBlockingConcept);
@@ -161,6 +161,6 @@ public class ReviewPrerequisitesService {
 	}
 
 	private static boolean isSctid(String id) {
-		return CrsBlockingStateService.isSctid(id);
+		return ContentRequestService.isSctid(id);
 	}
 }

@@ -31,18 +31,18 @@ public class ConceptInactivationService {
 	private static final String CONCEPT_INACTIVATED_MESSAGE = "Concept %s inactivated";
 
 	private final PermissionService permissionService;
-	private final CrsBlockingStateService crsBlockingStateService;
+	private final ContentRequestService contentRequestService;
 	private final BranchService branchService;
 	private final SnowstormRestClientFactory snowstormRestClientFactory;
 	private final NotificationService notificationService;
 
 	public ConceptInactivationService(PermissionService permissionService,
-			CrsBlockingStateService crsBlockingStateService,
+			ContentRequestService contentRequestService,
 			BranchService branchService,
 			SnowstormRestClientFactory snowstormRestClientFactory,
 			NotificationService notificationService) {
 		this.permissionService = permissionService;
-		this.crsBlockingStateService = crsBlockingStateService;
+		this.contentRequestService = contentRequestService;
 		this.branchService = branchService;
 		this.snowstormRestClientFactory = snowstormRestClientFactory;
 		this.notificationService = notificationService;
@@ -61,7 +61,7 @@ public class ConceptInactivationService {
 		permissionService.checkFullPermissionOnProjectOrThrow(projectKey);
 
 		String username = SecurityUtil.getUsername();
-		CrsBlockingState crsBlockingState = crsBlockingStateService.getBlockingState(projectKey, taskKey, username);
+		CrsBlockingState crsBlockingState = contentRequestService.getBlockingState(projectKey, taskKey, username);
 		if (crsBlockingState.isBlocked()) {
 			throw new BusinessServiceException(CRS_BLOCKED_MESSAGE);
 		}

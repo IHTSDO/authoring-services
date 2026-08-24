@@ -66,7 +66,7 @@ public class PromotionService {
     private final ReleaseNoteService releaseNoteService;
     private final SnowstormClassificationClient classificationService;
     private final ClassificationPrerequisiteService classificationPrerequisiteService;
-    private final CrsBlockingStateService crsBlockingStateService;
+    private final ContentRequestService contentRequestService;
     private final AuthoringAcceptanceGatewayClient aagClient;
     private final UiConfiguration uiConfiguration;
 
@@ -83,7 +83,7 @@ public class PromotionService {
             ContentRequestServiceClientFactory contentRequestServiceClientFactory, BranchService branchService,
             ReleaseNoteService releaseNoteService, SnowstormClassificationClient classificationService,
             ClassificationPrerequisiteService classificationPrerequisiteService,
-            CrsBlockingStateService crsBlockingStateService, AuthoringAcceptanceGatewayClient aagClient,
+            ContentRequestService contentRequestService, AuthoringAcceptanceGatewayClient aagClient,
             UiConfiguration uiConfiguration) {
         this.cacheService = cacheService;
         this.taskServiceFactory = taskServiceFactory;
@@ -95,7 +95,7 @@ public class PromotionService {
         this.releaseNoteService = releaseNoteService;
         this.classificationService = classificationService;
         this.classificationPrerequisiteService = classificationPrerequisiteService;
-        this.crsBlockingStateService = crsBlockingStateService;
+        this.contentRequestService = contentRequestService;
         this.aagClient = aagClient;
         this.uiConfiguration = uiConfiguration;
         this.automateTaskPromotionStatus = new HashMap<>();
@@ -644,8 +644,8 @@ public class PromotionService {
 
         evaluateReviewStatus(task.getStatus(), blockers);
 
-        List<String> crsBlockingConcepts = crsBlockingStateService.formatBlockingConcepts(
-                crsBlockingStateService.collectBlockingConcepts(projectKey, taskKey, username));
+        List<String> crsBlockingConcepts = contentRequestService.formatBlockingConcepts(
+                contentRequestService.collectBlockingConcepts(projectKey, taskKey, username));
         prerequisites.setCrsBlockingConcepts(crsBlockingConcepts);
         for (String crsBlockingConcept : crsBlockingConcepts) {
             blockers.add("Unsaved requested promotion concept ID detected: " + crsBlockingConcept);
@@ -679,8 +679,8 @@ public class PromotionService {
         if (!sacSignedOff) {
             blockers.add(CRITERIA_HAVE_BEEN_SIGNED_OFF_MSG);
         }
-        List<String> crsBlockingConcepts = crsBlockingStateService.formatBlockingConcepts(
-                crsBlockingStateService.collectBlockingConcepts(projectKey, taskKey, username));
+        List<String> crsBlockingConcepts = contentRequestService.formatBlockingConcepts(
+                contentRequestService.collectBlockingConcepts(projectKey, taskKey, username));
         prerequisites.setCrsBlockingConcepts(crsBlockingConcepts);
         prerequisites.setBlockers(blockers);
         prerequisites.setPromotable(false);
