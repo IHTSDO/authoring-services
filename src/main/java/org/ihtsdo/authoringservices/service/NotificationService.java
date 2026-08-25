@@ -16,13 +16,18 @@ import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.http.HttpStatus;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.user.SimpSubscription;
 import org.springframework.messaging.simp.user.SimpSubscriptionMatcher;
 import org.springframework.messaging.simp.user.SimpUser;
 import org.springframework.messaging.simp.user.SimpUserRegistry;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -48,17 +53,29 @@ public class NotificationService {
 
 	private final MonitorService monitorService;
 
+	private final SseNotificationSink sseNotificationSink;
+
 	private final Map<String, List<Notification>> pendingNotifications = new HashMap<>();
 
 	private final Logger logger = LoggerFactory.getLogger(getClass());
 
+	@Value("${authoring.notifications.sse.enabled:true}")
+	private boolean sseEnabled = true;
+
+	@Value("${authoring.notifications.websocket.enabled:true}")
+	private boolean websocketEnabled = true;
+
 	@Autowired
-	public NotificationService(@Lazy BranchService branchService, @Lazy SnowstormClassificationClient classificationClient, SimpMessagingTemplate simpMessagingTemplate, SimpUserRegistry simpUserRegistry, @Lazy MonitorService monitorService) {
+	public NotificationService(@Lazy BranchService branchService, @Lazy SnowstormClassificationClient classificationClient,
+			@Autowired(required = false) SimpMessagingTemplate simpMessagingTemplate,
+			@Autowired(required = false) SimpUserRegistry simpUserRegistry, @Lazy MonitorService monitorService,
+			SseNotificationSink sseNotificationSink) {
 		this.branchService = branchService;
 		this.classificationClient = classificationClient;
 		this.simpMessagingTemplate = simpMessagingTemplate;
 		this.simpUserRegistry = simpUserRegistry;
 		this.monitorService = monitorService;
+		this.sseNotificationSink = sseNotificationSink;
 	}
 
 	public void queueNotification(String username, Notification notification) {
@@ -78,35 +95,74 @@ public class NotificationService {
 		}
 	}
 
+	public SseEmitter subscribe(String username) {
+		if (!sseEnabled) {
+			throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "SSE notifications are disabled");
+		}
+		SseEmitter emitter = sseNotificationSink.subscribe(username);
+		sendNotification(username);
+		return emitter;
+	}
+
+	@Scheduled(cron = "*/10 * * * * *")
+	public void autoSendingNotifications() {
+		sendNotification();
+		if (sseEnabled) {
+			sseNotificationSink.heartbeat();
+		}
+	}
+
 	public void sendNotification() {
+		Set<String> sseUsers = sseEnabled ? sseNotificationSink.getConnectedUsernames() : Set.of();
 		if (logger.isDebugEnabled()) {
-			logger.debug("Current users: {}", simpUserRegistry.getUsers());
+			logger.debug("Current SSE users: {}, STOMP users: {}", sseUsers,
+					websocketEnabled && simpUserRegistry != null ? simpUserRegistry.getUsers() : Set.of());
 		}
 
-		Set<SimpUser> currentUsers = simpUserRegistry.getUsers();
-		for (SimpUser simpUser : currentUsers) {
-			String username =  simpUser.getName();
-			monitorService.keepMonitorsAlive(username);
-
-			SimpSubscriptionMatcher simpSubscriptionMatcher = subscription -> subscription.getDestination().equals("/topic/user/" + username + "/notifications");
-			Set<SimpSubscription> simpSubscriptions = simpUserRegistry.findSubscriptions(simpSubscriptionMatcher);
-			if (!simpSubscriptions.isEmpty()) {
+		if (sseEnabled) {
+			for (String username : sseUsers) {
+				monitorService.keepMonitorsAlive(username);
 				sendNotification(username);
 			}
 		}
+
+		if (websocketEnabled && simpUserRegistry != null) {
+			Set<SimpUser> currentUsers = simpUserRegistry.getUsers();
+			for (SimpUser simpUser : currentUsers) {
+				String username = simpUser.getName();
+				if (sseUsers.contains(username)) {
+					continue;
+				}
+				monitorService.keepMonitorsAlive(username);
+				if (hasStompNotificationSubscription(username)) {
+					sendNotification(username);
+				}
+			}
+		}
 	}
-	
+
 	public void sendNotification(String username) {
 		if (pendingNotifications.containsKey(username)) {
 			synchronized (pendingNotifications) {
 				List<Notification> notifications = pendingNotifications.remove(username);
 				if (!CollectionUtils.isEmpty(notifications)) {
 					for (Notification notification : notifications) {
-						simpMessagingTemplate.convertAndSend("/topic/user/" + username + "/notifications", notification);
+						if (sseEnabled) {
+							sseNotificationSink.send(username, notification);
+						}
+						if (websocketEnabled && simpMessagingTemplate != null) {
+							simpMessagingTemplate.convertAndSend("/topic/user/" + username + "/notifications", notification);
+						}
 					}
 				}
 			}
 		}
+	}
+
+	private boolean hasStompNotificationSubscription(String username) {
+		SimpSubscriptionMatcher simpSubscriptionMatcher = subscription -> subscription.getDestination().equals("/topic/user/" + username + "/notifications");
+		Set<SimpSubscription> simpSubscriptions = simpUserRegistry.findSubscriptions(simpSubscriptionMatcher);
+		return !simpSubscriptions.isEmpty();
 	}
 
 	private void enrichNotification(Notification notification) {

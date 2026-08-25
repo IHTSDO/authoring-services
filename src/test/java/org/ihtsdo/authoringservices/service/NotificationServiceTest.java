@@ -3,6 +3,7 @@ package org.ihtsdo.authoringservices.service;
 import org.ihtsdo.authoringservices.domain.EntityType;
 import org.ihtsdo.authoringservices.domain.Notification;
 import org.ihtsdo.authoringservices.domain.NotificationSeverity;
+import org.ihtsdo.authoringservices.service.monitor.MonitorService;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Classification;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ClassificationStatus;
@@ -12,13 +13,24 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.simp.user.SimpUserRegistry;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -30,6 +42,18 @@ class NotificationServiceTest {
 	@Mock
 	private SnowstormClassificationClient classificationClient;
 
+	@Mock
+	private SimpMessagingTemplate simpMessagingTemplate;
+
+	@Mock
+	private SimpUserRegistry simpUserRegistry;
+
+	@Mock
+	private MonitorService monitorService;
+
+	@Mock
+	private SseNotificationSink sseNotificationSink;
+
 	@InjectMocks
 	private NotificationService notificationService;
 
@@ -37,6 +61,8 @@ class NotificationServiceTest {
 	void setUp() {
 		ReflectionTestUtils.setField(notificationService, "branchService", branchService);
 		ReflectionTestUtils.setField(notificationService, "classificationClient", classificationClient);
+		ReflectionTestUtils.setField(notificationService, "sseEnabled", true);
+		ReflectionTestUtils.setField(notificationService, "websocketEnabled", true);
 	}
 
 	@Test
@@ -138,5 +164,75 @@ class NotificationServiceTest {
 		assertEquals("/tasks/WRPAS/WRPAS-76/edit", notification.getDeepLinkPath());
 		assertEquals(NotificationSeverity.INFO, notification.getSeverity());
 		assertTrue(notification.getRequiresRefetch().contains("task"));
+	}
+
+	@Test
+	void queueNotificationSendsToSseSubscriber() throws Exception {
+		when(sseNotificationSink.getConnectedUsernames()).thenReturn(Set.of("alice"));
+		when(simpUserRegistry.getUsers()).thenReturn(Set.of());
+		when(branchService.getProjectOrTaskBranchPathUsingCache("WRPAS", "WRPAS-76")).thenReturn("MAIN/WRPAS/WRPAS-76");
+
+		notificationService.queueNotification("alice",
+				new Notification("WRPAS", "WRPAS-76", EntityType.Feedback, "new"));
+
+		verify(sseNotificationSink).send(eq("alice"), any(Notification.class));
+		verify(simpMessagingTemplate).convertAndSend(eq("/topic/user/alice/notifications"), any(Notification.class));
+		verify(monitorService).keepMonitorsAlive("alice");
+	}
+
+	@Test
+	void subscribeFlushesPendingNotifications() throws Exception {
+		when(sseNotificationSink.getConnectedUsernames()).thenReturn(Set.of());
+		when(simpUserRegistry.getUsers()).thenReturn(Set.of());
+		when(sseNotificationSink.subscribe("alice")).thenReturn(new SseEmitter(0L));
+		when(branchService.getProjectOrTaskBranchPathUsingCache("WRPAS", "WRPAS-76")).thenReturn("MAIN/WRPAS/WRPAS-76");
+
+		notificationService.queueNotification("alice",
+				new Notification("WRPAS", "WRPAS-76", EntityType.Feedback, "new"));
+
+		verify(sseNotificationSink, never()).send(any(), any());
+
+		notificationService.subscribe("alice");
+
+		verify(sseNotificationSink).send(eq("alice"), any(Notification.class));
+	}
+
+	@Test
+	void sendNotificationSkipsWebsocketWhenDisabled() throws Exception {
+		ReflectionTestUtils.setField(notificationService, "websocketEnabled", false);
+		when(sseNotificationSink.getConnectedUsernames()).thenReturn(Set.of("alice"));
+		when(branchService.getProjectOrTaskBranchPathUsingCache("WRPAS", "WRPAS-76")).thenReturn("MAIN/WRPAS/WRPAS-76");
+
+		notificationService.queueNotification("alice",
+				new Notification("WRPAS", "WRPAS-76", EntityType.Feedback, "new"));
+
+		verify(sseNotificationSink).send(eq("alice"), any(Notification.class));
+		verify(simpMessagingTemplate, never()).convertAndSend(any(String.class), any(Notification.class));
+		verify(monitorService).keepMonitorsAlive("alice");
+	}
+
+	@Test
+	void sendNotificationSkipsSseWhenDisabled() throws Exception {
+		ReflectionTestUtils.setField(notificationService, "sseEnabled", false);
+		when(simpUserRegistry.getUsers()).thenReturn(Set.of());
+		when(branchService.getProjectOrTaskBranchPathUsingCache("WRPAS", "WRPAS-76")).thenReturn("MAIN/WRPAS/WRPAS-76");
+
+		notificationService.queueNotification("alice",
+				new Notification("WRPAS", "WRPAS-76", EntityType.Feedback, "new"));
+		notificationService.sendNotification("alice");
+
+		verify(sseNotificationSink, never()).send(any(), any());
+		verify(simpMessagingTemplate).convertAndSend(eq("/topic/user/alice/notifications"), any(Notification.class));
+	}
+
+	@Test
+	void subscribeFailsWhenSseDisabled() {
+		ReflectionTestUtils.setField(notificationService, "sseEnabled", false);
+
+		ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+				() -> notificationService.subscribe("alice"));
+
+		assertEquals(HttpStatus.SERVICE_UNAVAILABLE, exception.getStatusCode());
+		verify(sseNotificationSink, never()).subscribe(any());
 	}
 }

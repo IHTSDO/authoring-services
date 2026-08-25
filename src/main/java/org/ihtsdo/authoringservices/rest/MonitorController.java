@@ -33,7 +33,7 @@ public class MonitorController {
 			description = "A Task or Project can be monitored for " +
 			"rebase opportunities or stale reports. Notifications will be made available. " +
 			"Each additional POST will replace the previous monitor. " +
-			"A monitor will expire after " + UserMonitors.KEEP_ALIVE_MINUTES + " minutes if the notifications endpoint is not visited by the user.")
+			"A monitor will expire after " + UserMonitors.KEEP_ALIVE_MINUTES + " minutes if the user has no active notification stream (SSE or WebSocket).")
 	@RequestMapping(value="/monitor", method= RequestMethod.POST)
 	public void monitor(@RequestBody UserFocusRequest userFocusRequest) throws BusinessServiceException {
 		monitorService.updateUserFocus(SecurityUtil.getUsername(), SecurityUtil.getAuthenticationToken(),

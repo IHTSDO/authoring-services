@@ -1,20 +1,16 @@
 package org.ihtsdo.authoringservices.configuration;
 
-import org.ihtsdo.authoringservices.service.NotificationService;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
 @Configuration
 @EnableWebSocketMessageBroker
+@ConditionalOnProperty(name = "authoring.notifications.websocket.enabled", havingValue = "true", matchIfMissing = true)
 public class WebSocketConfiguration implements WebSocketMessageBrokerConfigurer {
-
-	@Autowired
-	private NotificationService notificationService;
 
 	@Override
 	public void configureMessageBroker(MessageBrokerRegistry brokerRegistry) {
@@ -29,10 +25,4 @@ public class WebSocketConfiguration implements WebSocketMessageBrokerConfigurer 
 				.withSockJS()
 				.setSuppressCors(true);
 	}
-
-	@Scheduled(cron = "*/10 * * * * *")
-	public void autoSendingNotifications() {
-		notificationService.sendNotification();
-	}
-	
 }

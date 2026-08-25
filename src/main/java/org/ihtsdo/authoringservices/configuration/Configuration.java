@@ -195,7 +195,10 @@ public abstract class Configuration {
 	public TomcatConnectorCustomizer connectorCustomizer() {
 		// Swagger encodes the slash in branch paths
 		logger.info("Configuring Tomcat to decode encoded slashes.");
-		return connector -> connector.setEncodedSolidusHandling(EncodedSolidusHandling.DECODE.getValue());
+		return connector -> {
+			connector.setEncodedSolidusHandling(EncodedSolidusHandling.DECODE.getValue());
+			connector.setAsyncTimeout(0);
+		};
 	}
 
 }
