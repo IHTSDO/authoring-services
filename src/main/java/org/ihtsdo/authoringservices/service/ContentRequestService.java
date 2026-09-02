@@ -3,6 +3,7 @@ package org.ihtsdo.authoringservices.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import net.sf.json.JSONObject;
 import org.ihtsdo.authoringservices.domain.CrsBlockingState;
@@ -156,7 +157,8 @@ public class ContentRequestService {
 		} catch (RestClientException e) {
 			throw new BusinessServiceException("Failed to copy concepts onto branch " + branchPath, e);
 		}
-		return ContentRequestResult.of(conceptsJson(loadCopiedConcepts(snowstormRestClient, branchPath, copiedIds)));
+		return ContentRequestResult.of(donationConceptsJson(
+				loadCopiedConcepts(snowstormRestClient, branchPath, copiedIds), conceptIdsToCopy, copiedIds));
 	}
 
 	private ContentRequestResult existingConceptsIfPresent(SnowstormRestClient snowstormRestClient, String branchPath,
@@ -198,7 +200,8 @@ public class ContentRequestService {
 		if (foundDonatedConcept == null && foundDependentConcepts.isEmpty()) {
 			return null;
 		}
-		JsonNode concepts = conceptsJson(loadCopiedConcepts(snowstormRestClient, branchPath, foundIds));
+		JsonNode concepts = donationConceptsJson(
+				loadCopiedConcepts(snowstormRestClient, branchPath, foundIds), conceptIdsToCopy, foundIds);
 		if (foundDonatedConcept != null) {
 			return ContentRequestResult.error(concepts, donatedConceptExistsMessage(foundDonatedConcept, branchPath));
 		}
@@ -207,7 +210,7 @@ public class ContentRequestService {
 	}
 
 	private JsonNode toResponse(JsonNode concept) {
-		return objectMapper.valueToTree(ContentRequestResult.of(conceptsJson(concept)));
+		return objectMapper.valueToTree(ContentRequestResult.of(withSavedFlag(conceptsJson(concept), false)));
 	}
 
 	private JsonNode toResponse(ContentRequestResult result) {
@@ -220,6 +223,35 @@ public class ContentRequestService {
 
 	private JsonNode conceptsJson(List<ConceptPojo> concepts) {
 		return objectMapper.valueToTree(concepts != null ? concepts : List.of());
+	}
+
+	private JsonNode donationConceptsJson(List<ConceptPojo> concepts, List<String> conceptIdsToCopy,
+			List<String> presentConceptIds) {
+		return withSavedFlag(conceptsJson(concepts), allConceptsSaved(conceptIdsToCopy, presentConceptIds));
+	}
+
+	private JsonNode withSavedFlag(JsonNode concepts, boolean saved) {
+		if (!(concepts instanceof ArrayNode array)) {
+			return concepts;
+		}
+		ArrayNode result = objectMapper.createArrayNode();
+		for (JsonNode concept : array) {
+			if (concept instanceof ObjectNode objectNode) {
+				ObjectNode copy = objectNode.deepCopy();
+				copy.put("saved", saved);
+				result.add(copy);
+			} else {
+				result.add(concept);
+			}
+		}
+		return result;
+	}
+
+	private static boolean allConceptsSaved(List<String> conceptIdsToCopy, List<String> presentConceptIds) {
+		if (conceptIdsToCopy == null || conceptIdsToCopy.isEmpty() || presentConceptIds == null) {
+			return false;
+		}
+		return presentConceptIds.containsAll(conceptIdsToCopy);
 	}
 
 	private static List<String> copiedConceptIds(List<ConceptMiniPojo> copied) {
