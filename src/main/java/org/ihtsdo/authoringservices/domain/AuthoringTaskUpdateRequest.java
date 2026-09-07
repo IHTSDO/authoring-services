@@ -1,6 +1,6 @@
 package org.ihtsdo.authoringservices.domain;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import tools.jackson.databind.annotation.JsonDeserialize;
 
 import java.util.List;
 

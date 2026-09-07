@@ -2,7 +2,7 @@ package org.ihtsdo.authoringservices.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import tools.jackson.databind.annotation.JsonDeserialize;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Classification;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
 

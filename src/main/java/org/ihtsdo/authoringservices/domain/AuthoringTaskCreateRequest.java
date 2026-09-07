@@ -1,6 +1,6 @@
 package org.ihtsdo.authoringservices.domain;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import tools.jackson.databind.annotation.JsonDeserialize;
 import org.ihtsdo.authoringservices.entity.CrsTask;
 
 import java.util.List;
