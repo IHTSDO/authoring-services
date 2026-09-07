@@ -12,6 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.List;
@@ -31,6 +32,10 @@ public class RMPTaskAttachmentService {
             @Value("${rmp.task.attachments.allowed-extensions}") String allowedExtensionsConfig) {
         this.attachmentRepository = attachmentRepository;
         this.allowedExtensions = parseAllowedExtensions(allowedExtensionsConfig);
+    }
+
+    public Set<String> getAllowedExtensions() {
+        return Collections.unmodifiableSet(allowedExtensions);
     }
 
     public List<RMPTaskAttachment> findByRmpTask(RMPTask rmpTask) {

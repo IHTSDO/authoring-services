@@ -123,6 +123,11 @@ public class RMPTaskController {
         return ResponseEntity.ok(comments);
     }
 
+    @GetMapping("/attachments/allowed-extensions")
+    public ResponseEntity<Set<String>> getAllowedAttachmentExtensions() {
+        return ResponseEntity.ok(rmpTaskAttachmentService.getAllowedExtensions());
+    }
+
     @GetMapping("/{id}/attachments")
     public ResponseEntity<List<RMPTaskAttachment>> listAttachments(@PathVariable long id) {
         Optional<RMPTask> task = rmpTaskService.getTaskById(id);
