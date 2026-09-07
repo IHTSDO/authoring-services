@@ -1,6 +1,6 @@
 package org.ihtsdo.authoringservices.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
 import org.ihtsdo.authoringservices.domain.TaskChangeAssigneeRequest;

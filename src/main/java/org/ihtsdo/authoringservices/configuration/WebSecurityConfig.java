@@ -38,7 +38,7 @@ public class WebSecurityConfig {
 	};
 
 	@Bean
-	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+	public SecurityFilterChain filterChain(HttpSecurity http) {
 		http.csrf(AbstractHttpConfigurer::disable);
 		http.addFilterBefore(new RequestHeaderAuthenticationDecoratorWithOverride(overrideUsername, overrideRoles, overrideToken), AuthorizationFilter.class);
 		for (String excludedPath : excludedUrlPatterns) {

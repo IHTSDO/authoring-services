@@ -1,12 +1,11 @@
 package org.ihtsdo.authoringservices.service.dao;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.NullNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.ihtsdo.authoringservices.configuration.UiStateStorageConfiguration;
 import org.ihtsdo.authoringservices.service.exceptions.PathNotProvidedException;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -18,7 +17,7 @@ public class UiStateResourceServiceTest {
 
 	private static final UiStateResourceService uiStateResourceService = new UiStateResourceService(Mockito.mock(UiStateStorageConfiguration.class));
 
-	private static final ObjectMapper mapper = new ObjectMapper();
+	private static final JsonMapper mapper = JsonMapper.builder().build();
 	private static final ObjectNode EMPTY_OBJECT = mapper.createObjectNode();
 
 	@Test
@@ -47,7 +46,7 @@ public class UiStateResourceServiceTest {
 	}
 
     @Test
-	public void testMoveThrowsPathNotProvidedExceptionWhenFromPathIsNull() {
+    public void testMoveThrowsPathNotProvidedExceptionWhenFromPathIsNull() {
         assertThrows(PathNotProvidedException.class, () -> uiStateResourceService.move(null, ""));
     }
 

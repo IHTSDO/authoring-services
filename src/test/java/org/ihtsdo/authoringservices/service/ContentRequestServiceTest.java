@@ -1,9 +1,9 @@
 package org.ihtsdo.authoringservices.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import net.sf.json.JSONObject;
 import org.ihtsdo.authoringservices.domain.CrsBlockingState;
 import org.ihtsdo.authoringservices.domain.CrsBlockingState.BlockingConcept;
@@ -97,7 +97,7 @@ class ContentRequestServiceTest {
 	@Mock
 	private CodeSystemVersion latestVersion;
 
-	private static final ObjectMapper objectMapper = new ObjectMapper();
+	private static final JsonMapper objectMapper = JsonMapper.builder().build();
 	private ContentRequestService service;
 
 	@BeforeEach
@@ -119,7 +119,7 @@ class ContentRequestServiceTest {
 		JsonNode result = service.applyRequest(PROJECT, TASK, REQUEST_ID);
 		JsonNode concept = result.path("concepts").get(0);
 
-		assertEquals("Request without proposed concept", concept.path("fsn").asText());
+		assertEquals("Request without proposed concept", concept.path("fsn").asString());
 		assertFalse(concept.path("saved").asBoolean());
 		assertTrue(result.path("status").isMissingNode());
 		assertTrue(result.path("message").isMissingNode());
@@ -153,8 +153,8 @@ class ContentRequestServiceTest {
 		JsonNode result = service.applyRequest(PROJECT, TASK, REQUEST_ID);
 		JsonNode concept = result.path("concepts").get(0);
 
-		assertEquals("fixed-uuid", concept.path("conceptId").asText());
-		assertEquals("Is a", concept.path("classAxioms").get(0).path("relationships").get(0).path("type").path("pt").asText());
+		assertEquals("fixed-uuid", concept.path("conceptId").asString());
+		assertEquals("Is a", concept.path("classAxioms").get(0).path("relationships").get(0).path("type").path("pt").asString());
 		assertFalse(concept.path("saved").asBoolean());
 		verify(contentRequestServiceClientFactory).getClient(US_CRS);
 		verify(snowstormRestClientFactory, never()).getClient();
@@ -184,10 +184,10 @@ class ContentRequestServiceTest {
 		JsonNode result = service.applyRequest(PROJECT, TASK, REQUEST_ID);
 		JsonNode concept = result.path("concepts").get(0);
 
-		assertEquals(CONCEPT_ID, concept.path("conceptId").asText());
-		assertEquals("CRS notes", concept.path("definitionOfChanges").path("notes").asText());
+		assertEquals(CONCEPT_ID, concept.path("conceptId").asString());
+		assertEquals("CRS notes", concept.path("definitionOfChanges").path("notes").asString());
 		assertTrue(concept.path("descriptions").get(0).path("definitionOfChanges").path("changed").asBoolean());
-		assertEquals("FULLY_DEFINED", concept.path("definitionStatus").asText());
+		assertEquals("FULLY_DEFINED", concept.path("definitionStatus").asString());
 		assertFalse(concept.path("saved").asBoolean());
 	}
 
@@ -248,8 +248,8 @@ class ContentRequestServiceTest {
 
 		JsonNode concepts = result.path("concepts");
 		assertTrue(concepts.isArray());
-		assertEquals(CONCEPT_ID, concepts.get(0).path("conceptId").asText());
-		assertEquals(DEPENDENT_ID, concepts.get(1).path("conceptId").asText());
+		assertEquals(CONCEPT_ID, concepts.get(0).path("conceptId").asString());
+		assertEquals(DEPENDENT_ID, concepts.get(1).path("conceptId").asString());
 		assertTrue(concepts.get(0).path("saved").asBoolean());
 		assertTrue(concepts.get(1).path("saved").asBoolean());
 		assertTrue(result.path("status").isMissingNode());
@@ -276,7 +276,7 @@ class ContentRequestServiceTest {
 		JsonNode concepts = result.path("concepts");
 		assertTrue(concepts.isArray());
 		assertEquals(1, concepts.size());
-		assertEquals(CONCEPT_ID, concepts.get(0).path("conceptId").asText());
+		assertEquals(CONCEPT_ID, concepts.get(0).path("conceptId").asString());
 		assertTrue(concepts.get(0).path("saved").asBoolean());
 		verify(snowstormRestClient).copyConcepts(INT_BRANCH, SOURCE_VERSION, CONCEPT_ID, false);
 	}
@@ -314,11 +314,11 @@ class ContentRequestServiceTest {
 		JsonNode concepts = result.path("concepts");
 		assertTrue(concepts.isArray());
 		assertEquals(1, concepts.size());
-		assertEquals(CONCEPT_ID, concepts.get(0).path("conceptId").asText());
-		assertEquals("ERROR", result.path("status").asText());
+		assertEquals(CONCEPT_ID, concepts.get(0).path("conceptId").asString());
+		assertEquals("ERROR", result.path("status").asString());
 		assertFalse(concepts.get(0).path("saved").asBoolean());
 		assertEquals(ContentRequestService.donatedConceptExistsMessage(CONCEPT_ID + " | Donated (disorder) |", INT_BRANCH),
-				result.path("message").asText());
+				result.path("message").asString());
 		verify(snowstormRestClient, never()).copyConcepts(INT_BRANCH, SOURCE_VERSION, CONCEPT_ID, true);
 	}
 
@@ -340,14 +340,14 @@ class ContentRequestServiceTest {
 		JsonNode concepts = result.path("concepts");
 		assertTrue(concepts.isArray());
 		assertEquals(2, concepts.size());
-		assertEquals(DEPENDENT_ID, concepts.get(0).path("conceptId").asText());
-		assertEquals(DEPENDENT_ID_2, concepts.get(1).path("conceptId").asText());
-		assertEquals("WARNING", result.path("status").asText());
+		assertEquals(DEPENDENT_ID, concepts.get(0).path("conceptId").asString());
+		assertEquals(DEPENDENT_ID_2, concepts.get(1).path("conceptId").asString());
+		assertEquals("WARNING", result.path("status").asString());
 		assertFalse(concepts.get(0).path("saved").asBoolean());
 		assertFalse(concepts.get(1).path("saved").asBoolean());
 		assertEquals(ContentRequestService.dependentConceptsExistMessage(
 				List.of(DEPENDENT_ID + " | Dep (disorder) |", DEPENDENT_ID_2 + " | Dep2 (disorder) |"), INT_BRANCH),
-				result.path("message").asText());
+				result.path("message").asString());
 		verify(snowstormRestClient, never()).copyConcepts(INT_BRANCH, SOURCE_VERSION, CONCEPT_ID, true);
 	}
 

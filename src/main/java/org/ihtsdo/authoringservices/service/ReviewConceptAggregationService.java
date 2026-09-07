@@ -1,6 +1,6 @@
 package org.ihtsdo.authoringservices.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.ihtsdo.authoringservices.domain.ReviewConcept;
 import org.ihtsdo.authoringservices.domain.ReviewConceptAggregation;
 import org.ihtsdo.authoringservices.domain.ReviewConceptAggregation.AggregatedReviewConcept;
@@ -256,8 +256,8 @@ public class ReviewConceptAggregationService {
 			return;
 		}
 		for (JsonNode node : idArray) {
-			if (node.isTextual() || node.isNumber()) {
-				reviewedIds.add(node.asText());
+			if (node.isString() || node.isNumber()) {
+				reviewedIds.add(node.asString());
 			}
 		}
 	}

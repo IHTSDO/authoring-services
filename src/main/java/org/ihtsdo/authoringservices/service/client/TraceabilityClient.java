@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.ihtsdo.otf.rest.client.ExpressiveErrorHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.boot.restclient.RestTemplateBuilder;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClientException;
@@ -28,7 +28,7 @@ public class TraceabilityClient {
 		headers.add("Cookie", authToken);
 		headers.setContentType(MediaType.APPLICATION_JSON);
 		restTemplate = new RestTemplateBuilder()
-				.rootUri(traceabilityUrl)
+				.baseUri(traceabilityUrl)
 				.errorHandler(new ExpressiveErrorHandler())
 				.build();
 		restTemplate.getInterceptors().add((request, body, execution) -> {

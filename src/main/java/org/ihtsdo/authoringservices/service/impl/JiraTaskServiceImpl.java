@@ -1,6 +1,5 @@
 package org.ihtsdo.authoringservices.service.impl;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.Sets;
@@ -947,7 +946,7 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
                     }
                 }
             }
-        } catch (JsonProcessingException | JMSException e) {
+        } catch (JMSException e) {
             logger.error("Failed to send task state change notification for {} {}.", key, newStateLabel, e);
         }
     }

@@ -1,7 +1,7 @@
 package org.ihtsdo.authoringservices.domain;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ContentRequestResult(JsonNode concepts, String status, String message) {

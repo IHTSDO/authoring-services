@@ -2,7 +2,7 @@ package org.ihtsdo.authoringservices.service.client;
 
 import org.ihtsdo.authoringservices.domain.User;
 import org.ihtsdo.otf.rest.client.ExpressiveErrorHandler;
-import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.boot.restclient.RestTemplateBuilder;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -33,7 +33,7 @@ public class IMSClient {
         restTemplate = new RestTemplateBuilder()
                 .additionalMessageConverters(new GsonHttpMessageConverter())
                 .errorHandler(new ExpressiveErrorHandler())
-                .rootUri(imsUrl)
+                .baseUri(imsUrl)
                 .build();
 
         //Add a ClientHttpRequestInterceptor to the RestTemplate to add cookies as required

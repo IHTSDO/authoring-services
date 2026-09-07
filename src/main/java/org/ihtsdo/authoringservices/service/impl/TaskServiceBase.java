@@ -1,7 +1,7 @@
 package org.ihtsdo.authoringservices.service.impl;
 
 import com.google.common.collect.ImmutableMap;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.entity.Validation;
 import org.ihtsdo.authoringservices.service.*;

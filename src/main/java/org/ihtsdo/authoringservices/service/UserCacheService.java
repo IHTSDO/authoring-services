@@ -17,7 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClientResponseException;
 
-import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
@@ -97,7 +96,7 @@ public class UserCacheService {
     }
 
     @Scheduled(initialDelay = 1, fixedRateString = "${user.cache.expiry.minutes}", timeUnit = TimeUnit.MINUTES)
-    public void preloadUsersForDefaultGroup() throws URISyntaxException, IOException {
+    public void preloadUsersForDefaultGroup() throws URISyntaxException {
         if (imsUsername == null || imsUsername.isEmpty()) {
 			logger.warn("Username is null or empty (configuration: auto.rebase.username), unable to preload users");
 			return;
@@ -249,7 +248,7 @@ public class UserCacheService {
     /**
      * Obtain IMS token for email-viewer credentials. Caches the token to prevent relogin on every user fetch.
      */
-    private String getOrRefreshEmailViewerToken() throws URISyntaxException, IOException {
+    private String getOrRefreshEmailViewerToken() throws URISyntaxException {
         String token = emailViewerTokenCache.getIfPresent(EMAIL_VIEWER_TOKEN_KEY);
         if (token != null) {
             return token;
@@ -293,7 +292,7 @@ public class UserCacheService {
         return e.getCause() != null && isNotFoundError(e.getCause());
     }
 
-    private void loginToIMSAndSetSecurityContext() throws URISyntaxException, IOException {
+    private void loginToIMSAndSetSecurityContext() throws URISyntaxException {
         IMSRestClient imsClient = new IMSRestClient(imsUrl);
         String token = imsClient.loginForceNewSession(imsUsername, imsPassword);
         PreAuthenticatedAuthenticationToken decoratedAuthentication = new PreAuthenticatedAuthenticationToken(imsUsername, token);

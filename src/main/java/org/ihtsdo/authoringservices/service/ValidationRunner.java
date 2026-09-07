@@ -215,15 +215,14 @@ public class ValidationRunner implements Runnable {
     public void runValidationForRF2DeltaExport(File zipFile, ValidationConfiguration config, String effectiveTime) throws IOException, ServiceException {
         MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
 
-        MultiValueMap<String, String> fileMap = new LinkedMultiValueMap<>();
-        ContentDisposition contentDisposition = ContentDisposition
-                .builder("form-data")
+        HttpHeaders fileHeaders = new HttpHeaders();
+        fileHeaders.setContentDisposition(ContentDisposition
+                .formData()
                 .name("file")
                 .filename(zipFile.getName())
-                .build();
-        fileMap.add(HttpHeaders.CONTENT_DISPOSITION, contentDisposition.toString());
-        fileMap.add(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_OCTET_STREAM_VALUE);
-        HttpEntity<byte[]> fileEntity = new HttpEntity<>(FileUtils.readFileToByteArray(zipFile), fileMap);
+                .build());
+        fileHeaders.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        HttpEntity<byte[]> fileEntity = new HttpEntity<>(FileUtils.readFileToByteArray(zipFile), fileHeaders);
 
         body.add("file", fileEntity);
         body.add("rf2DeltaOnly", Boolean.TRUE.toString());

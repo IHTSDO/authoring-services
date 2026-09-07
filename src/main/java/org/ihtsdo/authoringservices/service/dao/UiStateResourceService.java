@@ -1,7 +1,5 @@
 package org.ihtsdo.authoringservices.service.dao;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.commons.io.IOUtils;
 import org.ihtsdo.authoringservices.configuration.UiStateStorageConfiguration;
 import org.ihtsdo.authoringservices.service.exceptions.PathNotProvidedException;
@@ -13,6 +11,8 @@ import software.amazon.awssdk.regions.providers.DefaultAwsRegionProviderChain;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
 import software.amazon.awssdk.services.s3.model.S3Object;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -31,7 +31,7 @@ public final class UiStateResourceService extends AbstractResourceService {
     private String path;
 
 	@Autowired
-	ObjectMapper objectMapper;
+	JsonMapper jsonMapper;
 
     /**
      * Builds the service to read/write/delete and move files from S3 storage.
@@ -64,7 +64,7 @@ public final class UiStateResourceService extends AbstractResourceService {
 
 		try (inputStream) {
 			// Let Jackson parse the stream directly into a JsonNode
-			return objectMapper.readTree(inputStream);
+			return jsonMapper.readTree(inputStream);
 		}
 	}
 

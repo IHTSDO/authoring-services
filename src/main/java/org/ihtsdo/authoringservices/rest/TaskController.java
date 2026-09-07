@@ -4,7 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.ihtsdo.authoringservices.domain.*;
 import org.ihtsdo.authoringservices.service.ContentRequestService;
 import org.ihtsdo.authoringservices.service.PromotionService;

@@ -1,6 +1,6 @@
 package org.ihtsdo.authoringservices.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.ihtsdo.authoringservices.domain.ReviewPrerequisites;
 import org.ihtsdo.authoringservices.domain.ReviewPrerequisites.UnsavedConcept;
 import org.ihtsdo.authoringservices.service.ClassificationPrerequisiteService.ClassificationPrerequisiteResult;
@@ -110,7 +110,7 @@ public class ReviewPrerequisitesService {
 				return unsavedConcepts;
 			}
 			for (JsonNode conceptIdNode : modifiedList) {
-				UnsavedConcept unsavedConcept = toUnsavedConceptEntry(projectKey, taskKey, username, conceptIdNode.asText());
+				UnsavedConcept unsavedConcept = toUnsavedConceptEntry(projectKey, taskKey, username, conceptIdNode.asString());
 				if (unsavedConcept != null) {
 					unsavedConcepts.add(unsavedConcept);
 				}
@@ -131,7 +131,7 @@ public class ReviewPrerequisitesService {
 		if (concept == null || isCurrentPlaceholder(concept)) {
 			return null;
 		}
-		String displayConceptId = concept.path("conceptId").asText(null);
+		String displayConceptId = concept.path("conceptId").asString(null);
 		if (!StringUtils.hasLength(displayConceptId)) {
 			displayConceptId = "(New concept)";
 		}
@@ -143,14 +143,14 @@ public class ReviewPrerequisitesService {
 	}
 
 	private static String extractFsn(JsonNode concept) {
-		if (concept.hasNonNull("fsn") && concept.get("fsn").isTextual()) {
-			return concept.get("fsn").asText();
+		if (concept.hasNonNull("fsn") && concept.get("fsn").isString()) {
+			return concept.get("fsn").asString();
 		}
 		JsonNode descriptions = concept.get("descriptions");
 		if (descriptions != null && descriptions.isArray()) {
 			for (JsonNode description : descriptions) {
-				if ("FSN".equals(description.path("type").asText())) {
-					String term = description.path("term").asText(null);
+				if ("FSN".equals(description.path("type").asString())) {
+					String term = description.path("term").asString(null);
 					if (StringUtils.hasLength(term)) {
 						return term;
 					}

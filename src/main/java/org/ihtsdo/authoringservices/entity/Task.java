@@ -48,13 +48,11 @@ public class  Task {
     private List<TaskReviewer> reviewers = new ArrayList<>();
 
     @Column(name = "created_timestamp")
-    @Temporal(TemporalType.TIMESTAMP)
     // Cannot use this annotation @CreationTimestamp for now as we need to sync the jira tasks due to migration.
     //@CreationTimestamp
     private Timestamp createdDate;
 
     @Column(name = "updated_timestamp")
-    @Temporal(TemporalType.TIMESTAMP)
     // Cannot use this annotation  @UpdateTimestamp for now as we need to sync the jira tasks due to migration.
     // @UpdateTimestamp
     private Timestamp updatedDate;

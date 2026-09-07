@@ -22,7 +22,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
@@ -86,7 +85,7 @@ public class ScheduledRebaseService {
             }
 
             logger.info("Scheduled rebase complete.");
-        } catch (IOException | URISyntaxException e) {
+        } catch (URISyntaxException e) {
             throw new BusinessServiceException("Error while rebasing projects", e);
         } finally {
             cronJobRunning = false;
@@ -129,7 +128,7 @@ public class ScheduledRebaseService {
         rebaseProjects();
     }
 
-    private void loginToIMSAndSetSecurityContext() throws URISyntaxException, IOException {
+    private void loginToIMSAndSetSecurityContext() throws URISyntaxException {
         IMSRestClient imsClient = new IMSRestClient(imsUrl);
         String token = imsClient.loginForceNewSession(username, password);
         PreAuthenticatedAuthenticationToken decoratedAuthentication = new PreAuthenticatedAuthenticationToken(username, token);

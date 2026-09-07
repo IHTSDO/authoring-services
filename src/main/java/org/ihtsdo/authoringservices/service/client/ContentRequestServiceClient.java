@@ -5,7 +5,7 @@ import org.ihtsdo.otf.rest.client.ExpressiveErrorHandler;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.boot.restclient.RestTemplateBuilder;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.json.GsonHttpMessageConverter;

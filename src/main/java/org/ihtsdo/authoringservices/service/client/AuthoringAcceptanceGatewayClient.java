@@ -6,7 +6,7 @@ import org.ihtsdo.sso.integration.SecurityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.boot.restclient.RestTemplateBuilder;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -29,7 +29,7 @@ public class AuthoringAcceptanceGatewayClient {
 
 	public AuthoringAcceptanceGatewayClient(@Value("${aag.url:}") String aagUrl) {
 		if (!Strings.isEmpty(aagUrl)) {
-			restTemplate = new RestTemplateBuilder().rootUri(aagUrl).build();
+			restTemplate = new RestTemplateBuilder().baseUri(aagUrl).build();
 		}
 	}
 

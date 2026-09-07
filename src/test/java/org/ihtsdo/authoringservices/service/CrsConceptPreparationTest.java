@@ -1,8 +1,8 @@
 package org.ihtsdo.authoringservices.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -19,7 +19,7 @@ class CrsConceptPreparationTest {
 	private static final String MODULE_ID = "900000000000207008";
 	private static final String ISA = "116680003";
 	private static final String FINDING_SITE = "363698007";
-	private static final ObjectMapper MAPPER = new ObjectMapper();
+	private static final JsonMapper MAPPER = JsonMapper.builder().build();
 
 	private CrsConceptPreparation preparation;
 	private AtomicInteger uuidCounter;
@@ -34,7 +34,7 @@ class CrsConceptPreparationTest {
 	void prepareCrsConcept_returnsPlaceholderWhenRequestHasNoConcept() {
 		ObjectNode result = preparation.prepareCrsConcept(null, null, MODULE_ID);
 
-		assertEquals("Request without proposed concept", result.path("fsn").asText());
+		assertEquals("Request without proposed concept", result.path("fsn").asString());
 		assertFalse(result.has("conceptId"));
 	}
 
@@ -42,7 +42,7 @@ class CrsConceptPreparationTest {
 	void prepareCrsConcept_returnsPlaceholderWhenRequestIsEmptyObject() throws Exception {
 		ObjectNode result = preparation.prepareCrsConcept(MAPPER.readTree("{}"), null, MODULE_ID);
 
-		assertEquals("Request without proposed concept", result.path("fsn").asText());
+		assertEquals("Request without proposed concept", result.path("fsn").asString());
 	}
 
 	@Test
@@ -65,17 +65,17 @@ class CrsConceptPreparationTest {
 
 		ObjectNode result = preparation.prepareCrsConcept(request, null, MODULE_ID);
 
-		assertEquals("uuid-1", result.path("conceptId").asText());
+		assertEquals("uuid-1", result.path("conceptId").asString());
 		assertFalse(result.has("relationships"));
 		assertEquals(1, result.path("classAxioms").size());
 		JsonNode axiom = result.path("classAxioms").get(0);
-		assertEquals("uuid-2", axiom.path("axiomId").asText());
-		assertEquals("FULLY_DEFINED", axiom.path("definitionStatus").asText());
-		assertEquals(MODULE_ID, axiom.path("moduleId").asText());
+		assertEquals("uuid-2", axiom.path("axiomId").asString());
+		assertEquals("FULLY_DEFINED", axiom.path("definitionStatus").asString());
+		assertEquals(MODULE_ID, axiom.path("moduleId").asString());
 		assertTrue(axiom.path("active").asBoolean());
 		assertFalse(axiom.path("released").asBoolean());
 		assertEquals(1, axiom.path("relationships").size());
-		assertEquals("Is a", axiom.path("relationships").get(0).path("type").path("pt").asText());
+		assertEquals("Is a", axiom.path("relationships").get(0).path("type").path("pt").asString());
 	}
 
 	@Test
@@ -99,10 +99,10 @@ class CrsConceptPreparationTest {
 
 		ObjectNode result = preparation.prepareCrsConcept(request, MAPPER.readTree("{\"conceptId\":\"should-not-be-used\"}"), MODULE_ID);
 
-		assertEquals("12345678901", result.path("conceptId").asText());
-		assertEquals("NEW_CONCEPT", result.path("definitionOfChanges").path("changeType").asText());
-		assertEquals("PRIMITIVE", result.path("classAxioms").get(0).path("definitionStatus").asText());
-		assertEquals("Is a", result.path("classAxioms").get(0).path("relationships").get(0).path("type").path("pt").asText());
+		assertEquals("12345678901", result.path("conceptId").asString());
+		assertEquals("NEW_CONCEPT", result.path("definitionOfChanges").path("changeType").asString());
+		assertEquals("PRIMITIVE", result.path("classAxioms").get(0).path("definitionStatus").asString());
+		assertEquals("Is a", result.path("classAxioms").get(0).path("relationships").get(0).path("type").path("pt").asString());
 	}
 
 	@Test
@@ -160,16 +160,16 @@ class CrsConceptPreparationTest {
 
 		ObjectNode result = preparation.prepareCrsConcept(request, existing, MODULE_ID);
 
-		assertEquals("Update", result.path("definitionOfChanges").path("notes").asText());
-		assertEquals("FULLY_DEFINED", result.path("definitionStatus").asText());
-		assertEquals("FULLY_DEFINED", result.path("classAxioms").get(0).path("definitionStatus").asText());
+		assertEquals("Update", result.path("definitionOfChanges").path("notes").asString());
+		assertEquals("FULLY_DEFINED", result.path("definitionStatus").asString());
+		assertEquals("FULLY_DEFINED", result.path("classAxioms").get(0).path("definitionStatus").asString());
 		assertEquals(2, result.path("descriptions").size());
 		assertTrue(result.path("descriptions").get(0).path("definitionOfChanges").path("changed").asBoolean());
-		assertEquals("New synonym", result.path("descriptions").get(1).path("term").asText());
+		assertEquals("New synonym", result.path("descriptions").get(1).path("term").asString());
 		assertTrue(result.path("classAxioms").get(0).path("relationships").get(0).path("definitionOfChanges").path("changed").asBoolean());
 		JsonNode added = result.path("classAxioms").get(0).path("relationships").get(1);
-		assertEquals(FINDING_SITE, added.path("type").path("conceptId").asText());
-		assertEquals("Finding site", added.path("type").path("pt").asText());
+		assertEquals(FINDING_SITE, added.path("type").path("conceptId").asString());
+		assertEquals("Finding site", added.path("type").path("pt").asString());
 	}
 
 	@Test
@@ -193,8 +193,8 @@ class CrsConceptPreparationTest {
 
 		ObjectNode result = preparation.prepareCrsConcept(request, existing, MODULE_ID);
 
-		assertEquals("PRIMITIVE", result.path("classAxioms").get(0).path("definitionStatus").asText());
-		assertEquals("PRIMITIVE", result.path("classAxioms").get(1).path("definitionStatus").asText());
+		assertEquals("PRIMITIVE", result.path("classAxioms").get(0).path("definitionStatus").asString());
+		assertEquals("PRIMITIVE", result.path("classAxioms").get(1).path("definitionStatus").asString());
 	}
 
 	@Test

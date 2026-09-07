@@ -1,5 +1,6 @@
 package org.ihtsdo.authoringservices.service;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -23,7 +24,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -271,7 +271,8 @@ public class RVFFailureJiraAssociationService {
 	}
 
 	private ValidationReport getValidationReportOrThrow(String url) throws IOException, BusinessServiceException {
-		ObjectMapper objectMapper = Jackson2ObjectMapperBuilder.json().failOnUnknownProperties(false).build();
+		ObjectMapper objectMapper = new ObjectMapper()
+				.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 		String validationReportString = rvfClientFactory.getClient().getValidationReport(url);
 		if (StringUtils.hasLength(validationReportString)) {
 			validationReportString = validationReportString.replace("\"TestResult\"", "\"testResult\"");

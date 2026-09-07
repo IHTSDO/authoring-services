@@ -27,21 +27,26 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.domain.EntityScan;
-import org.springframework.boot.autoconfigure.http.HttpMessageConverters;
+import org.springframework.boot.persistence.autoconfigure.EntityScan;
+import org.springframework.boot.http.converter.autoconfigure.ClientHttpMessageConvertersCustomizer;
+import org.springframework.boot.http.converter.autoconfigure.ServerHttpMessageConvertersCustomizer;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.info.BuildProperties;
-import org.springframework.boot.web.embedded.tomcat.TomcatConnectorCustomizer;
+import org.springframework.boot.tomcat.TomcatConnectorCustomizer;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.http.converter.ByteArrayHttpMessageConverter;
+import org.springframework.http.converter.HttpMessageConverters.ClientBuilder;
+import org.springframework.http.converter.HttpMessageConverters.ServerBuilder;
 import org.springframework.http.converter.ResourceHttpMessageConverter;
 import org.springframework.http.converter.StringHttpMessageConverter;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.http.converter.json.JacksonJsonHttpMessageConverter;
 import org.springframework.jms.config.DefaultJmsListenerContainerFactory;
+import tools.jackson.databind.cfg.DateTimeFeature;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.nio.charset.StandardCharsets;
 import java.util.TimeZone;
@@ -106,7 +111,7 @@ public abstract class Configuration {
 	@Bean
 	public ObjectMapper objectMapper() {
 		final ObjectMapper objectMapper = new ObjectMapper();
-		objectMapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
+		objectMapper.setDefaultPropertyInclusion(JsonInclude.Include.NON_EMPTY);
 		final StdDateFormat stdDateFormat = new StdDateFormat();
 		stdDateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
 		objectMapper.setDateFormat(stdDateFormat);
@@ -129,18 +134,60 @@ public abstract class Configuration {
 	}
 
 	@Bean
-	public HttpMessageConverters customConverters() {
+	public CustomHttpMessageConvertersCustomizer customConverters() {
 		final StringHttpMessageConverter stringConverter = new StringHttpMessageConverter(StandardCharsets.UTF_8);
 		stringConverter.setWriteAcceptCharset(false);
 
-		final MappingJackson2HttpMessageConverter jacksonConverter = new MappingJackson2HttpMessageConverter();
-		jacksonConverter.setObjectMapper(objectMapper());
+		final tools.jackson.databind.util.StdDateFormat stdDateFormat = new tools.jackson.databind.util.StdDateFormat();
+		stdDateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
+		final JacksonJsonHttpMessageConverter jacksonConverter = new JacksonJsonHttpMessageConverter(
+				JsonMapper.builderWithJackson2Defaults()
+						.changeDefaultPropertyInclusion(incl -> incl.withValueInclusion(JsonInclude.Include.NON_EMPTY))
+						.defaultDateFormat(stdDateFormat)
+						.disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS)
+						.build());
 
-		return new HttpMessageConverters(
+		return new CustomHttpMessageConvertersCustomizer(
 				stringConverter,
 				new ByteArrayHttpMessageConverter(),
 				new ResourceHttpMessageConverter(),
 				jacksonConverter);
+	}
+
+	public static final class CustomHttpMessageConvertersCustomizer
+			implements ClientHttpMessageConvertersCustomizer, ServerHttpMessageConvertersCustomizer {
+
+		private final StringHttpMessageConverter stringConverter;
+		private final ByteArrayHttpMessageConverter byteArrayConverter;
+		private final ResourceHttpMessageConverter resourceConverter;
+		private final JacksonJsonHttpMessageConverter jacksonConverter;
+
+		private CustomHttpMessageConvertersCustomizer(
+				StringHttpMessageConverter stringConverter,
+				ByteArrayHttpMessageConverter byteArrayConverter,
+				ResourceHttpMessageConverter resourceConverter,
+				JacksonJsonHttpMessageConverter jacksonConverter) {
+			this.stringConverter = stringConverter;
+			this.byteArrayConverter = byteArrayConverter;
+			this.resourceConverter = resourceConverter;
+			this.jacksonConverter = jacksonConverter;
+		}
+
+		@Override
+		public void customize(ClientBuilder builder) {
+			builder.addCustomConverter(stringConverter)
+					.addCustomConverter(byteArrayConverter)
+					.addCustomConverter(resourceConverter)
+					.withJsonConverter(jacksonConverter);
+		}
+
+		@Override
+		public void customize(ServerBuilder builder) {
+			builder.addCustomConverter(stringConverter)
+					.addCustomConverter(byteArrayConverter)
+					.addCustomConverter(resourceConverter)
+					.withJsonConverter(jacksonConverter);
+		}
 	}
 
 	@Bean

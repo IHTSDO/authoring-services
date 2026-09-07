@@ -1,9 +1,9 @@
 package org.ihtsdo.authoringservices.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -37,16 +37,16 @@ public class CrsConceptPreparation {
 	public static final String RELATIONSHIPS = "relationships";
 	public static final String DEFINITION_OF_CHANGES = "definitionOfChanges";
 
-	private final ObjectMapper objectMapper;
+	private final JsonMapper jsonMapper;
 	private final Supplier<String> uuidSupplier;
 
 	@Autowired
-	public CrsConceptPreparation(ObjectMapper objectMapper) {
-		this(objectMapper, () -> UUID.randomUUID().toString());
+	public CrsConceptPreparation(JsonMapper jsonMapper) {
+		this(jsonMapper, () -> UUID.randomUUID().toString());
 	}
 
-	CrsConceptPreparation(ObjectMapper objectMapper, Supplier<String> uuidSupplier) {
-		this.objectMapper = objectMapper;
+	CrsConceptPreparation(JsonMapper jsonMapper, Supplier<String> uuidSupplier) {
+		this.jsonMapper = jsonMapper;
 		this.uuidSupplier = uuidSupplier;
 	}
 
@@ -59,7 +59,7 @@ public class CrsConceptPreparation {
 	 */
 	public ObjectNode prepareCrsConcept(JsonNode crsRequest, JsonNode existingConcept, String defaultModuleId) {
 		if (!(crsRequest instanceof ObjectNode requestNode) || requestNode.isEmpty()) {
-			ObjectNode empty = objectMapper.createObjectNode();
+			ObjectNode empty = jsonMapper.createObjectNode();
 			empty.put("fsn", EMPTY_REQUEST_FSN);
 			return empty;
 		}
@@ -107,14 +107,14 @@ public class CrsConceptPreparation {
 	}
 
 	static boolean isNewConcept(JsonNode crsRequest) {
-		return CHANGE_TYPE_NEW_CONCEPT.equals(crsRequest.path(DEFINITION_OF_CHANGES).path("changeType").asText(null));
+		return CHANGE_TYPE_NEW_CONCEPT.equals(crsRequest.path(DEFINITION_OF_CHANGES).path("changeType").asString(null));
 	}
 
 	private ObjectNode toNewConcept(ObjectNode request, String defaultModuleId) {
 		ArrayNode relationships = copyArray(request.get(RELATIONSHIPS));
 		ObjectNode axiom = newAxiom(defaultModuleId);
 		axiom.set(RELATIONSHIPS, relationships);
-		if (FULLY_DEFINED.equals(request.path(DEFINITION_STATUS).asText(null))) {
+		if (FULLY_DEFINED.equals(request.path(DEFINITION_STATUS).asString(null))) {
 			axiom.put(DEFINITION_STATUS, FULLY_DEFINED);
 		}
 		for (JsonNode relationship : relationships) {
@@ -122,7 +122,7 @@ public class CrsConceptPreparation {
 				setPreferredTermFromFsn(relationshipNode, false);
 			}
 		}
-		ArrayNode classAxioms = objectMapper.createArrayNode();
+		ArrayNode classAxioms = jsonMapper.createArrayNode();
 		classAxioms.add(axiom);
 		request.set("classAxioms", classAxioms);
 		request.remove(RELATIONSHIPS);
@@ -149,7 +149,7 @@ public class CrsConceptPreparation {
 		ArrayNode classAxioms = ensureArray(concept, "classAxioms");
 		for (JsonNode crsRelationship : iterable(crsConcept.get(RELATIONSHIPS))) {
 			if (!(crsRelationship instanceof ObjectNode crsRelationshipNode)
-					|| !STATED_RELATIONSHIP.equals(crsRelationshipNode.path("characteristicType").asText(null))) {
+					|| !STATED_RELATIONSHIP.equals(crsRelationshipNode.path("characteristicType").asString(null))) {
 				continue;
 			}
 			if (!applyDefinitionOfChangesToMatchingRelationship(classAxioms, crsRelationshipNode)
@@ -212,7 +212,7 @@ public class CrsConceptPreparation {
 			return;
 		}
 		for (JsonNode axiom : classAxioms) {
-			if (FULLY_DEFINED.equals(axiom.path(DEFINITION_STATUS).asText(null))) {
+			if (FULLY_DEFINED.equals(axiom.path(DEFINITION_STATUS).asString(null))) {
 				return;
 			}
 		}
@@ -222,7 +222,7 @@ public class CrsConceptPreparation {
 	}
 
 	private ObjectNode newAxiom(String defaultModuleId) {
-		ObjectNode axiom = objectMapper.createObjectNode();
+		ObjectNode axiom = jsonMapper.createObjectNode();
 		axiom.put("axiomId", uuidSupplier.get());
 		axiom.put(DEFINITION_STATUS, PRIMITIVE);
 		axiom.putNull("effectiveTime");
@@ -231,7 +231,7 @@ public class CrsConceptPreparation {
 		if (StringUtils.hasLength(defaultModuleId)) {
 			axiom.put("moduleId", defaultModuleId);
 		}
-		axiom.set(RELATIONSHIPS, objectMapper.createArrayNode());
+		axiom.set(RELATIONSHIPS, jsonMapper.createArrayNode());
 		return axiom;
 	}
 
@@ -263,8 +263,8 @@ public class CrsConceptPreparation {
 		if (fsn == null || fsn.isNull() || fsn.isMissingNode()) {
 			return null;
 		}
-		if (fsn.isTextual()) {
-			return fsn.asText();
+		if (fsn.isString()) {
+			return fsn.asString();
 		}
 		return textOrNull(fsn, "term");
 	}
@@ -290,8 +290,8 @@ public class CrsConceptPreparation {
 	}
 
 	private static boolean textsEqual(JsonNode left, JsonNode right) {
-		String leftText = left.isMissingNode() || left.isNull() ? null : left.asText();
-		String rightText = right.isMissingNode() || right.isNull() ? null : right.asText();
+		String leftText = left.isMissingNode() || left.isNull() ? null : left.asString();
+		String rightText = right.isMissingNode() || right.isNull() ? null : right.asString();
 		return leftText != null && leftText.equals(rightText);
 	}
 
@@ -316,7 +316,7 @@ public class CrsConceptPreparation {
 	}
 
 	private ArrayNode copyArray(JsonNode node) {
-		ArrayNode copy = objectMapper.createArrayNode();
+		ArrayNode copy = jsonMapper.createArrayNode();
 		for (JsonNode item : iterable(node)) {
 			copy.add(item.deepCopy());
 		}
@@ -328,7 +328,7 @@ public class CrsConceptPreparation {
 		if (existing instanceof ArrayNode arrayNode) {
 			return arrayNode;
 		}
-		ArrayNode array = objectMapper.createArrayNode();
+		ArrayNode array = jsonMapper.createArrayNode();
 		node.set(field, array);
 		return array;
 	}
@@ -345,10 +345,10 @@ public class CrsConceptPreparation {
 		if (value == null || value.isNull() || value.isMissingNode()) {
 			return null;
 		}
-		if (!value.isTextual() && !value.isNumber()) {
+		if (!value.isString() && !value.isNumber()) {
 			return null;
 		}
-		String text = value.asText();
+		String text = value.asString();
 		return StringUtils.hasLength(text) ? text : null;
 	}
 }

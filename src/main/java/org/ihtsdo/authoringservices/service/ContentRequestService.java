@@ -1,10 +1,10 @@
 package org.ihtsdo.authoringservices.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import net.sf.json.JSONObject;
 import org.ihtsdo.authoringservices.domain.CrsBlockingState;
 import org.ihtsdo.authoringservices.domain.CrsBlockingState.BlockingConcept;
@@ -60,7 +60,7 @@ public class ContentRequestService {
 	private final UiConfiguration uiConfiguration;
 	private final CrsConceptPreparation crsConceptPreparation;
 	private final UiStateService uiStateService;
-	private final ObjectMapper objectMapper;
+	private final JsonMapper jsonMapper;
 
 	public ContentRequestService(PermissionService permissionService,
 			BranchService branchService,
@@ -69,7 +69,7 @@ public class ContentRequestService {
 			UiConfiguration uiConfiguration,
 			CrsConceptPreparation crsConceptPreparation,
 			UiStateService uiStateService,
-			ObjectMapper objectMapper) {
+			JsonMapper jsonMapper) {
 		this.permissionService = permissionService;
 		this.branchService = branchService;
 		this.snowstormRestClientFactory = snowstormRestClientFactory;
@@ -77,7 +77,7 @@ public class ContentRequestService {
 		this.uiConfiguration = uiConfiguration;
 		this.crsConceptPreparation = crsConceptPreparation;
 		this.uiStateService = uiStateService;
-		this.objectMapper = objectMapper;
+		this.jsonMapper = jsonMapper;
 	}
 
 	public JsonNode applyRequest(String projectKey, String taskKey, String requestId) throws BusinessServiceException {
@@ -210,19 +210,19 @@ public class ContentRequestService {
 	}
 
 	private JsonNode toResponse(JsonNode concept) {
-		return objectMapper.valueToTree(ContentRequestResult.of(withSavedFlag(conceptsJson(concept), false)));
+		return jsonMapper.valueToTree(ContentRequestResult.of(withSavedFlag(conceptsJson(concept), false)));
 	}
 
 	private JsonNode toResponse(ContentRequestResult result) {
-		return objectMapper.valueToTree(result);
+		return jsonMapper.valueToTree(result);
 	}
 
 	private JsonNode conceptsJson(JsonNode concept) {
-		return objectMapper.createArrayNode().add(concept);
+		return jsonMapper.createArrayNode().add(concept);
 	}
 
 	private JsonNode conceptsJson(List<ConceptPojo> concepts) {
-		return objectMapper.valueToTree(concepts != null ? concepts : List.of());
+		return jsonMapper.valueToTree(concepts != null ? concepts : List.of());
 	}
 
 	private JsonNode donationConceptsJson(List<ConceptPojo> concepts, List<String> conceptIdsToCopy,
@@ -234,7 +234,7 @@ public class ContentRequestService {
 		if (!(concepts instanceof ArrayNode array)) {
 			return concepts;
 		}
-		ArrayNode result = objectMapper.createArrayNode();
+		ArrayNode result = jsonMapper.createArrayNode();
 		for (JsonNode concept : array) {
 			if (concept instanceof ObjectNode objectNode) {
 				ObjectNode copy = objectNode.deepCopy();
@@ -356,7 +356,7 @@ public class ContentRequestService {
 			if (concept == null) {
 				throw new ResourceNotFoundException("Concept " + conceptId + " not found on branch " + branchPath);
 			}
-			JsonNode tree = objectMapper.valueToTree(concept);
+			JsonNode tree = jsonMapper.valueToTree(concept);
 			if (!(tree instanceof ObjectNode)) {
 				throw new BusinessServiceException("Failed to convert concept " + conceptId + " to JSON");
 			}
@@ -398,8 +398,8 @@ public class ContentRequestService {
 			return null;
 		}
 		try {
-			return objectMapper.readTree(concept.toString());
-		} catch (JsonProcessingException e) {
+			return jsonMapper.readTree(concept.toString());
+		} catch (JacksonException e) {
 			throw new BusinessServiceException("Failed to parse CRS request concept JSON", e);
 		}
 	}
@@ -409,7 +409,7 @@ public class ContentRequestService {
 			return false;
 		}
 		return CONTENT_PROMOTION_TOPIC.equals(
-				crsConcept.path(CrsConceptPreparation.DEFINITION_OF_CHANGES).path("topic").asText(null));
+				crsConcept.path(CrsConceptPreparation.DEFINITION_OF_CHANGES).path("topic").asString(null));
 	}
 
 	private static boolean requiresExistingConcept(JsonNode crsConcept) {
@@ -505,7 +505,7 @@ public class ContentRequestService {
 		if (node == null) {
 			return null;
 		}
-		String text = node.path(field).asText(null);
+		String text = node.path(field).asString(null);
 		if (!StringUtils.hasLength(text)) {
 			return null;
 		}
