@@ -28,7 +28,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.persistence.autoconfigure.EntityScan;
-import org.springframework.boot.http.converter.autoconfigure.ClientHttpMessageConvertersCustomizer;
 import org.springframework.boot.http.converter.autoconfigure.ServerHttpMessageConvertersCustomizer;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.info.BuildProperties;
@@ -39,7 +38,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.http.converter.ByteArrayHttpMessageConverter;
-import org.springframework.http.converter.HttpMessageConverters.ClientBuilder;
 import org.springframework.http.converter.HttpMessageConverters.ServerBuilder;
 import org.springframework.http.converter.ResourceHttpMessageConverter;
 import org.springframework.http.converter.StringHttpMessageConverter;
@@ -154,8 +152,11 @@ public abstract class Configuration {
 				jacksonConverter);
 	}
 
-	public static final class CustomHttpMessageConvertersCustomizer
-			implements ClientHttpMessageConvertersCustomizer, ServerHttpMessageConvertersCustomizer {
+	/**
+	 * Server-only: {@code SnowstormRestClient} and similar code use {@code new RestTemplate()},
+	 * which does not pick up Boot client converter customizers.
+	 */
+	public static final class CustomHttpMessageConvertersCustomizer implements ServerHttpMessageConvertersCustomizer {
 
 		private final StringHttpMessageConverter stringConverter;
 		private final ByteArrayHttpMessageConverter byteArrayConverter;
@@ -171,14 +172,6 @@ public abstract class Configuration {
 			this.byteArrayConverter = byteArrayConverter;
 			this.resourceConverter = resourceConverter;
 			this.jacksonConverter = jacksonConverter;
-		}
-
-		@Override
-		public void customize(ClientBuilder builder) {
-			builder.addCustomConverter(stringConverter)
-					.addCustomConverter(byteArrayConverter)
-					.addCustomConverter(resourceConverter)
-					.withJsonConverter(jacksonConverter);
 		}
 
 		@Override
