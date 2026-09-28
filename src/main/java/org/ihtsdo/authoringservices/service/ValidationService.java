@@ -509,7 +509,6 @@ public class ValidationService {
 				.collect(Collectors.toSet());
 		if(!existingSemanticTags.equals(combined)) {
 			writeAndPutFileToS3(combined, semanticTagItemsPath);
-			this.technicalItems = combined;
 		}
 	}
 
