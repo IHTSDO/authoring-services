@@ -187,7 +187,7 @@ import java.util.stream.StreamSupport;
         Task task = getTaskOrThrow(taskKey);
 
         // Act on each field received
-        final TaskStatus newStatus = taskUpdateRequest.getStatus();
+        final TaskStatus newStatus = resolveNewStatus(task, taskUpdateRequest);
         boolean requiredUpdateTaskStatus = requireUpdateTaskStatus(newStatus, task, hasFullPermission);
         TaskChangeAssigneeRequest taskChangeAssigneeRequest = updateTaskAssignee(taskUpdateRequest.getAssignee(), task, hasFullPermission);
         List<User> newReviewersToSendEmail = updateTaskReviewers(projectKey, task, taskUpdateRequest.getReviewers(), hasFullPermission);
@@ -200,6 +200,13 @@ import java.util.stream.StreamSupport;
         handlePostUpdateSideEffects(projectKey, taskKey, newStatus, task, requiredUpdateTaskStatus, taskChangeAssigneeRequest, newReviewersToSendEmail);
 
         return buildAuthoringTasks(new ArrayList<>(List.of(task)), false).get(0);
+    }
+
+    private TaskStatus resolveNewStatus(Task task, AuthoringTaskUpdateRequest taskUpdateRequest) {
+        List<User> requestedReviewers = taskUpdateRequest.getReviewers();
+        boolean hasReviewers = requestedReviewers != null ? !requestedReviewers.isEmpty() : !CollectionUtils.isEmpty(task.getReviewers());
+        TaskStatus status = taskUpdateRequest.getStatus() != null ? taskUpdateRequest.getStatus() : task.getStatus();
+        return TaskStatus.resolveReviewStatus(status, hasReviewers);
     }
 
     private List<User> updateTaskReviewers(String projectKey, Task task, List<User> reviewers, boolean hasFullPermission) {
@@ -291,9 +298,9 @@ import java.util.stream.StreamSupport;
             throw new BadRequestException("Requested status is unknown.");
         }
         // Normal AUTHOR or REVIEWER has full permission
-        // For REVIEWER_ONLY user, only allow moving the status from IN_REVIEW -> REVIEW_COMPLETED or REVIEW_COMPLETED -> IN_REVIEW
+        // For REVIEWER_ONLY user, only allow moving between READY_FOR_REVIEW, IN_REVIEW and REVIEW_COMPLETED
         if (hasFullPermission ||
-                ((currentStatus == TaskStatus.IN_REVIEW && newStatus == TaskStatus.REVIEW_COMPLETED || currentStatus == TaskStatus.REVIEW_COMPLETED && newStatus == TaskStatus.IN_REVIEW)
+                (currentStatus.isReviewStatus() && newStatus.isReviewStatus()
                 && permissionService.hasReviewerOnlyPermissionOnProject(task.getProject().getKey()))) {
             task.setStatus(newStatus);
             auditStatusChangeSender.sendMessage(task.getKey(), task.getBranchPath(), SecurityUtil.getUsername(), currentStatus.getLabel().toUpperCase(), newStatus.getLabel().toUpperCase(), new Date().getTime());
@@ -354,7 +361,7 @@ import java.util.stream.StreamSupport;
     @Override
     public List<AuthoringTask> listMyOrUnassignedReviewTasks(List<CodeSystem> codeSystems, String excludePromoted) throws BusinessServiceException {
         String currentUser = SecurityUtil.getUsername();
-        List<TaskStatus> statuses = new ArrayList<>(List.of(TaskStatus.IN_REVIEW, TaskStatus.REVIEW_COMPLETED));
+        List<TaskStatus> statuses = new ArrayList<>(List.of(TaskStatus.READY_FOR_REVIEW, TaskStatus.IN_REVIEW, TaskStatus.REVIEW_COMPLETED));
         if (null == excludePromoted || !excludePromoted.equalsIgnoreCase("TRUE")) {
             statuses.add(TaskStatus.PROMOTED);
         }
@@ -364,7 +371,8 @@ import java.util.stream.StreamSupport;
         }
         List<Task> tasks = taskRepository.findByProjectInAndAssigneeNotAndStatusInOrderByUpdatedDateDesc(projects, currentUser, statuses);
         tasks = tasks.stream().
-                filter(task -> (CollectionUtils.isEmpty(task.getReviewers()) && TaskStatus.IN_REVIEW.equals(task.getStatus()))
+                filter(task -> TaskStatus.READY_FOR_REVIEW.equals(task.getStatus())
+                        || (CollectionUtils.isEmpty(task.getReviewers()) && TaskStatus.IN_REVIEW.equals(task.getStatus()))
                         || task.getReviewers().stream().anyMatch(reviewer -> reviewer.getUsername().equals(currentUser))).toList();
         return buildAuthoringTasks(tasks, codeSystems, false);
     }
@@ -549,10 +557,11 @@ import java.util.stream.StreamSupport;
     }
 
     /**
-     * Handles special logic for "Ready For Review" and "In Review" statuses
+     * Handles special logic for "Ready For Review" and "In Review" statuses.
+     * IN_REVIEW tasks with no reviewers are still treated as "Ready For Review".
      */
     private ReviewStatusPredicate buildReviewStatusPredicate(QTask qTask, Set<String> statuses) {
-        boolean readyForReviewRequested = statuses.contains(READY_FOR_REVIEW);
+        boolean readyForReviewRequested = statuses.contains(TaskStatus.READY_FOR_REVIEW.getLabel());
         boolean inReviewRequested = statuses.contains(TaskStatus.IN_REVIEW.getLabel());
         
         if (!readyForReviewRequested && !inReviewRequested) {
@@ -560,16 +569,17 @@ import java.util.stream.StreamSupport;
         }
 
         // Remove processed statuses from the set
-        statuses.remove(READY_FOR_REVIEW);
+        statuses.remove(TaskStatus.READY_FOR_REVIEW.getLabel());
         statuses.remove(TaskStatus.IN_REVIEW.getLabel());
 
         if (readyForReviewRequested && inReviewRequested) {
-            // Both statuses requested - return all IN_REVIEW tasks
-            return new ReviewStatusPredicate(qTask.status.eq(TaskStatus.IN_REVIEW), true);
+            // Both statuses requested - return all READY_FOR_REVIEW and IN_REVIEW tasks
+            return new ReviewStatusPredicate(qTask.status.in(TaskStatus.READY_FOR_REVIEW, TaskStatus.IN_REVIEW), true);
         } else if (readyForReviewRequested) {
-            // Only "Ready For Review" - return IN_REVIEW tasks with no reviewers
+            // Only "Ready For Review" - return READY_FOR_REVIEW tasks and IN_REVIEW tasks with no reviewers
             return new ReviewStatusPredicate(
-                qTask.status.eq(TaskStatus.IN_REVIEW).and(qTask.reviewers.isEmpty()),
+                qTask.status.eq(TaskStatus.READY_FOR_REVIEW)
+                    .or(qTask.status.eq(TaskStatus.IN_REVIEW).and(qTask.reviewers.isEmpty())),
                 true
             );
         } else {
@@ -652,10 +662,11 @@ import java.util.stream.StreamSupport;
         }
     }
 
-    private void stateTransition(TaskStatus newState, String taskKey, String projectKey) throws BusinessServiceException {
+    private void stateTransition(TaskStatus requestedState, String taskKey, String projectKey) throws BusinessServiceException {
         permissionService.checkFullPermissionOnProjectOrThrow(projectKey);
         Task task = getTaskOrThrow(taskKey);
         TaskStatus currentState = task.getStatus();
+        TaskStatus newState = TaskStatus.resolveReviewStatus(requestedState, !CollectionUtils.isEmpty(task.getReviewers()));
         task.setStatus(newState);
         task.setUpdatedDate(Timestamp.from(Instant.now()));
         logger.info("Transition task {} to {}", taskKey, newState.getLabel());

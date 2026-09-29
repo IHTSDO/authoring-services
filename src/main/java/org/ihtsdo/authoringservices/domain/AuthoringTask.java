@@ -102,6 +102,9 @@ public class AuthoringTask implements AuthoringTaskCreateRequest, AuthoringTaskU
             array.forEach(item -> reviewers.add(new User((JSONObject) item)));
         }
 
+        // Jira has no Ready For Review status, so it is derived from the reviewers
+        status = TaskStatus.resolveReviewStatus(status, !reviewers.isEmpty());
+
         branchPath = PathHelper.getTaskPath(extensionBase, projectKey, key);
     }
 

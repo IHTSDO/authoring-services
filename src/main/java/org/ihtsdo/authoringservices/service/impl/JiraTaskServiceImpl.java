@@ -425,16 +425,16 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
      * Builds the status clause with special handling for review statuses
      */
     private String buildStatusClause(Set<String> statuses) {
-        boolean readyForReviewStatusFound = statuses.contains(READY_FOR_REVIEW);
+        boolean readyForReviewStatusFound = statuses.contains(TaskStatus.READY_FOR_REVIEW.getLabel());
         boolean inReviewStatusFound = statuses.contains(TaskStatus.IN_REVIEW.getLabel());
         
         if (readyForReviewStatusFound && inReviewStatusFound) {
             // Both statuses requested - return all IN_REVIEW tasks
-            statuses.remove(READY_FOR_REVIEW);
+            statuses.remove(TaskStatus.READY_FOR_REVIEW.getLabel());
             return buildSimpleStatusClause(statuses);
         } else if (readyForReviewStatusFound) {
             // Only "Ready For Review" - return IN_REVIEW tasks with no reviewers
-            statuses.remove(READY_FOR_REVIEW);
+            statuses.remove(TaskStatus.READY_FOR_REVIEW.getLabel());
             return buildReadyForReviewStatusClause(statuses);
         } else if (inReviewStatusFound) {
             // Only "In Review" - return IN_REVIEW tasks with reviewers
@@ -799,7 +799,8 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
         updateRequest.field(jiraReviewersField, users);
     }
 
-    private void updateTaskStatus(String projectKey, String taskKey, Issue issue, TaskStatus status, AuthoringTask authoringTask) throws JiraException, BusinessServiceException {
+    private void updateTaskStatus(String projectKey, String taskKey, Issue issue, TaskStatus requestedStatus, AuthoringTask authoringTask) throws JiraException, BusinessServiceException {
+        TaskStatus status = toJiraStatus(requestedStatus);
         Status currentStatus = issue.getStatus();
         // Don't attempt to transition to the same status
         if (!status.getLabel().equalsIgnoreCase(currentStatus.getName())) {
@@ -903,7 +904,13 @@ public class JiraTaskServiceImpl extends TaskServiceBase implements TaskService 
         }
     }
 
-    private void stateTransition(String taskKey, TaskStatus newState, String projectKey) throws JiraException, BusinessServiceException {
+    // The Jira workflow has no Ready For Review status, it is derived from In Review with no reviewers
+    private static TaskStatus toJiraStatus(TaskStatus status) {
+        return status == TaskStatus.READY_FOR_REVIEW ? TaskStatus.IN_REVIEW : status;
+    }
+
+    private void stateTransition(String taskKey, TaskStatus requestedState, String projectKey) throws JiraException, BusinessServiceException {
+        final TaskStatus newState = toJiraStatus(requestedState);
         final Issue issue = getIssue(taskKey);
         String currentState = issue.getStatus().getName();
         final Transition transition = getTransitionToOrThrow(issue, newState);

@@ -217,6 +217,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
                 .and(qTask.project.in(projects))
                 .and(qTask.assignee.eq(username)
                     .or(qTask.reviewers.any().username.eq(username))
+                    .or(qTask.status.eq(TaskStatus.READY_FOR_REVIEW))
                     .or(qTask.reviewers.isEmpty().and(qTask.status.eq(TaskStatus.IN_REVIEW)))
                 );
         Iterable<Task> tasks = taskRepository.findAll(predicate);

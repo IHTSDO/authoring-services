@@ -1,0 +1,14 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/db.changelog-008.yaml
+
+  - changeSet:
+      id: 017-move-unreviewed-in-review-tasks-to-ready-for-review
+      author: cursor
+      changes:
+        - update:
+            tableName: task
+            columns:
+              - column:
+                  name: status
+                  value: READY_FOR_REVIEW
+            where: "status = 'IN_REVIEW' AND task_key NOT IN (SELECT r.task_key FROM task_reviewer r WHERE r.task_key IS NOT NULL)"

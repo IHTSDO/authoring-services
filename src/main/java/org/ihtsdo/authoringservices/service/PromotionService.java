@@ -691,10 +691,10 @@ public class PromotionService {
         if (status == null) {
             return;
         }
-        if (status != TaskStatus.IN_REVIEW && status != TaskStatus.REVIEW_COMPLETED) {
+        if (!status.isReviewStatus()) {
             blockers.add("No review completed: No review has been completed on this task, are you sure you would like to promote?");
         }
-        if (status == TaskStatus.IN_REVIEW) {
+        if (status == TaskStatus.READY_FOR_REVIEW || status == TaskStatus.IN_REVIEW) {
             blockers.add("Task is still in review: The task review has not been marked as complete.");
         }
     }
