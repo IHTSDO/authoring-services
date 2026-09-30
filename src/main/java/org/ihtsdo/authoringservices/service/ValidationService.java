@@ -1,6 +1,9 @@
 package org.ihtsdo.authoringservices.service;
 
 import org.ihtsdo.authoringservices.entity.ValidationFailureMessagesConverter;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -16,12 +19,15 @@ import org.ihtsdo.authoringservices.service.dao.SRSFileDAO;
 import org.ihtsdo.authoringservices.service.exceptions.ServiceException;
 import org.ihtsdo.otf.dao.s3.S3ClientImpl;
 import org.ihtsdo.otf.rest.client.terminologyserver.PathHelper;
+import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.Branch;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ConceptMiniPojo;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.otf.rest.exception.EntityAlreadyExistsException;
 import org.ihtsdo.otf.rest.exception.ResourceNotFoundException;
 import org.ihtsdo.otf.utils.DateUtils;
+import org.ihtsdo.otf.utils.SnomedUtilsBase;
 import org.ihtsdo.sso.integration.SecurityUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,6 +85,9 @@ public class ValidationService {
 	private static final String ASSERTION_EXCLUSION_LIST = "assertionExclusionList";
 	private static final String ASSERTION_EXCLUSION_MAP = "assertionExclusionMap";
 	private static final String ASSERTION_EXCLUSION_DEFAULT = "DEFAULT";
+	private static final String CONCEPT_ID = "conceptId";
+	private static final String CONCEPT_FSN = "conceptFsn";
+	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
 	@Value("${aws.resources.enabled}")
 	private boolean awsResourceEnabled;
@@ -100,6 +109,9 @@ public class ValidationService {
 
 	@Value("${sca.jms.queue.prefix}")
 	private String scaQueuePrefix;
+
+	@Value("${rvf.validation-report.fsn-lookup-batch-size:100}")
+	private int fsnLookupBatchSize;
 
 	@Autowired
 	private BranchService branchService;
@@ -462,6 +474,7 @@ public class ValidationService {
 			throw new BusinessServiceException("Validation was completed but the report URL is not found");
 		}
 		String report = rvfClientFactory.getClient().getValidationReport(validation.getReportUrl());
+		report = addConceptFsns(path, report);
 		jsonObj.put(VALIDATION_REPORT, report);
 		if (StringUtils.hasLength(report) && validation.getContentHeadTimestamp() != null) {
 			Branch branch = branchService.getBranchOrNull(path);
@@ -469,6 +482,51 @@ public class ValidationService {
 				jsonObj.put(EXECUTION_STATUS, ValidationJobStatus.STALE.name());
 			}
 		}
+	}
+
+	private String addConceptFsns(String branchPath, String report) {
+		if (!StringUtils.hasLength(report)) {
+			return report;
+		}
+		try {
+			JsonNode root = OBJECT_MAPPER.readTree(report);
+			Map<String, List<ObjectNode>> failuresByConceptId = getFailuresWithoutConceptFsn(root);
+			if (failuresByConceptId.isEmpty()) {
+				return report;
+			}
+			SnowstormRestClient client = snowstormRestClientFactory.getClient();
+			List<String> conceptIds = new ArrayList<>(failuresByConceptId.keySet());
+			int batchSize = Math.max(1, fsnLookupBatchSize);
+			for (int i = 0; i < conceptIds.size(); i += batchSize) {
+				List<String> batch = conceptIds.subList(i, Math.min(i + batchSize, conceptIds.size()));
+				for (ConceptMiniPojo concept : client.getConceptMinis(branchPath, batch, batch.size())) {
+					if (concept.getFsn() != null && StringUtils.hasLength(concept.getFsn().getTerm())) {
+						failuresByConceptId.getOrDefault(concept.getConceptId(), Collections.emptyList())
+								.forEach(failure -> failure.put(CONCEPT_FSN, concept.getFsn().getTerm()));
+					}
+				}
+			}
+			return OBJECT_MAPPER.writeValueAsString(root);
+		} catch (Exception e) {
+			logger.error("Failed to add concept FSNs to the validation report for branch {}", branchPath, e);
+			return report;
+		}
+	}
+
+	private Map<String, List<ObjectNode>> getFailuresWithoutConceptFsn(JsonNode report) {
+		Map<String, List<ObjectNode>> failuresByConceptId = new HashMap<>();
+		JsonNode testResult = report.path("rvfValidationResult").path("TestResult");
+		for (String assertionList : List.of("assertionsFailed", "assertionsWarning")) {
+			for (JsonNode assertion : testResult.path(assertionList)) {
+				for (JsonNode failure : assertion.path("firstNInstances")) {
+					String conceptId = failure.path(CONCEPT_ID).asText("");
+					if (failure.isObject() && SnomedUtilsBase.isSctid(conceptId) && SnomedUtilsBase.isConceptSctid(conceptId) && !StringUtils.hasLength(failure.path(CONCEPT_FSN).asText(""))) {
+						failuresByConceptId.computeIfAbsent(conceptId, k -> new ArrayList<>()).add((ObjectNode) failure);
+					}
+				}
+			}
+		}
+		return failuresByConceptId;
 	}
 
 	public ImmutableMap<String, Validation> getValidations(Collection<String> paths) throws ExecutionException {
