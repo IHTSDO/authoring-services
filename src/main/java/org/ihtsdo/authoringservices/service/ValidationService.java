@@ -445,7 +445,8 @@ public class ValidationService {
 				}
 				if (validation.getDailyBuildReportUrl() != null) {
 					jsonObj.put(DAILY_BUILD_RVF_URL, validation.getDailyBuildReportUrl());
-					jsonObj.put(DAILY_BUILD_REPORT, rvfClientFactory.getClient().getValidationReport(validation.getDailyBuildReportUrl()));
+					String dailyBuildReport = rvfClientFactory.getClient().getValidationReport(validation.getDailyBuildReportUrl());
+					jsonObj.put(DAILY_BUILD_REPORT, addConceptFsns(path, dailyBuildReport));
 				}
 				if (validation.getStatus() != null) {
 					jsonObj.put(EXECUTION_STATUS, validation.getStatus());
