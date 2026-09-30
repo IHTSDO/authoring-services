@@ -1,8 +1,19 @@
 databaseChangeLog:
   - logicalFilePath: db/changelog/db.changelog-008.yaml
 
+  # Databases created by Hibernate before Liquibase was introduced have task.status as a MySQL ENUM,
+  # which cannot store new TaskStatus values such as READY_FOR_REVIEW.
   - changeSet:
-      id: 017-move-unreviewed-in-review-tasks-to-ready-for-review
+      id: 017-change-task-status-column-to-varchar
+      author: cursor
+      changes:
+        - modifyDataType:
+            tableName: task
+            columnName: status
+            newDataType: varchar(255)
+
+  - changeSet:
+      id: 018-move-unreviewed-in-review-tasks-to-ready-for-review
       author: cursor
       changes:
         - update:
