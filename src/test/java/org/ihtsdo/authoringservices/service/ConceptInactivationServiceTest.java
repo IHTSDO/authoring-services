@@ -9,6 +9,9 @@ import org.ihtsdo.authoringservices.domain.CrsBlockingState;
 import org.ihtsdo.authoringservices.domain.CrsBlockingState.BlockingConcept;
 import org.ihtsdo.authoringservices.domain.EntityType;
 import org.ihtsdo.authoringservices.domain.Notification;
+import org.ihtsdo.authoringservices.domain.ProcessStatus;
+import com.google.common.util.concurrent.MoreExecutors;
+import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.AxiomPojo;
@@ -32,9 +35,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -45,7 +50,9 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -82,11 +89,11 @@ class ConceptInactivationServiceTest {
 	@BeforeEach
 	void setUp() {
 		service = new ConceptInactivationService(permissionService, contentRequestService, branchService,
-				snowstormRestClientFactory, notificationService);
+				snowstormRestClientFactory, notificationService, MoreExecutors.newDirectExecutorService());
 	}
 
 	@Test
-	void inactivate_fetchesRelatedConceptsAppliesUpdatesAndBulkWrites() throws Exception {
+	void inactivate_fetchesRelatedConceptsAppliesUpdatesAndBulkWritesInBackground() throws Exception {
 		ConceptInactivationRequest request = baseRequest();
 		AcceptedAffectedConcept accepted = new AcceptedAffectedConcept();
 		accepted.setConceptId(AFFECTED_ID);
@@ -101,12 +108,12 @@ class ConceptInactivationServiceTest {
 		List<ConceptPojo> concepts = List.of(inactivationConcept, affectedConcept);
 
 		stubUnblockedTaskBranchAndClient();
-		// First call loads concepts for update; second call re-fetches after bulk write.
-		when(snowstormRestClient.searchConcepts(eq(BRANCH), anyList())).thenReturn(concepts, concepts);
+		when(snowstormRestClient.searchConcepts(eq(BRANCH), anyList())).thenReturn(concepts);
 		doNothing().when(snowstormRestClient).bulkUpdateConcepts(eq(BRANCH), anyList());
 
-		List<ConceptPojo> result = service.inactivate(PROJECT, TASK, CONCEPT_ID, request, false);
+		service.inactivate(PROJECT, TASK, CONCEPT_ID, request);
 
+		List<ConceptPojo> result = captureBulkUpdate();
 		assertEquals(2, result.size());
 		ConceptPojo inactivated = findConcept(result, CONCEPT_ID);
 		assertFalse(inactivated.isActive());
@@ -119,27 +126,66 @@ class ConceptInactivationServiceTest {
 		assertEquals(REPLACEMENT_TARGET, newRel.getTarget().getConceptId());
 		assertFalse(newRel.isReleased());
 
-		ArgumentCaptor<List<ConceptPojo>> conceptsCaptor = ArgumentCaptor.captor();
-		verify(snowstormRestClient).bulkUpdateConcepts(eq(BRANCH), conceptsCaptor.capture());
-		assertEquals(2, conceptsCaptor.getValue().size());
+		ArgumentCaptor<Notification> notificationCaptor = ArgumentCaptor.forClass(Notification.class);
+		verify(notificationService).queueNotification(isNull(), notificationCaptor.capture());
+		assertEquals(EntityType.Inactivation, notificationCaptor.getValue().getEntityType());
+		assertEquals("Concept " + CONCEPT_ID + " inactivated", notificationCaptor.getValue().getEvent());
+
+		ProcessStatus status = service.getInactivationStatus(PROJECT, TASK, CONCEPT_ID);
+		assertEquals(ConceptInactivationService.INACTIVATION_COMPLETE_STATUS, status.getStatus());
+		assertNotNull(status.getCompleteDate());
+	}
+
+	@Test
+	void inactivate_recordsFailureStatusAndNotifiesWhenBackgroundWorkFails() throws Exception {
+		ConceptInactivationRequest request = baseRequest();
+		stubUnblockedTaskBranchAndClient();
+		when(snowstormRestClient.searchConcepts(eq(BRANCH), anyList()))
+				.thenThrow(new RestClientException("Snowstorm unavailable"));
+
+		service.inactivate(PROJECT, TASK, CONCEPT_ID, request);
+
+		ProcessStatus status = service.getInactivationStatus(PROJECT, TASK, CONCEPT_ID);
+		assertEquals(ConceptInactivationService.INACTIVATION_FAILED_STATUS, status.getStatus());
+		assertEquals("Snowstorm unavailable", status.getMessage());
+		verify(snowstormRestClient, never()).bulkUpdateConcepts(anyString(), anyList());
 
 		ArgumentCaptor<Notification> notificationCaptor = ArgumentCaptor.forClass(Notification.class);
 		verify(notificationService).queueNotification(isNull(), notificationCaptor.capture());
 		assertEquals(EntityType.Inactivation, notificationCaptor.getValue().getEntityType());
+		assertEquals("Failed to inactivate concept " + CONCEPT_ID, notificationCaptor.getValue().getEvent());
 	}
 
 	@Test
-	void inactivate_dryRunSkipsBulkWriteNotificationAndActivity() throws Exception {
+	void inactivate_ignoresRequestWhileSameConceptIsInactivating() throws Exception {
+		ExecutorService executorService = mock(ExecutorService.class);
+		service = new ConceptInactivationService(permissionService, contentRequestService, branchService,
+				snowstormRestClientFactory, notificationService, executorService);
+		when(contentRequestService.getBlockingState(eq(PROJECT), eq(TASK), isNull())).thenReturn(unblockedState());
+		when(branchService.getTaskBranchPathUsingCache(PROJECT, TASK)).thenReturn(BRANCH);
+		ConceptInactivationRequest request = baseRequest();
+
+		service.inactivate(PROJECT, TASK, CONCEPT_ID, request);
+		service.inactivate(PROJECT, TASK, CONCEPT_ID, request);
+
+		verify(executorService, times(1)).submit(any(Runnable.class));
+		assertEquals(ConceptInactivationService.INACTIVATING_STATUS,
+				service.getInactivationStatus(PROJECT, TASK, CONCEPT_ID).getStatus());
+	}
+
+	@Test
+	void previewInactivation_skipsBulkWriteAndNotification() throws Exception {
 		ConceptInactivationRequest request = baseRequest();
 		stubUnblockedTaskBranchAndClient();
 		when(snowstormRestClient.searchConcepts(eq(BRANCH), anyList())).thenReturn(List.of(activeConcept(CONCEPT_ID)));
 
-		List<ConceptPojo> result = service.inactivate(PROJECT, TASK, CONCEPT_ID, request, true);
+		List<ConceptPojo> result = service.previewInactivation(PROJECT, TASK, CONCEPT_ID, request);
 
 		assertEquals(1, result.size());
 		assertFalse(result.get(0).isActive());
 		verify(snowstormRestClient, never()).bulkUpdateConcepts(anyString(), anyList());
 		verify(notificationService, never()).queueNotification(any(), any());
+		assertNull(service.getInactivationStatus(PROJECT, TASK, CONCEPT_ID));
 	}
 
 	@Test
@@ -157,12 +203,12 @@ class ConceptInactivationServiceTest {
 		List<ConceptPojo> concepts = List.of(inactivationConcept, histConcept);
 
 		stubUnblockedTaskBranchAndClient();
-		when(snowstormRestClient.searchConcepts(eq(BRANCH), anyList())).thenReturn(concepts, concepts);
+		when(snowstormRestClient.searchConcepts(eq(BRANCH), anyList())).thenReturn(concepts);
 		doNothing().when(snowstormRestClient).bulkUpdateConcepts(eq(BRANCH), anyList());
 
-		List<ConceptPojo> result = service.inactivate(PROJECT, TASK, CONCEPT_ID, request, false);
+		service.inactivate(PROJECT, TASK, CONCEPT_ID, request);
 
-		ConceptPojo updated = findConcept(result, HIST_CONCEPT_ID);
+		ConceptPojo updated = findConcept(captureBulkUpdate(), HIST_CONCEPT_ID);
 		assertEquals(InactivationIndicator.DUPLICATE, updated.getInactivationIndicator());
 		assertFalse(updated.getAssociationTargets().get(HistoricalAssociation.POSSIBLY_EQUIVALENT_TO)
 				.contains(CONCEPT_ID));
@@ -187,12 +233,12 @@ class ConceptInactivationServiceTest {
 		List<ConceptPojo> concepts = List.of(inactivationConcept, owner);
 
 		stubUnblockedTaskBranchAndClient();
-		when(snowstormRestClient.searchConcepts(eq(BRANCH), anyList())).thenReturn(concepts, concepts);
+		when(snowstormRestClient.searchConcepts(eq(BRANCH), anyList())).thenReturn(concepts);
 		doNothing().when(snowstormRestClient).bulkUpdateConcepts(eq(BRANCH), anyList());
 
-		List<ConceptPojo> result = service.inactivate(PROJECT, TASK, CONCEPT_ID, request, false);
+		service.inactivate(PROJECT, TASK, CONCEPT_ID, request);
 
-		DescriptionPojo description = findDescription(findConcept(result, HIST_DESC_CONCEPT_ID), HIST_DESCRIPTION_ID);
+		DescriptionPojo description = findDescription(findConcept(captureBulkUpdate(), HIST_DESC_CONCEPT_ID), HIST_DESCRIPTION_ID);
 		assertEquals(InactivationIndicator.NOT_SEMANTICALLY_EQUIVALENT, description.getInactivationIndicator());
 		assertTrue(description.getAssociationTargets().get(HistoricalAssociation.REFERS_TO)
 				.contains(REPLACEMENT_TARGET));
@@ -214,12 +260,12 @@ class ConceptInactivationServiceTest {
 		List<ConceptPojo> concepts = List.of(inactivationConcept, owner);
 
 		stubUnblockedTaskBranchAndClient();
-		when(snowstormRestClient.searchConcepts(eq(BRANCH), anyList())).thenReturn(concepts, concepts);
+		when(snowstormRestClient.searchConcepts(eq(BRANCH), anyList())).thenReturn(concepts);
 		doNothing().when(snowstormRestClient).bulkUpdateConcepts(eq(BRANCH), anyList());
 
-		List<ConceptPojo> result = service.inactivate(PROJECT, TASK, CONCEPT_ID, request, false);
+		service.inactivate(PROJECT, TASK, CONCEPT_ID, request);
 
-		DescriptionPojo description = findDescription(findConcept(result, HIST_DESC_CONCEPT_ID), HIST_DESCRIPTION_ID);
+		DescriptionPojo description = findDescription(findConcept(captureBulkUpdate(), HIST_DESC_CONCEPT_ID), HIST_DESCRIPTION_ID);
 		assertNull(description.getAssociationTargets());
 	}
 
@@ -230,7 +276,8 @@ class ConceptInactivationServiceTest {
 		ConceptInactivationRequest request = baseRequest();
 
 		assertThrows(AccessDeniedException.class,
-				() -> service.inactivate(PROJECT, TASK, CONCEPT_ID, request, false));
+				() -> service.inactivate(PROJECT, TASK, CONCEPT_ID, request));
+		assertNull(service.getInactivationStatus(PROJECT, TASK, CONCEPT_ID));
 	}
 
 	@Test
@@ -241,14 +288,21 @@ class ConceptInactivationServiceTest {
 		ConceptInactivationRequest request = baseRequest();
 
 		BusinessServiceException exception = assertThrows(BusinessServiceException.class,
-				() -> service.inactivate(PROJECT, TASK, CONCEPT_ID, request, false));
+				() -> service.inactivate(PROJECT, TASK, CONCEPT_ID, request));
 		assertEquals(ConceptInactivationService.CRS_BLOCKED_MESSAGE, exception.getMessage());
+		assertNull(service.getInactivationStatus(PROJECT, TASK, CONCEPT_ID));
 	}
 
 	private void stubUnblockedTaskBranchAndClient() throws BusinessServiceException {
 		when(contentRequestService.getBlockingState(eq(PROJECT), eq(TASK), isNull())).thenReturn(unblockedState());
 		when(branchService.getTaskBranchPathUsingCache(PROJECT, TASK)).thenReturn(BRANCH);
 		when(snowstormRestClientFactory.getClient()).thenReturn(snowstormRestClient);
+	}
+
+	private List<ConceptPojo> captureBulkUpdate() throws Exception {
+		ArgumentCaptor<List<ConceptPojo>> conceptsCaptor = ArgumentCaptor.captor();
+		verify(snowstormRestClient).bulkUpdateConcepts(eq(BRANCH), conceptsCaptor.capture());
+		return conceptsCaptor.getValue();
 	}
 
 	private static ConceptPojo findConcept(List<ConceptPojo> concepts, String conceptId) {

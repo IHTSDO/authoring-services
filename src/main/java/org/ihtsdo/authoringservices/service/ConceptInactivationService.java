@@ -8,6 +8,7 @@ import org.ihtsdo.authoringservices.domain.ConceptInactivationRequest.Associatio
 import org.ihtsdo.authoringservices.domain.CrsBlockingState;
 import org.ihtsdo.authoringservices.domain.EntityType;
 import org.ihtsdo.authoringservices.domain.Notification;
+import org.ihtsdo.authoringservices.domain.ProcessStatus;
 import org.ihtsdo.otf.rest.client.RestClientException;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
@@ -16,12 +17,22 @@ import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ConceptPojo.HistoricalA
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ConceptPojo.InactivationIndicator;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
 import org.ihtsdo.sso.integration.SecurityUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import jakarta.annotation.PreDestroy;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
 
 import java.util.*;
-import java.util.stream.Collectors;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class ConceptInactivationService {
@@ -29,27 +40,114 @@ public class ConceptInactivationService {
 	static final String CRS_BLOCKED_MESSAGE =
 			"Concept inactivation is blocked because this task has unsaved CRS concepts with SCTIDs.";
 	private static final String CONCEPT_INACTIVATED_MESSAGE = "Concept %s inactivated";
+	private static final String CONCEPT_INACTIVATION_FAILED_MESSAGE = "Failed to inactivate concept %s";
+
+	public static final String INACTIVATING_STATUS = "Inactivating";
+	public static final String INACTIVATION_COMPLETE_STATUS = "Inactivation Complete";
+	public static final String INACTIVATION_FAILED_STATUS = "Inactivation Failed";
+
+	private final Logger logger = LoggerFactory.getLogger(getClass());
 
 	private final PermissionService permissionService;
 	private final ContentRequestService contentRequestService;
 	private final BranchService branchService;
 	private final SnowstormRestClientFactory snowstormRestClientFactory;
 	private final NotificationService notificationService;
+	private final ExecutorService executorService;
+	private final Cache<String, ProcessStatus> inactivationStatusCache;
 
+	@Autowired
 	public ConceptInactivationService(PermissionService permissionService,
 			ContentRequestService contentRequestService,
 			BranchService branchService,
 			SnowstormRestClientFactory snowstormRestClientFactory,
 			NotificationService notificationService) {
+		this(permissionService, contentRequestService, branchService, snowstormRestClientFactory,
+				notificationService, Executors.newCachedThreadPool());
+	}
+
+	ConceptInactivationService(PermissionService permissionService,
+			ContentRequestService contentRequestService,
+			BranchService branchService,
+			SnowstormRestClientFactory snowstormRestClientFactory,
+			NotificationService notificationService,
+			ExecutorService executorService) {
 		this.permissionService = permissionService;
 		this.contentRequestService = contentRequestService;
 		this.branchService = branchService;
 		this.snowstormRestClientFactory = snowstormRestClientFactory;
 		this.notificationService = notificationService;
+		this.executorService = executorService;
+		this.inactivationStatusCache = CacheBuilder.newBuilder().expireAfterWrite(1, TimeUnit.DAYS).build();
 	}
 
-	public List<ConceptPojo> inactivate(String projectKey, String taskKey, String conceptId,
-			ConceptInactivationRequest request, Boolean dryRunParam) throws BusinessServiceException {
+	/**
+	 * Prepares the inactivation without writing and returns the concepts that would be updated.
+	 */
+	public List<ConceptPojo> previewInactivation(String projectKey, String taskKey, String conceptId,
+			ConceptInactivationRequest request) throws BusinessServiceException {
+		ConceptInactivationRequest effectiveRequest = validateRequest(conceptId, request);
+		permissionService.checkFullPermissionOnProjectOrThrow(projectKey);
+		String branchPath = resolveUnblockedTaskBranchPath(projectKey, taskKey);
+		try {
+			return prepareConceptsForUpdate(snowstormRestClientFactory.getClient(), branchPath, conceptId, effectiveRequest);
+		} catch (RestClientException e) {
+			throw new BusinessServiceException(String.format(CONCEPT_INACTIVATION_FAILED_MESSAGE, conceptId), e);
+		}
+	}
+
+	/**
+	 * Validates the request synchronously, then fetches, updates and bulk-writes the concepts in the background.
+	 * Progress is reported through {@link #getInactivationStatus(String, String, String)} and a notification.
+	 * A request for a concept that is already being inactivated on the same task is ignored.
+	 */
+	public void inactivate(String projectKey, String taskKey, String conceptId,
+			ConceptInactivationRequest request) throws BusinessServiceException {
+		ConceptInactivationRequest effectiveRequest = validateRequest(conceptId, request);
+		permissionService.checkFullPermissionOnProjectOrThrow(projectKey);
+		String branchPath = resolveUnblockedTaskBranchPath(projectKey, taskKey);
+
+		String statusKey = parseKey(projectKey, taskKey, conceptId);
+		ProcessStatus inactivating = new ProcessStatus(INACTIVATING_STATUS, "");
+		ProcessStatus current = inactivationStatusCache.asMap().compute(statusKey, (key, existing) ->
+				existing != null && INACTIVATING_STATUS.equals(existing.getStatus()) ? existing : inactivating);
+		if (current != inactivating) {
+			return;
+		}
+
+		final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+		executorService.submit(() -> {
+			SecurityContextHolder.getContext().setAuthentication(authentication);
+			try {
+				SnowstormRestClient client = snowstormRestClientFactory.getClient();
+				List<ConceptPojo> conceptsToUpdate = prepareConceptsForUpdate(client, branchPath, conceptId, effectiveRequest);
+				client.bulkUpdateConcepts(branchPath, conceptsToUpdate);
+				updateInactivationStatus(statusKey, INACTIVATION_COMPLETE_STATUS, conceptInactivatedMessage(conceptId));
+				emitCompletionNotification(projectKey, taskKey, branchPath, conceptId);
+			} catch (Exception e) {
+				logger.error("Failed to inactivate concept {} on task {}/{}", conceptId, projectKey, taskKey, e);
+				String message = String.format(CONCEPT_INACTIVATION_FAILED_MESSAGE, conceptId);
+				updateInactivationStatus(statusKey, INACTIVATION_FAILED_STATUS,
+						e.getMessage() != null ? e.getMessage() : message);
+				Notification notification = new Notification(projectKey, taskKey, EntityType.Inactivation, message);
+				notification.setBranchPath(branchPath);
+				notificationService.queueNotification(SecurityUtil.getUsername(), notification);
+			} finally {
+				SecurityContextHolder.clearContext();
+			}
+		});
+	}
+
+	public ProcessStatus getInactivationStatus(String projectKey, String taskKey, String conceptId) {
+		return inactivationStatusCache.getIfPresent(parseKey(projectKey, taskKey, conceptId));
+	}
+
+	@PreDestroy
+	public void shutdown() {
+		executorService.shutdown();
+	}
+
+	private static ConceptInactivationRequest validateRequest(String conceptId, ConceptInactivationRequest request) {
 		ConceptInactivationRequest effectiveRequest = request != null ? request : new ConceptInactivationRequest();
 		if (!StringUtils.hasLength(conceptId)) {
 			throw new IllegalArgumentException("Parameter conceptId is required.");
@@ -57,32 +155,25 @@ public class ConceptInactivationService {
 		if (!StringUtils.hasLength(effectiveRequest.getReasonId())) {
 			throw new IllegalArgumentException("reasonId is required.");
 		}
+		return effectiveRequest;
+	}
 
-		permissionService.checkFullPermissionOnProjectOrThrow(projectKey);
-
-		String username = SecurityUtil.getUsername();
-		CrsBlockingState crsBlockingState = contentRequestService.getBlockingState(projectKey, taskKey, username);
+	private String resolveUnblockedTaskBranchPath(String projectKey, String taskKey) throws BusinessServiceException {
+		CrsBlockingState crsBlockingState = contentRequestService.getBlockingState(projectKey, taskKey, SecurityUtil.getUsername());
 		if (crsBlockingState.isBlocked()) {
 			throw new BusinessServiceException(CRS_BLOCKED_MESSAGE);
 		}
+		return branchService.getTaskBranchPathUsingCache(projectKey, taskKey);
+	}
 
-		boolean dryRun = resolveDryRun(effectiveRequest, dryRunParam);
-		String branchPath = branchService.getTaskBranchPathUsingCache(projectKey, taskKey);
-		SnowstormRestClient client = snowstormRestClientFactory.getClient();
+	private void updateInactivationStatus(String statusKey, String status, String message) {
+		ProcessStatus processStatus = new ProcessStatus(status, message);
+		processStatus.setCompleteDate(new Date());
+		inactivationStatusCache.put(statusKey, processStatus);
+	}
 
-		try {
-			List<ConceptPojo> conceptsToUpdate = prepareConceptsForUpdate(client, branchPath, conceptId, effectiveRequest);
-			if (dryRun) {
-				return conceptsToUpdate;
-			}
-
-			client.bulkUpdateConcepts(branchPath, conceptsToUpdate);
-			emitCompletionNotification(projectKey, taskKey, branchPath, conceptId);
-			Set<String> updatedConceptIds = conceptsToUpdate.stream().map(ConceptPojo::getConceptId).collect(Collectors.toSet());
-			return client.searchConcepts(branchPath, new ArrayList<>(updatedConceptIds));
-		} catch (RestClientException e) {
-			throw new BusinessServiceException("Failed to inactivate concept " + conceptId, e);
-		}
+	private static String parseKey(String projectKey, String taskKey, String conceptId) {
+		return projectKey + "|" + taskKey + "|" + conceptId;
 	}
 
 	private List<ConceptPojo> prepareConceptsForUpdate(SnowstormRestClient client, String branchPath,
@@ -477,13 +568,6 @@ public class ConceptInactivationService {
 		} catch (IllegalArgumentException e) {
 			throw new BusinessServiceException("Unrecognised association type: " + type, e);
 		}
-	}
-
-	private static boolean resolveDryRun(ConceptInactivationRequest request, Boolean dryRunParam) {
-		if (dryRunParam != null) {
-			return dryRunParam;
-		}
-		return request.isDryRun();
 	}
 
 	private void emitCompletionNotification(String projectKey, String taskKey, String branchPath, String conceptId) {
