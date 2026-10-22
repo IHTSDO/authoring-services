@@ -150,6 +150,8 @@ public class BranchService {
     private void createBranch(String branchPath) throws ServiceException {
         try {
             snowstormRestClientFactory.getClient().createBranch(branchPath);
+            // getBranchOrNull caches the earlier "not found" result
+            branchServiceCache.evictBranchCache(branchPath);
         } catch (RestClientException e) {
             throw new ServiceException("Failed to create branch " + branchPath, e);
         }
