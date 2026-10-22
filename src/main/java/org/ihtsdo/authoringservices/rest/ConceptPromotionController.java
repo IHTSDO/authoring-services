@@ -5,6 +5,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.ihtsdo.authoringservices.domain.ConceptPromotionRequest;
 import org.ihtsdo.authoringservices.service.BranchService;
 import org.ihtsdo.authoringservices.service.PromotionService;
+import org.ihtsdo.authoringservices.service.PromotionService.CreatedConceptPromotion;
+import org.ihtsdo.authoringservices.service.client.ContentRequestServiceClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.CodeSystem;
@@ -39,7 +41,7 @@ public class ConceptPromotionController {
     @Autowired
     private SnowstormRestClientFactory snowstormRestClientFactory;
 
-    @Operation(summary = "Request a new CRS ticket for concept promotion", description = "This API can support for either project key + task key or only branch path")
+    @Operation(summary = "Request a new CRS ticket for concept promotion", description = "Accepts a project key and task key, or a branch path. Requests for the US extension are created in US CRS; other extensions are created in International CRS.")
     @PostMapping(value = "/request-concept-promotion")
     public ResponseEntity <Void> requestConceptPromotion(@RequestBody ConceptPromotionRequest request) throws BusinessServiceException {
         if (!StringUtils.hasLength(request.getBranchPath()) && !StringUtils.hasLength(request.getProjectKey())) {
@@ -65,7 +67,10 @@ public class ConceptPromotionController {
             throw new IllegalArgumentException(String.format("Extension code system not found for branch %s", branchPath));
         }
 
-        String requestId = promotionService.requestConceptPromotion(request.getConceptId(), request.isIncludeDependencies(), branchPath, codeSystem);
-        return new ResponseEntity<>(ControllerHelper.getCreatedLocationHeaders(contentRequestServiceUrl + "request/" , requestId, null), HttpStatus.CREATED);
+        CreatedConceptPromotion created = promotionService.requestConceptPromotion(request.getConceptId(), request.isIncludeDependencies(), branchPath, codeSystem);
+        String locationBase = created.usExtension()
+                ? created.crsBaseUrl() + ContentRequestServiceClient.REQUEST_ENDPOINT + "/"
+                : contentRequestServiceUrl + "request/";
+        return new ResponseEntity<>(ControllerHelper.getCreatedLocationHeaders(locationBase, created.requestId(), null), HttpStatus.CREATED);
     }
 }
