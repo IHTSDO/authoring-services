@@ -48,6 +48,8 @@ public class PromotionService {
     private static final String REBASED_WITH_CONFLICT_STATUS = "Rebased with conflicts";
     private static final String STOPPED_STATUS = "stopped";
     private static final String CONTENT_PROMOTION = "Content Promotion";
+    private static final String US_CODE_SYSTEM = "SNOMEDCT-US";
+    private static final String US_BRANCH_PREFIX = "MAIN/SNOMEDCT-US";
     private static final String TASK_PROMOTION_DISABLED_MSG = "Task promotion is disabled";
     private static final String PROJECT_PROMOTION_DISABLED_MSG = "Project promotion is disabled";
     private static final String UNKNOWN_PROMOTION_ERROR_MSG = "Promotion failed with an unknown error";
@@ -104,15 +106,44 @@ public class PromotionService {
         this.executorService = Executors.newCachedThreadPool();
     }
 
-    public String requestConceptPromotion(String conceptId, boolean includeDependencies, String branchPath, CodeSystem codeSystem) throws BusinessServiceException {
-        ContentRequestServiceClient contentRequestServiceClient = contentRequestServiceClientFactory.getClient(uiConfiguration.getEndpoints().get("crsEndpoint"));
+    /**
+     * Creates a content-promotion request. US extension authors are filed in US CRS.
+     * Every other extension is still created directly in International CRS.
+     */
+    public CreatedConceptPromotion requestConceptPromotion(String conceptId, boolean includeDependencies, String branchPath, CodeSystem codeSystem) throws BusinessServiceException {
+        boolean usExtension = isUsExtension(codeSystem, branchPath);
+        String endpointKey = usExtension ? ContentRequestService.CRS_ENDPOINT_US : ContentRequestService.CRS_ENDPOINT;
+        String crsBaseUrl = crsEndpointUrl(endpointKey);
+        ContentRequestServiceClient contentRequestServiceClient = contentRequestServiceClientFactory.getClient(crsBaseUrl);
         JSONObject request = constructCRSRequestBody(conceptId, branchPath, codeSystem, includeDependencies);
         try {
-            return contentRequestServiceClient.createRequest(request);
+            String requestId = contentRequestServiceClient.createRequest(request);
+            return new CreatedConceptPromotion(requestId, crsBaseUrl, usExtension);
         } catch (RestClientException e) {
             String error = String.format("Failed to request for a concept promotion. Error: %s", e.getMessage());
             throw new BusinessServiceException(error, e);
         }
+    }
+
+    public record CreatedConceptPromotion(String requestId, String crsBaseUrl, boolean usExtension) {
+    }
+
+    static boolean isUsExtension(CodeSystem codeSystem, String branchPath) {
+        if (codeSystem != null && US_CODE_SYSTEM.equalsIgnoreCase(codeSystem.getShortName())) {
+            return true;
+        }
+        if (!StringUtils.hasLength(branchPath)) {
+            return false;
+        }
+        return US_BRANCH_PREFIX.equals(branchPath) || branchPath.startsWith(US_BRANCH_PREFIX + "/");
+    }
+
+    private String crsEndpointUrl(String endpointKey) throws BusinessServiceException {
+        Map<String, String> endpoints = uiConfiguration.getEndpoints();
+        if (endpoints == null || !StringUtils.hasLength(endpoints.get(endpointKey))) {
+            throw new BusinessServiceException("CRS endpoint is not configured for " + endpointKey);
+        }
+        return endpoints.get(endpointKey);
     }
 
     @Scheduled(initialDelay = 60_000, fixedDelay = 5_000)
