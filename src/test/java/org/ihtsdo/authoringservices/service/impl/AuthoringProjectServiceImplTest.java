@@ -9,6 +9,7 @@ import org.ihtsdo.authoringservices.repository.ProjectRepository;
 import org.ihtsdo.authoringservices.service.BranchService;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.PermissionRecord;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,6 +21,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -68,6 +70,7 @@ class AuthoringProjectServiceImplTest {
         ReflectionTestUtils.setField(service, "snowstormRestClientFactory", snowstormRestClientFactory);
         ReflectionTestUtils.setField(service, "branchService", branchService);
         ReflectionTestUtils.setField(service, "requiredRbacGroups", List.of("ROLE_AUTHOR"));
+        ReflectionTestUtils.setField(service, "defaultAdminRoles", List.of());
         ReflectionTestUtils.setField(service, "jiraEnabled", false);
     }
 
@@ -125,5 +128,55 @@ class AuthoringProjectServiceImplTest {
         assertFalse(savedCustomFields.get(PROJECT_LOCKED_FIELD));
         assertFalse(savedCustomFields.get(TRANSLATION_PROJECT_FIELD));
         verify(branchService).createBranchIfNeeded("MAIN/SNOMEDCT/TEST");
+    }
+
+    @Test
+    void createProject_addsConfiguredDefaultAdminRole() throws Exception {
+        ReflectionTestUtils.setField(service, "defaultAdminRoles", List.of(" default-project-admin ", "default-project-lead", ""));
+        when(projectCustomFieldConfiguration.getCustomFields()).thenReturn(Map.of());
+        when(snowstormRestClientFactory.getClient()).thenReturn(snowstormRestClient);
+        when(snowstormRestClient.findPermissionForBranch("MAIN/SNOMEDCT")).thenReturn(List.of());
+        when(projectRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        doReturn(List.of(new AuthoringProject())).when(service).buildAuthoringProjects(any(), eq(true));
+
+        service.createProject(projectRequest(), codeSystem());
+
+        ArgumentCaptor<Project> projectCaptor = ArgumentCaptor.forClass(Project.class);
+        verify(projectRepository).save(projectCaptor.capture());
+        assertEquals(Set.of("default-project-admin", "default-project-lead"), groupNames(projectCaptor.getValue()));
+    }
+
+    @Test
+    void createProject_doesNotDuplicateDefaultAdminRoleAlreadyCopiedFromCodeSystem() throws Exception {
+        ReflectionTestUtils.setField(service, "requiredRbacGroups", List.of("ADMIN"));
+        ReflectionTestUtils.setField(service, "defaultAdminRoles", List.of("default-project-admin", "default-project-lead"));
+        when(projectCustomFieldConfiguration.getCustomFields()).thenReturn(Map.of());
+        when(snowstormRestClientFactory.getClient()).thenReturn(snowstormRestClient);
+        PermissionRecord admin = new PermissionRecord();
+        admin.setRole("ADMIN");
+        admin.setUserGroups(Set.of("default-project-admin", "extension-admins"));
+        when(snowstormRestClient.findPermissionForBranch("MAIN/SNOMEDCT")).thenReturn(List.of(admin));
+        when(projectRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        doReturn(List.of(new AuthoringProject())).when(service).buildAuthoringProjects(any(), eq(true));
+
+        service.createProject(projectRequest(), codeSystem());
+
+        ArgumentCaptor<Project> projectCaptor = ArgumentCaptor.forClass(Project.class);
+        verify(projectRepository).save(projectCaptor.capture());
+        assertEquals(Set.of("default-project-admin", "default-project-lead", "extension-admins"), groupNames(projectCaptor.getValue()));
+    }
+
+    private static AuthoringCodeSystem codeSystem() {
+        AuthoringCodeSystem codeSystem = new AuthoringCodeSystem();
+        codeSystem.setBranchPath("MAIN/SNOMEDCT");
+        return codeSystem;
+    }
+
+    private static CreateProjectRequest projectRequest() {
+        return new CreateProjectRequest("SNOMEDCT", "TEST", "Test Project", "testuser", null, null);
+    }
+
+    private static Set<String> groupNames(Project project) {
+        return project.getUserGroups().stream().map(group -> group.getName()).collect(Collectors.toSet());
     }
 }
