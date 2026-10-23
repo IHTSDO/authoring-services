@@ -56,6 +56,9 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
     @Value("${authoring.project.required.rbac.groups}")
     private List<String> requiredRbacGroups;
 
+    @Value("${authoring.project.default.admin.roles:}")
+    private List<String> defaultAdminRoles;
+
     @Autowired
     private ProjectCustomFieldConfiguration projectCustomFieldConfiguration;
 
@@ -114,11 +117,13 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
         for (PermissionRecord permissionRecord : permissionRecords){
             if (requiredRbacGroups.contains(permissionRecord.getRole())) {
                 for (String userGroup : permissionRecord.getUserGroups()){
-                    ProjectUserGroup group = new ProjectUserGroup();
-                    group.setProject(project);
-                    group.setName(userGroup);
-                    groups.add(group);
+                    addUserGroup(project, groups, userGroup);
                 }
+            }
+        }
+        if (defaultAdminRoles != null) {
+            for (String defaultAdminRole : defaultAdminRoles) {
+                addUserGroup(project, groups, defaultAdminRole);
             }
         }
 
@@ -313,6 +318,21 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
         project.setUserGroups(existing);
         projectRepository.save(project);
 
+    }
+
+    private void addUserGroup(Project project, List<ProjectUserGroup> groups, String groupName) {
+        if (!StringUtils.hasLength(groupName)) {
+            return;
+        }
+        String name = groupName.trim();
+        boolean alreadyPresent = groups.stream().anyMatch(group -> name.equals(group.getName()));
+        if (alreadyPresent) {
+            return;
+        }
+        ProjectUserGroup group = new ProjectUserGroup();
+        group.setProject(project);
+        group.setName(name);
+        groups.add(group);
     }
 
     Map<String, Boolean> buildDefaultCustomFields() {
