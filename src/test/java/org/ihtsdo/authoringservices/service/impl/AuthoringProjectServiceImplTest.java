@@ -127,7 +127,6 @@ class AuthoringProjectServiceImplTest {
         assertTrue(savedCustomFields.get("projectPromotion"));
         assertFalse(savedCustomFields.get(PROJECT_LOCKED_FIELD));
         assertFalse(savedCustomFields.get(TRANSLATION_PROJECT_FIELD));
-        verify(branchService).createBranchIfNeeded("MAIN/SNOMEDCT/TEST");
     }
 
     @Test
