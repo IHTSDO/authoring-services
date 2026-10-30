@@ -9,11 +9,17 @@ import org.ihtsdo.authoringservices.repository.BranchRepository;
 import org.ihtsdo.authoringservices.repository.ReviewConceptViewRepository;
 import org.ihtsdo.authoringservices.repository.ReviewMessageRepository;
 import org.ihtsdo.authoringservices.service.factory.TaskServiceFactory;
+import org.ihtsdo.otf.rest.client.RestClientException;
+import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
+import org.ihtsdo.otf.rest.client.terminologyserver.pojo.ConceptMiniPojo;
 import org.ihtsdo.otf.rest.exception.BadRequestException;
 import org.ihtsdo.otf.rest.exception.BusinessServiceException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.util.*;
 
@@ -37,6 +43,11 @@ public class ReviewService {
 
 	@Autowired
 	private TaskServiceFactory taskServiceFactory;
+
+	@Autowired
+	private SnowstormRestClientFactory snowstormRestClientFactory;
+
+	private final Logger logger = LoggerFactory.getLogger(getClass());
 
 	@Transactional
 	public List<ReviewConcept> retrieveTaskReviewConceptDetails(String projectKey, String taskKey, String username) {
@@ -119,11 +130,41 @@ public class ReviewService {
 					recipients.add(authoringTask.getAssignee());
 				}
 				recipients = recipients.stream().filter(item -> !item.getUsername().equals(fromUsername)).toList();
-				emailService.sendCommentAddedNotification(projectKey, taskKey, authoringTask.getSummary(), createRequest.getMessageHtml(), recipients);
+				if (!recipients.isEmpty()) {
+					List<String> concepts = describeConcepts(authoringTask.getBranchPath(), subjectConceptIds);
+					emailService.sendCommentAddedNotification(projectKey, taskKey, authoringTask.getSummary(), createRequest.getMessageHtml(), concepts, recipients);
+				}
 			}
 		}
 
 		return message;
+	}
+
+	/**
+	 * Formats each concept as "conceptId |FSN|", falling back to the bare id when the FSN cannot be resolved.
+	 */
+	private List<String> describeConcepts(String branchPath, List<String> conceptIds) {
+		Map<String, String> fsnById = new HashMap<>();
+		if (StringUtils.hasLength(branchPath)) {
+			try {
+				Set<ConceptMiniPojo> concepts = snowstormRestClientFactory.getClient().getConceptMinis(branchPath, conceptIds, conceptIds.size());
+				if (concepts != null) {
+					for (ConceptMiniPojo concept : concepts) {
+						if (concept.getFsn() != null && StringUtils.hasLength(concept.getFsn().getTerm())) {
+							fsnById.put(concept.getConceptId(), concept.getFsn().getTerm());
+						}
+					}
+				}
+			} catch (RestClientException e) {
+				logger.warn("Failed to retrieve FSNs for feedback concepts on branch {}: {}", branchPath, e.getMessage());
+			}
+		}
+		List<String> result = new ArrayList<>();
+		for (String conceptId : new LinkedHashSet<>(conceptIds)) {
+			String fsn = fsnById.get(conceptId);
+			result.add(fsn != null ? conceptId + " |" + fsn + "|" : conceptId);
+		}
+		return result;
 	}
 
 	public void recordConceptView(String projectKey, String taskKey, String conceptId, String username) {

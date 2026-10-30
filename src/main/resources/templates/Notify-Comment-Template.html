@@ -22,6 +22,13 @@
 This is an automated notification for a new comment on the following task:<br/>
 <strong>Task ID:</strong> <span th:text="${taskId}"></span><br/>
 <strong>Task Title:</strong> <span th:text="${taskTitle}"></span><br/>
+<th:block th:if="${concepts != null and !concepts.isEmpty()}">
+<strong th:text="${concepts.size() > 1 ? 'Concepts:' : 'Concept:'}">Concept:</strong>
+<th:block th:if="${concepts.size() == 1}"><span th:text="${concepts[0]}"></span><br/></th:block>
+<ul th:if="${concepts.size() > 1}">
+    <li th:each="concept : ${concepts}" th:text="${concept}"></li>
+</ul>
+</th:block>
 
 <p>The new comment is:<br/>
 <span th:utext="${comment}"></span><br/></p>

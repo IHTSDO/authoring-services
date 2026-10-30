@@ -38,6 +38,7 @@ public class EmailService {
     public static final String DATE_STRING = "date";
     public static final String TASK_TITLE_STRING = "taskTitle";
     public static final String COMMENT_STRING = "comment";
+    public static final String CONCEPTS_STRING = "concepts";
 
     @Value("${email.user.from}")
     private String from;
@@ -78,7 +79,7 @@ public class EmailService {
         sendTaskStatusChangeNotification(projectKey, taskKey, taskTitle, recipients, subject, templateFile, view);
     }
 
-    public void sendCommentAddedNotification(String projectKey, String taskKey, String taskTitle, String comment, Collection <User> recipients) {
+    public void sendCommentAddedNotification(String projectKey, String taskKey, String taskTitle, String comment, List<String> concepts, Collection <User> recipients) {
         if (CollectionUtils.isEmpty(recipients)) {
             return;
         }
@@ -98,6 +99,7 @@ public class EmailService {
         params.setVariable(TASK_ID_STRING, taskKey);
         params.setVariable(TASK_TITLE_STRING, taskTitle);
         params.setVariable(COMMENT_STRING, comment);
+        params.setVariable(CONCEPTS_STRING, concepts);
         params.setVariable(DATE_STRING, SIMPLE_DATE_FORMAT.format(new Date()));
         String url = rootURL + "/#/tasks/task/" + projectKey + "/" + taskKey + "/feedback";
         params.setVariable("requestUrl", url);
