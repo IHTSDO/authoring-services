@@ -1,0 +1,99 @@
+databaseChangeLog:
+  - logicalFilePath: db/changelog/db.changelog-009.yaml
+
+  # Hibernate created these join tables for unidirectional @OneToMany.
+  # mappedBy stores the link on task.project_key, user_group.project_key,
+  # crs_task.task_key, and task_reviewer.task_key. Copy any missing link, then drop the join table.
+  # A missing table is skipped. A table whose columns do not match is left in place.
+
+  - changeSet:
+      id: 019-copy-and-drop-project-tasks
+      author: cursor
+      dbms: mysql
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists:
+            tableName: project_tasks
+      changes:
+        - sql:
+            sql: UPDATE task t INNER JOIN project_tasks j ON t.task_key = j.tasks_task_key SET t.project_key = j.project_project_key WHERE t.project_key IS NULL AND t.task_key IS NOT NULL
+        - sql:
+            sql: DROP TABLE project_tasks
+
+  - changeSet:
+      id: 020-copy-and-drop-project-usergroups
+      author: cursor
+      dbms: mysql
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists:
+            tableName: project_usergroups
+      changes:
+        - sql:
+            sql: UPDATE user_group g INNER JOIN project_usergroups j ON g.id = j.usergroups_id SET g.project_key = j.project_project_key WHERE g.project_key IS NULL AND g.id IS NOT NULL
+        - sql:
+            sql: DROP TABLE project_usergroups
+
+  - changeSet:
+      id: 021-copy-and-drop-project-userGroups
+      author: cursor
+      dbms: mysql
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists:
+            tableName: project_userGroups
+      changes:
+        - sql:
+            sql: UPDATE user_group g INNER JOIN project_userGroups j ON g.id = j.userGroups_id SET g.project_key = j.project_project_key WHERE g.project_key IS NULL AND g.id IS NOT NULL
+        - sql:
+            sql: DROP TABLE project_userGroups
+
+  - changeSet:
+      id: 022-copy-and-drop-task-crstasks
+      author: cursor
+      dbms: mysql
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists:
+            tableName: task_crstasks
+      changes:
+        - sql:
+            sql: UPDATE crs_task c INNER JOIN task_crstasks j ON c.id = j.crstasks_id SET c.task_key = j.task_task_key WHERE c.task_key IS NULL AND c.id IS NOT NULL
+        - sql:
+            sql: DROP TABLE task_crstasks
+
+  - changeSet:
+      id: 023-copy-and-drop-task-crsTasks
+      author: cursor
+      dbms: mysql
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists:
+            tableName: task_crsTasks
+      changes:
+        - sql:
+            sql: UPDATE crs_task c INNER JOIN task_crsTasks j ON c.id = j.crsTasks_id SET c.task_key = j.task_task_key WHERE c.task_key IS NULL AND c.id IS NOT NULL
+        - sql:
+            sql: DROP TABLE task_crsTasks
+
+  - changeSet:
+      id: 024-copy-and-drop-task-reviewers
+      author: cursor
+      dbms: mysql
+      preConditions:
+        - onFail: MARK_RAN
+        - tableExists:
+            tableName: task_reviewers
+      changes:
+        - sql:
+            sql: UPDATE task_reviewer r INNER JOIN task_reviewers j ON r.id = j.reviewers_id SET r.task_key = j.task_task_key WHERE r.task_key IS NULL AND r.id IS NOT NULL
+        - sql:
+            sql: DROP TABLE task_reviewers
+
+  - changeSet:
+      id: 025-drop-legacy-join-table-procedure
+      author: cursor
+      dbms: mysql
+      changes:
+        - sql:
+            sql: DROP PROCEDURE IF EXISTS drop_mappedby_join_table
