@@ -25,13 +25,16 @@ public class AdminService {
 
     private final BranchService branchService;
 
+    private final BranchServiceCache branchServiceCache;
+
     private final ProjectServiceFactory projectServiceFactory;
 
     private final TaskServiceFactory taskServiceFactory;
 
     @Autowired
-    public AdminService(BranchService branchService, ProjectServiceFactory projectServiceFactory, TaskServiceFactory taskServiceFactory) {
+    public AdminService(BranchService branchService, BranchServiceCache branchServiceCache, ProjectServiceFactory projectServiceFactory, TaskServiceFactory taskServiceFactory) {
         this.branchService =branchService;
+        this.branchServiceCache = branchServiceCache;
         this.projectServiceFactory = projectServiceFactory;
         this.taskServiceFactory = taskServiceFactory;
     }
@@ -64,8 +67,14 @@ public class AdminService {
         logger.info("Creating new project {} on code system {}", request.key(), codeSystem.getShortName());
         AuthoringProject project = projectServiceFactory.getInstance(useNew).createProject(request, codeSystem);
         String projectBranchPath = codeSystem.getBranchPath() + SLASH + request.key();
-        branchService.createBranchIfNeeded(projectBranchPath);
-        project.setBranchPath(projectBranchPath);
+        try {
+            branchService.createBranchIfNeeded(projectBranchPath);
+            project.setBranchPath(projectBranchPath);
+            branchServiceCache.evictBranchCache(projectBranchPath);
+        } catch (ServiceException e) {
+            throw new BusinessServiceException("Failed to create project branch.", e);
+        }
+
         return project;
     }
 

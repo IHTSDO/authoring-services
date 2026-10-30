@@ -10,7 +10,6 @@ import org.ihtsdo.authoringservices.entity.QTask;
 import org.ihtsdo.authoringservices.entity.Task;
 import org.ihtsdo.authoringservices.entity.TaskSequence;
 import org.ihtsdo.authoringservices.repository.ProjectRepository;
-import org.ihtsdo.authoringservices.repository.ProjectUserGroupRepository;
 import org.ihtsdo.authoringservices.repository.TaskRepository;
 import org.ihtsdo.authoringservices.repository.TaskSequenceRepository;
 import org.ihtsdo.authoringservices.service.*;
@@ -69,9 +68,6 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
     private ProjectRepository projectRepository;
 
     @Autowired
-    private ProjectUserGroupRepository projectUserGroupRepository;
-
-    @Autowired
     private SnowstormRestClientFactory snowstormRestClientFactory;
 
     @Autowired
@@ -103,7 +99,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
     }
 
     @Override
-    public AuthoringProject createProject(CreateProjectRequest request, AuthoringCodeSystem codeSystem) throws BusinessServiceException {
+    public AuthoringProject createProject(CreateProjectRequest request, AuthoringCodeSystem codeSystem) {
         Project project = new Project();
         project.setKey(request.key());
         project.setName(request.name());
@@ -137,12 +133,6 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
             if (latestJiraTaskNumber != null) {
                 taskSequenceRepository.save(new TaskSequence(project, latestJiraTaskNumber));
             }
-        }
-
-        try {
-            branchService.createBranchIfNeeded(project.getBranchPath());
-        } catch (ServiceException e) {
-            throw new BusinessServiceException("Failed to create project branch.", e);
         }
         return buildAuthoringProjects(List.of(project), true).get(0);
     }
