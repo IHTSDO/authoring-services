@@ -245,6 +245,7 @@ public class EmailService {
             String emailContent = this.templateEngine.process(templateFile, params);
             message.setText(emailContent, "utf-8", "html");
             logger.info("Sending email to {}} with subject {}", toEmailList, subject);
+            logger.info(emailContent);
             send(message);
         } catch (UnsupportedEncodingException e) {
             logger.error("The character encoding is not supported. {}", e.getMessage());
