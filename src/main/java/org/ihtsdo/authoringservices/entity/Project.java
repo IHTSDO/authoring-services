@@ -31,13 +31,13 @@ public class Project extends BaseEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     private Map<String, Boolean> customFields = new HashMap<>();
 
-    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToOne(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = "project")
     private TaskSequence taskSequence;
 
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER, mappedBy = "project")
     private List<ProjectUserGroup> userGroups = new ArrayList<>();
 
-    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true, mappedBy = "project")
     private List<Task> tasks = new ArrayList<>();
 
     @Transient
