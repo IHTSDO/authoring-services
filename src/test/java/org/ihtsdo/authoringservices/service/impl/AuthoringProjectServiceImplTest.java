@@ -7,6 +7,7 @@ import org.ihtsdo.authoringservices.domain.ProjectCustomFieldConfiguration;
 import org.ihtsdo.authoringservices.entity.Project;
 import org.ihtsdo.authoringservices.repository.ProjectRepository;
 import org.ihtsdo.authoringservices.service.BranchService;
+import org.ihtsdo.authoringservices.service.PermissionService;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClient;
 import org.ihtsdo.otf.rest.client.terminologyserver.SnowstormRestClientFactory;
 import org.ihtsdo.otf.rest.client.terminologyserver.pojo.PermissionRecord;
@@ -18,6 +19,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -29,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -56,6 +59,9 @@ class AuthoringProjectServiceImplTest {
     @Mock
     private BranchService branchService;
 
+    @Mock
+    private PermissionService permissionService;
+
     private static final Set<String> DISABLED_BY_DEFAULT = Set.of(
             PROJECT_LOCKED_FIELD,
             TRANSLATION_PROJECT_FIELD
@@ -64,11 +70,12 @@ class AuthoringProjectServiceImplTest {
     @BeforeEach
     void setUp() {
         service = org.mockito.Mockito.spy(new AuthoringProjectServiceImpl());
-        when(projectCustomFieldConfiguration.getCustomFieldsDisabledByDefault()).thenReturn(DISABLED_BY_DEFAULT);
+        lenient().when(projectCustomFieldConfiguration.getCustomFieldsDisabledByDefault()).thenReturn(DISABLED_BY_DEFAULT);
         ReflectionTestUtils.setField(service, "projectCustomFieldConfiguration", projectCustomFieldConfiguration);
         ReflectionTestUtils.setField(service, "projectRepository", projectRepository);
         ReflectionTestUtils.setField(service, "snowstormRestClientFactory", snowstormRestClientFactory);
         ReflectionTestUtils.setField(service, "branchService", branchService);
+        ReflectionTestUtils.setField(service, "permissionService", permissionService);
         ReflectionTestUtils.setField(service, "requiredRbacGroups", List.of("ROLE_AUTHOR"));
         ReflectionTestUtils.setField(service, "defaultAdminRoles", List.of());
         ReflectionTestUtils.setField(service, "jiraEnabled", false);
@@ -163,6 +170,51 @@ class AuthoringProjectServiceImplTest {
         ArgumentCaptor<Project> projectCaptor = ArgumentCaptor.forClass(Project.class);
         verify(projectRepository).save(projectCaptor.capture());
         assertEquals(Set.of("default-project-admin", "default-project-lead", "extension-admins"), groupNames(projectCaptor.getValue()));
+    }
+
+    @Test
+    void listProjects_excludesReviewerOnlyProjectsByDefault() {
+        Project authorProject = project("AUTH", true, false);
+        Project reviewerProject = project("REV", true, true);
+        Project inactiveProject = project("OLD", false, false);
+        when(permissionService.getProjectsForUser()).thenReturn(List.of(authorProject, reviewerProject, inactiveProject));
+        ArgumentCaptor<Collection<?>> projectsCaptor = collectionCaptor();
+        doReturn(List.of()).when(service).buildAuthoringProjects(projectsCaptor.capture(), eq(true));
+
+        service.listProjects(true, null, null);
+
+        assertEquals(Set.of("AUTH"), keys(projectsCaptor.getValue()));
+    }
+
+    @Test
+    void listProjects_includesReviewerOnlyProjectsWhenRequested() {
+        Project authorProject = project("AUTH", true, false);
+        Project reviewerProject = project("REV", true, true);
+        Project inactiveReviewerProject = project("OLD", false, true);
+        when(permissionService.getProjectsForUser()).thenReturn(List.of(authorProject, reviewerProject, inactiveReviewerProject));
+        ArgumentCaptor<Collection<?>> projectsCaptor = collectionCaptor();
+        doReturn(List.of()).when(service).buildAuthoringProjects(projectsCaptor.capture(), eq(true));
+
+        service.listProjects(true, null, null, true);
+
+        assertEquals(Set.of("AUTH", "REV"), keys(projectsCaptor.getValue()));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ArgumentCaptor<Collection<?>> collectionCaptor() {
+        return ArgumentCaptor.forClass(Collection.class);
+    }
+
+    private static Project project(String key, boolean active, boolean reviewerOnly) {
+        Project project = new Project();
+        project.setKey(key);
+        project.setActive(active);
+        project.setCanReviewTaskOnly(reviewerOnly);
+        return project;
+    }
+
+    private static Set<String> keys(Collection<?> projects) {
+        return projects.stream().map(Project.class::cast).map(Project::getKey).collect(Collectors.toSet());
     }
 
     private static AuthoringCodeSystem codeSystem() {

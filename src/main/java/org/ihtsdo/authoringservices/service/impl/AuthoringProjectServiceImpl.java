@@ -192,8 +192,16 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
 
     @Override
     public List<AuthoringProject> listProjects(Boolean lightweight, Boolean ignoreProductCodeFilter, Boolean excludeArchived) {
+        return listProjects(lightweight, ignoreProductCodeFilter, excludeArchived, false);
+    }
+
+    @Override
+    public List<AuthoringProject> listProjects(Boolean lightweight, Boolean ignoreProductCodeFilter, Boolean excludeArchived, boolean includeReviewerOnlyProjects) {
         List<Project> projects = permissionService.getProjectsForUser();
-        List<Project> result = projects.stream().filter(project -> !Boolean.TRUE.equals(project.isCanReviewTaskOnly()) && (Boolean.FALSE.equals(excludeArchived) || Boolean.TRUE.equals(project.getActive()))).toList();
+        List<Project> result = projects.stream()
+                .filter(project -> (includeReviewerOnlyProjects || !Boolean.TRUE.equals(project.isCanReviewTaskOnly()))
+                        && (Boolean.FALSE.equals(excludeArchived) || Boolean.TRUE.equals(project.getActive())))
+                .toList();
         return buildAuthoringProjects(result, lightweight);
     }
 

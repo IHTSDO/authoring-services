@@ -20,6 +20,15 @@ public interface ProjectService {
 
     List<AuthoringProject> listProjects(Boolean lightweight, Boolean ignoreProductCodeFilter, Boolean excludeArchived) throws BusinessServiceException;
 
+    /**
+     * @param includeReviewerOnlyProjects when false, omit projects where the user only has a reviewer role.
+     *                                    The Authoring Platform uses that default because those users cannot create tasks.
+     *                                    The terminology browser passes true so reviewers can still select a project.
+     */
+    default List<AuthoringProject> listProjects(Boolean lightweight, Boolean ignoreProductCodeFilter, Boolean excludeArchived, boolean includeReviewerOnlyProjects) throws BusinessServiceException {
+        return listProjects(lightweight, ignoreProductCodeFilter, excludeArchived);
+    }
+
     List<AuthoringProject> listMyProjects(String username, Boolean lightweight) throws BusinessServiceException;
 
     AuthoringProject retrieveProject(String projectKey) throws BusinessServiceException;

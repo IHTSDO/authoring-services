@@ -67,16 +67,18 @@ public class ProjectController {
         return new ResponseEntity<>(branchService.getBranchAuthoringInfoWrapper(branchPath), HttpStatus.OK);
     }
 
-    @Operation(summary = "List authoring projects")
+    @Operation(summary = "List authoring projects", description = "Projects where the caller only has a reviewer role are excluded unless includeReviewerOnlyProjects is true. The Authoring Platform omits the flag because those users cannot create tasks. The terminology browser sets it so reviewers can still view projects.")
     @ApiResponse(responseCode = "200", description = "OK")
     @GetMapping(value = "/projects")
     public List<AuthoringProject> listProjects(
             @RequestParam(value = "lightweight", required = false) Boolean lightweight,
             @RequestParam(value = "codeSystemShortName", required = false) String codeSystemShortName,
-            @RequestParam(value = "translationProject", required = false) Boolean translationProject
+            @RequestParam(value = "translationProject", required = false) Boolean translationProject,
+            @RequestParam(value = "includeReviewerOnlyProjects", required = false) Boolean includeReviewerOnlyProjects
     ) throws BusinessServiceException {
-        List<AuthoringProject> results = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(lightweight, null, null));
-        List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(lightweight, null, null);
+        boolean includeReviewerOnly = Boolean.TRUE.equals(includeReviewerOnlyProjects);
+        List<AuthoringProject> results = new ArrayList<>(projectServiceFactory.getInstance(true).listProjects(lightweight, null, null, includeReviewerOnly));
+        List<AuthoringProject> jiraProjects = projectServiceFactory.getInstance(false).listProjects(lightweight, null, null, includeReviewerOnly);
         List<AuthoringProject> projects = ProjectFilterUtil.joinJiraProjectsIfNotExists(jiraProjects, results);
 
         if (codeSystemShortName != null && !codeSystemShortName.isBlank()) {
