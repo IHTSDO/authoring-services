@@ -34,6 +34,7 @@ public class BranchService {
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private static final String SNOMEDCT = "SNOMEDCT";
+    private static final String TRANSLATION_LABEL = "translation";
 
     @Autowired
     private SnowstormRestClientFactory snowstormRestClientFactory;
@@ -158,6 +159,32 @@ public class BranchService {
     public void createBranchIfNeeded(String branchPath) throws ServiceException {
         if (getBranchOrNull(branchPath) == null) {
             createBranch(branchPath);
+        }
+    }
+
+    public void setTranslationLabel(String branchPath, boolean translationProject) throws ServiceException {
+        try {
+            Branch branch = snowstormRestClientFactory.getClient().getBranch(branchPath);
+            List<String> labels = branch.getMetadataAsList("labels");
+            List<String> original = new ArrayList<>(labels);
+            if (translationProject) {
+                if (!labels.contains(TRANSLATION_LABEL)) {
+                    labels.add(TRANSLATION_LABEL);
+                }
+            } else {
+                labels.remove(TRANSLATION_LABEL);
+            }
+
+            boolean notChanged = labels.equals(original);
+            if (notChanged) {
+                return;
+            }
+
+            Map<String, Object> metadata = new HashMap<>();
+            metadata.put("labels", labels);
+            snowstormRestClientFactory.getClient().upsertBranchMetadata(branchPath, metadata);
+        } catch (RestClientException e) {
+            throw new ServiceException("Failed to update translation label on branch " + branchPath, e);
         }
     }
 

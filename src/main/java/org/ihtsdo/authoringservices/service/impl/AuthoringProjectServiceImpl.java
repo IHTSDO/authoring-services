@@ -48,6 +48,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
     private static final String ENABLED_TEXT = "Enabled";
     private static final String DISABLED_TEXT = "Disabled";
     private static final List<TaskStatus> MY_PROJECT_EXCLUDED_TASK_STATUSES = List.of(TaskStatus.COMPLETED, TaskStatus.DELETED);
+    private static final List<String> UNIQUE_CUSTOM_FIELDS = List.of("translationProject");
 
     @Value("${jira.enabled}")
     private boolean jiraEnabled;
@@ -284,12 +285,15 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
     @Override
     public void updateProjectCustomFields(String projectKey, ProjectFieldUpdateRequest request) throws BusinessServiceException {
         Project project = getProjectAndCheckPermission(projectKey);
+        throwIfCustomFieldAlreadyEnabled(projectKey, project.getExtensionBase(), request);
+
         Map<String, Boolean> customFields = Optional.ofNullable(project.getCustomFields()).orElse(new HashMap<>());
         for (AuthoringProjectField item : request.fields()) {
             customFields.put(item.getId(), ENABLED_TEXT.equals(item.getValue()));
         }
         project.setCustomFields(customFields);
         projectRepository.save(project);
+        syncTranslationLabel(project.getBranchPath(), request);
     }
 
     @Override
@@ -427,5 +431,33 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
                 !Boolean.TRUE.equals(customFields.get("projectSpellCheck")),
                 customFields.getOrDefault("translationProject", false)
         );
+    }
+
+    private void throwIfCustomFieldAlreadyEnabled(String projectKey, String extensionBase, ProjectFieldUpdateRequest request) throws BusinessServiceException {
+        for (String fieldId : UNIQUE_CUSTOM_FIELDS) {
+            boolean enablingField = request.fields().stream().anyMatch(f -> fieldId.equals(f.getId()) && ENABLED_TEXT.equals(f.getValue()));
+            if (!enablingField) {
+                continue;
+            }
+
+            boolean alreadyExists = projectRepository.findByExtensionBase(extensionBase).stream().filter(p -> !p.getKey().equals(projectKey)).anyMatch(p -> Boolean.TRUE.equals(Optional.ofNullable(p.getCustomFields()).orElse(Map.of()).get(fieldId)));
+            if (alreadyExists) {
+                throw new BusinessServiceException("A project with '" + fieldId + "' already exists within code system " + extensionBase);
+            }
+        }
+    }
+
+    private void syncTranslationLabel(String branchPath, ProjectFieldUpdateRequest request) {
+        request.fields()
+                .stream()
+                .filter(f -> "translationProject".equals(f.getId()))
+                .findFirst()
+                .ifPresent(f -> {
+                    try {
+                        branchService.setTranslationLabel(branchPath, ENABLED_TEXT.equals(f.getValue()));
+                    } catch (ServiceException e) {
+                        logger.warn("Failed to update translation label on Snowstorm branch {}: {}", branchPath, e.getMessage());
+                    }
+                });
     }
 }

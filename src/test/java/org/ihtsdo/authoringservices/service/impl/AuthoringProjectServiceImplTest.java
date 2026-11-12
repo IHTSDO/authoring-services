@@ -2,8 +2,10 @@ package org.ihtsdo.authoringservices.service.impl;
 
 import org.ihtsdo.authoringservices.domain.AuthoringCodeSystem;
 import org.ihtsdo.authoringservices.domain.AuthoringProject;
+import org.ihtsdo.authoringservices.domain.AuthoringProjectField;
 import org.ihtsdo.authoringservices.domain.CreateProjectRequest;
 import org.ihtsdo.authoringservices.domain.ProjectCustomFieldConfiguration;
+import org.ihtsdo.authoringservices.domain.ProjectFieldUpdateRequest;
 import org.ihtsdo.authoringservices.entity.Project;
 import org.ihtsdo.authoringservices.repository.ProjectRepository;
 import org.ihtsdo.authoringservices.service.BranchService;
@@ -22,16 +24,22 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.ihtsdo.otf.rest.exception.BusinessServiceException;
+
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -200,6 +208,64 @@ class AuthoringProjectServiceImplTest {
         assertEquals(Set.of("AUTH", "REV"), keys(projectsCaptor.getValue()));
     }
 
+    @Test
+    void updateProjectCustomFields_setsTranslationLabelWhenEnabled() throws Exception {
+        Project project = projectEntity("TEST", "MAIN/SNOMEDCT/TEST");
+        when(projectRepository.findById("TEST")).thenReturn(Optional.of(project));
+        when(projectRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.updateProjectCustomFields("TEST", fieldRequest("translationProject", "Enabled"));
+
+        verify(branchService).setTranslationLabel("MAIN/SNOMEDCT/TEST", true);
+    }
+
+    @Test
+    void updateProjectCustomFields_clearsTranslationLabelWhenDisabled() throws Exception {
+        Project project = projectEntity("TEST", "MAIN/SNOMEDCT/TEST");
+        when(projectRepository.findById("TEST")).thenReturn(Optional.of(project));
+        when(projectRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.updateProjectCustomFields("TEST", fieldRequest("translationProject", "Disabled"));
+
+        verify(branchService).setTranslationLabel("MAIN/SNOMEDCT/TEST", false);
+    }
+
+    @Test
+    void updateProjectCustomFields_translationProject_allowsFirstButRejectsSecondPerCodeSystem() throws Exception {
+        // Code System AA (has no translation project)
+        Project projectA1 = projectEntityWithExtensionBase("A1", "MAIN/SNOMEDCT-AA/A1", "MAIN/SNOMEDCT-AA");
+        projectA1.setCustomFields(Map.of("translationProject", false));
+        Project projectA2 = projectEntityWithExtensionBase("A2", "MAIN/SNOMEDCT-AA/A2", "MAIN/SNOMEDCT-AA");
+        when(projectRepository.findById("A2")).thenReturn(Optional.of(projectA2));
+        when(projectRepository.findByExtensionBase("MAIN/SNOMEDCT-AA")).thenReturn(List.of(projectA1, projectA2));
+        when(projectRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // Code System BB (has a translation project)
+        Project projectB1 = projectEntityWithExtensionBase("B1", "MAIN/SNOMEDCT-BB/B1", "MAIN/SNOMEDCT-BB");
+        projectB1.setCustomFields(Map.of("translationProject", true));
+        Project projectB2 = projectEntityWithExtensionBase("B2", "MAIN/SNOMEDCT-BB/B2", "MAIN/SNOMEDCT-BB");
+        when(projectRepository.findById("B2")).thenReturn(Optional.of(projectB2));
+        when(projectRepository.findByExtensionBase("MAIN/SNOMEDCT-BB")).thenReturn(List.of(projectB1, projectB2));
+
+        // Update CodeSystem AA
+        assertDoesNotThrow(() -> service.updateProjectCustomFields("A2", fieldRequest("translationProject", "Enabled")));
+
+        // Update CodeSystem BB
+        BusinessServiceException ex = assertThrows(BusinessServiceException.class, () -> service.updateProjectCustomFields("B2", fieldRequest("translationProject", "Enabled")));
+        assertTrue(ex.getMessage().contains("MAIN/SNOMEDCT-BB"));
+    }
+
+    @Test
+    void updateProjectCustomFields_doesNotCallSetTranslationLabelForUnrelatedField() throws Exception {
+        Project project = projectEntity("TEST", "MAIN/SNOMEDCT/TEST");
+        when(projectRepository.findById("TEST")).thenReturn(Optional.of(project));
+        when(projectRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.updateProjectCustomFields("TEST", fieldRequest("projectPromotion", "Enabled"));
+
+        verify(branchService, never()).setTranslationLabel(any(), any(Boolean.class));
+    }
+
     @SuppressWarnings("unchecked")
     private static ArgumentCaptor<Collection<?>> collectionCaptor() {
         return ArgumentCaptor.forClass(Collection.class);
@@ -229,5 +295,25 @@ class AuthoringProjectServiceImplTest {
 
     private static Set<String> groupNames(Project project) {
         return project.getUserGroups().stream().map(group -> group.getName()).collect(Collectors.toSet());
+    }
+
+    private static Project projectEntity(String key, String branchPath) {
+        Project project = new Project();
+        project.setKey(key);
+        project.setBranchPath(branchPath);
+        return project;
+    }
+
+    private static Project projectEntityWithExtensionBase(String key, String branchPath, String extensionBase) {
+        Project project = projectEntity(key, branchPath);
+        project.setExtensionBase(extensionBase);
+        return project;
+    }
+
+    private static ProjectFieldUpdateRequest fieldRequest(String id, String value) {
+        AuthoringProjectField field = new AuthoringProjectField();
+        field.setId(id);
+        field.setValue(value);
+        return new ProjectFieldUpdateRequest(List.of(field));
     }
 }
