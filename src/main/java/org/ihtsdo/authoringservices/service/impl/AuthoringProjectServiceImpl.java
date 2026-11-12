@@ -290,6 +290,7 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
         }
         project.setCustomFields(customFields);
         projectRepository.save(project);
+        syncTranslationLabel(project.getBranchPath(), request);
     }
 
     @Override
@@ -427,5 +428,19 @@ public class AuthoringProjectServiceImpl extends ProjectServiceBase implements P
                 !Boolean.TRUE.equals(customFields.get("projectSpellCheck")),
                 customFields.getOrDefault("translationProject", false)
         );
+    }
+
+    private void syncTranslationLabel(String branchPath, ProjectFieldUpdateRequest request) {
+        request.fields()
+                .stream()
+                .filter(f -> "translationProject".equals(f.getId()))
+                .findFirst()
+                .ifPresent(f -> {
+                    try {
+                        branchService.setTranslationLabel(branchPath, ENABLED_TEXT.equals(f.getValue()));
+                    } catch (ServiceException e) {
+                        logger.warn("Failed to update translation label on Snowstorm branch {}: {}", branchPath, e.getMessage());
+                    }
+                });
     }
 }

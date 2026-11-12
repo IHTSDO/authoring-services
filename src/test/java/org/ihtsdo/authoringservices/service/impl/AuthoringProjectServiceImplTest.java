@@ -2,8 +2,10 @@ package org.ihtsdo.authoringservices.service.impl;
 
 import org.ihtsdo.authoringservices.domain.AuthoringCodeSystem;
 import org.ihtsdo.authoringservices.domain.AuthoringProject;
+import org.ihtsdo.authoringservices.domain.AuthoringProjectField;
 import org.ihtsdo.authoringservices.domain.CreateProjectRequest;
 import org.ihtsdo.authoringservices.domain.ProjectCustomFieldConfiguration;
+import org.ihtsdo.authoringservices.domain.ProjectFieldUpdateRequest;
 import org.ihtsdo.authoringservices.entity.Project;
 import org.ihtsdo.authoringservices.repository.ProjectRepository;
 import org.ihtsdo.authoringservices.service.BranchService;
@@ -22,6 +24,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -32,6 +35,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -200,6 +204,39 @@ class AuthoringProjectServiceImplTest {
         assertEquals(Set.of("AUTH", "REV"), keys(projectsCaptor.getValue()));
     }
 
+    @Test
+    void updateProjectCustomFields_setsTranslationLabelWhenEnabled() throws Exception {
+        Project project = projectEntity("TEST", "MAIN/SNOMEDCT/TEST");
+        when(projectRepository.findById("TEST")).thenReturn(Optional.of(project));
+        when(projectRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.updateProjectCustomFields("TEST", fieldRequest("translationProject", "Enabled"));
+
+        verify(branchService).setTranslationLabel("MAIN/SNOMEDCT/TEST", true);
+    }
+
+    @Test
+    void updateProjectCustomFields_clearsTranslationLabelWhenDisabled() throws Exception {
+        Project project = projectEntity("TEST", "MAIN/SNOMEDCT/TEST");
+        when(projectRepository.findById("TEST")).thenReturn(Optional.of(project));
+        when(projectRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.updateProjectCustomFields("TEST", fieldRequest("translationProject", "Disabled"));
+
+        verify(branchService).setTranslationLabel("MAIN/SNOMEDCT/TEST", false);
+    }
+
+    @Test
+    void updateProjectCustomFields_doesNotCallSetTranslationLabelForUnrelatedField() throws Exception {
+        Project project = projectEntity("TEST", "MAIN/SNOMEDCT/TEST");
+        when(projectRepository.findById("TEST")).thenReturn(Optional.of(project));
+        when(projectRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.updateProjectCustomFields("TEST", fieldRequest("projectPromotion", "Enabled"));
+
+        verify(branchService, never()).setTranslationLabel(any(), any(Boolean.class));
+    }
+
     @SuppressWarnings("unchecked")
     private static ArgumentCaptor<Collection<?>> collectionCaptor() {
         return ArgumentCaptor.forClass(Collection.class);
@@ -229,5 +266,19 @@ class AuthoringProjectServiceImplTest {
 
     private static Set<String> groupNames(Project project) {
         return project.getUserGroups().stream().map(group -> group.getName()).collect(Collectors.toSet());
+    }
+
+    private static Project projectEntity(String key, String branchPath) {
+        Project project = new Project();
+        project.setKey(key);
+        project.setBranchPath(branchPath);
+        return project;
+    }
+
+    private static ProjectFieldUpdateRequest fieldRequest(String id, String value) {
+        AuthoringProjectField field = new AuthoringProjectField();
+        field.setId(id);
+        field.setValue(value);
+        return new ProjectFieldUpdateRequest(List.of(field));
     }
 }
