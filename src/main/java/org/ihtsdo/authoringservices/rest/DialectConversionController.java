@@ -30,7 +30,7 @@ public class DialectConversionController {
 			description = "Submit an array of words. The response is a map of any words found in " +
 					"the US dialect with an equivalent word in the GB dialect.")
 	@ResponseBody
-	@RequestMapping(value = "/dialect/en-us/map/en-gb", method = RequestMethod.GET, produces = "application/json")
+	@RequestMapping(value = "/dialect/en-us/preferred-terms-map/en-gb", method = RequestMethod.GET, produces = "application/json")
 	public Map<String, String> convertEnUsToEnGb(@RequestParam Set<String> words) {
 		return dialectConversionService.getAvailableEnUsToEnGbConversions(words);
 	}
@@ -40,7 +40,7 @@ public class DialectConversionController {
 					"to be returned for each US term looked up. The GB Terms column should allow more than one term " +
 					"to be specified by using a pipe '|' character to separate terms.")
 	@ResponseBody
-	@RequestMapping(value = "/dialect/en-us/synonyms/en-gb", method = RequestMethod.GET, produces = "application/json")
+	@RequestMapping(value = "/dialect/en-us/acceptable-terms-map/en-gb", method = RequestMethod.GET, produces = "application/json")
 	public Map<String, Set<String>> synonymsEnUsToEnGb(@RequestParam Set<String> words) {
 		return dialectConversionService.getAvailableSynonymsEnUsToEnGbConversions(words);
 	}
@@ -55,7 +55,7 @@ public class DialectConversionController {
 	@Operation(summary = "Add a pair of words to the EN-US to EN-GB dialect map",
 			description = "The word pair is inserted in the list maintaining alphabetical order. " +
 					"The dialect map is reloaded automatically after the list is updated.")
-	@RequestMapping(value = "/dialect/en-us/map/en-gb", method = RequestMethod.PUT)
+	@RequestMapping(value = "/dialect/en-us/preferred-terms-map/en-gb", method = RequestMethod.PUT)
 	public void addEnUSToEnGbMapEntry(@RequestParam String enUsWord, @RequestParam String enGbWord) throws IOException, ServiceException {
 		dialectConversionService.addWordPair(enUsWord, enGbWord);
 	}
@@ -63,7 +63,7 @@ public class DialectConversionController {
 	@Operation(summary = "Add a pair of words to the EN-US to EN-GB dialect synonyms mapping file",
 			description = "The word pair is inserted in the list maintaining alphabetical order. " +
 					"The dialect synonyms mapping is reloaded automatically after the list is updated.")
-	@RequestMapping(value = "/dialect/en-us/synonyms/en-gb", method = RequestMethod.PUT)
+	@RequestMapping(value = "/dialect/en-us/acceptable-terms-map/en-gb", method = RequestMethod.PUT)
 	public void addEnUSToEnGbSynonymsEntry(@RequestParam String enUsWord, @RequestParam String enGbWord) throws IOException, ServiceException {
 		dialectConversionService.addSynonymsWordPair(enUsWord, enGbWord);
 	}
@@ -73,7 +73,7 @@ public class DialectConversionController {
 					"This function uses a case insensitive search. " +
 					"If the word is not found in the list the response will be 404. " +
 					"The dialect map is reloaded automatically if the word is found after the map is updated.")
-	@RequestMapping(value = "/dialect/en-us/map/en-gb", method = RequestMethod.DELETE)
+	@RequestMapping(value = "/dialect/en-us/preferred-terms-map/en-gb", method = RequestMethod.DELETE)
 	public ResponseEntity<NullType> deleteEnUSToEnGbMapEntry(@RequestParam String enUsWord) throws IOException, ServiceException {
 		if (dialectConversionService.deleteWordPair(enUsWord)) {
 			return ResponseEntity.noContent().build();
@@ -86,7 +86,7 @@ public class DialectConversionController {
 					"This function uses a case insensitive search. " +
 					"If the word is not found in the list the response will be 404. " +
 					"The dialect map is reloaded automatically if the word is found after the map is updated.")
-	@RequestMapping(value = "/dialect/en-us/synonyms/en-gb", method = RequestMethod.DELETE)
+	@RequestMapping(value = "/dialect/en-us/acceptable-terms-map/en-gb", method = RequestMethod.DELETE)
 	public ResponseEntity<NullType> deleteEnUSToEnGbSynonymsEntry(@RequestParam String enUsWord) throws IOException, ServiceException {
 		if (dialectConversionService.deleteSynonymsWordPair(enUsWord)) {
 			return ResponseEntity.noContent().build();
@@ -97,7 +97,7 @@ public class DialectConversionController {
 	@Operation(summary = "Download the whole EN-US to EN-GB dialect map",
 			description = "Visit this endpoint URL directly in your browser, loading through Swagger may not work.")
 	@ResponseBody
-	@RequestMapping(value = "/dialect/en-us/map/en-gb/file", method = RequestMethod.GET, produces = "application/octet-stream")
+	@RequestMapping(value = "/dialect/en-us/preferred-terms-map/en-gb/file", method = RequestMethod.GET, produces = "application/octet-stream")
 	public ResponseEntity<InputStreamResource> downloadEnUSToEnGbMap() {
 		InputStream inputStream = dialectConversionService.getMapObject();
 		return ResponseEntity.ok()
@@ -109,7 +109,7 @@ public class DialectConversionController {
 	@Operation(summary = "Download the whole EN-US to EN-GB dialect synonyms mapping",
 			description = "Visit this endpoint URL directly in your browser, loading through Swagger may not work.")
 	@ResponseBody
-	@RequestMapping(value = "/dialect/en-us/synonyms/en-gb/file", method = RequestMethod.GET, produces = "application/octet-stream")
+	@RequestMapping(value = "/dialect/en-us/acceptable-terms-map/en-gb/file", method = RequestMethod.GET, produces = "application/octet-stream")
 	public ResponseEntity<InputStreamResource> downloadEnUSToEnGbSynonyms() {
 		InputStream inputStream = dialectConversionService.getSynonymsMapObject();
 		return ResponseEntity.ok()
@@ -121,7 +121,7 @@ public class DialectConversionController {
 	@Operation(summary = "Replace the whole EN-US to EN-GB dialect map",
 			description = "The dialect map is reloaded automatically once the map is updated.")
 	@ResponseBody
-	@RequestMapping(value = "/dialect/en-us/map/en-gb/file", method = RequestMethod.POST, consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+	@RequestMapping(value = "/dialect/en-us/preferred-terms-map/en-gb/file", method = RequestMethod.POST, consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public void replaceEnUSToEnGbMap(@RequestParam("file") MultipartFile file) throws IOException, ServiceException {
 		dialectConversionService.replaceMap(file);
 	}
@@ -129,7 +129,7 @@ public class DialectConversionController {
 	@Operation(summary = "Replace the whole EN-US to EN-GB dialect synonyms mapping",
 			description = "The dialect synonyms mapping is reloaded automatically once the map is updated.")
 	@ResponseBody
-	@RequestMapping(value = "/dialect/en-us/synonyms/en-gb/file", method = RequestMethod.POST, consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
+	@RequestMapping(value = "/dialect/en-us/acceptable-terms-map/en-gb/file", method = RequestMethod.POST, consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
 	public void replaceEnUSToEnGbSynonyms(@RequestParam("file") MultipartFile file) throws IOException, ServiceException {
 		dialectConversionService.replaceSynonymsMap(file);
 	}
