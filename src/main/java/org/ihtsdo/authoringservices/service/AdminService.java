@@ -50,6 +50,7 @@ public class AdminService {
         logger.info("Deleting tasks [{}] on project {}", taskKeys, project.getKey());
         taskServiceFactory.getInstance(useNew).deleteTasks(taskKeys);
         for (String taskKey : taskKeys) {
+            logger.info("Task {} deleted from project {}; firing branch labelled DELETE event", taskKey, project.getKey());
             branchService.fireBranchLabelledDeleteEvent(project.getBranchPath() + SLASH + taskKey);
         }
     }

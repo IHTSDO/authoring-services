@@ -163,8 +163,10 @@ public class BranchService {
     }
 
     public void fireBranchLabelledDeleteEvent(String branchPath) {
+        logger.info("Firing labelled DELETE event for branch {}", branchPath);
         try {
             snowstormRestClientFactory.getClient().fireBranchLabelledEvent(branchPath, "DELETE");
+            logger.info("Labelled DELETE event fired successfully for branch {}", branchPath);
         } catch (RestClientException e) {
             logger.warn("Failed to fire labelled DELETE event for branch {}", branchPath, e);
         }

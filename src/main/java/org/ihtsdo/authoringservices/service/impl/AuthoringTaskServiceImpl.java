@@ -257,6 +257,7 @@ import java.util.stream.StreamSupport;
             // Clear branch cache for the deleted task and notify labelled projects
             if (TaskStatus.DELETED.equals(newStatus)) {
                 cacheService.clearBranchCache(task.getBranchPath());
+                logger.info("Task {} transitioned to DELETED; firing branch labelled DELETE event for branch {}", taskKey, task.getBranchPath());
                 branchService.fireBranchLabelledDeleteEvent(task.getBranchPath());
             }
         }
