@@ -162,6 +162,14 @@ public class BranchService {
         }
     }
 
+    public void fireBranchLabelledDeleteEvent(String branchPath) {
+        try {
+            snowstormRestClientFactory.getClient().fireBranchLabelledEvent(branchPath, "DELETE");
+        } catch (RestClientException e) {
+            logger.warn("Failed to fire labelled DELETE event for branch {}", branchPath, e);
+        }
+    }
+
     public void setTranslationLabel(String branchPath, boolean translationProject) throws ServiceException {
         try {
             Branch branch = snowstormRestClientFactory.getClient().getBranch(branchPath);

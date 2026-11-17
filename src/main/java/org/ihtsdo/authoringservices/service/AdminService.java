@@ -33,7 +33,7 @@ public class AdminService {
 
     @Autowired
     public AdminService(BranchService branchService, BranchServiceCache branchServiceCache, ProjectServiceFactory projectServiceFactory, TaskServiceFactory taskServiceFactory) {
-        this.branchService =branchService;
+        this.branchService = branchService;
         this.branchServiceCache = branchServiceCache;
         this.projectServiceFactory = projectServiceFactory;
         this.taskServiceFactory = taskServiceFactory;
@@ -49,6 +49,9 @@ public class AdminService {
     public void deleteTasks(AuthoringProject project, Set<String> taskKeys, Boolean useNew) throws BusinessServiceException {
         logger.info("Deleting tasks [{}] on project {}", taskKeys, project.getKey());
         taskServiceFactory.getInstance(useNew).deleteTasks(taskKeys);
+        for (String taskKey : taskKeys) {
+            branchService.fireBranchLabelledDeleteEvent(project.getBranchPath() + SLASH + taskKey);
+        }
     }
 
     @PreAuthorize("hasPermission('ADMIN', 'global') || hasPermission('ADMIN', #project.codeSystem.branchPath)")

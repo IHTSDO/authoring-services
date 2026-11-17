@@ -254,9 +254,10 @@ import java.util.stream.StreamSupport;
                 emailService.sendTaskReviewCompletedNotification(projectKey, task.getKey(), task.getName(), Collections.singleton(recipient));
             }
 
-            // Clear branch cache for the deleted task
+            // Clear branch cache for the deleted task and notify labelled projects
             if (TaskStatus.DELETED.equals(newStatus)) {
                 cacheService.clearBranchCache(task.getBranchPath());
+                branchService.fireBranchLabelledDeleteEvent(task.getBranchPath());
             }
         }
 
